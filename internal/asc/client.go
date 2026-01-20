@@ -51,21 +51,25 @@ type Response[T any] struct {
 
 // FeedbackAttributes describes beta feedback screenshot submissions.
 type FeedbackAttributes struct {
-	CreatedDate string `json:"createdDate"`
-	Comment     string `json:"comment"`
-	Email       string `json:"email"`
-	DeviceModel string `json:"deviceModel,omitempty"`
-	OSVersion   string `json:"osVersion,omitempty"`
+	CreatedDate    string `json:"createdDate"`
+	Comment        string `json:"comment"`
+	Email          string `json:"email"`
+	DeviceModel    string `json:"deviceModel,omitempty"`
+	OSVersion      string `json:"osVersion,omitempty"`
+	AppPlatform    string `json:"appPlatform,omitempty"`
+	DevicePlatform string `json:"devicePlatform,omitempty"`
 }
 
 // CrashAttributes describes beta feedback crash submissions.
 type CrashAttributes struct {
-	CreatedDate string `json:"createdDate"`
-	Comment     string `json:"comment"`
-	Email       string `json:"email"`
-	DeviceModel string `json:"deviceModel,omitempty"`
-	OSVersion   string `json:"osVersion,omitempty"`
-	CrashLog    string `json:"crashLog,omitempty"`
+	CreatedDate    string `json:"createdDate"`
+	Comment        string `json:"comment"`
+	Email          string `json:"email"`
+	DeviceModel    string `json:"deviceModel,omitempty"`
+	OSVersion      string `json:"osVersion,omitempty"`
+	AppPlatform    string `json:"appPlatform,omitempty"`
+	DevicePlatform string `json:"devicePlatform,omitempty"`
+	CrashLog       string `json:"crashLog,omitempty"`
 }
 
 // ReviewAttributes describes App Store customer reviews.
@@ -87,6 +91,12 @@ type CrashesResponse = Response[CrashAttributes]
 // ReviewsResponse is the response from customer reviews endpoint.
 type ReviewsResponse = Response[ReviewAttributes]
 
+// AppsResponse is the response from apps endpoint.
+type AppsResponse = Response[AppAttributes]
+
+// BuildsResponse is the response from builds endpoint.
+type BuildsResponse = Response[BuildAttributes]
+
 type listQuery struct {
 	limit   int
 	nextURL string
@@ -94,20 +104,61 @@ type listQuery struct {
 
 type feedbackQuery struct {
 	listQuery
-	deviceModels []string
-	osVersions   []string
+	deviceModels              []string
+	osVersions                []string
+	appPlatforms              []string
+	devicePlatforms           []string
+	buildIDs                  []string
+	buildPreReleaseVersionIDs []string
+	testerIDs                 []string
+	sort                      string
 }
 
 type crashQuery struct {
 	listQuery
-	deviceModels []string
-	osVersions   []string
+	deviceModels              []string
+	osVersions                []string
+	appPlatforms              []string
+	devicePlatforms           []string
+	buildIDs                  []string
+	buildPreReleaseVersionIDs []string
+	testerIDs                 []string
+	sort                      string
 }
 
 type reviewQuery struct {
 	listQuery
 	rating    int
 	territory string
+	sort      string
+}
+
+type appsQuery struct {
+	listQuery
+}
+
+type buildsQuery struct {
+	listQuery
+	appID string
+}
+
+// AppAttributes describes an app resource.
+type AppAttributes struct {
+	Name             string `json:"name"`
+	BundleID         string `json:"bundleId"`
+	SKU              string `json:"sku"`
+	PrimaryLocale    string `json:"primaryLocale,omitempty"`
+	IAMSupported     bool   `json:"isAmaSupported,omitempty"`
+	AccessRestricted bool   `json:"isAccessRestricted,omitempty"`
+}
+
+// BuildAttributes describes a build resource.
+type BuildAttributes struct {
+	Version         string `json:"version"`
+	BuildNumber     string `json:"buildNumber"`
+	UploadedDate    string `json:"uploadedDate"`
+	ExpirationDate  string `json:"expirationDate,omitempty"`
+	ProcessingState string `json:"processingState,omitempty"`
 }
 
 // FeedbackOption is a functional option for GetFeedback.
@@ -118,6 +169,12 @@ type CrashOption func(*crashQuery)
 
 // ReviewOption is a functional option for GetReviews.
 type ReviewOption func(*reviewQuery)
+
+// AppsOption is a functional option for GetApps.
+type AppsOption func(*appsQuery)
+
+// BuildsOption is a functional option for GetBuilds.
+type BuildsOption func(*buildsQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -130,6 +187,41 @@ func WithFeedbackDeviceModels(models []string) FeedbackOption {
 func WithFeedbackOSVersions(versions []string) FeedbackOption {
 	return func(q *feedbackQuery) {
 		q.osVersions = normalizeList(versions)
+	}
+}
+
+// WithFeedbackAppPlatforms filters feedback by app platform(s).
+func WithFeedbackAppPlatforms(platforms []string) FeedbackOption {
+	return func(q *feedbackQuery) {
+		q.appPlatforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithFeedbackDevicePlatforms filters feedback by device platform(s).
+func WithFeedbackDevicePlatforms(platforms []string) FeedbackOption {
+	return func(q *feedbackQuery) {
+		q.devicePlatforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithFeedbackBuildIDs filters feedback by build ID(s).
+func WithFeedbackBuildIDs(ids []string) FeedbackOption {
+	return func(q *feedbackQuery) {
+		q.buildIDs = normalizeList(ids)
+	}
+}
+
+// WithFeedbackBuildPreReleaseVersionIDs filters feedback by pre-release version ID(s).
+func WithFeedbackBuildPreReleaseVersionIDs(ids []string) FeedbackOption {
+	return func(q *feedbackQuery) {
+		q.buildPreReleaseVersionIDs = normalizeList(ids)
+	}
+}
+
+// WithFeedbackTesterIDs filters feedback by tester ID(s).
+func WithFeedbackTesterIDs(ids []string) FeedbackOption {
+	return func(q *feedbackQuery) {
+		q.testerIDs = normalizeList(ids)
 	}
 }
 
@@ -151,6 +243,15 @@ func WithFeedbackNextURL(next string) FeedbackOption {
 	}
 }
 
+// WithFeedbackSort sets the sort order for feedback.
+func WithFeedbackSort(sort string) FeedbackOption {
+	return func(q *feedbackQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
 // WithCrashDeviceModels filters crashes by device model(s).
 func WithCrashDeviceModels(models []string) CrashOption {
 	return func(q *crashQuery) {
@@ -162,6 +263,41 @@ func WithCrashDeviceModels(models []string) CrashOption {
 func WithCrashOSVersions(versions []string) CrashOption {
 	return func(q *crashQuery) {
 		q.osVersions = normalizeList(versions)
+	}
+}
+
+// WithCrashAppPlatforms filters crashes by app platform(s).
+func WithCrashAppPlatforms(platforms []string) CrashOption {
+	return func(q *crashQuery) {
+		q.appPlatforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithCrashDevicePlatforms filters crashes by device platform(s).
+func WithCrashDevicePlatforms(platforms []string) CrashOption {
+	return func(q *crashQuery) {
+		q.devicePlatforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithCrashBuildIDs filters crashes by build ID(s).
+func WithCrashBuildIDs(ids []string) CrashOption {
+	return func(q *crashQuery) {
+		q.buildIDs = normalizeList(ids)
+	}
+}
+
+// WithCrashBuildPreReleaseVersionIDs filters crashes by pre-release version ID(s).
+func WithCrashBuildPreReleaseVersionIDs(ids []string) CrashOption {
+	return func(q *crashQuery) {
+		q.buildPreReleaseVersionIDs = normalizeList(ids)
+	}
+}
+
+// WithCrashTesterIDs filters crashes by tester ID(s).
+func WithCrashTesterIDs(ids []string) CrashOption {
+	return func(q *crashQuery) {
+		q.testerIDs = normalizeList(ids)
 	}
 }
 
@@ -179,6 +315,15 @@ func WithCrashNextURL(next string) CrashOption {
 	return func(q *crashQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithCrashSort sets the sort order for crashes.
+func WithCrashSort(sort string) CrashOption {
+	return func(q *crashQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
 		}
 	}
 }
@@ -201,6 +346,15 @@ func WithTerritory(territory string) ReviewOption {
 	}
 }
 
+// WithReviewSort sets the sort order for reviews.
+func WithReviewSort(sort string) ReviewOption {
+	return func(r *reviewQuery) {
+		if strings.TrimSpace(sort) != "" {
+			r.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
 // WithLimit sets the max number of reviews to return.
 func WithLimit(limit int) ReviewOption {
 	return func(r *reviewQuery) {
@@ -215,6 +369,49 @@ func WithNextURL(next string) ReviewOption {
 	return func(r *reviewQuery) {
 		if strings.TrimSpace(next) != "" {
 			r.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppsLimit sets the max number of apps to return.
+func WithAppsLimit(limit int) AppsOption {
+	return func(q *appsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppsNextURL uses a next page URL directly.
+func WithAppsNextURL(next string) AppsOption {
+	return func(q *appsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBuildsLimit sets the max number of builds to return.
+func WithBuildsLimit(limit int) BuildsOption {
+	return func(q *buildsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBuildsApp filters builds by app ID.
+func WithBuildsApp(appID string) BuildsOption {
+	return func(q *buildsQuery) {
+		q.appID = strings.TrimSpace(appID)
+	}
+}
+
+// WithBuildsNextURL uses a next page URL directly.
+func WithBuildsNextURL(next string) BuildsOption {
+	return func(q *buildsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -323,6 +520,9 @@ func buildReviewQuery(opts []ReviewOption) string {
 	if query.rating >= 1 && query.rating <= 5 {
 		values.Set("filter[rating]", fmt.Sprintf("%d", query.rating))
 	}
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
 	addLimit(values, query.limit)
 
 	return values.Encode()
@@ -332,6 +532,14 @@ func buildFeedbackQuery(query *feedbackQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[deviceModel]", query.deviceModels)
 	addCSV(values, "filter[osVersion]", query.osVersions)
+	addCSV(values, "filter[appPlatform]", query.appPlatforms)
+	addCSV(values, "filter[devicePlatform]", query.devicePlatforms)
+	addCSV(values, "filter[build]", query.buildIDs)
+	addCSV(values, "filter[build.preReleaseVersion]", query.buildPreReleaseVersionIDs)
+	addCSV(values, "filter[tester]", query.testerIDs)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -340,6 +548,14 @@ func buildCrashQuery(query *crashQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[deviceModel]", query.deviceModels)
 	addCSV(values, "filter[osVersion]", query.osVersions)
+	addCSV(values, "filter[appPlatform]", query.appPlatforms)
+	addCSV(values, "filter[devicePlatform]", query.devicePlatforms)
+	addCSV(values, "filter[build]", query.buildIDs)
+	addCSV(values, "filter[build.preReleaseVersion]", query.buildPreReleaseVersionIDs)
+	addCSV(values, "filter[tester]", query.testerIDs)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -355,6 +571,21 @@ func normalizeList(values []string) []string {
 			continue
 		}
 		normalized = append(normalized, value)
+	}
+	return normalized
+}
+
+func normalizeUpperList(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		normalized = append(normalized, strings.ToUpper(value))
 	}
 	return normalized
 }
@@ -454,6 +685,66 @@ func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOpt
 	return &response, nil
 }
 
+// GetApps retrieves the list of apps
+func (c *Client) GetApps(ctx context.Context, opts ...AppsOption) (*AppsResponse, error) {
+	query := &appsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := "/v1/apps"
+	if query.nextURL != "" {
+		path = query.nextURL
+	} else if query.limit > 0 {
+		path += "?limit=" + strconv.Itoa(query.limit)
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBuilds retrieves the list of builds for an app
+func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOption) (*BuildsResponse, error) {
+	query := &buildsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/builds", appID)
+	if query.nextURL != "" {
+		path = query.nextURL
+	} else {
+		values := url.Values{}
+		if query.limit > 0 {
+			values.Set("limit", strconv.Itoa(query.limit))
+		}
+		if queryString := values.Encode(); queryString != "" {
+			path += "?" + queryString
+		}
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // Links represents pagination links
 type Links struct {
 	Self string `json:"self,omitempty"`
@@ -497,6 +788,10 @@ func PrintTable(data interface{}) error {
 		return printCrashesTable(v)
 	case *ReviewsResponse:
 		return printReviewsTable(v)
+	case *AppsResponse:
+		return printAppsTable(v)
+	case *BuildsResponse:
+		return printBuildsTable(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -522,11 +817,7 @@ func ParseError(body []byte) error {
 		} `json:"errors"`
 	}
 
-	if err := json.Unmarshal(body, &errResp); err != nil {
-		return fmt.Errorf("unknown error: %s", string(body))
-	}
-
-	if len(errResp.Errors) > 0 {
+	if err := json.Unmarshal(body, &errResp); err == nil && len(errResp.Errors) > 0 {
 		return fmt.Errorf("%s: %s", errResp.Errors[0].Title, errResp.Errors[0].Detail)
 	}
 

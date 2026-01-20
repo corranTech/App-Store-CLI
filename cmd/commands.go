@@ -24,6 +24,12 @@ func FeedbackCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
 	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
+	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	devicePlatform := fs.String("device-platform", "", "Filter by device platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	buildID := fs.String("build", "", "Filter by build ID(s), comma-separated")
+	buildPreRelease := fs.String("build-pre-release-version", "", "Filter by pre-release version ID(s), comma-separated")
+	tester := fs.String("tester", "", "Filter by tester ID(s), comma-separated")
+	sort := fs.String("sort", "", "Sort by createdDate or -createdDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
@@ -39,6 +45,7 @@ Examples:
   asc feedback --app "123456789"
   asc feedback --app "123456789" --json
   asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
+  asc feedback --app "123456789" --sort -createdDate --limit 5 --json
   asc feedback --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
@@ -50,6 +57,9 @@ Examples:
 				return fmt.Errorf("--limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
 				return err
 			}
 
@@ -70,8 +80,16 @@ Examples:
 			opts := []asc.FeedbackOption{
 				asc.WithFeedbackDeviceModels(splitCSV(*deviceModel)),
 				asc.WithFeedbackOSVersions(splitCSV(*osVersion)),
+				asc.WithFeedbackAppPlatforms(splitCSVUpper(*appPlatform)),
+				asc.WithFeedbackDevicePlatforms(splitCSVUpper(*devicePlatform)),
+				asc.WithFeedbackBuildIDs(splitCSV(*buildID)),
+				asc.WithFeedbackBuildPreReleaseVersionIDs(splitCSV(*buildPreRelease)),
+				asc.WithFeedbackTesterIDs(splitCSV(*tester)),
 				asc.WithFeedbackLimit(*limit),
 				asc.WithFeedbackNextURL(*next),
+			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithFeedbackSort(*sort))
 			}
 
 			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
@@ -99,6 +117,12 @@ func CrashesCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
 	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
+	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	devicePlatform := fs.String("device-platform", "", "Filter by device platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	buildID := fs.String("build", "", "Filter by build ID(s), comma-separated")
+	buildPreRelease := fs.String("build-pre-release-version", "", "Filter by pre-release version ID(s), comma-separated")
+	tester := fs.String("tester", "", "Filter by tester ID(s), comma-separated")
+	sort := fs.String("sort", "", "Sort by createdDate or -createdDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
@@ -116,6 +140,7 @@ Examples:
   asc crashes --app "123456789" --json
   asc crashes --app "123456789" --json > crashes.json
   asc crashes --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
+  asc crashes --app "123456789" --sort -createdDate --limit 5 --json
   asc crashes --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
@@ -127,6 +152,9 @@ Examples:
 				return fmt.Errorf("--limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
 				return err
 			}
 
@@ -147,8 +175,16 @@ Examples:
 			opts := []asc.CrashOption{
 				asc.WithCrashDeviceModels(splitCSV(*deviceModel)),
 				asc.WithCrashOSVersions(splitCSV(*osVersion)),
+				asc.WithCrashAppPlatforms(splitCSVUpper(*appPlatform)),
+				asc.WithCrashDevicePlatforms(splitCSVUpper(*devicePlatform)),
+				asc.WithCrashBuildIDs(splitCSV(*buildID)),
+				asc.WithCrashBuildPreReleaseVersionIDs(splitCSV(*buildPreRelease)),
+				asc.WithCrashTesterIDs(splitCSV(*tester)),
 				asc.WithCrashLimit(*limit),
 				asc.WithCrashNextURL(*next),
+			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithCrashSort(*sort))
 			}
 
 			crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
@@ -176,6 +212,7 @@ func ReviewsCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	stars := fs.Int("stars", 0, "Filter by star rating (1-5)")
 	territory := fs.String("territory", "", "Filter by territory (e.g., US, GBR)")
+	sort := fs.String("sort", "", "Sort by rating, -rating, createdDate, or -createdDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
@@ -192,6 +229,7 @@ Examples:
   asc reviews --app "123456789"
   asc reviews --app "123456789" --json
   asc reviews --app "123456789" --stars 1 --territory US --json
+  asc reviews --app "123456789" --sort -createdDate --limit 5 --json
   asc reviews --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
@@ -203,6 +241,9 @@ Examples:
 				return fmt.Errorf("--limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+			if err := validateSort(*sort, "rating", "-rating", "createdDate", "-createdDate"); err != nil {
 				return err
 			}
 
@@ -235,6 +276,9 @@ Examples:
 			}
 			if strings.TrimSpace(*next) != "" {
 				opts = append(opts, asc.WithNextURL(*next))
+			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithReviewSort(*sort))
 			}
 
 			reviews, err := client.GetReviews(requestCtx, resolvedAppID, opts...)
@@ -367,6 +411,18 @@ func splitCSV(value string) []string {
 	return cleaned
 }
 
+func splitCSVUpper(value string) []string {
+	values := splitCSV(value)
+	if len(values) == 0 {
+		return nil
+	}
+	upper := make([]string, 0, len(values))
+	for _, item := range values {
+		upper = append(upper, strings.ToUpper(item))
+	}
+	return upper
+}
+
 func validateNextURL(next string) error {
 	next = strings.TrimSpace(next)
 	if next == "" {
@@ -380,4 +436,17 @@ func validateNextURL(next string) error {
 		return fmt.Errorf("--next must be an App Store Connect URL")
 	}
 	return nil
+}
+
+func validateSort(value string, allowed ...string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	for _, option := range allowed {
+		if value == option {
+			return nil
+		}
+	}
+	return fmt.Errorf("--sort must be one of: %s", strings.Join(allowed, ", "))
 }

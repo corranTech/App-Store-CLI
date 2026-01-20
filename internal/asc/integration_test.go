@@ -106,6 +106,76 @@ func TestIntegrationEndpoints(t *testing.T) {
 				}
 			}
 		}
+
+		if first.AppPlatform != "" {
+			filteredCtx, filteredCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer filteredCancel()
+			filtered, err := client.GetFeedback(
+				filteredCtx,
+				appID,
+				WithFeedbackAppPlatforms([]string{first.AppPlatform}),
+				WithFeedbackLimit(5),
+			)
+			if err != nil {
+				t.Fatalf("failed to fetch filtered feedback by app platform: %v", err)
+			}
+			assertLimit(t, len(filtered.Data), 5)
+			if len(filtered.Data) == 0 {
+				t.Skip("no feedback results for app platform filter")
+			}
+			for _, item := range filtered.Data {
+				if item.Attributes.AppPlatform != first.AppPlatform {
+					t.Fatalf("expected app platform %q, got %q", first.AppPlatform, item.Attributes.AppPlatform)
+				}
+			}
+		}
+
+		if first.DevicePlatform != "" {
+			filteredCtx, filteredCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer filteredCancel()
+			filtered, err := client.GetFeedback(
+				filteredCtx,
+				appID,
+				WithFeedbackDevicePlatforms([]string{first.DevicePlatform}),
+				WithFeedbackLimit(5),
+			)
+			if err != nil {
+				t.Fatalf("failed to fetch filtered feedback by device platform: %v", err)
+			}
+			assertLimit(t, len(filtered.Data), 5)
+			if len(filtered.Data) == 0 {
+				t.Skip("no feedback results for device platform filter")
+			}
+			for _, item := range filtered.Data {
+				if item.Attributes.DevicePlatform != first.DevicePlatform {
+					t.Fatalf("expected device platform %q, got %q", first.DevicePlatform, item.Attributes.DevicePlatform)
+				}
+			}
+		}
+
+		sortedCtx, sortedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer sortedCancel()
+		sorted, err := client.GetFeedback(
+			sortedCtx,
+			appID,
+			WithFeedbackSort("-createdDate"),
+			WithFeedbackLimit(5),
+		)
+		if err != nil {
+			t.Fatalf("failed to fetch sorted feedback: %v", err)
+		}
+		if sorted == nil {
+			t.Fatal("expected sorted feedback response")
+		}
+		assertLimit(t, len(sorted.Data), 5)
+		if len(sorted.Data) < 2 {
+			t.Skip("not enough feedback data to validate sort")
+		}
+		feedbackDates := make([]string, 0, len(sorted.Data))
+		for _, item := range sorted.Data {
+			feedbackDates = append(feedbackDates, item.Attributes.CreatedDate)
+		}
+		assertSortedByCreatedDateDesc(t, feedbackDates)
 	})
 
 	t.Run("crashes", func(t *testing.T) {
@@ -189,6 +259,76 @@ func TestIntegrationEndpoints(t *testing.T) {
 				}
 			}
 		}
+
+		if first.AppPlatform != "" {
+			filteredCtx, filteredCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer filteredCancel()
+			filtered, err := client.GetCrashes(
+				filteredCtx,
+				appID,
+				WithCrashAppPlatforms([]string{first.AppPlatform}),
+				WithCrashLimit(5),
+			)
+			if err != nil {
+				t.Fatalf("failed to fetch filtered crashes by app platform: %v", err)
+			}
+			assertLimit(t, len(filtered.Data), 5)
+			if len(filtered.Data) == 0 {
+				t.Skip("no crash results for app platform filter")
+			}
+			for _, item := range filtered.Data {
+				if item.Attributes.AppPlatform != first.AppPlatform {
+					t.Fatalf("expected app platform %q, got %q", first.AppPlatform, item.Attributes.AppPlatform)
+				}
+			}
+		}
+
+		if first.DevicePlatform != "" {
+			filteredCtx, filteredCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer filteredCancel()
+			filtered, err := client.GetCrashes(
+				filteredCtx,
+				appID,
+				WithCrashDevicePlatforms([]string{first.DevicePlatform}),
+				WithCrashLimit(5),
+			)
+			if err != nil {
+				t.Fatalf("failed to fetch filtered crashes by device platform: %v", err)
+			}
+			assertLimit(t, len(filtered.Data), 5)
+			if len(filtered.Data) == 0 {
+				t.Skip("no crash results for device platform filter")
+			}
+			for _, item := range filtered.Data {
+				if item.Attributes.DevicePlatform != first.DevicePlatform {
+					t.Fatalf("expected device platform %q, got %q", first.DevicePlatform, item.Attributes.DevicePlatform)
+				}
+			}
+		}
+
+		sortedCtx, sortedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer sortedCancel()
+		sorted, err := client.GetCrashes(
+			sortedCtx,
+			appID,
+			WithCrashSort("-createdDate"),
+			WithCrashLimit(5),
+		)
+		if err != nil {
+			t.Fatalf("failed to fetch sorted crashes: %v", err)
+		}
+		if sorted == nil {
+			t.Fatal("expected sorted crashes response")
+		}
+		assertLimit(t, len(sorted.Data), 5)
+		if len(sorted.Data) < 2 {
+			t.Skip("not enough crash data to validate sort")
+		}
+		crashDates := make([]string, 0, len(sorted.Data))
+		for _, item := range sorted.Data {
+			crashDates = append(crashDates, item.Attributes.CreatedDate)
+		}
+		assertSortedByCreatedDateDesc(t, crashDates)
 	})
 
 	t.Run("reviews", func(t *testing.T) {
@@ -272,6 +412,30 @@ func TestIntegrationEndpoints(t *testing.T) {
 				}
 			}
 		}
+
+		sortedCtx, sortedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer sortedCancel()
+		sorted, err := client.GetReviews(
+			sortedCtx,
+			appID,
+			WithReviewSort("-createdDate"),
+			WithLimit(5),
+		)
+		if err != nil {
+			t.Fatalf("failed to fetch sorted reviews: %v", err)
+		}
+		if sorted == nil {
+			t.Fatal("expected sorted reviews response")
+		}
+		assertLimit(t, len(sorted.Data), 5)
+		if len(sorted.Data) < 2 {
+			t.Skip("not enough review data to validate sort")
+		}
+		reviewDates := make([]string, 0, len(sorted.Data))
+		for _, item := range sorted.Data {
+			reviewDates = append(reviewDates, item.Attributes.CreatedDate)
+		}
+		assertSortedByCreatedDateDesc(t, reviewDates)
 	})
 }
 
@@ -300,4 +464,35 @@ func assertASCLink(t *testing.T, link string) {
 	if parsed.Scheme != "" && parsed.Scheme != "https" {
 		t.Fatalf("expected https scheme, got %q", parsed.Scheme)
 	}
+}
+
+func assertSortedByCreatedDateDesc(t *testing.T, values []string) {
+	t.Helper()
+	if len(values) < 2 {
+		return
+	}
+	parsed := make([]time.Time, 0, len(values))
+	for _, value := range values {
+		parsed = append(parsed, parseASCDate(t, value))
+	}
+	for i := 0; i < len(parsed)-1; i++ {
+		if parsed[i].Before(parsed[i+1]) {
+			t.Fatalf("expected createdDate in descending order, got %s before %s", parsed[i], parsed[i+1])
+		}
+	}
+}
+
+func parseASCDate(t *testing.T, value string) time.Time {
+	t.Helper()
+	if value == "" {
+		t.Fatal("expected createdDate to be set")
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed
+	}
+	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return parsed
+	}
+	t.Fatalf("failed to parse createdDate %q", value)
+	return time.Time{}
 }

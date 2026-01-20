@@ -419,7 +419,7 @@ Next: Add auto-pagination, more filters (build/tester/platform), and mockable in
 
 2. **Filtering**
    - Reviews support rating/territory filters
-   - Feedback/crashes support device model + OS version only (more filters pending)
+   - Feedback/crashes support device model, OS version, platform, build, and tester filters
 
 3. **Keychain**
    - Keychain supported; local config fallback still exists
