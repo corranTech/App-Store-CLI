@@ -24,8 +24,17 @@ jobs:
 
       - name: Build for macOS
         run: |
-          GOOS=darwin GOARCH=amd64 go build -o release/asc-darwin-amd64 .
-          GOOS=darwin GOARCH=arm64 go build -o release/asc-darwin-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=${GITHUB_REF_NAME}" -o release/asc-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=${GITHUB_REF_NAME}" -o release/asc-darwin-arm64 .
+
+      - name: Code sign macOS binaries
+        if: env.APPLE_DEVELOPER_ID != ''
+        run: |
+          for binary in release/asc-darwin-*; do
+            codesign --force --sign "${{ secrets.APPLE_DEVELOPER_ID }}" --timestamp --options=runtime "$binary"
+          done
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
 
       - name: Build for Linux
         run: |
