@@ -162,6 +162,10 @@ make install    # Install locally
 3. Add helper functions for output
 4. Add command in `cmd/` to use it
 
+## Releases
+
+- Tag releases with plain semver like `0.1.0` (no `v` prefix).
+
 ## Git Workflow
 
 - Branch from `main` and keep one logical change per branch
