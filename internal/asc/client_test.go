@@ -186,6 +186,7 @@ func TestBuildAppsQuery(t *testing.T) {
 	opts := []AppsOption{
 		WithAppsLimit(10),
 		WithAppsNextURL("https://api.appstoreconnect.apple.com/v1/apps?cursor=abc123"),
+		WithAppsSort("-name"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -197,13 +198,17 @@ func TestBuildAppsQuery(t *testing.T) {
 	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc123" {
 		t.Fatalf("expected nextURL, got %q", query.nextURL)
 	}
+	if query.sort != "-name" {
+		t.Fatalf("expected sort=-name, got %q", query.sort)
+	}
 }
 
 func TestBuildBuildsQuery(t *testing.T) {
 	query := &buildsQuery{}
 	opts := []BuildsOption{
 		WithBuildsLimit(25),
-		WithBuildsApp("1234567890"),
+		WithBuildsNextURL("https://api.appstoreconnect.apple.com/v1/apps/123/builds?cursor=abc"),
+		WithBuildsSort("-uploadedDate"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -212,7 +217,10 @@ func TestBuildBuildsQuery(t *testing.T) {
 	if query.limit != 25 {
 		t.Fatalf("expected limit=25, got %d", query.limit)
 	}
-	if query.appID != "1234567890" {
-		t.Fatalf("expected appID=1234567890, got %q", query.appID)
+	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/apps/123/builds?cursor=abc" {
+		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
+	}
+	if query.sort != "-uploadedDate" {
+		t.Fatalf("expected sort=-uploadedDate, got %q", query.sort)
 	}
 }

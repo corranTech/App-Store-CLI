@@ -49,18 +49,14 @@ Examples:
   asc feedback --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("--limit must be between 1 and 200")
+				return fmt.Errorf("feedback: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return err
+				return fmt.Errorf("feedback: %w", err)
 			}
 			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
-				return err
+				return fmt.Errorf("feedback: %w", err)
 			}
 
 			resolvedAppID := resolveAppID(*appID)
@@ -71,7 +67,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("failed to create client: %w", err)
+				return fmt.Errorf("feedback: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -94,7 +90,7 @@ Examples:
 
 			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
 			if err != nil {
-				return fmt.Errorf("failed to fetch feedback: %w", err)
+				return fmt.Errorf("feedback: failed to fetch: %w", err)
 			}
 
 			format := *output
@@ -144,18 +140,14 @@ Examples:
   asc crashes --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("--limit must be between 1 and 200")
+				return fmt.Errorf("crashes: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return err
+				return fmt.Errorf("crashes: %w", err)
 			}
 			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
-				return err
+				return fmt.Errorf("crashes: %w", err)
 			}
 
 			resolvedAppID := resolveAppID(*appID)
@@ -166,7 +158,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("failed to create client: %w", err)
+				return fmt.Errorf("crashes: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -189,7 +181,7 @@ Examples:
 
 			crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
 			if err != nil {
-				return fmt.Errorf("failed to fetch crashes: %w", err)
+				return fmt.Errorf("crashes: failed to fetch: %w", err)
 			}
 
 			format := *output
@@ -233,18 +225,14 @@ Examples:
   asc reviews --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("--limit must be between 1 and 200")
+				return fmt.Errorf("reviews: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return err
+				return fmt.Errorf("reviews: %w", err)
 			}
 			if err := validateSort(*sort, "rating", "-rating", "createdDate", "-createdDate"); err != nil {
-				return err
+				return fmt.Errorf("reviews: %w", err)
 			}
 
 			resolvedAppID := resolveAppID(*appID)
@@ -255,7 +243,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("failed to create client: %w", err)
+				return fmt.Errorf("reviews: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -264,7 +252,7 @@ Examples:
 			opts := []asc.ReviewOption{}
 			if *stars != 0 {
 				if *stars < 1 || *stars > 5 {
-					return fmt.Errorf("--stars must be between 1 and 5")
+					return fmt.Errorf("reviews: --stars must be between 1 and 5")
 				}
 				opts = append(opts, asc.WithRating(*stars))
 			}
@@ -283,7 +271,7 @@ Examples:
 
 			reviews, err := client.GetReviews(requestCtx, resolvedAppID, opts...)
 			if err != nil {
-				return fmt.Errorf("failed to fetch reviews: %w", err)
+				return fmt.Errorf("reviews: failed to fetch: %w", err)
 			}
 
 			format := *output
@@ -303,6 +291,7 @@ func AppsCommand() *ffcli.Command {
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	sort := fs.String("sort", "", "Sort by name or -name, bundleId or -bundleId")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
@@ -319,24 +308,24 @@ Examples:
   asc apps
   asc apps --json
   asc apps --limit 10 --json
+  asc apps --sort name --json
   asc apps --output table
   asc apps --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("--limit must be between 1 and 200")
+				return fmt.Errorf("apps: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return err
+				return fmt.Errorf("apps: %w", err)
+			}
+			if err := validateSort(*sort, "name", "-name", "bundleId", "-bundleId"); err != nil {
+				return fmt.Errorf("apps: %w", err)
 			}
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("failed to create client: %w", err)
+				return fmt.Errorf("apps: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -346,10 +335,13 @@ Examples:
 				asc.WithAppsLimit(*limit),
 				asc.WithAppsNextURL(*next),
 			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithAppsSort(*sort))
+			}
 
 			apps, err := client.GetApps(requestCtx, opts...)
 			if err != nil {
-				return fmt.Errorf("failed to fetch apps: %w", err)
+				return fmt.Errorf("apps: failed to fetch: %w", err)
 			}
 
 			format := *output
@@ -370,6 +362,7 @@ func BuildsCommand() *ffcli.Command {
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
@@ -386,19 +379,19 @@ Examples:
   asc builds --app "123456789"
   asc builds --app "123456789" --json
   asc builds --app "123456789" --limit 10 --json
+  asc builds --app "123456789" --sort -uploadedDate --json
   asc builds --app "123456789" --output table
   asc builds --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("--limit must be between 1 and 200")
+				return fmt.Errorf("builds: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return err
+				return fmt.Errorf("builds: %w", err)
+			}
+			if err := validateSort(*sort, "uploadedDate", "-uploadedDate"); err != nil {
+				return fmt.Errorf("builds: %w", err)
 			}
 
 			resolvedAppID := resolveAppID(*appID)
@@ -409,7 +402,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("failed to create client: %w", err)
+				return fmt.Errorf("builds: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -419,10 +412,13 @@ Examples:
 				asc.WithBuildsLimit(*limit),
 				asc.WithBuildsNextURL(*next),
 			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithBuildsSort(*sort))
+			}
 
 			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
 			if err != nil {
-				return fmt.Errorf("failed to fetch builds: %w", err)
+				return fmt.Errorf("builds: failed to fetch: %w", err)
 			}
 
 			format := *output
@@ -431,6 +427,19 @@ Examples:
 			}
 
 			return printOutput(builds, format, *pretty)
+		},
+	}
+}
+
+// VersionCommand returns a version subcommand
+func VersionCommand(version string) *ffcli.Command {
+	return &ffcli.Command{
+		Name:       "version",
+		ShortUsage: "asc version",
+		ShortHelp:  "Print version information and exit.",
+		Exec: func(ctx context.Context, args []string) error {
+			fmt.Println(version)
+			return nil
 		},
 	}
 }
@@ -450,6 +459,7 @@ func RootCommand(version string) *ffcli.Command {
 			ReviewsCommand(),
 			AppsCommand(),
 			BuildsCommand(),
+			VersionCommand(version),
 		},
 	}
 
@@ -457,7 +467,7 @@ func RootCommand(version string) *ffcli.Command {
 
 	root.Exec = func(ctx context.Context, args []string) error {
 		if *versionFlag {
-			fmt.Fprintln(root.FlagSet.Output(), version)
+			fmt.Fprintln(os.Stdout, version)
 			return nil
 		}
 		if len(args) > 0 {

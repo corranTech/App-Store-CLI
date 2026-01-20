@@ -21,22 +21,6 @@ This file provides guidance to Claude Code when working with this project.
 - **Testing**: Go's built-in testing
 - **Distribution**: Homebrew
 
-## Project Structure
-
-```
-asc/
-├── main.go                    # Entry point
-├── cmd/
-│   ├── commands.go           # Core commands (feedback, crashes, reviews)
-│   └── auth.go               # Authentication commands
-├── internal/
-│   ├── asc/                  # ASC API client
-│   ├── auth/                 # Credential handling (config)
-│   └── config/               # Configuration management
-├── Makefile                  # Build commands
-└── .github/workflows/        # CI/CD
-```
-
 ## Key Design Decisions
 
 ### ffcli over Cobra
@@ -85,6 +69,15 @@ asc reviews --app "123456789" --json
 # App Store - Table for humans
 asc reviews --app "123456789" --stars 1 --output table
 
+# Apps & Builds - JSON for AI agents
+asc apps --json
+asc apps --sort name --json
+asc builds --app "123456789" --json
+asc builds --app "123456789" --sort -uploadedDate --json
+
+# Utilities
+asc version
+
 # Authentication
 asc auth login --name "MyKey" --key-id "ABC" --issuer-id "DEF" --private-key /path/to/key.p8
 asc auth status
@@ -95,8 +88,6 @@ asc auth status
 - `asc localizations upload/download`
 - `asc submit` - Ship builds
 - `asc sandbox` - Create test users
-- `asc apps` - List apps
-- `asc builds` - Manage builds
 
 ## Authentication
 
@@ -134,6 +125,9 @@ make install    # Install locally
 - Use table-driven tests
 - Mock external API calls
 - Test error cases
+- Add CLI-level tests in `cmd/commands_test.go` for command output/parsing
+- Prefer test-driven development (write tests first, then implement)
+- Cover success, validation, and API error paths for each client endpoint
 
 ## Common Tasks
 

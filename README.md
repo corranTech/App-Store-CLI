@@ -51,7 +51,20 @@ Environment variable fallback:
 - `ASC_ISSUER_ID`
 - `ASC_PRIVATE_KEY_PATH`
 
+App ID fallback:
+- `ASC_APP_ID`
+
 ## Commands
+
+### Agent Quickstart
+
+- Prefer `--json` (default) for machine parsing; add `--pretty` when debugging.
+- Use `--limit` + `--next "<links.next>"` for pagination across all list commands.
+- Sort with `--sort` (prefix `-` for descending):
+  - Feedback/Crashes: `createdDate` / `-createdDate`
+  - Reviews: `rating` / `-rating`, `createdDate` / `-createdDate`
+  - Apps: `name` / `-name`, `bundleId` / `-bundleId`
+  - Builds: `uploadedDate` / `-uploadedDate`
 
 ### TestFlight
 
@@ -76,6 +89,9 @@ asc crashes --app "123456789" --limit 25 --json
 
 # Sort crashes by created date (newest first)
 asc crashes --app "123456789" --sort -createdDate --limit 5 --json
+
+# Fetch next page
+asc crashes --next "<links.next>" --json
 ```
 
 ### App Store
@@ -95,6 +111,35 @@ asc reviews --app "123456789" --sort -createdDate --limit 5 --json
 
 # Fetch next page using links.next
 asc reviews --next "<links.next>" --json
+```
+
+### Apps & Builds
+
+```bash
+# List apps (useful for finding app IDs)
+asc apps --json
+
+# Sort apps by name or bundle ID
+asc apps --sort name --json
+asc apps --sort -bundleId --json
+
+# List builds for an app
+asc builds --app "123456789" --json
+
+# Sort builds by upload date (newest first)
+asc builds --app "123456789" --sort -uploadedDate --json
+
+# Fetch next page
+asc apps --next "<links.next>" --json
+asc builds --next "<links.next>" --json
+```
+
+### Utilities
+
+```bash
+# Print version information
+asc version
+asc --version
 ```
 
 ### Output Formats
