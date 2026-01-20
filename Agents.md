@@ -126,6 +126,12 @@ Follow idiomatic Go so the code is predictable to anyone who reads Go:
 - **Dependencies:** standard library first; avoid new deps unless necessary and justified.
 - **Tests:** deterministic, table‑driven when possible; use `t.Helper()`. For JSON, unmarshal and assert fields (not `strings.Contains`). Cover success + validation + API error paths.
 
+## CLI Help Output
+
+- Use `UsageFunc` on ffcli commands for consistent help formatting (bold headers, aligned flags).
+- When returning `flag.ErrHelp`, do **not** call `fs.Usage()` manually, or help output will be duplicated.
+- Help output is written to stderr by default; tests should capture stderr for usage text.
+
 ## Building
 
 ```bash
