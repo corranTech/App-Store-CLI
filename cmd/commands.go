@@ -94,12 +94,14 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 			tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
 			c.FlagSet.VisitAll(func(f *flag.Flag) {
 				def := f.DefValue
-				if def == "" {
-					def = "\"\""
+				if def != "" {
+					fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, f.Usage, def)
+					return
 				}
-				fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, f.Usage, def)
+				fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, f.Usage)
 			})
 			tw.Flush()
+			b.WriteString("\n")
 		}
 	}
 
