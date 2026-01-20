@@ -354,9 +354,181 @@ Examples:
 	}
 }
 
-// Builds command factory
+// BuildsUploadCommand returns a command to upload a build
+func BuildsUploadCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("upload", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
+	ipaPath := fs.String("ipa", "", "Path to .ipa file (required)")
+	version := fs.String("version", "", "CFBundleShortVersionString (e.g., 1.0.0, auto-extracted from IPA if not provided)")
+	buildNumber := fs.String("build-number", "", "CFBundleVersion (e.g., 123, auto-extracted from IPA if not provided)")
+	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "upload",
+		ShortUsage: "asc builds upload [flags]",
+		ShortHelp:  "Prepare a build upload in App Store Connect.",
+		LongHelp: `Prepare a build upload in App Store Connect.
+
+This command creates a build upload record and reserves upload operations
+with presigned URLs. The actual file upload must be done separately.
+
+Examples:
+  asc builds upload --app "123456789" --ipa "path/to/app.ipa"
+  asc builds upload --ipa "app.ipa" --version "1.0.0" --build-number "123"`,
+		FlagSet: fs,
+		Exec: func(ctx context.Context, args []string) error {
+			// Validate required flags
+			resolvedAppID := resolveAppID(*appID)
+			if resolvedAppID == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return flag.ErrHelp
+			}
+			if *ipaPath == "" {
+				fmt.Fprintf(os.Stderr, "Error: --ipa is required\n\n")
+				return flag.ErrHelp
+			}
+
+			// Validate IPA file exists
+			fileInfo, err := os.Stat(*ipaPath)
+			if err != nil {
+				return fmt.Errorf("builds upload: failed to stat IPA: %w", err)
+			}
+			if fileInfo.IsDir() {
+				return fmt.Errorf("builds upload: --ipa must be a file")
+			}
+
+			// Validate platform
+			platformValue := asc.Platform(strings.ToUpper(*platform))
+			switch platformValue {
+			case asc.PlatformIOS, asc.PlatformMacOS, asc.PlatformTVOS, asc.PlatformVisionOS:
+			default:
+				return fmt.Errorf("builds upload: --platform must be IOS, MAC_OS, TV_OS, or VISION_OS")
+			}
+
+			// TODO: Extract version and build number from IPA if not provided
+			if *version == "" {
+				return fmt.Errorf("builds upload: --version is required (auto-extraction not yet implemented)")
+			}
+			if *buildNumber == "" {
+				return fmt.Errorf("builds upload: --build-number is required (auto-extraction not yet implemented)")
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("builds upload: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			// Step 1: Create build upload record
+			uploadReq := asc.BuildUploadCreateRequest{
+				Data: asc.BuildUploadCreateData{
+					Type: asc.ResourceTypeBuildUploads,
+					Attributes: asc.BuildUploadAttributes{
+						CFBundleShortVersionString: *version,
+						CFBundleVersion:            *buildNumber,
+						Platform:                   platformValue,
+					},
+					Relationships: &asc.BuildUploadRelationships{
+						App: &asc.Relationship{
+							Data: asc.ResourceData{Type: asc.ResourceTypeApps, ID: resolvedAppID},
+						},
+					},
+				},
+			}
+
+			uploadResp, err := client.CreateBuildUpload(requestCtx, uploadReq)
+			if err != nil {
+				return fmt.Errorf("builds upload: failed to create upload record: %w", err)
+			}
+
+			// Step 2: Create build upload file reservation
+			fileReq := asc.BuildUploadFileCreateRequest{
+				Data: asc.BuildUploadFileCreateData{
+					Type: asc.ResourceTypeBuildUploadFiles,
+					Attributes: asc.BuildUploadFileAttributes{
+						FileName:  fileInfo.Name(),
+						FileSize:  fileInfo.Size(),
+						UTI:       asc.UTIIPA,
+						AssetType: asc.AssetTypeAsset,
+					},
+					Relationships: &asc.BuildUploadFileRelationships{
+						BuildUpload: &asc.Relationship{
+							Data: asc.ResourceData{Type: asc.ResourceTypeBuildUploads, ID: uploadResp.Data.ID},
+						},
+					},
+				},
+			}
+
+			fileResp, err := client.CreateBuildUploadFile(requestCtx, fileReq)
+			if err != nil {
+				return fmt.Errorf("builds upload: failed to create file reservation: %w", err)
+			}
+
+			// Return upload info including presigned URL operations
+			result := &asc.BuildUploadResult{
+				UploadID:   uploadResp.Data.ID,
+				FileID:     fileResp.Data.ID,
+				FileName:   fileResp.Data.Attributes.FileName,
+				FileSize:   fileResp.Data.Attributes.FileSize,
+				Operations: fileResp.Data.Attributes.UploadOperations,
+			}
+
+			format := *output
+			if *jsonFlag {
+				format = "json"
+			}
+
+			return printOutput(result, format, *pretty)
+		},
+	}
+}
+
+// BuildsCommand returns the builds command with subcommands
 func BuildsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds", flag.ExitOnError)
+
+	// Parent command has no flags - subcommands define their own
+	listCmd := BuildsListCommand()
+
+	return &ffcli.Command{
+		Name:       "builds",
+		ShortUsage: "asc builds <subcommand> [flags]",
+		ShortHelp:  "Manage builds in App Store Connect.",
+		LongHelp: `Manage builds in App Store Connect.
+
+Subcommands:
+  list    List builds for an app
+  info    Show build details
+  expire  Expire a build for TestFlight
+  upload  Prepare a build upload
+
+Examples:
+  asc builds list --app "123456789"
+  asc builds info --build "BUILD_ID"
+  asc builds expire --build "BUILD_ID"
+  asc builds upload --app "123456789" --ipa "app.ipa"`,
+		FlagSet: fs,
+		Subcommands: []*ffcli.Command{
+			listCmd,
+			BuildsInfoCommand(),
+			BuildsExpireCommand(),
+			BuildsUploadCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// BuildsListCommand returns the builds list subcommand
+func BuildsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
@@ -367,8 +539,8 @@ func BuildsCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
 	return &ffcli.Command{
-		Name:       "builds",
-		ShortUsage: "asc builds [flags]",
+		Name:       "list",
+		ShortUsage: "asc builds list [flags]",
 		ShortHelp:  "List builds for an app in App Store Connect.",
 		LongHelp: `List builds for an app in App Store Connect.
 
@@ -376,16 +548,9 @@ This command fetches builds uploaded to App Store Connect,
 including processing status and expiration dates.
 
 Examples:
-  asc builds --app "123456789"
-  asc builds --app "123456789" --json
-  asc builds --app "123456789" --limit 10 --json
-  asc builds --app "123456789" --sort -uploadedDate --json
-  asc builds --app "123456789" --output table
-  asc builds --next "<links.next>" --json
-
-Subcommands:
-  info    Show build details
-  expire  Expire a build for TestFlight`,
+  asc builds list --app "123456789"
+  asc builds list --app "123456789" --json
+  asc builds list --app "123456789" --limit 10 --json`,
 		FlagSet: fs,
 		Subcommands: []*ffcli.Command{
 			BuildsInfoCommand(),
@@ -537,6 +702,80 @@ Examples:
 	}
 }
 
+// SubmitCommand returns a command to submit a build for review
+func SubmitCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submit", flag.ExitOnError)
+
+	versionID := fs.String("version", "", "App Store Version ID (required)")
+	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "submit",
+		ShortUsage: "asc submit [flags]",
+		ShortHelp:  "Submit a build for App Store review.",
+		LongHelp: `Submit a build for App Store review.
+
+This command creates an appStoreVersionSubmission to submit
+a version for review on the App Store.
+
+Examples:
+  asc submit --version "VERSION_ID" --confirm
+  asc submit --version "VERSION_ID" --confirm --json`,
+		FlagSet: fs,
+		Exec: func(ctx context.Context, args []string) error {
+			// Validate required flags
+			if *versionID == "" {
+				fmt.Fprintf(os.Stderr, "Error: --version is required\n\n")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintf(os.Stderr, "Error: --confirm is required to submit for review\n\n")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("submit: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			// Create submission
+			submitReq := asc.AppStoreVersionSubmissionCreateRequest{
+				Data: asc.AppStoreVersionSubmissionCreateData{
+					Type: asc.ResourceTypeAppStoreVersionSubmissions,
+					Relationships: &asc.AppStoreVersionSubmissionRelationships{
+						AppStoreVersion: &asc.Relationship{
+							Data: asc.ResourceData{Type: asc.ResourceTypeAppStoreVersions, ID: *versionID},
+						},
+					},
+				},
+			}
+
+			submitResp, err := client.CreateAppStoreVersionSubmission(requestCtx, submitReq)
+			if err != nil {
+				return fmt.Errorf("submit: failed to create submission: %w", err)
+			}
+
+			result := &asc.AppStoreVersionSubmissionResult{
+				SubmissionID: submitResp.Data.ID,
+				CreatedDate:  submitResp.Data.Attributes.CreatedDate,
+			}
+
+			format := *output
+			if *jsonFlag {
+				format = "json"
+			}
+
+			return printOutput(result, format, *pretty)
+		},
+	}
+}
+
 // VersionCommand returns a version subcommand
 func VersionCommand(version string) *ffcli.Command {
 	return &ffcli.Command{
@@ -565,6 +804,7 @@ func RootCommand(version string) *ffcli.Command {
 			ReviewsCommand(),
 			AppsCommand(),
 			BuildsCommand(),
+			SubmitCommand(),
 			VersionCommand(version),
 		},
 	}

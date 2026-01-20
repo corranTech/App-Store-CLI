@@ -105,6 +105,7 @@ func TestGetBuilds_WithSortAndLimit(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
+		// When sorting or limiting, we use /v1/builds?filter[app]=APP_ID
 		if req.URL.Path != "/v1/builds" {
 			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
 		}
@@ -468,5 +469,316 @@ func TestIsNotFoundAndUnauthorized(t *testing.T) {
 	}
 	if IsUnauthorized(fmt.Errorf("something else")) {
 		t.Fatal("expected IsUnauthorized to return false")
+	}
+}
+
+func TestCreateBuildUpload(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"UPLOAD_123","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"123","platform":"IOS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploads" {
+			t.Fatalf("expected path /v1/buildUploads, got %s", req.URL.Path)
+		}
+		if !strings.Contains(req.Header.Get("Content-Type"), "application/json") {
+			t.Fatalf("expected Content-Type application/json")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.CreateBuildUpload(context.Background(), BuildUploadCreateRequest{
+		Data: BuildUploadCreateData{
+			Type: ResourceTypeBuildUploads,
+			Attributes: BuildUploadAttributes{
+				CFBundleShortVersionString: "1.0.0",
+				CFBundleVersion:            "123",
+				Platform:                   PlatformIOS,
+			},
+			Relationships: &BuildUploadRelationships{
+				App: &Relationship{
+					Data: ResourceData{Type: ResourceTypeApps, ID: "APP_123"},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateBuildUpload() error: %v", err)
+	}
+	if result.Data.ID != "UPLOAD_123" {
+		t.Fatalf("expected upload ID UPLOAD_123, got %s", result.Data.ID)
+	}
+}
+
+func TestGetBuildUpload(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"UPLOAD_123","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"123","platform":"IOS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploads/UPLOAD_123" {
+			t.Fatalf("expected path /v1/buildUploads/UPLOAD_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.GetBuildUpload(context.Background(), "UPLOAD_123")
+	if err != nil {
+		t.Fatalf("GetBuildUpload() error: %v", err)
+	}
+	if result.Data.ID != "UPLOAD_123" {
+		t.Fatalf("expected upload ID UPLOAD_123, got %s", result.Data.ID)
+	}
+}
+
+func TestCreateBuildUploadFile(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"FILE_123","attributes":{"fileName":"app.ipa","fileSize":1024000,"uti":"com.apple.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://example.com/upload","length":1024000,"offset":0}]}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploadFiles" {
+			t.Fatalf("expected path /v1/buildUploadFiles, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.CreateBuildUploadFile(context.Background(), BuildUploadFileCreateRequest{
+		Data: BuildUploadFileCreateData{
+			Type: ResourceTypeBuildUploadFiles,
+			Attributes: BuildUploadFileAttributes{
+				FileName:  "app.ipa",
+				FileSize:  1024000,
+				UTI:       UTIIPA,
+				AssetType: AssetTypeAsset,
+			},
+			Relationships: &BuildUploadFileRelationships{
+				BuildUpload: &Relationship{
+					Data: ResourceData{Type: ResourceTypeBuildUploads, ID: "UPLOAD_123"},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateBuildUploadFile() error: %v", err)
+	}
+	if result.Data.ID != "FILE_123" {
+		t.Fatalf("expected file ID FILE_123, got %s", result.Data.ID)
+	}
+}
+
+func TestUpdateBuildUploadFile(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"FILE_123","attributes":{"uploaded":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploadFiles/FILE_123" {
+			t.Fatalf("expected path /v1/buildUploadFiles/FILE_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	uploaded := true
+	result, err := client.UpdateBuildUploadFile(context.Background(), "FILE_123", BuildUploadFileUpdateRequest{
+		Data: BuildUploadFileUpdateData{
+			Type: ResourceTypeBuildUploadFiles,
+			ID:   "FILE_123",
+			Attributes: &BuildUploadFileUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("UpdateBuildUploadFile() error: %v", err)
+	}
+	if result.Data.ID != "FILE_123" {
+		t.Fatalf("expected file ID FILE_123, got %s", result.Data.ID)
+	}
+}
+
+func TestCreateAppStoreVersionSubmission(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionSubmissions","id":"SUBMIT_123","attributes":{"createdDate":"2026-01-20T00:00:00Z"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersionSubmissions" {
+			t.Fatalf("expected path /v1/appStoreVersionSubmissions, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.CreateAppStoreVersionSubmission(context.Background(), AppStoreVersionSubmissionCreateRequest{
+		Data: AppStoreVersionSubmissionCreateData{
+			Type: ResourceTypeAppStoreVersionSubmissions,
+			Relationships: &AppStoreVersionSubmissionRelationships{
+				AppStoreVersion: &Relationship{
+					Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: "VERSION_123"},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateAppStoreVersionSubmission() error: %v", err)
+	}
+	if result.Data.ID != "SUBMIT_123" {
+		t.Fatalf("expected submission ID SUBMIT_123, got %s", result.Data.ID)
+	}
+}
+
+func TestGetAppStoreVersionSubmission(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"SUBMIT_123","attributes":{"createdDate":"2026-01-20T00:00:00Z"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersionSubmissions/SUBMIT_123" {
+			t.Fatalf("expected path /v1/appStoreVersionSubmissions/SUBMIT_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.GetAppStoreVersionSubmission(context.Background(), "SUBMIT_123")
+	if err != nil {
+		t.Fatalf("GetAppStoreVersionSubmission() error: %v", err)
+	}
+	if result.Data.ID != "SUBMIT_123" {
+		t.Fatalf("expected submission ID SUBMIT_123, got %s", result.Data.ID)
+	}
+}
+
+func TestDeleteAppStoreVersionSubmission(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersionSubmissions/SUBMIT_123" {
+			t.Fatalf("expected path /v1/appStoreVersionSubmissions/SUBMIT_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	err := client.DeleteAppStoreVersionSubmission(context.Background(), "SUBMIT_123")
+	if err != nil {
+		t.Fatalf("DeleteAppStoreVersionSubmission() error: %v", err)
+	}
+}
+
+func TestBuildUploadMethods_ErrorResponse(t *testing.T) {
+	ctx := context.Background()
+	errorBody := `{"errors":[{"code":"BAD_REQUEST","title":"Bad Request","detail":"nope"}]}`
+
+	tests := []struct {
+		name string
+		call func(*Client) error
+	}{
+		{
+			name: "CreateBuildUpload",
+			call: func(c *Client) error {
+				_, err := c.CreateBuildUpload(ctx, BuildUploadCreateRequest{
+					Data: BuildUploadCreateData{
+						Type: ResourceTypeBuildUploads,
+						Attributes: BuildUploadAttributes{
+							CFBundleShortVersionString: "1.0.0",
+							CFBundleVersion:            "123",
+							Platform:                   PlatformIOS,
+						},
+						Relationships: &BuildUploadRelationships{
+							App: &Relationship{
+								Data: ResourceData{Type: ResourceTypeApps, ID: "APP_123"},
+							},
+						},
+					},
+				})
+				return err
+			},
+		},
+		{
+			name: "GetBuildUpload",
+			call: func(c *Client) error {
+				_, err := c.GetBuildUpload(ctx, "UPLOAD_123")
+				return err
+			},
+		},
+		{
+			name: "CreateBuildUploadFile",
+			call: func(c *Client) error {
+				_, err := c.CreateBuildUploadFile(ctx, BuildUploadFileCreateRequest{
+					Data: BuildUploadFileCreateData{
+						Type: ResourceTypeBuildUploadFiles,
+						Attributes: BuildUploadFileAttributes{
+							FileName:  "app.ipa",
+							FileSize:  1024000,
+							UTI:       UTIIPA,
+							AssetType: AssetTypeAsset,
+						},
+						Relationships: &BuildUploadFileRelationships{
+							BuildUpload: &Relationship{
+								Data: ResourceData{Type: ResourceTypeBuildUploads, ID: "UPLOAD_123"},
+							},
+						},
+					},
+				})
+				return err
+			},
+		},
+		{
+			name: "UpdateBuildUploadFile",
+			call: func(c *Client) error {
+				uploaded := true
+				_, err := c.UpdateBuildUploadFile(ctx, "FILE_123", BuildUploadFileUpdateRequest{
+					Data: BuildUploadFileUpdateData{
+						Type: ResourceTypeBuildUploadFiles,
+						ID:   "FILE_123",
+						Attributes: &BuildUploadFileUpdateAttributes{
+							Uploaded: &uploaded,
+						},
+					},
+				})
+				return err
+			},
+		},
+		{
+			name: "CreateAppStoreVersionSubmission",
+			call: func(c *Client) error {
+				_, err := c.CreateAppStoreVersionSubmission(ctx, AppStoreVersionSubmissionCreateRequest{
+					Data: AppStoreVersionSubmissionCreateData{
+						Type: ResourceTypeAppStoreVersionSubmissions,
+						Relationships: &AppStoreVersionSubmissionRelationships{
+							AppStoreVersion: &Relationship{
+								Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: "VERSION_123"},
+							},
+						},
+					},
+				})
+				return err
+			},
+		},
+		{
+			name: "GetAppStoreVersionSubmission",
+			call: func(c *Client) error {
+				_, err := c.GetAppStoreVersionSubmission(ctx, "SUBMIT_123")
+				return err
+			},
+		},
+		{
+			name: "DeleteAppStoreVersionSubmission",
+			call: func(c *Client) error {
+				return c.DeleteAppStoreVersionSubmission(ctx, "SUBMIT_123")
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, nil, jsonResponse(http.StatusBadRequest, errorBody))
+			if err := test.call(client); err == nil {
+				t.Fatalf("expected error")
+			} else if !strings.Contains(err.Error(), "Bad Request") {
+				t.Fatalf("expected error to contain title, got %v", err)
+			}
+		})
 	}
 }

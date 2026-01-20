@@ -2,6 +2,7 @@ package asc
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/url"
 	"strings"
 	"testing"
@@ -165,8 +166,12 @@ func TestBuildRequestBody(t *testing.T) {
 		t.Fatalf("read body error: %v", err)
 	}
 
-	if !strings.Contains(buf.String(), `"hello":"world"`) {
-		t.Fatalf("unexpected body: %s", buf.String())
+	var parsed map[string]string
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("failed to unmarshal body: %v", err)
+	}
+	if parsed["hello"] != "world" {
+		t.Fatalf("expected hello=world, got %q", parsed["hello"])
 	}
 }
 
@@ -222,5 +227,273 @@ func TestBuildBuildsQuery(t *testing.T) {
 	}
 	if query.sort != "-uploadedDate" {
 		t.Fatalf("expected sort=-uploadedDate, got %q", query.sort)
+	}
+}
+
+func TestBuildUploadCreateRequest_JSON(t *testing.T) {
+	req := BuildUploadCreateRequest{
+		Data: BuildUploadCreateData{
+			Type: ResourceTypeBuildUploads,
+			Attributes: BuildUploadAttributes{
+				CFBundleShortVersionString: "1.0.0",
+				CFBundleVersion:            "123",
+				Platform:                   PlatformIOS,
+			},
+			Relationships: &BuildUploadRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   "APP_ID_123",
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		t.Fatalf("BuildRequestBody() error: %v", err)
+	}
+
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(body); err != nil {
+		t.Fatalf("read body error: %v", err)
+	}
+
+	// Unmarshal and verify structure
+	var parsed struct {
+		Data struct {
+			Type       string `json:"type"`
+			Attributes struct {
+				CFBundleShortVersionString string `json:"cfBundleShortVersionString"`
+				CFBundleVersion            string `json:"cfBundleVersion"`
+				Platform                   string `json:"platform"`
+			} `json:"attributes"`
+			Relationships struct {
+				App struct {
+					Data struct {
+						Type string `json:"type"`
+						ID   string `json:"id"`
+					} `json:"data"`
+				} `json:"app"`
+			} `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("failed to unmarshal body: %v", err)
+	}
+
+	if parsed.Data.Type != "buildUploads" {
+		t.Fatalf("expected type=buildUploads, got %q", parsed.Data.Type)
+	}
+	if parsed.Data.Attributes.CFBundleShortVersionString != "1.0.0" {
+		t.Fatalf("expected cfBundleShortVersionString=1.0.0, got %q", parsed.Data.Attributes.CFBundleShortVersionString)
+	}
+	if parsed.Data.Attributes.CFBundleVersion != "123" {
+		t.Fatalf("expected cfBundleVersion=123, got %q", parsed.Data.Attributes.CFBundleVersion)
+	}
+	if parsed.Data.Attributes.Platform != "IOS" {
+		t.Fatalf("expected platform=IOS, got %q", parsed.Data.Attributes.Platform)
+	}
+	if parsed.Data.Relationships.App.Data.Type != "apps" {
+		t.Fatalf("expected app type=apps, got %q", parsed.Data.Relationships.App.Data.Type)
+	}
+	if parsed.Data.Relationships.App.Data.ID != "APP_ID_123" {
+		t.Fatalf("expected app id=APP_ID_123, got %q", parsed.Data.Relationships.App.Data.ID)
+	}
+}
+
+func TestBuildUploadFileCreateRequest_JSON(t *testing.T) {
+	req := BuildUploadFileCreateRequest{
+		Data: BuildUploadFileCreateData{
+			Type: ResourceTypeBuildUploadFiles,
+			Attributes: BuildUploadFileAttributes{
+				FileName:  "app.ipa",
+				FileSize:  1024000,
+				UTI:       UTIIPA,
+				AssetType: AssetTypeAsset,
+			},
+			Relationships: &BuildUploadFileRelationships{
+				BuildUpload: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBuildUploads,
+						ID:   "UPLOAD_ID_123",
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		t.Fatalf("BuildRequestBody() error: %v", err)
+	}
+
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(body); err != nil {
+		t.Fatalf("read body error: %v", err)
+	}
+
+	// Unmarshal and verify structure
+	var parsed struct {
+		Data struct {
+			Type       string `json:"type"`
+			ID         string `json:"id,omitempty"`
+			Attributes struct {
+				FileName  string `json:"fileName"`
+				FileSize  int64  `json:"fileSize"`
+				UTI       string `json:"uti"`
+				AssetType string `json:"assetType"`
+			} `json:"attributes"`
+			Relationships struct {
+				BuildUpload struct {
+					Data struct {
+						Type string `json:"type"`
+						ID   string `json:"id"`
+					} `json:"data"`
+				} `json:"buildUpload"`
+			} `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("failed to unmarshal body: %v", err)
+	}
+
+	if parsed.Data.Type != "buildUploadFiles" {
+		t.Fatalf("expected type=buildUploadFiles, got %q", parsed.Data.Type)
+	}
+	if parsed.Data.Attributes.FileName != "app.ipa" {
+		t.Fatalf("expected fileName=app.ipa, got %q", parsed.Data.Attributes.FileName)
+	}
+	if parsed.Data.Attributes.FileSize != 1024000 {
+		t.Fatalf("expected fileSize=1024000, got %d", parsed.Data.Attributes.FileSize)
+	}
+	if parsed.Data.Attributes.UTI != "com.apple.ipa" {
+		t.Fatalf("expected uti=com.apple.ipa, got %q", parsed.Data.Attributes.UTI)
+	}
+	if parsed.Data.Attributes.AssetType != "ASSET" {
+		t.Fatalf("expected assetType=ASSET, got %q", parsed.Data.Attributes.AssetType)
+	}
+	if parsed.Data.Relationships.BuildUpload.Data.Type != "buildUploads" {
+		t.Fatalf("expected buildUpload type=buildUploads, got %q", parsed.Data.Relationships.BuildUpload.Data.Type)
+	}
+	if parsed.Data.Relationships.BuildUpload.Data.ID != "UPLOAD_ID_123" {
+		t.Fatalf("expected buildUpload id=UPLOAD_ID_123, got %q", parsed.Data.Relationships.BuildUpload.Data.ID)
+	}
+}
+
+func TestBuildUploadFileUpdateRequest_JSON(t *testing.T) {
+	uploaded := true
+	req := BuildUploadFileUpdateRequest{
+		Data: BuildUploadFileUpdateData{
+			Type: ResourceTypeBuildUploadFiles,
+			ID:   "FILE_ID_123",
+			Attributes: &BuildUploadFileUpdateAttributes{
+				SourceFileChecksums: &Checksums{
+					File: &Checksum{
+						Hash:      "abc123def456",
+						Algorithm: ChecksumAlgorithmSHA256,
+					},
+				},
+				Uploaded: &uploaded,
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		t.Fatalf("BuildRequestBody() error: %v", err)
+	}
+
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(body); err != nil {
+		t.Fatalf("read body error: %v", err)
+	}
+
+	// Unmarshal and verify structure
+	var parsed struct {
+		Data struct {
+			Type       string `json:"type"`
+			ID         string `json:"id"`
+			Attributes struct {
+				SourceFileChecksums struct {
+					File struct {
+						Hash      string `json:"hash"`
+						Algorithm string `json:"algorithm"`
+					} `json:"file"`
+				} `json:"sourceFileChecksums"`
+				Uploaded bool `json:"uploaded"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("failed to unmarshal body: %v", err)
+	}
+
+	if parsed.Data.ID != "FILE_ID_123" {
+		t.Fatalf("expected id=FILE_ID_123, got %q", parsed.Data.ID)
+	}
+	if !parsed.Data.Attributes.Uploaded {
+		t.Fatalf("expected uploaded=true, got false")
+	}
+	if parsed.Data.Attributes.SourceFileChecksums.File.Hash != "abc123def456" {
+		t.Fatalf("expected checksum hash=abc123def456, got %q", parsed.Data.Attributes.SourceFileChecksums.File.Hash)
+	}
+	if parsed.Data.Attributes.SourceFileChecksums.File.Algorithm != "SHA_256" {
+		t.Fatalf("expected algorithm=SHA_256, got %q", parsed.Data.Attributes.SourceFileChecksums.File.Algorithm)
+	}
+}
+
+func TestAppStoreVersionSubmissionCreateRequest_JSON(t *testing.T) {
+	req := AppStoreVersionSubmissionCreateRequest{
+		Data: AppStoreVersionSubmissionCreateData{
+			Type: ResourceTypeAppStoreVersionSubmissions,
+			Relationships: &AppStoreVersionSubmissionRelationships{
+				AppStoreVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   "VERSION_ID_123",
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		t.Fatalf("BuildRequestBody() error: %v", err)
+	}
+
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(body); err != nil {
+		t.Fatalf("read body error: %v", err)
+	}
+
+	// Unmarshal and verify structure
+	var parsed struct {
+		Data struct {
+			Type          string `json:"type"`
+			Relationships struct {
+				AppStoreVersion struct {
+					Data struct {
+						Type string `json:"type"`
+						ID   string `json:"id"`
+					} `json:"data"`
+				} `json:"appStoreVersion"`
+			} `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
+		t.Fatalf("failed to unmarshal body: %v", err)
+	}
+
+	if parsed.Data.Type != "appStoreVersionSubmissions" {
+		t.Fatalf("expected type=appStoreVersionSubmissions, got %q", parsed.Data.Type)
+	}
+	if parsed.Data.Relationships.AppStoreVersion.Data.Type != "appStoreVersions" {
+		t.Fatalf("expected version type=appStoreVersions, got %q", parsed.Data.Relationships.AppStoreVersion.Data.Type)
+	}
+	if parsed.Data.Relationships.AppStoreVersion.Data.ID != "VERSION_ID_123" {
+		t.Fatalf("expected version id=VERSION_ID_123, got %q", parsed.Data.Relationships.AppStoreVersion.Data.ID)
 	}
 }

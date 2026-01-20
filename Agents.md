@@ -111,6 +111,21 @@ Environment variables (fallback):
 - Use Go's standard library where possible
 - Write tests for all new functionality
 
+## Go Standards
+
+Follow idiomatic Go so the code is predictable to anyone who reads Go:
+
+- **Formatting:** always run `gofmt` (and `gofumpt` via `make format`). No manual formatting.
+- **Naming:** use mixedCaps; keep common initialisms uppercase (`ID`, `URL`, `API`, `JSON`).
+- **Errors:** return errors, don’t panic for expected failures. Wrap with context using `%w`.
+- **Context:** pass `context.Context` into network operations; respect timeouts and cancellations.
+- **Types:** model request/response types with JSON tags; use pointers for optional fields, values for required fields.
+- **Enums:** prefer typed `const` values (not raw strings) for API enums and resource types.
+- **CLI behavior:** if a flag is accepted, it must be implemented or error; never silently ignore flags.
+- **Output:** data goes to stdout, errors to stderr; keep JSON minified by default.
+- **Dependencies:** standard library first; avoid new deps unless necessary and justified.
+- **Tests:** deterministic, table‑driven when possible; use `t.Helper()`. For JSON, unmarshal and assert fields (not `strings.Contains`). Cover success + validation + API error paths.
+
 ## Building
 
 ```bash
@@ -168,3 +183,4 @@ make install    # Install locally
 3. Return JSON-friendly output for AI consumption
 4. Don't add interactive prompts - use flags instead
 5. Keep commands focused and simple
+6. When responding to audit feedback, prefer `codex exec` to implement fixes and search the internet for missing details; if `codex exec` isn't available, proceed manually and note the limitation.
