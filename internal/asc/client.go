@@ -1652,6 +1652,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildUploadResultMarkdown(v)
 	case *AppStoreVersionSubmissionResult:
 		return printAppStoreVersionSubmissionMarkdown(v)
+	case *BetaTesterDeleteResult:
+		return printBetaTesterDeleteResultMarkdown(v)
+	case *BetaTesterInvitationResult:
+		return printBetaTesterInvitationResultMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -1684,6 +1688,10 @@ func PrintTable(data interface{}) error {
 		return printBuildUploadResultTable(v)
 	case *AppStoreVersionSubmissionResult:
 		return printAppStoreVersionSubmissionTable(v)
+	case *BetaTesterDeleteResult:
+		return printBetaTesterDeleteResultTable(v)
+	case *BetaTesterInvitationResult:
+		return printBetaTesterInvitationResultTable(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -2077,6 +2085,52 @@ func printAppStoreVersionSubmissionMarkdown(result *AppStoreVersionSubmissionRes
 	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
 		escapeMarkdown(result.SubmissionID),
 		escapeMarkdown(createdDate),
+	)
+	return nil
+}
+
+func printBetaTesterDeleteResultTable(result *BetaTesterDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tEmail\tDeleted")
+	fmt.Fprintf(w, "%s\t%s\t%t\n",
+		result.ID,
+		result.Email,
+		result.Deleted,
+	)
+	return w.Flush()
+}
+
+func printBetaTesterDeleteResultMarkdown(result *BetaTesterDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Email | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %t |\n",
+		escapeMarkdown(result.ID),
+		escapeMarkdown(result.Email),
+		result.Deleted,
+	)
+	return nil
+}
+
+func printBetaTesterInvitationResultTable(result *BetaTesterInvitationResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Invitation ID\tTester ID\tApp ID\tEmail")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		result.InvitationID,
+		result.TesterID,
+		result.AppID,
+		result.Email,
+	)
+	return w.Flush()
+}
+
+func printBetaTesterInvitationResultMarkdown(result *BetaTesterInvitationResult) error {
+	fmt.Fprintln(os.Stdout, "| Invitation ID | Tester ID | App ID | Email |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+		escapeMarkdown(result.InvitationID),
+		escapeMarkdown(result.TesterID),
+		escapeMarkdown(result.AppID),
+		escapeMarkdown(result.Email),
 	)
 	return nil
 }
