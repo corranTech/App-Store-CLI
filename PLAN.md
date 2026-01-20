@@ -63,7 +63,7 @@ Makefile             ✓ Build targets exist
 **Current Status:** ✅ Implemented (requires live credentials to verify)
 
 ```bash
-asc feedback --app "123456789" --json
+asc feedback --app "123456789"
 # Requires valid credentials
 ```
 
@@ -82,7 +82,7 @@ asc feedback --app "123456789" --json
 **Current Status:** ✅ Implemented (requires live credentials to verify)
 
 ```bash
-asc crashes --app "123456789" --json
+asc crashes --app "123456789"
 # Requires valid credentials
 ```
 
@@ -102,7 +102,7 @@ asc crashes --app "123456789" --json
 **Current Status:** ✅ Implemented (requires live credentials to verify)
 
 ```bash
-asc reviews --app "123456789" --json
+asc reviews --app "123456789"
 # Requires valid credentials
 ```
 
@@ -147,19 +147,19 @@ asc reviews --app "123456789" --json
 
 1. **TestFlight Feedback Command**
    ```bash
-   asc feedback --app "APP_ID" --json
+   asc feedback --app "APP_ID"
    # Must return: id, createdDate, email, comment, screenshot metadata
    ```
 
 2. **TestFlight Crashes Command**
    ```bash
-   asc crashes --app "APP_ID" --json
+   asc crashes --app "APP_ID"
    # Must return: id, createdDate, email, crash metadata
    ```
 
 3. **App Store Reviews Command**
    ```bash
-   asc reviews --app "APP_ID" --json
+   asc reviews --app "APP_ID"
    # Must return: id, createdDate, rating, title, body, territory
    ```
 
@@ -184,12 +184,12 @@ asc reviews --app "123456789" --json
 
 1. **List Apps** ✅
    ```bash
-   asc apps --json
+   asc apps
    ```
 
 2. **List Builds** ✅
    ```bash
-   asc builds --app "APP_ID" --json
+   asc builds --app "APP_ID"
    ```
 
 3. **Build Details** ✅
@@ -237,15 +237,15 @@ Use the AI-readable Apple docs via sosumi.ai (replace `developer.apple.com` with
 
 1. **Upload a build**
    ```bash
-   asc builds upload --app "APP_ID" --ipa "/path/to/app.ipa" --json
-   asc builds upload --app "APP_ID" --ipa "/path/to/app.ipa" --wait --json
+   asc builds upload --app "APP_ID" --ipa "/path/to/app.ipa"
+   asc builds upload --app "APP_ID" --ipa "/path/to/app.ipa" --wait
    ```
 
 2. **Submit a build for review**
    ```bash
-   asc submit --app "APP_ID" --build "BUILD_ID" --confirm --json
-   asc submit status --id "SUBMISSION_ID" --json
-   asc submit cancel --id "SUBMISSION_ID" --confirm --json
+   asc submit --app "APP_ID" --build "BUILD_ID" --confirm
+   asc submit status --id "SUBMISSION_ID"
+   asc submit cancel --id "SUBMISSION_ID" --confirm
    ```
 
 #### API Discovery Results (OpenAPI Spec 4.1)
@@ -399,10 +399,10 @@ Use the AI-readable Apple docs via sosumi.ai (replace `developer.apple.com` with
 #### Data to Capture with Live Credentials
 
 Non‑destructive calls to record example response shapes:
-- `asc apps --json`
-- `asc builds --app "APP_ID" --json`
-- `asc builds info --build "BUILD_ID" --json`
-- `asc reviews --app "APP_ID" --json`
+- `asc apps`
+- `asc builds --app "APP_ID"`
+- `asc builds info --build "BUILD_ID"`
+- `asc reviews --app "APP_ID"`
 
 Use these to verify:
 - Field names (e.g., `uploadedDate`, `processingState`, `expired`)
@@ -601,7 +601,7 @@ github.com/goreleaser/nfpm/v2     - Packaging via `go run` (optional)
 
 - Install via Homebrew: `brew install rudrank/tap/asc`
 - Average startup time: < 50ms
-- All commands support `--json` flag
+- JSON output is default; use `--output` for table/markdown
 - 80%+ test coverage
 - Zero security vulnerabilities
 
@@ -629,11 +629,11 @@ Next: Implement build uploads + submission flows (API 4.1+), then auto-paginatio
 
 ## Success Criteria for v0.1
 
-- [x] `asc feedback --app "APP_ID" --json` returns screenshot feedback submissions
+- [x] `asc feedback --app "APP_ID"` returns screenshot feedback submissions
 - [x] Feedback includes: id, createdDate, email, comment
-- [x] `asc crashes --app "APP_ID" --json` returns crash submissions
+- [x] `asc crashes --app "APP_ID"` returns crash submissions
 - [x] Crashes include: id, createdDate, email, crash metadata
-- [x] `asc reviews --app "APP_ID" --json` returns customer reviews (may be empty)
+- [x] `asc reviews --app "APP_ID"` returns customer reviews (may be empty)
 - [x] Reviews include: id, createdDate, rating, title, body, territory
 - [x] All commands work with real App Store Connect API keys
 - [x] Opt-in integration tests (real API credentials required)

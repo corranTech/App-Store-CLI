@@ -64,7 +64,7 @@ App ID fallback:
 
 ### Agent Quickstart
 
-- Prefer `--json` (default) for machine parsing; add `--pretty` when debugging.
+- JSON output is default for machine parsing; add `--pretty` when debugging.
 - Use `--limit` + `--next "<links.next>"` for pagination across all list commands.
 - Sort with `--sort` (prefix `-` for descending):
   - Feedback/Crashes: `createdDate` / `-createdDate`
@@ -76,13 +76,13 @@ App ID fallback:
 
 ```bash
 # List beta feedback (JSON - best for AI agents)
-asc feedback --app "123456789" --json
+asc feedback --app "123456789"
 
 # Filter feedback by device model and OS version
-asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2" --json
+asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
 
 # Filter feedback by platform/build/tester
-asc feedback --app "123456789" --app-platform IOS --device-platform IOS --build "BUILD_ID" --tester "TESTER_ID" --json
+asc feedback --app "123456789" --app-platform IOS --device-platform IOS --build "BUILD_ID" --tester "TESTER_ID"
 
 # Get crash reports (table format - for humans)
 asc crashes --app "123456789" --output table
@@ -91,20 +91,20 @@ asc crashes --app "123456789" --output table
 asc crashes --app "123456789" --output markdown
 
 # Limit results per page (pagination)
-asc crashes --app "123456789" --limit 25 --json
+asc crashes --app "123456789" --limit 25
 
 # Sort crashes by created date (newest first)
-asc crashes --app "123456789" --sort -createdDate --limit 5 --json
+asc crashes --app "123456789" --sort -createdDate --limit 5
 
 # Fetch next page
-asc crashes --next "<links.next>" --json
+asc crashes --next "<links.next>"
 ```
 
 ### App Store
 
 ```bash
 # List customer reviews (JSON - best for AI agents)
-asc reviews --app "123456789" --json
+asc reviews --app "123456789"
 
 # Filter by stars (table format - for humans)
 asc reviews --app "123456789" --stars 1 --output table
@@ -113,37 +113,37 @@ asc reviews --app "123456789" --stars 1 --output table
 asc reviews --app "123456789" --territory US --output markdown
 
 # Sort reviews by created date (newest first)
-asc reviews --app "123456789" --sort -createdDate --limit 5 --json
+asc reviews --app "123456789" --sort -createdDate --limit 5
 
 # Fetch next page using links.next
-asc reviews --next "<links.next>" --json
+asc reviews --next "<links.next>"
 ```
 
 ### Apps & Builds
 
 ```bash
 # List apps (useful for finding app IDs)
-asc apps --json
+asc apps
 
 # Sort apps by name or bundle ID
-asc apps --sort name --json
-asc apps --sort -bundleId --json
+asc apps --sort name
+asc apps --sort -bundleId
 
 # List builds for an app
-asc builds --app "123456789" --json
+asc builds --app "123456789"
 
 # Sort builds by upload date (newest first)
-asc builds --app "123456789" --sort -uploadedDate --json
+asc builds --app "123456789" --sort -uploadedDate
 
 # Fetch next page
-asc apps --next "<links.next>" --json
-asc builds --next "<links.next>" --json
+asc apps --next "<links.next>"
+asc builds --next "<links.next>"
 
 # Build details
-asc builds info --build "BUILD_ID" --json
+asc builds info --build "BUILD_ID"
 
 # Expire a build (irreversible)
-asc builds expire --build "BUILD_ID" --json
+asc builds expire --build "BUILD_ID"
 ```
 
 ### Utilities
@@ -158,7 +158,7 @@ asc --version
 
 | Format | Flag | Use Case |
 |--------|------|----------|
-| JSON (minified) | `--json` | AI agents, scripting |
+| JSON (minified) | default | AI agents, scripting |
 | Table | `--output table` | Humans in terminal |
 | Markdown | `--output markdown` | Humans, documentation |
 
@@ -178,7 +178,7 @@ asc auth logout
 
 ```bash
 # Good - self-documenting
-asc reviews --app "MyApp" --stars 1 --json
+asc reviews --app "MyApp" --stars 1
 
 # Avoid - cryptic flags (hypothetical, not supported)
 # asc reviews -a "MyApp" -s 1
@@ -189,10 +189,10 @@ asc reviews --app "MyApp" --stars 1 --json
 All commands output minified JSON by default for easy parsing by AI agents:
 
 ```bash
-asc feedback --app "123456789" --json | jq '.data[].attributes.comment'
+asc feedback --app "123456789" | jq '.data[].attributes.comment'
 ```
 
-The `--json` flag outputs minified JSON (one line per response) to minimize token usage. Use `--output table` or `--output markdown` for human-readable output.
+JSON output is minified (one line per response) by default. Use `--output table` or `--output markdown` for human-readable output.
 
 ### No Interactive Prompts
 
@@ -200,7 +200,7 @@ Everything is flag-based for automation:
 
 ```bash
 # Non-interactive (good for CI/CD and AI)
-asc feedback --app "123456789" --json
+asc feedback --app "123456789"
 
 # No prompts, no waiting
 ```

@@ -49,9 +49,9 @@ export ASC_ISSUER_ID="YOUR_ISSUER_ID"
 export ASC_PRIVATE_KEY_PATH="/path/to/AuthKey.p8"
 export ASC_APP_ID="YOUR_APP_ID"
 
-asc feedback --app "$ASC_APP_ID" --json
-asc crashes --app "$ASC_APP_ID" --json
-asc reviews --app "$ASC_APP_ID" --json
+asc feedback --app "$ASC_APP_ID"
+asc crashes --app "$ASC_APP_ID"
+asc reviews --app "$ASC_APP_ID"
 ```
 
 Credentials are stored in the system keychain when available, with a local config fallback at
