@@ -296,6 +296,145 @@ Examples:
 	}
 }
 
+// Apps command factory
+func AppsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("apps", flag.ExitOnError)
+
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+
+	return &ffcli.Command{
+		Name:       "apps",
+		ShortUsage: "asc apps [flags]",
+		ShortHelp:  "List all apps in your App Store Connect account.",
+		LongHelp: `List all apps in your App Store Connect account.
+
+This command fetches all apps associated with your API key,
+useful for finding app IDs when using other commands.
+
+Examples:
+  asc apps
+  asc apps --json
+  asc apps --limit 10 --json
+  asc apps --output table
+  asc apps --next "<links.next>" --json`,
+		FlagSet: fs,
+		Exec: func(ctx context.Context, args []string) error {
+			if err := fs.Parse(args); err != nil {
+				return err
+			}
+
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("--limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("failed to create client: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.AppsOption{
+				asc.WithAppsLimit(*limit),
+				asc.WithAppsNextURL(*next),
+			}
+
+			apps, err := client.GetApps(requestCtx, opts...)
+			if err != nil {
+				return fmt.Errorf("failed to fetch apps: %w", err)
+			}
+
+			format := *output
+			if *jsonFlag {
+				format = "json"
+			}
+
+			return printOutput(apps, format, *pretty)
+		},
+	}
+}
+
+// Builds command factory
+func BuildsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("builds", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+
+	return &ffcli.Command{
+		Name:       "builds",
+		ShortUsage: "asc builds [flags]",
+		ShortHelp:  "List builds for an app in App Store Connect.",
+		LongHelp: `List builds for an app in App Store Connect.
+
+This command fetches builds uploaded to App Store Connect,
+including processing status and expiration dates.
+
+Examples:
+  asc builds --app "123456789"
+  asc builds --app "123456789" --json
+  asc builds --app "123456789" --limit 10 --json
+  asc builds --app "123456789" --output table
+  asc builds --next "<links.next>" --json`,
+		FlagSet: fs,
+		Exec: func(ctx context.Context, args []string) error {
+			if err := fs.Parse(args); err != nil {
+				return err
+			}
+
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("--limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+
+			resolvedAppID := resolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("failed to create client: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.BuildsOption{
+				asc.WithBuildsLimit(*limit),
+				asc.WithBuildsNextURL(*next),
+			}
+
+			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
+			if err != nil {
+				return fmt.Errorf("failed to fetch builds: %w", err)
+			}
+
+			format := *output
+			if *jsonFlag {
+				format = "json"
+			}
+
+			return printOutput(builds, format, *pretty)
+		},
+	}
+}
+
 // RootCommand returns the root command
 func RootCommand(version string) *ffcli.Command {
 	root := &ffcli.Command{
@@ -309,6 +448,8 @@ func RootCommand(version string) *ffcli.Command {
 			FeedbackCommand(),
 			CrashesCommand(),
 			ReviewsCommand(),
+			AppsCommand(),
+			BuildsCommand(),
 		},
 	}
 

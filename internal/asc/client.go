@@ -144,21 +144,21 @@ type buildsQuery struct {
 
 // AppAttributes describes an app resource.
 type AppAttributes struct {
-	Name             string `json:"name"`
-	BundleID         string `json:"bundleId"`
-	SKU              string `json:"sku"`
-	PrimaryLocale    string `json:"primaryLocale,omitempty"`
-	IAMSupported     bool   `json:"isAmaSupported,omitempty"`
-	AccessRestricted bool   `json:"isAccessRestricted,omitempty"`
+	Name          string `json:"name"`
+	BundleID      string `json:"bundleId"`
+	SKU           string `json:"sku"`
+	PrimaryLocale string `json:"primaryLocale,omitempty"`
 }
 
 // BuildAttributes describes a build resource.
 type BuildAttributes struct {
-	Version         string `json:"version"`
-	BuildNumber     string `json:"buildNumber"`
-	UploadedDate    string `json:"uploadedDate"`
-	ExpirationDate  string `json:"expirationDate,omitempty"`
-	ProcessingState string `json:"processingState,omitempty"`
+	Version                 string `json:"version"`
+	UploadedDate            string `json:"uploadedDate"`
+	ExpirationDate          string `json:"expirationDate,omitempty"`
+	ProcessingState         string `json:"processingState,omitempty"`
+	MinOSVersion            string `json:"minOsVersion,omitempty"`
+	UsesNonExemptEncryption bool   `json:"usesNonExemptEncryption,omitempty"`
+	Expired                 bool   `json:"expired,omitempty"`
 }
 
 // FeedbackOption is a functional option for GetFeedback.
@@ -774,6 +774,10 @@ func PrintMarkdown(data interface{}) error {
 		return printCrashesMarkdown(v)
 	case *ReviewsResponse:
 		return printReviewsMarkdown(v)
+	case *AppsResponse:
+		return printAppsMarkdown(v)
+	case *BuildsResponse:
+		return printBuildsMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -922,6 +926,62 @@ func printReviewsMarkdown(resp *ReviewsResponse) error {
 			item.Attributes.Rating,
 			escapeMarkdown(item.Attributes.Territory),
 			escapeMarkdown(item.Attributes.Title),
+		)
+	}
+	return nil
+}
+
+func printAppsTable(resp *AppsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tName\tBundle ID\tSKU")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+			item.ID,
+			compactWhitespace(item.Attributes.Name),
+			item.Attributes.BundleID,
+			item.Attributes.SKU,
+		)
+	}
+	return w.Flush()
+}
+
+func printBuildsTable(resp *BuildsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Version\tUploaded\tProcessing\tExpired")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%t\n",
+			item.Attributes.Version,
+			item.Attributes.UploadedDate,
+			item.Attributes.ProcessingState,
+			item.Attributes.Expired,
+		)
+	}
+	return w.Flush()
+}
+
+func printAppsMarkdown(resp *AppsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Name | Bundle ID | SKU |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+			item.ID,
+			escapeMarkdown(item.Attributes.Name),
+			escapeMarkdown(item.Attributes.BundleID),
+			escapeMarkdown(item.Attributes.SKU),
+		)
+	}
+	return nil
+}
+
+func printBuildsMarkdown(resp *BuildsResponse) error {
+	fmt.Fprintln(os.Stdout, "| Version | Uploaded | Processing | Expired |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %t |\n",
+			escapeMarkdown(item.Attributes.Version),
+			escapeMarkdown(item.Attributes.UploadedDate),
+			escapeMarkdown(item.Attributes.ProcessingState),
+			item.Attributes.Expired,
 		)
 	}
 	return nil
