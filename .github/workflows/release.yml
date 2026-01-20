@@ -22,6 +22,12 @@ jobs:
       - name: Create release directory
         run: mkdir -p release
 
+      - name: Import Apple certificate
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
+          p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
+
       - name: Build for macOS
         run: |
           GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=${GITHUB_REF_NAME}" -o release/asc-darwin-amd64 .
