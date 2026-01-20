@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -21,6 +22,16 @@ func FeedbackCommand() *ffcli.Command {
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
+	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
+	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	devicePlatform := fs.String("device-platform", "", "Filter by device platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	buildID := fs.String("build", "", "Filter by build ID(s), comma-separated")
+	buildPreRelease := fs.String("build-pre-release-version", "", "Filter by pre-release version ID(s), comma-separated")
+	tester := fs.String("tester", "", "Filter by tester ID(s), comma-separated")
+	sort := fs.String("sort", "", "Sort by createdDate or -createdDate")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
 	return &ffcli.Command{
 		Name:       "feedback",
@@ -32,15 +43,28 @@ This command fetches beta feedback screenshot submissions and comments.
 
 Examples:
   asc feedback --app "123456789"
-  asc feedback --app "123456789" --json`,
+  asc feedback --app "123456789" --json
+  asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
+  asc feedback --app "123456789" --sort -createdDate --limit 5 --json
+  asc feedback --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := fs.Parse(args); err != nil {
 				return err
 			}
 
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("--limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
+				return err
+			}
+
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
@@ -53,7 +77,22 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			feedback, err := client.GetFeedback(requestCtx, resolvedAppID)
+			opts := []asc.FeedbackOption{
+				asc.WithFeedbackDeviceModels(splitCSV(*deviceModel)),
+				asc.WithFeedbackOSVersions(splitCSV(*osVersion)),
+				asc.WithFeedbackAppPlatforms(splitCSVUpper(*appPlatform)),
+				asc.WithFeedbackDevicePlatforms(splitCSVUpper(*devicePlatform)),
+				asc.WithFeedbackBuildIDs(splitCSV(*buildID)),
+				asc.WithFeedbackBuildPreReleaseVersionIDs(splitCSV(*buildPreRelease)),
+				asc.WithFeedbackTesterIDs(splitCSV(*tester)),
+				asc.WithFeedbackLimit(*limit),
+				asc.WithFeedbackNextURL(*next),
+			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithFeedbackSort(*sort))
+			}
+
+			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
 			if err != nil {
 				return fmt.Errorf("failed to fetch feedback: %w", err)
 			}
@@ -76,6 +115,16 @@ func CrashesCommand() *ffcli.Command {
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
+	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
+	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	devicePlatform := fs.String("device-platform", "", "Filter by device platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
+	buildID := fs.String("build", "", "Filter by build ID(s), comma-separated")
+	buildPreRelease := fs.String("build-pre-release-version", "", "Filter by pre-release version ID(s), comma-separated")
+	tester := fs.String("tester", "", "Filter by tester ID(s), comma-separated")
+	sort := fs.String("sort", "", "Sort by createdDate or -createdDate")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
 	return &ffcli.Command{
 		Name:       "crashes",
@@ -89,15 +138,28 @@ helping you identify and fix issues in your app.
 Examples:
   asc crashes --app "123456789"
   asc crashes --app "123456789" --json
-  asc crashes --app "123456789" --json > crashes.json`,
+  asc crashes --app "123456789" --json > crashes.json
+  asc crashes --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
+  asc crashes --app "123456789" --sort -createdDate --limit 5 --json
+  asc crashes --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := fs.Parse(args); err != nil {
 				return err
 			}
 
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("--limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
+				return err
+			}
+
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
@@ -110,7 +172,22 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			crashes, err := client.GetCrashes(requestCtx, resolvedAppID)
+			opts := []asc.CrashOption{
+				asc.WithCrashDeviceModels(splitCSV(*deviceModel)),
+				asc.WithCrashOSVersions(splitCSV(*osVersion)),
+				asc.WithCrashAppPlatforms(splitCSVUpper(*appPlatform)),
+				asc.WithCrashDevicePlatforms(splitCSVUpper(*devicePlatform)),
+				asc.WithCrashBuildIDs(splitCSV(*buildID)),
+				asc.WithCrashBuildPreReleaseVersionIDs(splitCSV(*buildPreRelease)),
+				asc.WithCrashTesterIDs(splitCSV(*tester)),
+				asc.WithCrashLimit(*limit),
+				asc.WithCrashNextURL(*next),
+			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithCrashSort(*sort))
+			}
+
+			crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
 			if err != nil {
 				return fmt.Errorf("failed to fetch crashes: %w", err)
 			}
@@ -135,6 +212,9 @@ func ReviewsCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	stars := fs.Int("stars", 0, "Filter by star rating (1-5)")
 	territory := fs.String("territory", "", "Filter by territory (e.g., US, GBR)")
+	sort := fs.String("sort", "", "Sort by rating, -rating, createdDate, or -createdDate")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
 	return &ffcli.Command{
 		Name:       "reviews",
@@ -148,15 +228,27 @@ helping you understand user feedback and sentiment.
 Examples:
   asc reviews --app "123456789"
   asc reviews --app "123456789" --json
-  asc reviews --app "123456789" --stars 1 --territory US --json`,
+  asc reviews --app "123456789" --stars 1 --territory US --json
+  asc reviews --app "123456789" --sort -createdDate --limit 5 --json
+  asc reviews --next "<links.next>" --json`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := fs.Parse(args); err != nil {
 				return err
 			}
 
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("--limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+			if err := validateSort(*sort, "rating", "-rating", "createdDate", "-createdDate"); err != nil {
+				return err
+			}
+
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
@@ -179,6 +271,15 @@ Examples:
 			if *territory != "" {
 				opts = append(opts, asc.WithTerritory(*territory))
 			}
+			if *limit != 0 {
+				opts = append(opts, asc.WithLimit(*limit))
+			}
+			if strings.TrimSpace(*next) != "" {
+				opts = append(opts, asc.WithNextURL(*next))
+			}
+			if strings.TrimSpace(*sort) != "" {
+				opts = append(opts, asc.WithReviewSort(*sort))
+			}
 
 			reviews, err := client.GetReviews(requestCtx, resolvedAppID, opts...)
 			if err != nil {
@@ -191,6 +292,145 @@ Examples:
 			}
 
 			return printOutput(reviews, format, *pretty)
+		},
+	}
+}
+
+// Apps command factory
+func AppsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("apps", flag.ExitOnError)
+
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+
+	return &ffcli.Command{
+		Name:       "apps",
+		ShortUsage: "asc apps [flags]",
+		ShortHelp:  "List all apps in your App Store Connect account.",
+		LongHelp: `List all apps in your App Store Connect account.
+
+This command fetches all apps associated with your API key,
+useful for finding app IDs when using other commands.
+
+Examples:
+  asc apps
+  asc apps --json
+  asc apps --limit 10 --json
+  asc apps --output table
+  asc apps --next "<links.next>" --json`,
+		FlagSet: fs,
+		Exec: func(ctx context.Context, args []string) error {
+			if err := fs.Parse(args); err != nil {
+				return err
+			}
+
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("--limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("failed to create client: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.AppsOption{
+				asc.WithAppsLimit(*limit),
+				asc.WithAppsNextURL(*next),
+			}
+
+			apps, err := client.GetApps(requestCtx, opts...)
+			if err != nil {
+				return fmt.Errorf("failed to fetch apps: %w", err)
+			}
+
+			format := *output
+			if *jsonFlag {
+				format = "json"
+			}
+
+			return printOutput(apps, format, *pretty)
+		},
+	}
+}
+
+// Builds command factory
+func BuildsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("builds", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+
+	return &ffcli.Command{
+		Name:       "builds",
+		ShortUsage: "asc builds [flags]",
+		ShortHelp:  "List builds for an app in App Store Connect.",
+		LongHelp: `List builds for an app in App Store Connect.
+
+This command fetches builds uploaded to App Store Connect,
+including processing status and expiration dates.
+
+Examples:
+  asc builds --app "123456789"
+  asc builds --app "123456789" --json
+  asc builds --app "123456789" --limit 10 --json
+  asc builds --app "123456789" --output table
+  asc builds --next "<links.next>" --json`,
+		FlagSet: fs,
+		Exec: func(ctx context.Context, args []string) error {
+			if err := fs.Parse(args); err != nil {
+				return err
+			}
+
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("--limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return err
+			}
+
+			resolvedAppID := resolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("failed to create client: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.BuildsOption{
+				asc.WithBuildsLimit(*limit),
+				asc.WithBuildsNextURL(*next),
+			}
+
+			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
+			if err != nil {
+				return fmt.Errorf("failed to fetch builds: %w", err)
+			}
+
+			format := *output
+			if *jsonFlag {
+				format = "json"
+			}
+
+			return printOutput(builds, format, *pretty)
 		},
 	}
 }
@@ -208,6 +448,8 @@ func RootCommand(version string) *ffcli.Command {
 			FeedbackCommand(),
 			CrashesCommand(),
 			ReviewsCommand(),
+			AppsCommand(),
+			BuildsCommand(),
 		},
 	}
 
@@ -292,4 +534,60 @@ func contextWithTimeout(ctx context.Context) (context.Context, context.CancelFun
 		ctx = context.Background()
 	}
 	return context.WithTimeout(ctx, asc.DefaultTimeout)
+}
+
+func splitCSV(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		cleaned = append(cleaned, part)
+	}
+	return cleaned
+}
+
+func splitCSVUpper(value string) []string {
+	values := splitCSV(value)
+	if len(values) == 0 {
+		return nil
+	}
+	upper := make([]string, 0, len(values))
+	for _, item := range values {
+		upper = append(upper, strings.ToUpper(item))
+	}
+	return upper
+}
+
+func validateNextURL(next string) error {
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return nil
+	}
+	parsed, err := url.Parse(next)
+	if err != nil {
+		return fmt.Errorf("--next must be a valid URL: %w", err)
+	}
+	if parsed.Scheme != "https" || parsed.Host != "api.appstoreconnect.apple.com" {
+		return fmt.Errorf("--next must be an App Store Connect URL")
+	}
+	return nil
+}
+
+func validateSort(value string, allowed ...string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	for _, option := range allowed {
+		if value == option {
+			return nil
+		}
+	}
+	return fmt.Errorf("--sort must be one of: %s", strings.Join(allowed, ", "))
 }

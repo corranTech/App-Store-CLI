@@ -1,0 +1,147 @@
+# Codemagic CI/CD configuration for ASC CLI
+# https://docs.codemagic.io/yaml-basic-configuration/yaml-getting-started/
+
+workflows:
+  # PR workflow: runs on every commit and PR (skips integration tests)
+  pr-workflow:
+    name: PR Checks
+    max_build_duration: 30
+    environment:
+      go:
+        version: "latest"
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: "*"
+          include: true
+    steps:
+      - script:
+          name: Run unit tests (no integration)
+          script: |
+            # Skip integration tests by default
+            go test -short ./...
+      - script:
+          name: Build for macOS
+          script: |
+            mkdir -p build
+            GOOS=darwin GOARCH=amd64 go build -o build/asc-darwin-amd64 .
+            GOOS=darwin GOARCH=arm64 go build -o build/asc-darwin-arm64 .
+      - script:
+          name: Build for Linux
+          script: |
+            GOOS=linux GOARCH=amd64 go build -o build/asc-linux-amd64 .
+            GOOS=linux GOARCH=arm64 go build -o build/asc-linux-arm64 .
+      - script:
+          name: Build for Windows
+          script: |
+            GOOS=windows GOARCH=amd64 go build -o build/asc-windows-amd64.exe .
+      - artifacts:
+          name: Build artifacts
+          paths:
+            - build/*
+
+  # Main branch workflow: runs integration tests with real API
+  main-workflow:
+    name: Main Branch (with integration tests)
+    max_build_duration: 60
+    environment:
+      go:
+        version: "latest"
+      variables:
+        # Codemagic environment variables (set in project settings)
+        # - ASC_KEY_ID
+        # - ASC_ISSUER_ID
+        # - ASC_PRIVATE_KEY_PATH
+        # - ASC_APP_ID
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    steps:
+      - script:
+          name: Run all tests (including integration)
+          script: |
+            # Run full test suite (integration tests require env vars)
+            go test ./...
+      - script:
+          name: Build for macOS
+          script: |
+            mkdir -p build
+            GOOS=darwin GOARCH=amd64 go build -o build/asc-darwin-amd64 .
+            GOOS=darwin GOARCH=arm64 go build -o build/asc-darwin-arm64 .
+      - script:
+          name: Build for Linux
+          script: |
+            GOOS=linux GOARCH=amd64 go build -o build/asc-linux-amd64 .
+            GOOS=linux GOARCH=arm64 go build -o build/asc-linux-arm64 .
+      - script:
+          name: Build for Windows
+          script: |
+            GOOS=windows GOARCH=amd64 go build -o build/asc-windows-amd64.exe .
+      - script:
+          name: Create checksums
+          script: |
+            cd build
+            shasum -a 256 * > checksums.txt
+            cat checksums.txt
+      - artifacts:
+          name: Build artifacts
+          paths:
+            - build/*
+
+  # Release workflow: creates GitHub releases
+  release-workflow:
+    name: ASC Release
+    max_build_duration: 30
+    environment:
+      go:
+        version: "latest"
+    triggering:
+      events:
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+    publishing:
+      scripts:
+        - name: Publish to GitHub Releases
+          script: |
+            # Get tag name without 'v' prefix
+            TAG=${CodemagicTag%.v}
+            VERSION=${TAG#v}
+
+            # Create release directory
+            mkdir -p release
+
+            # Build all platforms
+            GOOS=darwin GOARCH=amd64 go build -o release/asc-darwin-amd64 .
+            GOOS=darwin GOARCH=arm64 go build -o release/asc-darwin-arm64 .
+            GOOS=linux GOARCH=amd64 go build -o release/asc-linux-amd64 .
+            GOOS=linux GOARCH=arm64 go build -o release/asc-linux-arm64 .
+            GOOS=windows GOARCH=amd64 go build -o release/asc-windows-amd64.exe .
+
+            # Create checksums
+            cd release
+            shasum -a 256 * > checksums.txt
+
+            # Display files
+            ls -la
+      githubReleases:
+        # Configure GitHub integration in Codemagic settings
+        # Go to Project Settings → GitHub Releases → Connect repository
+        tag: ${CodemagicTag}
+        name: ASC ${CodemagicTag}
+        releaseNotes: |
+          ## Changes
+          See [CHANGELOG.md](CHANGELOG.md) for details.
+        artifacts:
+          - release/*
+          - release/checksums.txt
+        draft: false
+        prerelease: false
