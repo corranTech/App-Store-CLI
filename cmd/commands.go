@@ -114,8 +114,8 @@ func FeedbackCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	includeScreenshots := fs.Bool("include-screenshots", false, "Include screenshot URLs in feedback output")
 	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
 	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
 	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
@@ -137,10 +137,10 @@ This command fetches beta feedback screenshot submissions and comments.
 
 Examples:
   asc feedback --app "123456789"
-  asc feedback --app "123456789" --json
+  asc feedback --app "123456789" --include-screenshots
   asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
-  asc feedback --app "123456789" --sort -createdDate --limit 5 --json
-  asc feedback --next "<links.next>" --json`,
+  asc feedback --app "123456789" --sort -createdDate --limit 5
+  asc feedback --next "<links.next>"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -182,6 +182,9 @@ Examples:
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithFeedbackSort(*sort))
 			}
+			if *includeScreenshots {
+				opts = append(opts, asc.WithFeedbackIncludeScreenshots())
+			}
 
 			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
 			if err != nil {
@@ -189,9 +192,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(feedback, format, *pretty)
 		},
@@ -204,7 +204,6 @@ func CrashesCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
 	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
@@ -228,11 +227,10 @@ helping you identify and fix issues in your app.
 
 Examples:
   asc crashes --app "123456789"
-  asc crashes --app "123456789" --json
-  asc crashes --app "123456789" --json > crashes.json
+  asc crashes --app "123456789" > crashes.json
   asc crashes --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
-  asc crashes --app "123456789" --sort -createdDate --limit 5 --json
-  asc crashes --next "<links.next>" --json`,
+  asc crashes --app "123456789" --sort -createdDate --limit 5
+  asc crashes --next "<links.next>"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -281,9 +279,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(crashes, format, *pretty)
 		},
@@ -296,7 +291,6 @@ func ReviewsCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	stars := fs.Int("stars", 0, "Filter by star rating (1-5)")
 	territory := fs.String("territory", "", "Filter by territory (e.g., US, GBR)")
@@ -315,10 +309,9 @@ helping you understand user feedback and sentiment.
 
 Examples:
   asc reviews --app "123456789"
-  asc reviews --app "123456789" --json
-  asc reviews --app "123456789" --stars 1 --territory US --json
-  asc reviews --app "123456789" --sort -createdDate --limit 5 --json
-  asc reviews --next "<links.next>" --json`,
+  asc reviews --app "123456789" --stars 1 --territory US
+  asc reviews --app "123456789" --sort -createdDate --limit 5
+  asc reviews --next "<links.next>"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -372,9 +365,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(reviews, format, *pretty)
 		},
@@ -386,7 +376,6 @@ func AppsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps", flag.ExitOnError)
 
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	sort := fs.String("sort", "", "Sort by name or -name, bundleId or -bundleId")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -403,11 +392,10 @@ useful for finding app IDs when using other commands.
 
 Examples:
   asc apps
-  asc apps --json
-  asc apps --limit 10 --json
-  asc apps --sort name --json
+  asc apps --limit 10
+  asc apps --sort name
   asc apps --output table
-  asc apps --next "<links.next>" --json`,
+  asc apps --next "<links.next>"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -443,9 +431,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(apps, format, *pretty)
 		},
@@ -462,7 +447,6 @@ func BuildsUploadCommand() *ffcli.Command {
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (e.g., 123, auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -579,9 +563,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(result, format, *pretty)
 		},
@@ -626,7 +607,6 @@ func BuildsListCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -643,8 +623,7 @@ including processing status and expiration dates.
 
 Examples:
   asc builds list --app "123456789"
-  asc builds list --app "123456789" --json
-  asc builds list --app "123456789" --limit 10 --json`,
+  asc builds list --app "123456789" --limit 10`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -690,9 +669,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(builds, format, *pretty)
 		},
@@ -705,7 +681,6 @@ func BuildsInfoCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -715,7 +690,7 @@ func BuildsInfoCommand() *ffcli.Command {
 		LongHelp: `Show build details.
 
 Examples:
-  asc builds info --build "BUILD_ID" --json`,
+  asc builds info --build "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -738,9 +713,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(build, format, *pretty)
 		},
@@ -753,7 +725,6 @@ func BuildsExpireCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -765,7 +736,7 @@ func BuildsExpireCommand() *ffcli.Command {
 This action is irreversible for the specified build.
 
 Examples:
-  asc builds expire --build "BUILD_ID" --json`,
+  asc builds expire --build "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -788,9 +759,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(build, format, *pretty)
 		},
@@ -804,7 +772,6 @@ func SubmitCommand() *ffcli.Command {
 	versionID := fs.String("version", "", "App Store Version ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -818,7 +785,7 @@ a version for review on the App Store.
 
 Examples:
   asc submit --version "VERSION_ID" --confirm
-  asc submit --version "VERSION_ID" --confirm --json`,
+  asc submit --version "VERSION_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -863,9 +830,6 @@ Examples:
 			}
 
 			format := *output
-			if *jsonFlag {
-				format = "json"
-			}
 
 			return printOutput(result, format, *pretty)
 		},

@@ -104,6 +104,21 @@ func TestBuildFeedbackQuery(t *testing.T) {
 	}
 }
 
+func TestBuildFeedbackQuery_IncludesScreenshots(t *testing.T) {
+	query := &feedbackQuery{}
+	WithFeedbackIncludeScreenshots()(query)
+
+	values, err := url.ParseQuery(buildFeedbackQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+
+	expected := "createdDate,comment,email,deviceModel,osVersion,appPlatform,devicePlatform,screenshots"
+	if got := values.Get("fields[betaFeedbackScreenshotSubmissions]"); got != expected {
+		t.Fatalf("expected fields to be %q, got %q", expected, got)
+	}
+}
+
 func TestBuildCrashQuery(t *testing.T) {
 	query := &crashQuery{}
 	opts := []CrashOption{

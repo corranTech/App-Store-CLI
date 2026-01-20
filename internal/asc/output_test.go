@@ -62,6 +62,64 @@ func TestPrintTable_Feedback(t *testing.T) {
 	}
 }
 
+func TestPrintTable_FeedbackWithScreenshots(t *testing.T) {
+	resp := &FeedbackResponse{
+		Data: []Resource[FeedbackAttributes]{
+			{
+				ID: "1",
+				Attributes: FeedbackAttributes{
+					CreatedDate: "2026-01-20T00:00:00Z",
+					Email:       "tester@example.com",
+					Comment:     "Looks good",
+					Screenshots: []FeedbackScreenshotImage{
+						{URL: "https://example.com/shot.png", Width: 320, Height: 640},
+					},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Screenshots") {
+		t.Fatalf("expected screenshots column, got: %s", output)
+	}
+	if !strings.Contains(output, "https://example.com/shot.png") {
+		t.Fatalf("expected screenshot URL in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_FeedbackWithScreenshots(t *testing.T) {
+	resp := &FeedbackResponse{
+		Data: []Resource[FeedbackAttributes]{
+			{
+				ID: "1",
+				Attributes: FeedbackAttributes{
+					CreatedDate: "2026-01-20T00:00:00Z",
+					Email:       "tester@example.com",
+					Comment:     "Looks good",
+					Screenshots: []FeedbackScreenshotImage{
+						{URL: "https://example.com/shot.png"},
+					},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Screenshots |") {
+		t.Fatalf("expected screenshots column, got: %s", output)
+	}
+	if !strings.Contains(output, "https://example.com/shot.png") {
+		t.Fatalf("expected screenshot URL in output, got: %s", output)
+	}
+}
+
 func TestPrintMarkdown_Reviews(t *testing.T) {
 	resp := &ReviewsResponse{
 		Data: []Resource[ReviewAttributes]{

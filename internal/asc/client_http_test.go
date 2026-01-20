@@ -255,6 +255,22 @@ func TestGetFeedback_BuildsQuery(t *testing.T) {
 	}
 }
 
+func TestGetFeedback_IncludesScreenshots(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaFeedbackScreenshotSubmissions","id":"1","attributes":{"createdDate":"2026-01-20T00:00:00Z","comment":"Nice","email":"tester@example.com","screenshots":[{"url":"https://example.com/shot.png","width":320,"height":640,"expirationDate":"2026-01-21T00:00:00Z"}]}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		values := req.URL.Query()
+		expected := "createdDate,comment,email,deviceModel,osVersion,appPlatform,devicePlatform,screenshots"
+		if values.Get("fields[betaFeedbackScreenshotSubmissions]") != expected {
+			t.Fatalf("expected screenshot fields, got %q", values.Get("fields[betaFeedbackScreenshotSubmissions]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetFeedback(context.Background(), "123", WithFeedbackIncludeScreenshots()); err != nil {
+		t.Fatalf("GetFeedback() error: %v", err)
+	}
+}
+
 func TestGetCrashes_BuildsQuery(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaFeedbackCrashSubmissions","id":"1","attributes":{"createdDate":"2026-01-20T00:00:00Z","comment":"Crash","email":"tester@example.com","crashLog":"stack"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
