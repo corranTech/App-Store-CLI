@@ -116,6 +116,7 @@ func FeedbackCommand() *ffcli.Command {
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	jsonFlag := fs.Bool("json", false, "Output in JSON format (shorthand)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	includeScreenshots := fs.Bool("include-screenshots", false, "Include screenshot URLs in feedback output")
 	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
 	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
 	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
@@ -138,6 +139,7 @@ This command fetches beta feedback screenshot submissions and comments.
 Examples:
   asc feedback --app "123456789"
   asc feedback --app "123456789" --json
+  asc feedback --app "123456789" --include-screenshots --json
   asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
   asc feedback --app "123456789" --sort -createdDate --limit 5 --json
   asc feedback --next "<links.next>" --json`,
@@ -181,6 +183,9 @@ Examples:
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithFeedbackSort(*sort))
+			}
+			if *includeScreenshots {
+				opts = append(opts, asc.WithFeedbackIncludeScreenshots())
 			}
 
 			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)

@@ -69,13 +69,22 @@ type SingleResponse[T any] struct {
 
 // FeedbackAttributes describes beta feedback screenshot submissions.
 type FeedbackAttributes struct {
-	CreatedDate    string `json:"createdDate"`
-	Comment        string `json:"comment"`
-	Email          string `json:"email"`
-	DeviceModel    string `json:"deviceModel,omitempty"`
-	OSVersion      string `json:"osVersion,omitempty"`
-	AppPlatform    string `json:"appPlatform,omitempty"`
-	DevicePlatform string `json:"devicePlatform,omitempty"`
+	CreatedDate    string                    `json:"createdDate"`
+	Comment        string                    `json:"comment"`
+	Email          string                    `json:"email"`
+	DeviceModel    string                    `json:"deviceModel,omitempty"`
+	OSVersion      string                    `json:"osVersion,omitempty"`
+	AppPlatform    string                    `json:"appPlatform,omitempty"`
+	DevicePlatform string                    `json:"devicePlatform,omitempty"`
+	Screenshots    []FeedbackScreenshotImage `json:"screenshots,omitempty"`
+}
+
+// FeedbackScreenshotImage describes a screenshot attached to feedback.
+type FeedbackScreenshotImage struct {
+	URL            string `json:"url"`
+	Width          int    `json:"width,omitempty"`
+	Height         int    `json:"height,omitempty"`
+	ExpirationDate string `json:"expirationDate,omitempty"`
 }
 
 // CrashAttributes describes beta feedback crash submissions.
@@ -133,6 +142,7 @@ type feedbackQuery struct {
 	buildPreReleaseVersionIDs []string
 	testerIDs                 []string
 	sort                      string
+	includeScreenshots        bool
 }
 
 type crashQuery struct {
@@ -484,6 +494,13 @@ func WithFeedbackSort(sort string) FeedbackOption {
 	}
 }
 
+// WithFeedbackIncludeScreenshots includes screenshot URLs in feedback responses.
+func WithFeedbackIncludeScreenshots() FeedbackOption {
+	return func(q *feedbackQuery) {
+		q.includeScreenshots = true
+	}
+}
+
 // WithCrashDeviceModels filters crashes by device model(s).
 func WithCrashDeviceModels(models []string) CrashOption {
 	return func(q *crashQuery) {
@@ -773,6 +790,18 @@ func buildReviewQuery(opts []ReviewOption) string {
 
 func buildFeedbackQuery(query *feedbackQuery) string {
 	values := url.Values{}
+	if query.includeScreenshots {
+		values.Set("fields[betaFeedbackScreenshotSubmissions]", strings.Join([]string{
+			"createdDate",
+			"comment",
+			"email",
+			"deviceModel",
+			"osVersion",
+			"appPlatform",
+			"devicePlatform",
+			"screenshots",
+		}, ","))
+	}
 	addCSV(values, "filter[deviceModel]", query.deviceModels)
 	addCSV(values, "filter[osVersion]", query.osVersions)
 	addCSV(values, "filter[appPlatform]", query.appPlatforms)
@@ -1285,10 +1314,47 @@ func escapeMarkdown(input string) string {
 	return strings.ReplaceAll(clean, "|", "\\|")
 }
 
+func feedbackHasScreenshots(resp *FeedbackResponse) bool {
+	for _, item := range resp.Data {
+		if len(item.Attributes.Screenshots) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func formatScreenshotURLs(images []FeedbackScreenshotImage) string {
+	if len(images) == 0 {
+		return ""
+	}
+	urls := make([]string, 0, len(images))
+	for _, image := range images {
+		if strings.TrimSpace(image.URL) == "" {
+			continue
+		}
+		urls = append(urls, image.URL)
+	}
+	return strings.Join(urls, ", ")
+}
+
 func printFeedbackTable(resp *FeedbackResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Created\tEmail\tComment")
+	hasScreenshots := feedbackHasScreenshots(resp)
+	if hasScreenshots {
+		fmt.Fprintln(w, "Created\tEmail\tComment\tScreenshots")
+	} else {
+		fmt.Fprintln(w, "Created\tEmail\tComment")
+	}
 	for _, item := range resp.Data {
+		if hasScreenshots {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+				item.Attributes.CreatedDate,
+				item.Attributes.Email,
+				compactWhitespace(item.Attributes.Comment),
+				formatScreenshotURLs(item.Attributes.Screenshots),
+			)
+			continue
+		}
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
 			item.Attributes.CreatedDate,
 			item.Attributes.Email,
@@ -1328,9 +1394,24 @@ func printReviewsTable(resp *ReviewsResponse) error {
 }
 
 func printFeedbackMarkdown(resp *FeedbackResponse) error {
-	fmt.Fprintln(os.Stdout, "| Created | Email | Comment |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	hasScreenshots := feedbackHasScreenshots(resp)
+	if hasScreenshots {
+		fmt.Fprintln(os.Stdout, "| Created | Email | Comment | Screenshots |")
+		fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	} else {
+		fmt.Fprintln(os.Stdout, "| Created | Email | Comment |")
+		fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	}
 	for _, item := range resp.Data {
+		if hasScreenshots {
+			fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+				escapeMarkdown(item.Attributes.CreatedDate),
+				escapeMarkdown(item.Attributes.Email),
+				escapeMarkdown(item.Attributes.Comment),
+				escapeMarkdown(formatScreenshotURLs(item.Attributes.Screenshots)),
+			)
+			continue
+		}
 		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
 			escapeMarkdown(item.Attributes.CreatedDate),
 			escapeMarkdown(item.Attributes.Email),
