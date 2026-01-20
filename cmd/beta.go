@@ -160,7 +160,8 @@ Examples:
   asc beta-testers list --app "APP_ID"
   asc beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
   asc beta-testers remove --app "APP_ID" --email "tester@example.com"
-  asc beta-testers invite --app "APP_ID" --email "tester@example.com"`,
+  asc beta-testers invite --app "APP_ID" --email "tester@example.com"
+  asc beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -375,6 +376,7 @@ func BetaTestersInviteCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
+	group := fs.String("group", "", "Beta group name or ID (optional, creates tester if missing)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -385,7 +387,8 @@ func BetaTestersInviteCommand() *ffcli.Command {
 		LongHelp: `Invite a TestFlight beta tester.
 
 Examples:
-  asc beta-testers invite --app "APP_ID" --email "tester@example.com"`,
+  asc beta-testers invite --app "APP_ID" --email "tester@example.com"
+  asc beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -408,12 +411,27 @@ Examples:
 			defer cancel()
 
 			emailValue := strings.TrimSpace(*email)
+			groupValue := strings.TrimSpace(*group)
 			testerID, err := findBetaTesterIDByEmail(requestCtx, client, resolvedAppID, emailValue)
 			if err != nil {
 				if errors.Is(err, errBetaTesterNotFound) {
-					return fmt.Errorf("beta-testers invite: no tester found for %q (add with beta-testers add --group ...)", emailValue)
+					if groupValue == "" {
+						return fmt.Errorf("beta-testers invite: no tester found for %q (use beta-testers add --group ... or pass --group here)", emailValue)
+					}
+
+					groupID, resolveErr := resolveBetaGroupID(requestCtx, client, resolvedAppID, groupValue)
+					if resolveErr != nil {
+						return fmt.Errorf("beta-testers invite: %w", resolveErr)
+					}
+
+					created, createErr := client.CreateBetaTester(requestCtx, emailValue, "", "", []string{groupID})
+					if createErr != nil {
+						return fmt.Errorf("beta-testers invite: failed to create tester: %w", createErr)
+					}
+					testerID = created.Data.ID
+				} else {
+					return fmt.Errorf("beta-testers invite: %w", err)
 				}
-				return fmt.Errorf("beta-testers invite: %w", err)
 			}
 
 			invitation, err := client.CreateBetaTesterInvitation(requestCtx, resolvedAppID, testerID)
