@@ -1,2 +1,180 @@
-# App-Store-Connect-CLI
-A fast, AI-agent friendly CLI for App Store Connect. Ship apps with zero friction.
+# ASC - App Store Connect CLI
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge" alt="Homebrew">
+</p>
+
+A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect. Ship iOS apps with zero friction.
+
+## Why ASC?
+
+| Problem | Solution |
+|---------|----------|
+| Manual App Store Connect work | Automate everything from CLI |
+| Slow, heavy tooling | Go binary, fast startup |
+| Not AI-agent friendly | JSON output, explicit flags, clean exit codes |
+
+## Quick Start
+
+### Install
+
+```bash
+# Via Homebrew (coming soon)
+brew install rudrank/tap/asc
+
+# Or build from source
+git clone https://github.com/rudrankriyam/App-Store-Connect-CLI.git
+cd App-Store-Connect-CLI
+make build
+./asc --help
+```
+
+### Authenticate
+
+```bash
+# Register your App Store Connect API key
+asc auth login \
+  --name "MyApp" \
+  --key-id "ABC123" \
+  --issuer-id "DEF456" \
+  --private-key /path/to/AuthKey.p8
+```
+
+Generate API keys at: https://appstoreconnect.apple.com/access/api
+
+Credentials are stored in the system keychain when available, with a local config fallback
+at `~/.asc/config.json` (restricted permissions).
+Environment variable fallback:
+- `ASC_KEY_ID`
+- `ASC_ISSUER_ID`
+- `ASC_PRIVATE_KEY_PATH`
+
+## Commands
+
+### TestFlight
+
+```bash
+# List beta feedback screenshot submissions
+asc feedback --app "123456789" --json
+
+# Get crash reports
+asc crashes --app "123456789" --json
+```
+
+### App Store
+
+```bash
+# List customer reviews
+asc reviews --app "123456789" --stars 1 --json
+
+# Filter by territory
+asc reviews --app "123456789" --territory US
+```
+
+### Authentication
+
+```bash
+# Check authentication status
+asc auth status
+
+# Logout
+asc auth logout
+```
+
+## Design Philosophy
+
+### Explicit Over Cryptic
+
+```bash
+# Good - self-documenting
+asc reviews --app "MyApp" --stars 1 --json
+
+# Avoid - cryptic flags (hypothetical, not supported)
+# asc reviews -a "MyApp" -s 1
+```
+
+### AI-Agent Friendly
+
+All commands support JSON output for easy parsing:
+
+```bash
+asc feedback --app "123456789" --json | jq '.data[].attributes.comment'
+```
+
+### No Interactive Prompts
+
+Everything is flag-based for automation:
+
+```bash
+# Non-interactive (good for CI/CD and AI)
+asc feedback --app "123456789" --json
+
+# No prompts, no waiting
+```
+
+## Installation
+
+### Homebrew (macOS)
+
+```bash
+# Add tap
+brew tap rudrank/tap/asc
+
+# Install
+brew install asc
+```
+
+### From Source
+
+```bash
+git clone https://github.com/rudrankriyam/App-Store-Connect-CLI.git
+cd App-Store-Connect-CLI
+make build
+make install  # Installs to /usr/local/bin
+```
+
+## Documentation
+
+- [CLAUDE.md](CLAUDE.md) - Development guidelines for AI assistants
+- [PLAN.md](PLAN.md) - Detailed roadmap and feature list
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+
+## Roadmap
+
+| Version | Features |
+|---------|----------|
+| v0.1 | Feedback, crashes, reviews |
+| v0.2 | Apps, builds management |
+| v0.3 | Beta testers, groups |
+| v0.4 | Localizations |
+| v0.5 | App submission |
+| v1.0 | Full feature set |
+
+See [PLAN.md](PLAN.md) for detailed roadmap.
+
+## Security
+
+- Credentials stored in the system keychain when available
+- Local config fallback with restricted permissions
+- Private key content never stored, only path reference
+- Environment variables as fallback
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Author
+
+[Rudrank Riyam](https://github.com/rudrankriyam)
+
+---
+
+<p align="center">
+  Built with Go and Claude Code
+</p>

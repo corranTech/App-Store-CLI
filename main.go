@@ -1,0 +1,33 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+)
+
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
+func main() {
+	versionInfo := fmt.Sprintf("%s (commit: %s, date: %s)", version, commit, date)
+	root := cmd.RootCommand(versionInfo)
+
+	if err := root.Parse(os.Args[1:]); err != nil {
+		if err == flag.ErrHelp {
+			os.Exit(0)
+		}
+		log.Fatalf("error parsing flags: %v\n", err)
+	}
+
+	if err := root.Run(context.Background()); err != nil {
+		log.Fatalf("error executing command: %v\n", err)
+	}
+}
