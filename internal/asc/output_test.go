@@ -269,3 +269,103 @@ func TestPrintPrettyJSON(t *testing.T) {
 		t.Fatalf("expected pretty JSON indentation, got: %s", output)
 	}
 }
+
+func TestPrintTable_BuildUploadResult(t *testing.T) {
+	resp := &BuildUploadResult{
+		UploadID: "UPLOAD_123",
+		FileID:   "FILE_123",
+		FileName: "app.ipa",
+		FileSize: 1024,
+		Operations: []UploadOperation{
+			{
+				Method: "PUT",
+				URL:    "https://example.com/upload",
+				Length: 1024,
+				Offset: 0,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Upload ID") {
+		t.Fatalf("expected upload header, got: %s", output)
+	}
+	if !strings.Contains(output, "UPLOAD_123") {
+		t.Fatalf("expected upload ID in output, got: %s", output)
+	}
+	if !strings.Contains(output, "PUT") {
+		t.Fatalf("expected operation method in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_BuildUploadResult(t *testing.T) {
+	resp := &BuildUploadResult{
+		UploadID: "UPLOAD_123",
+		FileID:   "FILE_123",
+		FileName: "app.ipa",
+		FileSize: 1024,
+		Operations: []UploadOperation{
+			{
+				Method: "PUT",
+				URL:    "https://example.com/upload",
+				Length: 1024,
+				Offset: 0,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Upload ID | File ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "UPLOAD_123") {
+		t.Fatalf("expected upload ID in output, got: %s", output)
+	}
+	if !strings.Contains(output, "https://example.com/upload") {
+		t.Fatalf("expected upload URL in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_SubmissionResult(t *testing.T) {
+	createdDate := "2026-01-20T00:00:00Z"
+	resp := &AppStoreVersionSubmissionResult{
+		SubmissionID: "SUBMIT_123",
+		CreatedDate:  &createdDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Submission ID") {
+		t.Fatalf("expected submission header, got: %s", output)
+	}
+	if !strings.Contains(output, "SUBMIT_123") {
+		t.Fatalf("expected submission ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_SubmissionResult(t *testing.T) {
+	createdDate := "2026-01-20T00:00:00Z"
+	resp := &AppStoreVersionSubmissionResult{
+		SubmissionID: "SUBMIT_123",
+		CreatedDate:  &createdDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Submission ID | Created Date |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "SUBMIT_123") {
+		t.Fatalf("expected submission ID in output, got: %s", output)
+	}
+}

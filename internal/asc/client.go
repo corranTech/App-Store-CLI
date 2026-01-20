@@ -36,11 +36,23 @@ type Client struct {
 	privateKey *ecdsa.PrivateKey
 }
 
+// ResourceType represents an ASC resource type.
+type ResourceType string
+
+const (
+	ResourceTypeApps                       ResourceType = "apps"
+	ResourceTypeBuilds                     ResourceType = "builds"
+	ResourceTypeBuildUploads               ResourceType = "buildUploads"
+	ResourceTypeBuildUploadFiles           ResourceType = "buildUploadFiles"
+	ResourceTypeAppStoreVersions           ResourceType = "appStoreVersions"
+	ResourceTypeAppStoreVersionSubmissions ResourceType = "appStoreVersionSubmissions"
+)
+
 // Resource is a generic ASC API resource wrapper.
 type Resource[T any] struct {
-	Type       string `json:"type"`
-	ID         string `json:"id"`
-	Attributes T      `json:"attributes"`
+	Type       ResourceType `json:"type"`
+	ID         string       `json:"id"`
+	Attributes T            `json:"attributes"`
 }
 
 // Response is a generic ASC API response wrapper.
@@ -169,6 +181,216 @@ type BuildAttributes struct {
 	MinOSVersion            string `json:"minOsVersion,omitempty"`
 	UsesNonExemptEncryption bool   `json:"usesNonExemptEncryption,omitempty"`
 	Expired                 bool   `json:"expired,omitempty"`
+}
+
+// Platform represents an Apple platform.
+type Platform string
+
+const (
+	PlatformIOS      Platform = "IOS"
+	PlatformMacOS    Platform = "MAC_OS"
+	PlatformTVOS     Platform = "TV_OS"
+	PlatformVisionOS Platform = "VISION_OS"
+)
+
+// ChecksumAlgorithm represents the algorithm used for checksums.
+type ChecksumAlgorithm string
+
+const (
+	ChecksumAlgorithmMD5    ChecksumAlgorithm = "MD5"
+	ChecksumAlgorithmSHA256 ChecksumAlgorithm = "SHA_256"
+)
+
+// AssetType represents the asset type for build uploads.
+type AssetType string
+
+const (
+	AssetTypeAsset AssetType = "ASSET"
+)
+
+// UTI represents a Uniform Type Identifier used in uploads.
+type UTI string
+
+const (
+	UTIIPA UTI = "com.apple.ipa"
+)
+
+// Relationship represents a generic API relationship.
+type Relationship struct {
+	Data ResourceData `json:"data"`
+}
+
+// ResourceData represents the data portion of a resource.
+type ResourceData struct {
+	Type ResourceType `json:"type"`
+	ID   string       `json:"id"`
+}
+
+// BuildUploadAttributes describes a build upload resource.
+type BuildUploadAttributes struct {
+	CFBundleShortVersionString string   `json:"cfBundleShortVersionString"`
+	CFBundleVersion            string   `json:"cfBundleVersion"`
+	Platform                   Platform `json:"platform"`
+	CreatedDate                *string  `json:"createdDate,omitempty"`
+	State                      *string  `json:"state,omitempty"`
+}
+
+// BuildUploadRelationships describes the relationships for a build upload.
+type BuildUploadRelationships struct {
+	App   *Relationship `json:"app,omitempty"`
+	Build *Relationship `json:"build,omitempty"`
+}
+
+// BuildUploadCreateData is the data portion of a build upload create request.
+type BuildUploadCreateData struct {
+	Type          ResourceType              `json:"type"`
+	Attributes    BuildUploadAttributes     `json:"attributes"`
+	Relationships *BuildUploadRelationships `json:"relationships,omitempty"`
+}
+
+// BuildUploadCreateRequest is a request to create a build upload.
+type BuildUploadCreateRequest struct {
+	Data BuildUploadCreateData `json:"data"`
+}
+
+// SingleResourceResponse is a response with a single resource (not an array).
+type SingleResourceResponse[T any] struct {
+	Data Resource[T] `json:"data"`
+}
+
+// BuildUploadResponse is the response from build upload endpoint.
+type BuildUploadResponse = SingleResourceResponse[BuildUploadAttributes]
+
+// BuildUploadFileAttributes describes a build upload file resource.
+type BuildUploadFileAttributes struct {
+	AssetDeliveryState  *AppMediaAssetState `json:"assetDeliveryState,omitempty"`
+	AssetToken          *string             `json:"assetToken,omitempty"`
+	AssetType           AssetType           `json:"assetType,omitempty"`
+	FileName            string              `json:"fileName"`
+	FileSize            int64               `json:"fileSize"`
+	SourceFileChecksums *Checksums          `json:"sourceFileChecksums,omitempty"`
+	UploadOperations    []UploadOperation   `json:"uploadOperations,omitempty"`
+	UTI                 UTI                 `json:"uti"`
+	Uploaded            *bool               `json:"uploaded,omitempty"`
+}
+
+// BuildUploadFileRelationships describes the relationships for a build upload file.
+type BuildUploadFileRelationships struct {
+	BuildUpload *Relationship `json:"buildUpload"`
+}
+
+// BuildUploadFileCreateData is the data portion of a build upload file create request.
+type BuildUploadFileCreateData struct {
+	Type          ResourceType                  `json:"type"`
+	Attributes    BuildUploadFileAttributes     `json:"attributes"`
+	Relationships *BuildUploadFileRelationships `json:"relationships"`
+}
+
+// BuildUploadFileCreateRequest is a request to create a build upload file.
+type BuildUploadFileCreateRequest struct {
+	Data BuildUploadFileCreateData `json:"data"`
+}
+
+// BuildUploadFileResponse is the response from build upload file endpoint.
+type BuildUploadFileResponse = SingleResourceResponse[BuildUploadFileAttributes]
+
+// BuildUploadFileUpdateAttributes describes the attributes to update on a build upload file.
+type BuildUploadFileUpdateAttributes struct {
+	SourceFileChecksums *Checksums `json:"sourceFileChecksums,omitempty"`
+	Uploaded            *bool      `json:"uploaded,omitempty"`
+}
+
+// BuildUploadFileUpdateData is the data portion of a build upload file update request.
+type BuildUploadFileUpdateData struct {
+	Type       ResourceType                     `json:"type"`
+	ID         string                           `json:"id"`
+	Attributes *BuildUploadFileUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BuildUploadFileUpdateRequest is a request to update a build upload file.
+type BuildUploadFileUpdateRequest struct {
+	Data BuildUploadFileUpdateData `json:"data"`
+}
+
+// UploadOperation represents a file upload operation with presigned URL.
+type UploadOperation struct {
+	Method         string       `json:"method"`
+	URL            string       `json:"url"`
+	Length         int64        `json:"length"`
+	Offset         int64        `json:"offset"`
+	RequestHeaders []HTTPHeader `json:"requestHeaders,omitempty"`
+	Expiration     *string      `json:"expiration,omitempty"`
+}
+
+// HTTPHeader represents an HTTP header.
+type HTTPHeader struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// Checksums represents file checksums.
+type Checksums struct {
+	File      *Checksum `json:"file,omitempty"`
+	Composite *Checksum `json:"composite,omitempty"`
+}
+
+// Checksum represents a single checksum.
+type Checksum struct {
+	Hash      string            `json:"hash"`
+	Algorithm ChecksumAlgorithm `json:"algorithm"`
+}
+
+// AppMediaAssetState represents the state of an asset.
+type AppMediaAssetState struct {
+	State    *string       `json:"state,omitempty"`
+	Errors   []StateDetail `json:"errors,omitempty"`
+	Warnings []StateDetail `json:"warnings,omitempty"`
+	Infos    []StateDetail `json:"infos,omitempty"`
+}
+
+// StateDetail represents details about a state (errors, warnings, infos).
+type StateDetail struct {
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// AppStoreVersionSubmissionCreateData is the data portion of an app store version submission create request.
+type AppStoreVersionSubmissionCreateData struct {
+	Type          ResourceType                            `json:"type"`
+	Relationships *AppStoreVersionSubmissionRelationships `json:"relationships"`
+}
+
+// AppStoreVersionSubmissionCreateRequest is a request to create an app store version submission.
+type AppStoreVersionSubmissionCreateRequest struct {
+	Data AppStoreVersionSubmissionCreateData `json:"data"`
+}
+
+// AppStoreVersionSubmissionRelationships describes the relationships for an app store version submission.
+type AppStoreVersionSubmissionRelationships struct {
+	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
+// AppStoreVersionSubmissionAttributes describes an app store version submission resource.
+type AppStoreVersionSubmissionAttributes struct {
+	CreatedDate *string `json:"createdDate,omitempty"`
+}
+
+// AppStoreVersionSubmissionResponse is the response from app store version submission endpoint.
+type AppStoreVersionSubmissionResponse = SingleResourceResponse[AppStoreVersionSubmissionAttributes]
+
+// BuildUploadResult represents CLI output for build upload preparation.
+type BuildUploadResult struct {
+	UploadID   string            `json:"uploadId"`
+	FileID     string            `json:"fileId"`
+	FileName   string            `json:"fileName"`
+	FileSize   int64             `json:"fileSize"`
+	Operations []UploadOperation `json:"operations,omitempty"`
+}
+
+// AppStoreVersionSubmissionResult represents CLI output for submissions.
+type AppStoreVersionSubmissionResult struct {
+	SubmissionID string  `json:"submissionId"`
+	CreatedDate  *string `json:"createdDate,omitempty"`
 }
 
 // FeedbackOption is a functional option for GetFeedback.
@@ -749,17 +971,21 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 		opt(query)
 	}
 
-	path := "/v1/builds"
+	path := fmt.Sprintf("/v1/apps/%s/builds", appID)
 	if query.nextURL != "" {
 		path = query.nextURL
 	} else {
 		values := url.Values{}
-		values.Set("filter[app]", appID)
-		if query.sort != "" {
-			values.Set("sort", query.sort)
-		}
-		if query.limit > 0 {
-			values.Set("limit", strconv.Itoa(query.limit))
+		// Use /v1/builds endpoint when sorting or limiting, since /v1/apps/{id}/builds doesn't support these
+		if query.sort != "" || query.limit > 0 {
+			path = "/v1/builds"
+			values.Set("filter[app]", appID)
+			if query.sort != "" {
+				values.Set("sort", query.sort)
+			}
+			if query.limit > 0 {
+				values.Set("limit", strconv.Itoa(query.limit))
+			}
 		}
 		if queryString := values.Encode(); queryString != "" {
 			path += "?" + queryString
@@ -799,14 +1025,14 @@ func (c *Client) GetBuild(ctx context.Context, buildID string) (*BuildResponse, 
 func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildResponse, error) {
 	payload := struct {
 		Data struct {
-			Type       string `json:"type"`
-			ID         string `json:"id"`
+			Type       ResourceType `json:"type"`
+			ID         string       `json:"id"`
 			Attributes struct {
 				Expired bool `json:"expired"`
 			} `json:"attributes"`
 		} `json:"data"`
 	}{}
-	payload.Data.Type = "builds"
+	payload.Data.Type = ResourceTypeBuilds
 	payload.Data.ID = buildID
 	payload.Data.Attributes.Expired = true
 
@@ -827,6 +1053,122 @@ func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildRespons
 	}
 
 	return &response, nil
+}
+
+// CreateBuildUpload creates a new build upload record.
+func (c *Client) CreateBuildUpload(ctx context.Context, req BuildUploadCreateRequest) (*BuildUploadResponse, error) {
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/buildUploads", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildUploadResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBuildUpload retrieves a build upload by ID.
+func (c *Client) GetBuildUpload(ctx context.Context, id string) (*BuildUploadResponse, error) {
+	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/buildUploads/%s", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildUploadResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// CreateBuildUploadFile creates a new build upload file reservation.
+func (c *Client) CreateBuildUploadFile(ctx context.Context, req BuildUploadFileCreateRequest) (*BuildUploadFileResponse, error) {
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/buildUploadFiles", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildUploadFileResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateBuildUploadFile updates a build upload file (used to commit upload).
+func (c *Client) UpdateBuildUploadFile(ctx context.Context, id string, req BuildUploadFileUpdateRequest) (*BuildUploadFileResponse, error) {
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/buildUploadFiles/%s", id), body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildUploadFileResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// CreateAppStoreVersionSubmission creates a new app store version submission.
+func (c *Client) CreateAppStoreVersionSubmission(ctx context.Context, req AppStoreVersionSubmissionCreateRequest) (*AppStoreVersionSubmissionResponse, error) {
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/appStoreVersionSubmissions", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionSubmissionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppStoreVersionSubmission retrieves an app store version submission by ID.
+func (c *Client) GetAppStoreVersionSubmission(ctx context.Context, id string) (*AppStoreVersionSubmissionResponse, error) {
+	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionSubmissionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteAppStoreVersionSubmission deletes an app store version submission.
+func (c *Client) DeleteAppStoreVersionSubmission(ctx context.Context, id string) error {
+	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id), nil)
+	return err
 }
 
 // Links represents pagination links
@@ -864,6 +1206,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildUploadResult:
+		return printBuildUploadResultMarkdown(v)
+	case *AppStoreVersionSubmissionResult:
+		return printAppStoreVersionSubmissionMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -884,6 +1230,10 @@ func PrintTable(data interface{}) error {
 		return printBuildsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildUploadResult:
+		return printBuildUploadResultTable(v)
+	case *AppStoreVersionSubmissionResult:
+		return printAppStoreVersionSubmissionTable(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -1072,5 +1422,84 @@ func printBuildsMarkdown(resp *BuildsResponse) error {
 			item.Attributes.Expired,
 		)
 	}
+	return nil
+}
+
+func printBuildUploadResultTable(result *BuildUploadResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Upload ID\tFile ID\tFile Name\tFile Size")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%d\n",
+		result.UploadID,
+		result.FileID,
+		result.FileName,
+		result.FileSize,
+	)
+	if err := w.Flush(); err != nil {
+		return err
+	}
+	if len(result.Operations) == 0 {
+		return nil
+	}
+	fmt.Fprintln(os.Stdout, "\nUpload Operations")
+	opsWriter := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(opsWriter, "Method\tURL\tLength\tOffset")
+	for _, op := range result.Operations {
+		fmt.Fprintf(opsWriter, "%s\t%s\t%d\t%d\n",
+			op.Method,
+			op.URL,
+			op.Length,
+			op.Offset,
+		)
+	}
+	return opsWriter.Flush()
+}
+
+func printAppStoreVersionSubmissionTable(result *AppStoreVersionSubmissionResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Submission ID\tCreated Date")
+	createdDate := ""
+	if result.CreatedDate != nil {
+		createdDate = *result.CreatedDate
+	}
+	fmt.Fprintf(w, "%s\t%s\n", result.SubmissionID, createdDate)
+	return w.Flush()
+}
+
+func printBuildUploadResultMarkdown(result *BuildUploadResult) error {
+	fmt.Fprintln(os.Stdout, "| Upload ID | File ID | File Name | File Size |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d |\n",
+		escapeMarkdown(result.UploadID),
+		escapeMarkdown(result.FileID),
+		escapeMarkdown(result.FileName),
+		result.FileSize,
+	)
+	if len(result.Operations) == 0 {
+		return nil
+	}
+	fmt.Fprintln(os.Stdout, "\n| Method | URL | Length | Offset |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, op := range result.Operations {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %d | %d |\n",
+			escapeMarkdown(op.Method),
+			escapeMarkdown(op.URL),
+			op.Length,
+			op.Offset,
+		)
+	}
+	return nil
+}
+
+func printAppStoreVersionSubmissionMarkdown(result *AppStoreVersionSubmissionResult) error {
+	fmt.Fprintln(os.Stdout, "| Submission ID | Created Date |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	createdDate := ""
+	if result.CreatedDate != nil {
+		createdDate = *result.CreatedDate
+	}
+	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
+		escapeMarkdown(result.SubmissionID),
+		escapeMarkdown(createdDate),
+	)
 	return nil
 }
