@@ -60,10 +60,6 @@ Examples:
 The private key file path is stored securely. The key content is never saved.`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			if *name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
 				fs.Usage()
@@ -87,12 +83,12 @@ The private key file path is stored securely. The key content is never saved.`,
 
 			// Validate the key file exists and is parseable
 			if err := auth.ValidateKeyFile(*keyPath); err != nil {
-				return fmt.Errorf("invalid private key: %w", err)
+				return fmt.Errorf("auth login: invalid private key: %w", err)
 			}
 
 			// Store credentials securely
 			if err := auth.StoreCredentials(*name, *keyID, *issuerID, *keyPath); err != nil {
-				return fmt.Errorf("failed to store credentials: %w", err)
+				return fmt.Errorf("auth login: failed to store credentials: %w", err)
 			}
 
 			fmt.Printf("Successfully registered API key '%s'\n", *name)
@@ -117,16 +113,12 @@ Examples:
   asc auth logout --all`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			if *all {
 				// Flag is accepted for future multi-key support.
 			}
 
 			if err := auth.RemoveAllCredentials(); err != nil {
-				return fmt.Errorf("failed to remove credentials: %w", err)
+				return fmt.Errorf("auth logout: failed to remove credentials: %w", err)
 			}
 
 			fmt.Println("Successfully removed stored credentials")
@@ -151,13 +143,9 @@ Examples:
   asc auth status`,
 		FlagSet: fs,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := fs.Parse(args); err != nil {
-				return err
-			}
-
 			credentials, err := auth.ListCredentials()
 			if err != nil {
-				return fmt.Errorf("failed to list credentials: %w", err)
+				return fmt.Errorf("auth status: failed to list credentials: %w", err)
 			}
 
 			if len(credentials) == 0 {

@@ -89,6 +89,112 @@ func TestPrintMarkdown_Reviews(t *testing.T) {
 	}
 }
 
+func TestPrintTable_Apps(t *testing.T) {
+	resp := &AppsResponse{
+		Data: []Resource[AppAttributes]{
+			{
+				ID: "123",
+				Attributes: AppAttributes{
+					Name:     "Demo App",
+					BundleID: "com.example.demo",
+					SKU:      "SKU-1",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Bundle ID") {
+		t.Fatalf("expected apps header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "com.example.demo") {
+		t.Fatalf("expected bundle ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Apps(t *testing.T) {
+	resp := &AppsResponse{
+		Data: []Resource[AppAttributes]{
+			{
+				ID: "123",
+				Attributes: AppAttributes{
+					Name:     "Demo App",
+					BundleID: "com.example.demo",
+					SKU:      "SKU-1",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Name | Bundle ID | SKU |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "Demo App") {
+		t.Fatalf("expected app name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_Builds(t *testing.T) {
+	resp := &BuildsResponse{
+		Data: []Resource[BuildAttributes]{
+			{
+				ID: "1",
+				Attributes: BuildAttributes{
+					Version:         "1.2.3",
+					UploadedDate:    "2026-01-20T00:00:00Z",
+					ProcessingState: "PROCESSING",
+					Expired:         false,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Processing") {
+		t.Fatalf("expected builds header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "1.2.3") {
+		t.Fatalf("expected build version in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Builds(t *testing.T) {
+	resp := &BuildsResponse{
+		Data: []Resource[BuildAttributes]{
+			{
+				ID: "1",
+				Attributes: BuildAttributes{
+					Version:         "1.2.3",
+					UploadedDate:    "2026-01-20T00:00:00Z",
+					ProcessingState: "PROCESSING",
+					Expired:         false,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Version | Uploaded | Processing | Expired |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "1.2.3") {
+		t.Fatalf("expected build version in output, got: %s", output)
+	}
+}
+
 func TestPrintPrettyJSON(t *testing.T) {
 	resp := &ReviewsResponse{
 		Data: []Resource[ReviewAttributes]{

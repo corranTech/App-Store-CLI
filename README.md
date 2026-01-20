@@ -97,6 +97,31 @@ asc reviews --app "123456789" --sort -createdDate --limit 5 --json
 asc reviews --next "<links.next>" --json
 ```
 
+### Apps & Builds
+
+```bash
+# List apps (useful for finding app IDs)
+asc apps --json
+
+# Sort apps by name or bundle ID
+asc apps --sort name --json
+asc apps --sort -bundleId --json
+
+# List builds for an app
+asc builds --app "123456789" --json
+
+# Sort builds by upload date (newest first)
+asc builds --app "123456789" --sort -uploadedDate --json
+```
+
+### Utilities
+
+```bash
+# Print version information
+asc version
+asc --version
+```
+
 ### Output Formats
 
 | Format | Flag | Use Case |
