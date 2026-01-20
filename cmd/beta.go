@@ -359,7 +359,7 @@ Examples:
 				return fmt.Errorf("beta-testers remove: failed to remove: %w", err)
 			}
 
-			result := asc.BetaTesterDeleteResult{
+			result := &asc.BetaTesterDeleteResult{
 				ID:      testerID,
 				Email:   strings.TrimSpace(*email),
 				Deleted: true,
@@ -439,7 +439,7 @@ Examples:
 				return fmt.Errorf("beta-testers invite: failed to create invitation: %w", err)
 			}
 
-			result := asc.BetaTesterInvitationResult{
+			result := &asc.BetaTesterInvitationResult{
 				InvitationID: invitation.Data.ID,
 				TesterID:     testerID,
 				AppID:        resolvedAppID,
