@@ -498,6 +498,60 @@ func TestPrintMarkdown_Builds(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppStoreVersions(t *testing.T) {
+	resp := &AppStoreVersionsResponse{
+		Data: []Resource[AppStoreVersionAttributes]{
+			{
+				ID: "VERSION_123",
+				Attributes: AppStoreVersionAttributes{
+					VersionString:   "1.0.0",
+					Platform:        Platform("IOS"),
+					AppVersionState: "READY_FOR_REVIEW",
+					CreatedDate:     "2026-01-20T00:00:00Z",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Version") || !strings.Contains(output, "Platform") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "VERSION_123") {
+		t.Fatalf("expected version ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersions(t *testing.T) {
+	resp := &AppStoreVersionsResponse{
+		Data: []Resource[AppStoreVersionAttributes]{
+			{
+				ID: "VERSION_123",
+				Attributes: AppStoreVersionAttributes{
+					VersionString: "1.0.0",
+					Platform:      Platform("IOS"),
+					AppStoreState: "READY_FOR_REVIEW",
+					CreatedDate:   "2026-01-20T00:00:00Z",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Version | Platform |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "READY_FOR_REVIEW") {
+		t.Fatalf("expected state in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_BuildInfo(t *testing.T) {
 	resp := &BuildResponse{
 		Data: Resource[BuildAttributes]{
@@ -670,5 +724,213 @@ func TestPrintMarkdown_SubmissionResult(t *testing.T) {
 	}
 	if !strings.Contains(output, "SUBMIT_123") {
 		t.Fatalf("expected submission ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_SubmissionCreateResult(t *testing.T) {
+	createdDate := "2026-01-20T00:00:00Z"
+	resp := &AppStoreVersionSubmissionCreateResult{
+		SubmissionID: "SUBMIT_123",
+		VersionID:    "VERSION_123",
+		BuildID:      "BUILD_123",
+		CreatedDate:  &createdDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Submission ID") {
+		t.Fatalf("expected submission header, got: %s", output)
+	}
+	if !strings.Contains(output, "VERSION_123") || !strings.Contains(output, "BUILD_123") {
+		t.Fatalf("expected IDs in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_SubmissionCreateResult(t *testing.T) {
+	createdDate := "2026-01-20T00:00:00Z"
+	resp := &AppStoreVersionSubmissionCreateResult{
+		SubmissionID: "SUBMIT_123",
+		VersionID:    "VERSION_123",
+		BuildID:      "BUILD_123",
+		CreatedDate:  &createdDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Submission ID | Version ID | Build ID | Created Date |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "VERSION_123") {
+		t.Fatalf("expected version ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_SubmissionStatusResult(t *testing.T) {
+	createdDate := "2026-01-20T00:00:00Z"
+	resp := &AppStoreVersionSubmissionStatusResult{
+		ID:            "SUBMIT_123",
+		VersionID:     "VERSION_123",
+		VersionString: "1.0.0",
+		Platform:      "IOS",
+		State:         "WAITING_FOR_REVIEW",
+		CreatedDate:   &createdDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Submission ID") {
+		t.Fatalf("expected submission header, got: %s", output)
+	}
+	if !strings.Contains(output, "WAITING_FOR_REVIEW") {
+		t.Fatalf("expected state in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_SubmissionStatusResult(t *testing.T) {
+	createdDate := "2026-01-20T00:00:00Z"
+	resp := &AppStoreVersionSubmissionStatusResult{
+		ID:            "SUBMIT_123",
+		VersionID:     "VERSION_123",
+		VersionString: "1.0.0",
+		Platform:      "IOS",
+		State:         "WAITING_FOR_REVIEW",
+		CreatedDate:   &createdDate,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Submission ID | Version ID | Version | Platform | State | Created Date |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "WAITING_FOR_REVIEW") {
+		t.Fatalf("expected state in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_SubmissionCancelResult(t *testing.T) {
+	resp := &AppStoreVersionSubmissionCancelResult{
+		ID:        "SUBMIT_123",
+		Cancelled: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Cancelled") {
+		t.Fatalf("expected cancelled header, got: %s", output)
+	}
+	if !strings.Contains(output, "SUBMIT_123") {
+		t.Fatalf("expected submission ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_SubmissionCancelResult(t *testing.T) {
+	resp := &AppStoreVersionSubmissionCancelResult{
+		ID:        "SUBMIT_123",
+		Cancelled: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Submission ID | Cancelled |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "SUBMIT_123") {
+		t.Fatalf("expected submission ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppStoreVersionDetailResult(t *testing.T) {
+	resp := &AppStoreVersionDetailResult{
+		ID:            "VERSION_123",
+		VersionString: "1.0.0",
+		Platform:      "IOS",
+		State:         "READY_FOR_REVIEW",
+		BuildID:       "BUILD_123",
+		BuildVersion:  "1.0.0",
+		SubmissionID:  "SUBMIT_123",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Version ID") {
+		t.Fatalf("expected version header, got: %s", output)
+	}
+	if !strings.Contains(output, "BUILD_123") {
+		t.Fatalf("expected build ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionDetailResult(t *testing.T) {
+	resp := &AppStoreVersionDetailResult{
+		ID:            "VERSION_123",
+		VersionString: "1.0.0",
+		Platform:      "IOS",
+		State:         "READY_FOR_REVIEW",
+		BuildID:       "BUILD_123",
+		BuildVersion:  "1.0.0",
+		SubmissionID:  "SUBMIT_123",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Version ID | Version | Platform | State | Build ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "SUBMIT_123") {
+		t.Fatalf("expected submission ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppStoreVersionAttachBuildResult(t *testing.T) {
+	resp := &AppStoreVersionAttachBuildResult{
+		VersionID: "VERSION_123",
+		BuildID:   "BUILD_123",
+		Attached:  true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Attached") {
+		t.Fatalf("expected attached header, got: %s", output)
+	}
+	if !strings.Contains(output, "BUILD_123") {
+		t.Fatalf("expected build ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionAttachBuildResult(t *testing.T) {
+	resp := &AppStoreVersionAttachBuildResult{
+		VersionID: "VERSION_123",
+		BuildID:   "BUILD_123",
+		Attached:  true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Version ID | Build ID | Attached |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "VERSION_123") {
+		t.Fatalf("expected version ID in output, got: %s", output)
 	}
 }

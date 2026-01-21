@@ -212,6 +212,36 @@ func TestBuildBetaTestersQuery(t *testing.T) {
 	}
 }
 
+func TestBuildAppStoreVersionsQuery(t *testing.T) {
+	query := &appStoreVersionsQuery{}
+	opts := []AppStoreVersionsOption{
+		WithAppStoreVersionsLimit(20),
+		WithAppStoreVersionsPlatforms([]string{"ios", "MAC_OS"}),
+		WithAppStoreVersionsVersionStrings([]string{"1.0.0", "1.1.0"}),
+		WithAppStoreVersionsStates([]string{"ready_for_review"}),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildAppStoreVersionsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[platform]"); got != "IOS,MAC_OS" {
+		t.Fatalf("expected filter[platform]=IOS,MAC_OS, got %q", got)
+	}
+	if got := values.Get("filter[versionString]"); got != "1.0.0,1.1.0" {
+		t.Fatalf("expected filter[versionString]=1.0.0,1.1.0, got %q", got)
+	}
+	if got := values.Get("filter[appStoreState]"); got != "READY_FOR_REVIEW" {
+		t.Fatalf("expected filter[appStoreState]=READY_FOR_REVIEW, got %q", got)
+	}
+	if got := values.Get("limit"); got != "20" {
+		t.Fatalf("expected limit=20, got %q", got)
+	}
+}
+
 func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 	query := &appStoreVersionLocalizationsQuery{}
 	opts := []AppStoreVersionLocalizationsOption{
