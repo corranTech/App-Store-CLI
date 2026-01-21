@@ -105,14 +105,6 @@ Examples:
 				return fmt.Errorf("localizations list: %w", err)
 			}
 
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("localizations list: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
 			locales := splitCSV(*locale)
 
 			switch normalizedType {
@@ -121,6 +113,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
 					return flag.ErrHelp
 				}
+
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("localizations list: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
 
 				opts := []asc.AppStoreVersionLocalizationsOption{
 					asc.WithAppStoreVersionLocalizationsLimit(*limit),
@@ -141,6 +141,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
 					return flag.ErrHelp
 				}
+
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("localizations list: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
 
 				appInfo, err := resolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				if err != nil {
@@ -207,14 +215,6 @@ Examples:
 				return fmt.Errorf("localizations download: %w", err)
 			}
 
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("localizations download: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
 			locales := splitCSV(*locale)
 
 			switch normalizedType {
@@ -223,6 +223,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
 					return flag.ErrHelp
 				}
+
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("localizations download: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
 
 				opts := []asc.AppStoreVersionLocalizationsOption{
 					asc.WithAppStoreVersionLocalizationsLimit(*limit),
@@ -256,6 +264,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
 					return flag.ErrHelp
 				}
+
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("localizations download: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
 
 				appInfo, err := resolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				if err != nil {
@@ -334,14 +350,6 @@ Examples:
 				return fmt.Errorf("localizations upload: %w", err)
 			}
 
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("localizations upload: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
 			locales := splitCSV(*locale)
 
 			switch normalizedType {
@@ -355,6 +363,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
+
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("localizations upload: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
 
 				results, err := uploadVersionLocalizations(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun)
 				if err != nil {
@@ -376,12 +392,20 @@ Examples:
 					return flag.ErrHelp
 				}
 
-				appInfo, err := resolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
+				valuesByLocale, err := readLocalizationStrings(*path, locales)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
-				valuesByLocale, err := readLocalizationStrings(*path, locales)
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("localizations upload: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
+
+				appInfo, err := resolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
