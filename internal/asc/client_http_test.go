@@ -142,6 +142,150 @@ func TestGetBuilds_UsesNextURL(t *testing.T) {
 	}
 }
 
+func TestGetAppStoreVersions_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"1","attributes":{"versionString":"1.0.0","platform":"IOS"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/123/appStoreVersions" {
+			t.Fatalf("expected path /v1/apps/123/appStoreVersions, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[platform]") != "IOS" {
+			t.Fatalf("expected filter[platform]=IOS, got %q", values.Get("filter[platform]"))
+		}
+		if values.Get("filter[versionString]") != "1.0.0" {
+			t.Fatalf("expected filter[versionString]=1.0.0, got %q", values.Get("filter[versionString]"))
+		}
+		if values.Get("filter[appStoreState]") != "READY_FOR_REVIEW" {
+			t.Fatalf("expected filter[appStoreState]=READY_FOR_REVIEW, got %q", values.Get("filter[appStoreState]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersions(
+		context.Background(),
+		"123",
+		WithAppStoreVersionsLimit(5),
+		WithAppStoreVersionsPlatforms([]string{"IOS"}),
+		WithAppStoreVersionsVersionStrings([]string{"1.0.0"}),
+		WithAppStoreVersionsStates([]string{"READY_FOR_REVIEW"}),
+	); err != nil {
+		t.Fatalf("GetAppStoreVersions() error: %v", err)
+	}
+}
+
+func TestGetAppStoreVersions_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/apps/123/appStoreVersions?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersions(context.Background(), "123", WithAppStoreVersionsNextURL(next)); err != nil {
+		t.Fatalf("GetAppStoreVersions() error: %v", err)
+	}
+}
+
+func TestGetAppStoreVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"1","attributes":{"versionString":"1.0.0","platform":"IOS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/1" {
+			t.Fatalf("expected path /v1/appStoreVersions/1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersion(context.Background(), "1"); err != nil {
+		t.Fatalf("GetAppStoreVersion() error: %v", err)
+	}
+}
+
+func TestAttachBuildToVersion(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/1/relationships/build" {
+			t.Fatalf("expected path /v1/appStoreVersions/1/relationships/build, got %s", req.URL.Path)
+		}
+		var body AppStoreVersionBuildRelationshipUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if body.Data.Type != ResourceTypeBuilds || body.Data.ID != "BUILD_123" {
+			t.Fatalf("unexpected request payload: %+v", body.Data)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.AttachBuildToVersion(context.Background(), "1", "BUILD_123"); err != nil {
+		t.Fatalf("AttachBuildToVersion() error: %v", err)
+	}
+}
+
+func TestGetAppStoreVersionBuild(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"1.0.0","uploadedDate":"2026-01-20T00:00:00Z"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/1/build" {
+			t.Fatalf("expected path /v1/appStoreVersions/1/build, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersionBuild(context.Background(), "1"); err != nil {
+		t.Fatalf("GetAppStoreVersionBuild() error: %v", err)
+	}
+}
+
+func TestGetAppStoreVersionSubmissionResource(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"SUBMIT_123","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_123"}}}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersionSubmissions/SUBMIT_123" {
+			t.Fatalf("expected path /v1/appStoreVersionSubmissions/SUBMIT_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersionSubmissionResource(context.Background(), "SUBMIT_123"); err != nil {
+		t.Fatalf("GetAppStoreVersionSubmissionResource() error: %v", err)
+	}
+}
+
+func TestGetAppStoreVersionSubmissionForVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"SUBMIT_123","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_123"}}}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/VERSION_123/appStoreVersionSubmission" {
+			t.Fatalf("expected path /v1/appStoreVersions/VERSION_123/appStoreVersionSubmission, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersionSubmissionForVersion(context.Background(), "VERSION_123"); err != nil {
+		t.Fatalf("GetAppStoreVersionSubmissionForVersion() error: %v", err)
+	}
+}
+
 func TestGetBetaGroups_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"1","attributes":{"name":"Beta"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

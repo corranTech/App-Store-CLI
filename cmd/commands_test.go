@@ -383,14 +383,102 @@ func TestSubmitValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "missing version",
-			args:    []string{"submit", "--confirm"},
-			wantErr: "Error: --version is required",
+			name:    "create missing confirm",
+			args:    []string{"submit", "create", "--app", "APP_123", "--version", "1.0.0", "--build", "BUILD_123"},
+			wantErr: "Error: --confirm is required",
 		},
 		{
-			name:    "missing confirm",
-			args:    []string{"submit", "--version", "VERSION_123"},
+			name:    "create missing build",
+			args:    []string{"submit", "create", "--app", "APP_123", "--version", "1.0.0", "--confirm"},
+			wantErr: "Error: --build is required",
+		},
+		{
+			name:    "create missing version",
+			args:    []string{"submit", "create", "--app", "APP_123", "--build", "BUILD_123", "--confirm"},
+			wantErr: "Error: --version or --version-id is required",
+		},
+		{
+			name:    "status missing id",
+			args:    []string{"submit", "status"},
+			wantErr: "Error: --id or --version-id is required",
+		},
+		{
+			name:    "cancel missing confirm",
+			args:    []string{"submit", "cancel", "--id", "SUBMIT_123"},
 			wantErr: "Error: --confirm is required",
+		},
+		{
+			name:    "cancel missing id",
+			args:    []string{"submit", "cancel", "--confirm"},
+			wantErr: "Error: --id or --version-id is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestSubmitValidationConflicts(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	err := root.Parse([]string{"submit", "create", "--app", "APP_123", "--version", "1.0.0", "--version-id", "VERSION_123", "--build", "BUILD_123", "--confirm"})
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err == nil {
+		t.Fatalf("expected error for conflicting flags")
+	}
+}
+
+func TestVersionsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "list missing app",
+			args:    []string{"versions", "list"},
+			wantErr: "Error: --app is required",
+		},
+		{
+			name:    "get missing version id",
+			args:    []string{"versions", "get"},
+			wantErr: "Error: --version-id is required",
+		},
+		{
+			name:    "attach missing version id",
+			args:    []string{"versions", "attach-build", "--build", "BUILD_123"},
+			wantErr: "Error: --version-id is required",
+		},
+		{
+			name:    "attach missing build",
+			args:    []string{"versions", "attach-build", "--version-id", "VERSION_123"},
+			wantErr: "Error: --build is required",
 		},
 	}
 

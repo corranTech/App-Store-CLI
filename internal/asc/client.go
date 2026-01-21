@@ -130,6 +130,12 @@ type AppsResponse = Response[AppAttributes]
 // BuildsResponse is the response from builds endpoint.
 type BuildsResponse = Response[BuildAttributes]
 
+// AppStoreVersionsResponse is the response from app store versions endpoints.
+type AppStoreVersionsResponse = Response[AppStoreVersionAttributes]
+
+// AppStoreVersionResponse is the response from app store version detail.
+type AppStoreVersionResponse = SingleResponse[AppStoreVersionAttributes]
+
 // BuildResponse is the response from build detail/updates.
 type BuildResponse = SingleResponse[BuildAttributes]
 
@@ -210,6 +216,13 @@ type buildsQuery struct {
 	sort string
 }
 
+type appStoreVersionsQuery struct {
+	listQuery
+	platforms      []string
+	versionStrings []string
+	states         []string
+}
+
 type appStoreVersionLocalizationsQuery struct {
 	listQuery
 	locales []string
@@ -247,6 +260,15 @@ type BuildAttributes struct {
 	MinOSVersion            string `json:"minOsVersion,omitempty"`
 	UsesNonExemptEncryption bool   `json:"usesNonExemptEncryption,omitempty"`
 	Expired                 bool   `json:"expired,omitempty"`
+}
+
+// AppStoreVersionAttributes describes app store version metadata.
+type AppStoreVersionAttributes struct {
+	Platform        Platform `json:"platform,omitempty"`
+	VersionString   string   `json:"versionString,omitempty"`
+	AppStoreState   string   `json:"appStoreState,omitempty"`
+	AppVersionState string   `json:"appVersionState,omitempty"`
+	CreatedDate     string   `json:"createdDate,omitempty"`
 }
 
 // AppStoreVersionLocalizationAttributes describes app store version localization metadata.
@@ -514,6 +536,28 @@ type AppStoreVersionSubmissionAttributes struct {
 // AppStoreVersionSubmissionResponse is the response from app store version submission endpoint.
 type AppStoreVersionSubmissionResponse = SingleResourceResponse[AppStoreVersionSubmissionAttributes]
 
+// AppStoreVersionSubmissionResource represents a submission with relationships.
+type AppStoreVersionSubmissionResource struct {
+	Type       ResourceType `json:"type"`
+	ID         string       `json:"id"`
+	Attributes struct {
+		CreatedDate *string `json:"createdDate,omitempty"`
+	} `json:"attributes,omitempty"`
+	Relationships struct {
+		AppStoreVersion *Relationship `json:"appStoreVersion,omitempty"`
+	} `json:"relationships,omitempty"`
+}
+
+// AppStoreVersionSubmissionResourceResponse is a response containing a submission resource.
+type AppStoreVersionSubmissionResourceResponse struct {
+	Data AppStoreVersionSubmissionResource `json:"data"`
+}
+
+// AppStoreVersionBuildRelationshipUpdateRequest is a request to attach a build to a version.
+type AppStoreVersionBuildRelationshipUpdateRequest struct {
+	Data ResourceData `json:"data"`
+}
+
 // AppStoreVersionLocalizationCreateData is the data portion of a version localization create request.
 type AppStoreVersionLocalizationCreateData struct {
 	Type          ResourceType                              `json:"type"`
@@ -645,6 +689,48 @@ type AppStoreVersionSubmissionResult struct {
 	CreatedDate  *string `json:"createdDate,omitempty"`
 }
 
+// AppStoreVersionSubmissionCreateResult represents CLI output for submission creation.
+type AppStoreVersionSubmissionCreateResult struct {
+	SubmissionID string  `json:"submissionId"`
+	VersionID    string  `json:"versionId"`
+	BuildID      string  `json:"buildId"`
+	CreatedDate  *string `json:"createdDate,omitempty"`
+}
+
+// AppStoreVersionSubmissionStatusResult represents CLI output for submission status.
+type AppStoreVersionSubmissionStatusResult struct {
+	ID            string  `json:"id"`
+	VersionID     string  `json:"versionId,omitempty"`
+	VersionString string  `json:"versionString,omitempty"`
+	Platform      string  `json:"platform,omitempty"`
+	State         string  `json:"state,omitempty"`
+	CreatedDate   *string `json:"createdDate,omitempty"`
+}
+
+// AppStoreVersionSubmissionCancelResult represents CLI output for submission cancellation.
+type AppStoreVersionSubmissionCancelResult struct {
+	ID        string `json:"id"`
+	Cancelled bool   `json:"cancelled"`
+}
+
+// AppStoreVersionDetailResult represents CLI output for version details.
+type AppStoreVersionDetailResult struct {
+	ID            string `json:"id"`
+	VersionString string `json:"versionString,omitempty"`
+	Platform      string `json:"platform,omitempty"`
+	State         string `json:"state,omitempty"`
+	BuildID       string `json:"buildId,omitempty"`
+	BuildVersion  string `json:"buildVersion,omitempty"`
+	SubmissionID  string `json:"submissionId,omitempty"`
+}
+
+// AppStoreVersionAttachBuildResult represents CLI output for build attachment.
+type AppStoreVersionAttachBuildResult struct {
+	VersionID string `json:"versionId"`
+	BuildID   string `json:"buildId"`
+	Attached  bool   `json:"attached"`
+}
+
 // BetaTesterInvitationResult represents CLI output for invitations.
 type BetaTesterInvitationResult struct {
 	InvitationID string `json:"invitationId"`
@@ -707,6 +793,9 @@ type AppsOption func(*appsQuery)
 
 // BuildsOption is a functional option for GetBuilds.
 type BuildsOption func(*buildsQuery)
+
+// AppStoreVersionsOption is a functional option for GetAppStoreVersions.
+type AppStoreVersionsOption func(*appStoreVersionsQuery)
 
 // BetaGroupsOption is a functional option for GetBetaGroups.
 type BetaGroupsOption func(*betaGroupsQuery)
@@ -975,6 +1064,45 @@ func WithBuildsSort(sort string) BuildsOption {
 		if strings.TrimSpace(sort) != "" {
 			q.sort = strings.TrimSpace(sort)
 		}
+	}
+}
+
+// WithAppStoreVersionsLimit sets the max number of versions to return.
+func WithAppStoreVersionsLimit(limit int) AppStoreVersionsOption {
+	return func(q *appStoreVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionsNextURL uses a next page URL directly.
+func WithAppStoreVersionsNextURL(next string) AppStoreVersionsOption {
+	return func(q *appStoreVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionsPlatforms filters versions by platform.
+func WithAppStoreVersionsPlatforms(platforms []string) AppStoreVersionsOption {
+	return func(q *appStoreVersionsQuery) {
+		q.platforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithAppStoreVersionsVersionStrings filters versions by version string.
+func WithAppStoreVersionsVersionStrings(versions []string) AppStoreVersionsOption {
+	return func(q *appStoreVersionsQuery) {
+		q.versionStrings = normalizeList(versions)
+	}
+}
+
+// WithAppStoreVersionsStates filters versions by app store state.
+func WithAppStoreVersionsStates(states []string) AppStoreVersionsOption {
+	return func(q *appStoreVersionsQuery) {
+		q.states = normalizeUpperList(states)
 	}
 }
 
@@ -1253,6 +1381,15 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
 	return values.Encode()
 }
 
+func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[versionString]", query.versionStrings)
+	addCSV(values, "filter[appStoreState]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[locale]", query.locales)
@@ -1462,6 +1599,117 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 	}
 
 	var response BuildsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppStoreVersions retrieves app store versions for an app.
+func (c *Client) GetAppStoreVersions(ctx context.Context, appID string, opts ...AppStoreVersionsOption) (*AppStoreVersionsResponse, error) {
+	query := &appStoreVersionsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID)
+	if query.nextURL != "" {
+		path = query.nextURL
+	} else if queryString := buildAppStoreVersionsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppStoreVersion retrieves an app store version by ID.
+func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string) (*AppStoreVersionResponse, error) {
+	path := fmt.Sprintf("/v1/appStoreVersions/%s", versionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// AttachBuildToVersion attaches a build to an app store version.
+func (c *Client) AttachBuildToVersion(ctx context.Context, versionID, buildID string) error {
+	request := AppStoreVersionBuildRelationshipUpdateRequest{
+		Data: ResourceData{
+			Type: ResourceTypeBuilds,
+			ID:   buildID,
+		},
+	}
+	body, err := BuildRequestBody(request)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID)
+	if _, err := c.do(ctx, "PATCH", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetAppStoreVersionBuild retrieves the build attached to a version.
+func (c *Client) GetAppStoreVersionBuild(ctx context.Context, versionID string) (*BuildResponse, error) {
+	path := fmt.Sprintf("/v1/appStoreVersions/%s/build", versionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppStoreVersionSubmissionResource retrieves a submission by submission ID.
+func (c *Client) GetAppStoreVersionSubmissionResource(ctx context.Context, submissionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
+	path := fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", submissionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionSubmissionResourceResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppStoreVersionSubmissionForVersion retrieves a submission by version ID.
+func (c *Client) GetAppStoreVersionSubmissionForVersion(ctx context.Context, versionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
+	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionSubmission", versionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionSubmissionResourceResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -2049,6 +2297,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppsMarkdown(v)
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
+	case *AppStoreVersionsResponse:
+		return printAppStoreVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
@@ -2071,6 +2321,16 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildUploadResultMarkdown(v)
 	case *AppStoreVersionSubmissionResult:
 		return printAppStoreVersionSubmissionMarkdown(v)
+	case *AppStoreVersionSubmissionCreateResult:
+		return printAppStoreVersionSubmissionCreateMarkdown(v)
+	case *AppStoreVersionSubmissionStatusResult:
+		return printAppStoreVersionSubmissionStatusMarkdown(v)
+	case *AppStoreVersionSubmissionCancelResult:
+		return printAppStoreVersionSubmissionCancelMarkdown(v)
+	case *AppStoreVersionDetailResult:
+		return printAppStoreVersionDetailMarkdown(v)
+	case *AppStoreVersionAttachBuildResult:
+		return printAppStoreVersionAttachBuildMarkdown(v)
 	case *BetaTesterDeleteResult:
 		return printBetaTesterDeleteResultMarkdown(v)
 	case *BetaTesterInvitationResult:
@@ -2093,6 +2353,8 @@ func PrintTable(data interface{}) error {
 		return printAppsTable(v)
 	case *BuildsResponse:
 		return printBuildsTable(v)
+	case *AppStoreVersionsResponse:
+		return printAppStoreVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
@@ -2115,6 +2377,16 @@ func PrintTable(data interface{}) error {
 		return printBuildUploadResultTable(v)
 	case *AppStoreVersionSubmissionResult:
 		return printAppStoreVersionSubmissionTable(v)
+	case *AppStoreVersionSubmissionCreateResult:
+		return printAppStoreVersionSubmissionCreateTable(v)
+	case *AppStoreVersionSubmissionStatusResult:
+		return printAppStoreVersionSubmissionStatusTable(v)
+	case *AppStoreVersionSubmissionCancelResult:
+		return printAppStoreVersionSubmissionCancelTable(v)
+	case *AppStoreVersionDetailResult:
+		return printAppStoreVersionDetailTable(v)
+	case *AppStoreVersionAttachBuildResult:
+		return printAppStoreVersionAttachBuildTable(v)
 	case *BetaTesterDeleteResult:
 		return printBetaTesterDeleteResultTable(v)
 	case *BetaTesterInvitationResult:
@@ -2406,6 +2678,25 @@ func printBuildsTable(resp *BuildsResponse) error {
 	return w.Flush()
 }
 
+func printAppStoreVersionsTable(resp *AppStoreVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tPlatform\tState\tCreated")
+	for _, item := range resp.Data {
+		state := item.Attributes.AppVersionState
+		if state == "" {
+			state = item.Attributes.AppStoreState
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			item.ID,
+			item.Attributes.VersionString,
+			string(item.Attributes.Platform),
+			state,
+			item.Attributes.CreatedDate,
+		)
+	}
+	return w.Flush()
+}
+
 func printAppsMarkdown(resp *AppsResponse) error {
 	fmt.Fprintln(os.Stdout, "| ID | Name | Bundle ID | SKU |")
 	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
@@ -2415,6 +2706,25 @@ func printAppsMarkdown(resp *AppsResponse) error {
 			escapeMarkdown(item.Attributes.Name),
 			escapeMarkdown(item.Attributes.BundleID),
 			escapeMarkdown(item.Attributes.SKU),
+		)
+	}
+	return nil
+}
+
+func printAppStoreVersionsMarkdown(resp *AppStoreVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | Platform | State | Created |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		state := item.Attributes.AppVersionState
+		if state == "" {
+			state = item.Attributes.AppStoreState
+		}
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.VersionString),
+			escapeMarkdown(string(item.Attributes.Platform)),
+			escapeMarkdown(state),
+			escapeMarkdown(item.Attributes.CreatedDate),
 		)
 	}
 	return nil
@@ -2531,6 +2841,69 @@ func printAppStoreVersionSubmissionTable(result *AppStoreVersionSubmissionResult
 	return w.Flush()
 }
 
+func printAppStoreVersionSubmissionCreateTable(result *AppStoreVersionSubmissionCreateResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Submission ID\tVersion ID\tBuild ID\tCreated Date")
+	createdDate := ""
+	if result.CreatedDate != nil {
+		createdDate = *result.CreatedDate
+	}
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		result.SubmissionID,
+		result.VersionID,
+		result.BuildID,
+		createdDate,
+	)
+	return w.Flush()
+}
+
+func printAppStoreVersionSubmissionStatusTable(result *AppStoreVersionSubmissionStatusResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Submission ID\tVersion ID\tVersion\tPlatform\tState\tCreated Date")
+	createdDate := ""
+	if result.CreatedDate != nil {
+		createdDate = *result.CreatedDate
+	}
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		result.ID,
+		result.VersionID,
+		result.VersionString,
+		result.Platform,
+		result.State,
+		createdDate,
+	)
+	return w.Flush()
+}
+
+func printAppStoreVersionSubmissionCancelTable(result *AppStoreVersionSubmissionCancelResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Submission ID\tCancelled")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Cancelled)
+	return w.Flush()
+}
+
+func printAppStoreVersionDetailTable(result *AppStoreVersionDetailResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Version ID\tVersion\tPlatform\tState\tBuild ID\tBuild Version\tSubmission ID")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		result.ID,
+		result.VersionString,
+		result.Platform,
+		result.State,
+		result.BuildID,
+		result.BuildVersion,
+		result.SubmissionID,
+	)
+	return w.Flush()
+}
+
+func printAppStoreVersionAttachBuildTable(result *AppStoreVersionAttachBuildResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Version ID\tBuild ID\tAttached")
+	fmt.Fprintf(w, "%s\t%s\t%t\n", result.VersionID, result.BuildID, result.Attached)
+	return w.Flush()
+}
+
 func printBuildUploadResultMarkdown(result *BuildUploadResult) error {
 	fmt.Fprintln(os.Stdout, "| Upload ID | File ID | File Name | File Size |")
 	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
@@ -2566,6 +2939,76 @@ func printAppStoreVersionSubmissionMarkdown(result *AppStoreVersionSubmissionRes
 	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
 		escapeMarkdown(result.SubmissionID),
 		escapeMarkdown(createdDate),
+	)
+	return nil
+}
+
+func printAppStoreVersionSubmissionCreateMarkdown(result *AppStoreVersionSubmissionCreateResult) error {
+	fmt.Fprintln(os.Stdout, "| Submission ID | Version ID | Build ID | Created Date |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	createdDate := ""
+	if result.CreatedDate != nil {
+		createdDate = *result.CreatedDate
+	}
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+		escapeMarkdown(result.SubmissionID),
+		escapeMarkdown(result.VersionID),
+		escapeMarkdown(result.BuildID),
+		escapeMarkdown(createdDate),
+	)
+	return nil
+}
+
+func printAppStoreVersionSubmissionStatusMarkdown(result *AppStoreVersionSubmissionStatusResult) error {
+	fmt.Fprintln(os.Stdout, "| Submission ID | Version ID | Version | Platform | State | Created Date |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	createdDate := ""
+	if result.CreatedDate != nil {
+		createdDate = *result.CreatedDate
+	}
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
+		escapeMarkdown(result.ID),
+		escapeMarkdown(result.VersionID),
+		escapeMarkdown(result.VersionString),
+		escapeMarkdown(result.Platform),
+		escapeMarkdown(result.State),
+		escapeMarkdown(createdDate),
+	)
+	return nil
+}
+
+func printAppStoreVersionSubmissionCancelMarkdown(result *AppStoreVersionSubmissionCancelResult) error {
+	fmt.Fprintln(os.Stdout, "| Submission ID | Cancelled |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Cancelled,
+	)
+	return nil
+}
+
+func printAppStoreVersionDetailMarkdown(result *AppStoreVersionDetailResult) error {
+	fmt.Fprintln(os.Stdout, "| Version ID | Version | Platform | State | Build ID | Build Version | Submission ID |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s |\n",
+		escapeMarkdown(result.ID),
+		escapeMarkdown(result.VersionString),
+		escapeMarkdown(result.Platform),
+		escapeMarkdown(result.State),
+		escapeMarkdown(result.BuildID),
+		escapeMarkdown(result.BuildVersion),
+		escapeMarkdown(result.SubmissionID),
+	)
+	return nil
+}
+
+func printAppStoreVersionAttachBuildMarkdown(result *AppStoreVersionAttachBuildResult) error {
+	fmt.Fprintln(os.Stdout, "| Version ID | Build ID | Attached |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %t |\n",
+		escapeMarkdown(result.VersionID),
+		escapeMarkdown(result.BuildID),
+		result.Attached,
 	)
 	return nil
 }

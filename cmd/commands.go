@@ -765,77 +765,6 @@ Examples:
 	}
 }
 
-// SubmitCommand returns a command to submit a build for review
-func SubmitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submit", flag.ExitOnError)
-
-	versionID := fs.String("version", "", "App Store Version ID (required)")
-	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
-
-	return &ffcli.Command{
-		Name:       "submit",
-		ShortUsage: "asc submit [flags]",
-		ShortHelp:  "Submit a build for App Store review.",
-		LongHelp: `Submit a build for App Store review.
-
-This command creates an appStoreVersionSubmission to submit
-a version for review on the App Store.
-
-Examples:
-  asc submit --version "VERSION_ID" --confirm
-  asc submit --version "VERSION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			// Validate required flags
-			if *versionID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --version is required\n\n")
-				return flag.ErrHelp
-			}
-			if !*confirm {
-				fmt.Fprintf(os.Stderr, "Error: --confirm is required to submit for review\n\n")
-				return flag.ErrHelp
-			}
-
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("submit: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
-			// Create submission
-			submitReq := asc.AppStoreVersionSubmissionCreateRequest{
-				Data: asc.AppStoreVersionSubmissionCreateData{
-					Type: asc.ResourceTypeAppStoreVersionSubmissions,
-					Relationships: &asc.AppStoreVersionSubmissionRelationships{
-						AppStoreVersion: &asc.Relationship{
-							Data: asc.ResourceData{Type: asc.ResourceTypeAppStoreVersions, ID: *versionID},
-						},
-					},
-				},
-			}
-
-			submitResp, err := client.CreateAppStoreVersionSubmission(requestCtx, submitReq)
-			if err != nil {
-				return fmt.Errorf("submit: failed to create submission: %w", err)
-			}
-
-			result := &asc.AppStoreVersionSubmissionResult{
-				SubmissionID: submitResp.Data.ID,
-				CreatedDate:  submitResp.Data.Attributes.CreatedDate,
-			}
-
-			format := *output
-
-			return printOutput(result, format, *pretty)
-		},
-	}
-}
-
 // VersionCommand returns a version subcommand
 func VersionCommand(version string) *ffcli.Command {
 	return &ffcli.Command{
@@ -866,6 +795,7 @@ func RootCommand(version string) *ffcli.Command {
 			ReviewsCommand(),
 			AppsCommand(),
 			BuildsCommand(),
+			VersionsCommand(),
 			LocalizationsCommand(),
 			BetaGroupsCommand(),
 			BetaTestersCommand(),
