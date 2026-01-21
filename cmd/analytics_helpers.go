@@ -3,6 +3,7 @@ package cmd
 import (
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -185,16 +186,30 @@ func writeStreamToFile(path string, reader io.Reader) (int64, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return 0, err
 	}
-	file, err := os.Create(path)
+	// Use secure file creation to prevent symlink attacks and TOCTOU vulnerabilities
+	// O_EXCL ensures atomic creation, O_NOFOLLOW prevents symlink traversal
+	file, err := openNewFileNoFollow(path, 0o600)
 	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return 0, fmt.Errorf("output file already exists: %w", err)
+		}
 		return 0, err
 	}
 	defer file.Close()
-	return io.Copy(file, reader)
+
+	n, err := io.Copy(file, reader)
+	if err != nil {
+		return 0, err
+	}
+	if err := file.Sync(); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 func decompressGzipFile(sourcePath, destPath string) (int64, error) {
-	in, err := os.Open(sourcePath)
+	// Open source file securely to prevent symlink attacks
+	in, err := openExistingNoFollow(sourcePath)
 	if err != nil {
 		return 0, err
 	}
@@ -209,13 +224,26 @@ func decompressGzipFile(sourcePath, destPath string) (int64, error) {
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		return 0, err
 	}
-	out, err := os.Create(destPath)
+
+	// Create destination file securely to prevent symlink attacks and TOCTOU
+	// O_EXCL ensures atomic creation, O_NOFOLLOW prevents symlink traversal
+	out, err := openNewFileNoFollow(destPath, 0o600)
 	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return 0, fmt.Errorf("output file already exists: %w", err)
+		}
 		return 0, err
 	}
 	defer out.Close()
 
-	return io.Copy(out, reader)
+	n, err := io.Copy(out, reader)
+	if err != nil {
+		return 0, err
+	}
+	if err := out.Sync(); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 func matchAnalyticsInstanceDate(attrs asc.AnalyticsReportInstanceAttributes, date string) bool {

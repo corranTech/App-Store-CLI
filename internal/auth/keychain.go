@@ -138,12 +138,30 @@ func StoreCredentials(name, keyID, issuerID, keyPath string) error {
 	}
 
 	if err := storeInKeychain(name, payload); err == nil {
+		// Successfully stored in keychain - clean up config file for security
+		if err := clearConfigCredentials(); err != nil && !errors.Is(err, config.ErrNotFound) {
+			// Log but don't fail - keychain is the authoritative storage
+			_ = err
+		}
 		return saveDefaultName(name)
 	} else if !isKeyringUnavailable(err) {
 		return err
 	}
 
 	return storeInConfig(name, payload)
+}
+
+// clearConfigCredentials clears credentials from the config file.
+// This is called after successfully migrating to keychain storage.
+func clearConfigCredentials() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	cfg.KeyID = ""
+	cfg.IssuerID = ""
+	cfg.PrivateKeyPath = ""
+	return config.Save(cfg)
 }
 
 // ListCredentials lists all stored credentials

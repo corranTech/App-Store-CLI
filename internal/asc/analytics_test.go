@@ -228,7 +228,8 @@ func TestGetAnalyticsReportSegments_UsesNextURL(t *testing.T) {
 }
 
 func TestDownloadAnalyticsReport_NoAuthHeader(t *testing.T) {
-	downloadURL := "https://example.com/report.gz"
+	// Use an allowed host for the download URL
+	downloadURL := "https://mzstatic.com/report.gz"
 	response := rawResponse(http.StatusOK, "gzdata")
 	client := newTestClient(t, func(req *http.Request) {
 		if req.URL.String() != downloadURL {
@@ -244,4 +245,32 @@ func TestDownloadAnalyticsReport_NoAuthHeader(t *testing.T) {
 		t.Fatalf("DownloadAnalyticsReport() error: %v", err)
 	}
 	_ = download.Body.Close()
+}
+
+func TestDownloadAnalyticsReport_InvalidHost(t *testing.T) {
+	// Test that URLs from untrusted hosts are rejected
+	downloadURL := "https://example.com/report.gz"
+	client := newTestClient(t, nil, nil)
+
+	_, err := client.DownloadAnalyticsReport(context.Background(), downloadURL)
+	if err == nil {
+		t.Fatal("expected error for untrusted host, got nil")
+	}
+	if !strings.Contains(err.Error(), "untrusted host") {
+		t.Fatalf("expected 'untrusted host' error, got: %v", err)
+	}
+}
+
+func TestDownloadAnalyticsReport_InsecureScheme(t *testing.T) {
+	// Test that HTTP URLs are rejected
+	downloadURL := "http://mzstatic.com/report.gz"
+	client := newTestClient(t, nil, nil)
+
+	_, err := client.DownloadAnalyticsReport(context.Background(), downloadURL)
+	if err == nil {
+		t.Fatalf("expected error for insecure scheme, got nil")
+	}
+	if !strings.Contains(err.Error(), "insecure scheme") {
+		t.Fatalf("expected 'insecure scheme' error, got: %v", err)
+	}
 }

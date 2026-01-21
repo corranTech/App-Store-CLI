@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -554,6 +556,21 @@ func writeLocalizationStrings(outputPath string, valuesByLocale map[string]map[s
 	return results, nil
 }
 
+// localeValidationRegex matches valid Apple locale codes (e.g., "en", "en-US", "zh-Hans", "zh-Hant")
+// This prevents path traversal attacks via malicious locale values.
+// Allows 2-3 letter language codes, optionally followed by BCP-47 subtags (case-insensitive).
+var localeValidationRegex = regexp.MustCompile(`^[a-zA-Z]{2,3}(-[a-zA-Z0-9]+)*$`)
+
+// isValidLocale checks if a locale string is safe to use in file paths.
+// Valid locales follow the pattern: 2-3 lowercase letters, optionally followed by
+// a hyphen and uppercase letters/numbers (e.g., "en", "en-US", "zh-Hans").
+func isValidLocale(locale string) bool {
+	if locale == "" || len(locale) > 20 {
+		return false
+	}
+	return localeValidationRegex.MatchString(locale)
+}
+
 func resolveLocalizationOutputPaths(outputPath string, locales []string) (map[string]string, error) {
 	if strings.TrimSpace(outputPath) == "" {
 		outputPath = "localizations"
@@ -576,6 +593,10 @@ func resolveLocalizationOutputPaths(outputPath string, locales []string) (map[st
 		return nil, err
 	}
 	for _, locale := range locales {
+		// Validate locale to prevent path traversal attacks
+		if !isValidLocale(locale) {
+			return nil, fmt.Errorf("invalid locale code %q: must match pattern like 'en', 'en-US', or 'zh-Hans'", locale)
+		}
 		result[locale] = filepath.Join(outputPath, locale+".strings")
 	}
 	return result, nil
@@ -1066,7 +1087,22 @@ func writeStringsFile(path string, values map[string]string, order []string) err
 		}
 		fmt.Fprintf(&b, "\"%s\" = \"%s\";\n", key, escapeStringsValue(value))
 	}
-	return os.WriteFile(path, []byte(b.String()), 0o644)
+
+	// Create file securely to prevent symlink attacks and TOCTOU vulnerabilities
+	// O_EXCL ensures atomic creation, O_NOFOLLOW prevents symlink traversal
+	file, err := openNewFileNoFollow(path, 0o644)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("output file already exists: %w", err)
+		}
+		return err
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(b.String()); err != nil {
+		return err
+	}
+	return file.Sync()
 }
 
 func escapeStringsValue(value string) string {

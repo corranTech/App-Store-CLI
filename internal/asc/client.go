@@ -1498,6 +1498,96 @@ func parseRetryAfterHeader(value string) time.Duration {
 	return 0
 }
 
+// validateNextURL validates that a pagination URL is safe to use.
+// It ensures the URL is on the same host as BaseURL and uses HTTPS.
+func validateNextURL(nextURL string) error {
+	if nextURL == "" {
+		return nil
+	}
+
+	// If it's not an absolute URL, it's relative and safe
+	if !strings.HasPrefix(nextURL, "http://") && !strings.HasPrefix(nextURL, "https://") {
+		return nil
+	}
+
+	// Parse the URL and compare hosts
+	parsedURL, err := url.Parse(nextURL)
+	if err != nil {
+		return fmt.Errorf("invalid pagination URL: %w", err)
+	}
+
+	baseURL, err := url.Parse(BaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid base URL: %w", err)
+	}
+
+	// Allow URLs on the same host as BaseURL
+	if parsedURL.Host != baseURL.Host {
+		return fmt.Errorf("rejected pagination URL from untrusted host %q (expected %q)", parsedURL.Host, baseURL.Host)
+	}
+
+	// Require HTTPS for authentication endpoints
+	if parsedURL.Scheme != "https" {
+		return fmt.Errorf("rejected pagination URL with insecure scheme %q (expected https)", parsedURL.Scheme)
+	}
+
+	return nil
+}
+
+// allowedAnalyticsHosts contains the allowed host suffixes for analytics report downloads.
+// Analytics reports are typically hosted on Apple's CDN or S3 buckets.
+// Based on Apple's enterprise network documentation and App Store Connect API behavior.
+// Using suffix matching to allow subdomains (e.g., *.mzstatic.com, *.cloudfront.net).
+var allowedAnalyticsHosts = []string{
+	// Apple domains (allow subdomains)
+	"itunes.apple.com",
+	"apps.apple.com",
+	"apple.com",
+	"mzstatic.com",   // Apple static content CDN
+	"cdn-apple.com",  // Apple CDN
+	// Cloud CDNs commonly used by Apple (allow subdomains)
+	"cloudfront.net",     // AWS CloudFront
+	"amazonaws.com",      // AWS S3
+	"s3.amazonaws.com",   // AWS S3
+	"azureedge.net",      // Azure CDN
+}
+
+// isAllowedAnalyticsHost checks if the host matches any allowed host suffix.
+func isAllowedAnalyticsHost(host string) bool {
+	for _, allowed := range allowedAnalyticsHosts {
+		// Exact match or suffix match (for subdomains)
+		if host == allowed || strings.HasSuffix(host, "."+allowed) {
+			return true
+		}
+	}
+	return false
+}
+
+// validateAnalyticsDownloadURL validates that an analytics download URL is safe.
+// It requires HTTPS and allows only trusted hosts (Apple CDN, S3, etc.)
+func validateAnalyticsDownloadURL(downloadURL string) error {
+	if downloadURL == "" {
+		return fmt.Errorf("empty analytics download URL")
+	}
+
+	parsedURL, err := url.Parse(downloadURL)
+	if err != nil {
+		return fmt.Errorf("invalid analytics download URL: %w", err)
+	}
+
+	// Require HTTPS for all analytics downloads
+	if parsedURL.Scheme != "https" {
+		return fmt.Errorf("rejected analytics download URL with insecure scheme %q (expected https)", parsedURL.Scheme)
+	}
+
+	// Check against allowed hosts (with subdomain support)
+	if !isAllowedAnalyticsHost(parsedURL.Host) {
+		return fmt.Errorf("rejected analytics download URL from untrusted host %q", parsedURL.Host)
+	}
+
+	return nil
+}
+
 func (c *Client) doStream(ctx context.Context, method, path string, body io.Reader, accept string) (*http.Response, error) {
 	req, err := c.newRequest(ctx, method, path, body)
 	if err != nil {
@@ -1706,6 +1796,10 @@ func (c *Client) GetFeedback(ctx context.Context, appID string, opts ...Feedback
 
 	path := fmt.Sprintf("/v1/apps/%s/betaFeedbackScreenshotSubmissions", appID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("feedback: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildFeedbackQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -1733,6 +1827,10 @@ func (c *Client) GetCrashes(ctx context.Context, appID string, opts ...CrashOpti
 
 	path := fmt.Sprintf("/v1/apps/%s/betaFeedbackCrashSubmissions", appID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("crashes: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildCrashQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -1760,6 +1858,10 @@ func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOpt
 
 	path := fmt.Sprintf("/v1/apps/%s/customerReviews", appID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("reviews: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildReviewQuery(opts); queryString != "" {
 		path += "?" + queryString
@@ -1787,6 +1889,10 @@ func (c *Client) GetApps(ctx context.Context, opts ...AppsOption) (*AppsResponse
 
 	path := "/v1/apps"
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("apps: %w", err)
+		}
 		path = query.nextURL
 	} else {
 		values := url.Values{}
@@ -1823,6 +1929,10 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 
 	path := fmt.Sprintf("/v1/apps/%s/builds", appID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("builds: %w", err)
+		}
 		path = query.nextURL
 	} else {
 		values := url.Values{}
@@ -1864,6 +1974,10 @@ func (c *Client) GetAppStoreVersions(ctx context.Context, appID string, opts ...
 
 	path := fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appStoreVersions: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildAppStoreVersionsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -1975,6 +2089,10 @@ func (c *Client) GetBetaGroups(ctx context.Context, appID string, opts ...BetaGr
 
 	path := fmt.Sprintf("/v1/apps/%s/betaGroups", appID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("betaGroups: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildBetaGroupsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -2037,6 +2155,10 @@ func (c *Client) GetBetaTesters(ctx context.Context, appID string, opts ...BetaT
 
 	path := "/v1/betaTesters"
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("betaTesters: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildBetaTestersQuery(appID, query); queryString != "" {
 		path += "?" + queryString
@@ -2158,6 +2280,10 @@ func (c *Client) GetAppStoreVersionLocalizations(ctx context.Context, versionID 
 
 	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appStoreVersionLocalizations: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildAppStoreVersionLocalizationsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -2249,6 +2375,10 @@ func (c *Client) GetAppInfoLocalizations(ctx context.Context, appInfoID string, 
 
 	path := fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID)
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appInfoLocalizations: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildAppInfoLocalizationsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -2856,7 +2986,27 @@ func ParseError(body []byte) error {
 		return fmt.Errorf("%s: %s", errResp.Errors[0].Title, errResp.Errors[0].Detail)
 	}
 
-	return fmt.Errorf("unknown error: %s", string(body))
+	// Sanitize the error body to prevent information disclosure
+	sanitized := sanitizeErrorBody(body)
+	return fmt.Errorf("unknown error: %s", sanitized)
+}
+
+// sanitizeErrorBody limits the length and strips control characters from error bodies
+// to prevent information disclosure and terminal escape sequence attacks.
+func sanitizeErrorBody(body []byte) string {
+	const maxLength = 200
+	// Limit length
+	if len(body) > maxLength {
+		body = body[:maxLength]
+	}
+	// Strip control characters but keep printable characters and newlines
+	result := make([]byte, 0, len(body))
+	for _, b := range body {
+		if b >= 32 || b == '\n' || b == '\r' || b == '\t' {
+			result = append(result, b)
+		}
+	}
+	return string(result)
 }
 
 // IsNotFound checks if the error is a "not found" error

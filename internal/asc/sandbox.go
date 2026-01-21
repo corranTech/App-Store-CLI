@@ -204,6 +204,10 @@ func (c *Client) GetSandboxTesters(ctx context.Context, opts ...SandboxTestersOp
 
 	path := "/v2/sandboxTesters"
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("sandboxTesters: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildSandboxTestersQuery(query); queryString != "" {
 		path += "?" + queryString

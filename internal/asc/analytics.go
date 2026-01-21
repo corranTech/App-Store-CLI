@@ -407,6 +407,10 @@ func (c *Client) GetAnalyticsReportRequests(ctx context.Context, appID string, o
 		path = fmt.Sprintf("/v1/apps/%s/analyticsReportRequests", strings.TrimSpace(appID))
 	}
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("analyticsReportRequests: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildAnalyticsReportRequestsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -448,6 +452,10 @@ func (c *Client) GetAnalyticsReports(ctx context.Context, requestID string, opts
 
 	path := fmt.Sprintf("/v1/analyticsReportRequests/%s/reports", strings.TrimSpace(requestID))
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("analyticsReports: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildAnalyticsReportsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -474,6 +482,10 @@ func (c *Client) GetAnalyticsReportInstances(ctx context.Context, reportID strin
 
 	path := fmt.Sprintf("/v1/analyticsReports/%s/instances", strings.TrimSpace(reportID))
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("analyticsReportInstances: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildAnalyticsReportInstancesQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -500,6 +512,10 @@ func (c *Client) GetAnalyticsReportSegments(ctx context.Context, instanceID stri
 
 	path := fmt.Sprintf("/v1/analyticsReportInstances/%s/segments", strings.TrimSpace(instanceID))
 	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("analyticsReportSegments: %w", err)
+		}
 		path = query.nextURL
 	} else if queryString := buildAnalyticsReportSegmentsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -519,6 +535,11 @@ func (c *Client) GetAnalyticsReportSegments(ctx context.Context, instanceID stri
 
 // DownloadAnalyticsReport downloads an analytics report from a presigned URL.
 func (c *Client) DownloadAnalyticsReport(ctx context.Context, downloadURL string) (*ReportDownload, error) {
+	// Validate the download URL to prevent SSRF attacks
+	if err := validateAnalyticsDownloadURL(downloadURL); err != nil {
+		return nil, fmt.Errorf("analytics download: %w", err)
+	}
+
 	resp, err := c.doStreamNoAuth(ctx, "GET", downloadURL, "application/a-gzip")
 	if err != nil {
 		return nil, err
