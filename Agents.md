@@ -121,6 +121,15 @@ asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 # Sandbox - Paginate all testers
 asc sandbox list --paginate
 
+# Xcode Cloud - Trigger workflow
+asc xcode-cloud run --app "123456789" --workflow "CI" --branch "main"
+asc xcode-cloud run --workflow-id "WORKFLOW_ID" --git-reference-id "REF_ID"
+asc xcode-cloud run --app "123456789" --workflow "Deploy" --branch "main" --wait
+
+# Xcode Cloud - Check status
+asc xcode-cloud status --run-id "BUILD_RUN_ID"
+asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait
+
 # Utilities
 asc version
 

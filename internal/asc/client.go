@@ -1489,9 +1489,9 @@ func parseRetryAfterHeader(value string) time.Duration {
 
 	// Try to parse as HTTP-date (try multiple formats)
 	formats := []string{
-		http.TimeFormat,   // RFC1123: "Mon, 02 Jan 2006 15:04:05 GMT"
-		time.RFC850,       // RFC850: "Monday, 02-Jan-06 15:04:05 MST"
-		time.ANSIC,        // ANSIC: "Mon Jan _2 15:04:05 2006"
+		http.TimeFormat, // RFC1123: "Mon, 02 Jan 2006 15:04:05 GMT"
+		time.RFC850,     // RFC850: "Monday, 02-Jan-06 15:04:05 MST"
+		time.ANSIC,      // ANSIC: "Mon Jan _2 15:04:05 2006"
 	}
 	for _, format := range formats {
 		if t, err := time.Parse(format, value); err == nil {
@@ -1550,13 +1550,13 @@ var allowedAnalyticsHosts = []string{
 	"itunes.apple.com",
 	"apps.apple.com",
 	"apple.com",
-	"mzstatic.com",   // Apple static content CDN
-	"cdn-apple.com",  // Apple CDN
+	"mzstatic.com",  // Apple static content CDN
+	"cdn-apple.com", // Apple CDN
 	// Cloud CDNs commonly used by Apple (allow subdomains)
-	"cloudfront.net",     // AWS CloudFront
-	"amazonaws.com",      // AWS S3
-	"s3.amazonaws.com",   // AWS S3
-	"azureedge.net",      // Azure CDN
+	"cloudfront.net",   // AWS CloudFront
+	"amazonaws.com",    // AWS S3
+	"s3.amazonaws.com", // AWS S3
+	"azureedge.net",    // Azure CDN
 }
 
 // isAllowedAnalyticsHost checks if the host matches any allowed host suffix.
@@ -2888,6 +2888,16 @@ func PrintMarkdown(data interface{}) error {
 		return printSandboxTesterDeleteResultMarkdown(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultMarkdown(v)
+	case *XcodeCloudRunResult:
+		return printXcodeCloudRunResultMarkdown(v)
+	case *XcodeCloudStatusResult:
+		return printXcodeCloudStatusResultMarkdown(v)
+	case *CiProductsResponse:
+		return printCiProductsMarkdown(v)
+	case *CiWorkflowsResponse:
+		return printCiWorkflowsMarkdown(v)
+	case *CiBuildRunsResponse:
+		return printCiBuildRunsMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -2964,6 +2974,16 @@ func PrintTable(data interface{}) error {
 		return printSandboxTesterDeleteResultTable(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultTable(v)
+	case *XcodeCloudRunResult:
+		return printXcodeCloudRunResultTable(v)
+	case *XcodeCloudStatusResult:
+		return printXcodeCloudStatusResultTable(v)
+	case *CiProductsResponse:
+		return printCiProductsTable(v)
+	case *CiWorkflowsResponse:
+		return printCiWorkflowsTable(v)
+	case *CiBuildRunsResponse:
+		return printCiBuildRunsTable(v)
 	default:
 		return PrintJSON(data)
 	}
