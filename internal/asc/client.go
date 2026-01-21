@@ -40,15 +40,18 @@ type Client struct {
 type ResourceType string
 
 const (
-	ResourceTypeApps                       ResourceType = "apps"
-	ResourceTypeBuilds                     ResourceType = "builds"
-	ResourceTypeBuildUploads               ResourceType = "buildUploads"
-	ResourceTypeBuildUploadFiles           ResourceType = "buildUploadFiles"
-	ResourceTypeAppStoreVersions           ResourceType = "appStoreVersions"
-	ResourceTypeAppStoreVersionSubmissions ResourceType = "appStoreVersionSubmissions"
-	ResourceTypeBetaGroups                 ResourceType = "betaGroups"
-	ResourceTypeBetaTesters                ResourceType = "betaTesters"
-	ResourceTypeBetaTesterInvitations      ResourceType = "betaTesterInvitations"
+	ResourceTypeApps                         ResourceType = "apps"
+	ResourceTypeBuilds                       ResourceType = "builds"
+	ResourceTypeBuildUploads                 ResourceType = "buildUploads"
+	ResourceTypeBuildUploadFiles             ResourceType = "buildUploadFiles"
+	ResourceTypeAppStoreVersions             ResourceType = "appStoreVersions"
+	ResourceTypeAppStoreVersionSubmissions   ResourceType = "appStoreVersionSubmissions"
+	ResourceTypeBetaGroups                   ResourceType = "betaGroups"
+	ResourceTypeBetaTesters                  ResourceType = "betaTesters"
+	ResourceTypeBetaTesterInvitations        ResourceType = "betaTesterInvitations"
+	ResourceTypeAppStoreVersionLocalizations ResourceType = "appStoreVersionLocalizations"
+	ResourceTypeAppInfoLocalizations         ResourceType = "appInfoLocalizations"
+	ResourceTypeAppInfos                     ResourceType = "appInfos"
 )
 
 // Resource is a generic ASC API resource wrapper.
@@ -130,6 +133,21 @@ type BuildsResponse = Response[BuildAttributes]
 // BuildResponse is the response from build detail/updates.
 type BuildResponse = SingleResponse[BuildAttributes]
 
+// AppStoreVersionLocalizationsResponse is the response from app store version localizations endpoints.
+type AppStoreVersionLocalizationsResponse = Response[AppStoreVersionLocalizationAttributes]
+
+// AppStoreVersionLocalizationResponse is the response from app store version localization detail/creates.
+type AppStoreVersionLocalizationResponse = SingleResponse[AppStoreVersionLocalizationAttributes]
+
+// AppInfoLocalizationsResponse is the response from app info localizations endpoints.
+type AppInfoLocalizationsResponse = Response[AppInfoLocalizationAttributes]
+
+// AppInfoLocalizationResponse is the response from app info localization detail/creates.
+type AppInfoLocalizationResponse = SingleResponse[AppInfoLocalizationAttributes]
+
+// AppInfosResponse is the response from app info endpoints.
+type AppInfosResponse = Response[AppInfoAttributes]
+
 // BetaGroupsResponse is the response from beta groups endpoints.
 type BetaGroupsResponse = Response[BetaGroupAttributes]
 
@@ -192,6 +210,16 @@ type buildsQuery struct {
 	sort string
 }
 
+type appStoreVersionLocalizationsQuery struct {
+	listQuery
+	locales []string
+}
+
+type appInfoLocalizationsQuery struct {
+	listQuery
+	locales []string
+}
+
 type betaGroupsQuery struct {
 	listQuery
 }
@@ -220,6 +248,30 @@ type BuildAttributes struct {
 	UsesNonExemptEncryption bool   `json:"usesNonExemptEncryption,omitempty"`
 	Expired                 bool   `json:"expired,omitempty"`
 }
+
+// AppStoreVersionLocalizationAttributes describes app store version localization metadata.
+type AppStoreVersionLocalizationAttributes struct {
+	Locale          string `json:"locale,omitempty"`
+	Description     string `json:"description,omitempty"`
+	Keywords        string `json:"keywords,omitempty"`
+	MarketingURL    string `json:"marketingUrl,omitempty"`
+	PromotionalText string `json:"promotionalText,omitempty"`
+	SupportURL      string `json:"supportUrl,omitempty"`
+	WhatsNew        string `json:"whatsNew,omitempty"`
+}
+
+// AppInfoLocalizationAttributes describes app info localization metadata.
+type AppInfoLocalizationAttributes struct {
+	Locale            string `json:"locale,omitempty"`
+	Name              string `json:"name,omitempty"`
+	Subtitle          string `json:"subtitle,omitempty"`
+	PrivacyPolicyURL  string `json:"privacyPolicyUrl,omitempty"`
+	PrivacyChoicesURL string `json:"privacyChoicesUrl,omitempty"`
+	PrivacyPolicyText string `json:"privacyPolicyText,omitempty"`
+}
+
+// AppInfoAttributes describes app info resources.
+type AppInfoAttributes struct{}
 
 // BetaGroupAttributes describes a beta group resource.
 type BetaGroupAttributes struct {
@@ -462,6 +514,64 @@ type AppStoreVersionSubmissionAttributes struct {
 // AppStoreVersionSubmissionResponse is the response from app store version submission endpoint.
 type AppStoreVersionSubmissionResponse = SingleResourceResponse[AppStoreVersionSubmissionAttributes]
 
+// AppStoreVersionLocalizationCreateData is the data portion of a version localization create request.
+type AppStoreVersionLocalizationCreateData struct {
+	Type          ResourceType                              `json:"type"`
+	Attributes    AppStoreVersionLocalizationAttributes     `json:"attributes"`
+	Relationships *AppStoreVersionLocalizationRelationships `json:"relationships"`
+}
+
+// AppStoreVersionLocalizationCreateRequest is a request to create a version localization.
+type AppStoreVersionLocalizationCreateRequest struct {
+	Data AppStoreVersionLocalizationCreateData `json:"data"`
+}
+
+// AppStoreVersionLocalizationUpdateData is the data portion of a version localization update request.
+type AppStoreVersionLocalizationUpdateData struct {
+	Type       ResourceType                          `json:"type"`
+	ID         string                                `json:"id"`
+	Attributes AppStoreVersionLocalizationAttributes `json:"attributes"`
+}
+
+// AppStoreVersionLocalizationUpdateRequest is a request to update a version localization.
+type AppStoreVersionLocalizationUpdateRequest struct {
+	Data AppStoreVersionLocalizationUpdateData `json:"data"`
+}
+
+// AppStoreVersionLocalizationRelationships describes relationships for version localizations.
+type AppStoreVersionLocalizationRelationships struct {
+	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
+// AppInfoLocalizationCreateData is the data portion of an app info localization create request.
+type AppInfoLocalizationCreateData struct {
+	Type          ResourceType                      `json:"type"`
+	Attributes    AppInfoLocalizationAttributes     `json:"attributes"`
+	Relationships *AppInfoLocalizationRelationships `json:"relationships"`
+}
+
+// AppInfoLocalizationCreateRequest is a request to create an app info localization.
+type AppInfoLocalizationCreateRequest struct {
+	Data AppInfoLocalizationCreateData `json:"data"`
+}
+
+// AppInfoLocalizationUpdateData is the data portion of an app info localization update request.
+type AppInfoLocalizationUpdateData struct {
+	Type       ResourceType                  `json:"type"`
+	ID         string                        `json:"id"`
+	Attributes AppInfoLocalizationAttributes `json:"attributes"`
+}
+
+// AppInfoLocalizationUpdateRequest is a request to update an app info localization.
+type AppInfoLocalizationUpdateRequest struct {
+	Data AppInfoLocalizationUpdateData `json:"data"`
+}
+
+// AppInfoLocalizationRelationships describes relationships for app info localizations.
+type AppInfoLocalizationRelationships struct {
+	AppInfo *Relationship `json:"appInfo"`
+}
+
 // BetaGroupCreateData is the data portion of a beta group create request.
 type BetaGroupCreateData struct {
 	Type          ResourceType            `json:"type"`
@@ -550,6 +660,39 @@ type BetaTesterDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
+// LocalizationFileResult represents a localization file written or read.
+type LocalizationFileResult struct {
+	Locale string `json:"locale"`
+	Path   string `json:"path"`
+}
+
+// LocalizationDownloadResult represents CLI output for localization downloads.
+type LocalizationDownloadResult struct {
+	Type       string                   `json:"type"`
+	VersionID  string                   `json:"versionId,omitempty"`
+	AppID      string                   `json:"appId,omitempty"`
+	AppInfoID  string                   `json:"appInfoId,omitempty"`
+	OutputPath string                   `json:"outputPath"`
+	Files      []LocalizationFileResult `json:"files"`
+}
+
+// LocalizationUploadLocaleResult represents a per-locale upload result.
+type LocalizationUploadLocaleResult struct {
+	Locale         string `json:"locale"`
+	Action         string `json:"action"`
+	LocalizationID string `json:"localizationId,omitempty"`
+}
+
+// LocalizationUploadResult represents CLI output for localization uploads.
+type LocalizationUploadResult struct {
+	Type      string                           `json:"type"`
+	VersionID string                           `json:"versionId,omitempty"`
+	AppID     string                           `json:"appId,omitempty"`
+	AppInfoID string                           `json:"appInfoId,omitempty"`
+	DryRun    bool                             `json:"dryRun"`
+	Results   []LocalizationUploadLocaleResult `json:"results"`
+}
+
 // FeedbackOption is a functional option for GetFeedback.
 type FeedbackOption func(*feedbackQuery)
 
@@ -570,6 +713,12 @@ type BetaGroupsOption func(*betaGroupsQuery)
 
 // BetaTestersOption is a functional option for GetBetaTesters.
 type BetaTestersOption func(*betaTestersQuery)
+
+// AppStoreVersionLocalizationsOption is a functional option for version localizations.
+type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
+
+// AppInfoLocalizationsOption is a functional option for app info localizations.
+type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -879,6 +1028,56 @@ func WithBetaTestersGroupIDs(ids []string) BetaTestersOption {
 	}
 }
 
+// WithAppStoreVersionLocalizationsLimit sets the max number of localizations to return.
+func WithAppStoreVersionLocalizationsLimit(limit int) AppStoreVersionLocalizationsOption {
+	return func(q *appStoreVersionLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionLocalizationsNextURL uses a next page URL directly.
+func WithAppStoreVersionLocalizationsNextURL(next string) AppStoreVersionLocalizationsOption {
+	return func(q *appStoreVersionLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionLocalizationLocales filters version localizations by locale.
+func WithAppStoreVersionLocalizationLocales(locales []string) AppStoreVersionLocalizationsOption {
+	return func(q *appStoreVersionLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+// WithAppInfoLocalizationsLimit sets the max number of app info localizations to return.
+func WithAppInfoLocalizationsLimit(limit int) AppInfoLocalizationsOption {
+	return func(q *appInfoLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppInfoLocalizationsNextURL uses a next page URL directly.
+func WithAppInfoLocalizationsNextURL(next string) AppInfoLocalizationsOption {
+	return func(q *appInfoLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppInfoLocalizationLocales filters app info localizations by locale.
+func WithAppInfoLocalizationLocales(locales []string) AppInfoLocalizationsOption {
+	return func(q *appInfoLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
 // NewClient creates a new ASC client
 func NewClient(keyID, issuerID, privateKeyPath string) (*Client, error) {
 	if err := auth.ValidateKeyFile(privateKeyPath); err != nil {
@@ -1050,6 +1249,20 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
 		values.Set("filter[email]", strings.TrimSpace(query.email))
 	}
 	addCSV(values, "filter[betaGroups]", query.groupIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppInfoLocalizationsQuery(query *appInfoLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -1439,6 +1652,204 @@ func (c *Client) CreateBetaTesterInvitation(ctx context.Context, appID, testerID
 	return &response, nil
 }
 
+// GetAppStoreVersionLocalizations retrieves localizations for an app store version.
+func (c *Client) GetAppStoreVersionLocalizations(ctx context.Context, versionID string, opts ...AppStoreVersionLocalizationsOption) (*AppStoreVersionLocalizationsResponse, error) {
+	query := &appStoreVersionLocalizationsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID)
+	if query.nextURL != "" {
+		path = query.nextURL
+	} else if queryString := buildAppStoreVersionLocalizationsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionLocalizationsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// CreateAppStoreVersionLocalization creates a localization for an app store version.
+func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionID string, attributes AppStoreVersionLocalizationAttributes) (*AppStoreVersionLocalizationResponse, error) {
+	payload := AppStoreVersionLocalizationCreateRequest{
+		Data: AppStoreVersionLocalizationCreateData{
+			Type:       ResourceTypeAppStoreVersionLocalizations,
+			Attributes: attributes,
+			Relationships: &AppStoreVersionLocalizationRelationships{
+				AppStoreVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/appStoreVersionLocalizations", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateAppStoreVersionLocalization updates a localization for an app store version.
+func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localizationID string, attributes AppStoreVersionLocalizationAttributes) (*AppStoreVersionLocalizationResponse, error) {
+	payload := AppStoreVersionLocalizationUpdateRequest{
+		Data: AppStoreVersionLocalizationUpdateData{
+			Type:       ResourceTypeAppStoreVersionLocalizations,
+			ID:         localizationID,
+			Attributes: attributes,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)
+	data, err := c.do(ctx, "PATCH", path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppInfoLocalizations retrieves localizations for an app info resource.
+func (c *Client) GetAppInfoLocalizations(ctx context.Context, appInfoID string, opts ...AppInfoLocalizationsOption) (*AppInfoLocalizationsResponse, error) {
+	query := &appInfoLocalizationsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID)
+	if query.nextURL != "" {
+		path = query.nextURL
+	} else if queryString := buildAppInfoLocalizationsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppInfoLocalizationsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// CreateAppInfoLocalization creates a localization for an app info resource.
+func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string, attributes AppInfoLocalizationAttributes) (*AppInfoLocalizationResponse, error) {
+	payload := AppInfoLocalizationCreateRequest{
+		Data: AppInfoLocalizationCreateData{
+			Type:       ResourceTypeAppInfoLocalizations,
+			Attributes: attributes,
+			Relationships: &AppInfoLocalizationRelationships{
+				AppInfo: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppInfos,
+						ID:   appInfoID,
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/appInfoLocalizations", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppInfoLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateAppInfoLocalization updates a localization for an app info resource.
+func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID string, attributes AppInfoLocalizationAttributes) (*AppInfoLocalizationResponse, error) {
+	payload := AppInfoLocalizationUpdateRequest{
+		Data: AppInfoLocalizationUpdateData{
+			Type:       ResourceTypeAppInfoLocalizations,
+			ID:         localizationID,
+			Attributes: attributes,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
+	data, err := c.do(ctx, "PATCH", path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppInfoLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppInfos retrieves app info records for an app.
+func (c *Client) GetAppInfos(ctx context.Context, appID string) (*AppInfosResponse, error) {
+	path := fmt.Sprintf("/v1/apps/%s/appInfos", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppInfosResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetBuild retrieves a single build by ID.
 func (c *Client) GetBuild(ctx context.Context, buildID string) (*BuildResponse, error) {
 	path := fmt.Sprintf("/v1/builds/%s", buildID)
@@ -1640,6 +2051,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *AppStoreVersionLocalizationsResponse:
+		return printAppStoreVersionLocalizationsMarkdown(v)
+	case *AppInfoLocalizationsResponse:
+		return printAppInfoLocalizationsMarkdown(v)
 	case *BetaGroupsResponse:
 		return printBetaGroupsMarkdown(v)
 	case *BetaGroupResponse:
@@ -1648,6 +2063,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaTestersMarkdown(v)
 	case *BetaTesterResponse:
 		return printBetaTestersMarkdown(&BetaTestersResponse{Data: []Resource[BetaTesterAttributes]{v.Data}})
+	case *LocalizationDownloadResult:
+		return printLocalizationDownloadResultMarkdown(v)
+	case *LocalizationUploadResult:
+		return printLocalizationUploadResultMarkdown(v)
 	case *BuildUploadResult:
 		return printBuildUploadResultMarkdown(v)
 	case *AppStoreVersionSubmissionResult:
@@ -1676,6 +2095,10 @@ func PrintTable(data interface{}) error {
 		return printBuildsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *AppStoreVersionLocalizationsResponse:
+		return printAppStoreVersionLocalizationsTable(v)
+	case *AppInfoLocalizationsResponse:
+		return printAppInfoLocalizationsTable(v)
 	case *BetaGroupsResponse:
 		return printBetaGroupsTable(v)
 	case *BetaGroupResponse:
@@ -1684,6 +2107,10 @@ func PrintTable(data interface{}) error {
 		return printBetaTestersTable(v)
 	case *BetaTesterResponse:
 		return printBetaTestersTable(&BetaTestersResponse{Data: []Resource[BetaTesterAttributes]{v.Data}})
+	case *LocalizationDownloadResult:
+		return printLocalizationDownloadResultTable(v)
+	case *LocalizationUploadResult:
+		return printLocalizationUploadResultTable(v)
 	case *BuildUploadResult:
 		return printBuildUploadResultTable(v)
 	case *AppStoreVersionSubmissionResult:
@@ -1893,6 +2320,33 @@ func printAppsTable(resp *AppsResponse) error {
 	return w.Flush()
 }
 
+func printAppStoreVersionLocalizationsTable(resp *AppStoreVersionLocalizationsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Locale\tWhats New\tKeywords")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\n",
+			item.Attributes.Locale,
+			compactWhitespace(item.Attributes.WhatsNew),
+			compactWhitespace(item.Attributes.Keywords),
+		)
+	}
+	return w.Flush()
+}
+
+func printAppInfoLocalizationsTable(resp *AppInfoLocalizationsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Locale\tName\tSubtitle\tPrivacy Policy URL")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+			item.Attributes.Locale,
+			compactWhitespace(item.Attributes.Name),
+			compactWhitespace(item.Attributes.Subtitle),
+			item.Attributes.PrivacyPolicyURL,
+		)
+	}
+	return w.Flush()
+}
+
 func printBetaGroupsTable(resp *BetaGroupsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tInternal\tPublic Link Enabled\tPublic Link")
@@ -1961,6 +2415,33 @@ func printAppsMarkdown(resp *AppsResponse) error {
 			escapeMarkdown(item.Attributes.Name),
 			escapeMarkdown(item.Attributes.BundleID),
 			escapeMarkdown(item.Attributes.SKU),
+		)
+	}
+	return nil
+}
+
+func printAppStoreVersionLocalizationsMarkdown(resp *AppStoreVersionLocalizationsResponse) error {
+	fmt.Fprintln(os.Stdout, "| Locale | Whats New | Keywords |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+			escapeMarkdown(item.Attributes.Locale),
+			escapeMarkdown(item.Attributes.WhatsNew),
+			escapeMarkdown(item.Attributes.Keywords),
+		)
+	}
+	return nil
+}
+
+func printAppInfoLocalizationsMarkdown(resp *AppInfoLocalizationsResponse) error {
+	fmt.Fprintln(os.Stdout, "| Locale | Name | Subtitle | Privacy Policy URL |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+			escapeMarkdown(item.Attributes.Locale),
+			escapeMarkdown(item.Attributes.Name),
+			escapeMarkdown(item.Attributes.Subtitle),
+			escapeMarkdown(item.Attributes.PrivacyPolicyURL),
 		)
 	}
 	return nil
@@ -2086,6 +2567,49 @@ func printAppStoreVersionSubmissionMarkdown(result *AppStoreVersionSubmissionRes
 		escapeMarkdown(result.SubmissionID),
 		escapeMarkdown(createdDate),
 	)
+	return nil
+}
+
+func printLocalizationDownloadResultTable(result *LocalizationDownloadResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Locale\tPath")
+	for _, file := range result.Files {
+		fmt.Fprintf(w, "%s\t%s\n", file.Locale, file.Path)
+	}
+	return w.Flush()
+}
+
+func printLocalizationDownloadResultMarkdown(result *LocalizationDownloadResult) error {
+	fmt.Fprintln(os.Stdout, "| Locale | Path |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	for _, file := range result.Files {
+		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
+			escapeMarkdown(file.Locale),
+			escapeMarkdown(file.Path),
+		)
+	}
+	return nil
+}
+
+func printLocalizationUploadResultTable(result *LocalizationUploadResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Locale\tAction\tLocalization ID")
+	for _, item := range result.Results {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", item.Locale, item.Action, item.LocalizationID)
+	}
+	return w.Flush()
+}
+
+func printLocalizationUploadResultMarkdown(result *LocalizationUploadResult) error {
+	fmt.Fprintln(os.Stdout, "| Locale | Action | Localization ID |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range result.Results {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+			escapeMarkdown(item.Locale),
+			escapeMarkdown(item.Action),
+			escapeMarkdown(item.LocalizationID),
+		)
+	}
 	return nil
 }
 

@@ -199,6 +199,146 @@ func TestPrintMarkdown_Apps(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppStoreVersionLocalizations(t *testing.T) {
+	resp := &AppStoreVersionLocalizationsResponse{
+		Data: []Resource[AppStoreVersionLocalizationAttributes]{
+			{
+				ID: "loc-1",
+				Attributes: AppStoreVersionLocalizationAttributes{
+					Locale:   "en-US",
+					WhatsNew: "Bug fixes",
+					Keywords: "keyword1, keyword2",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Locale") {
+		t.Fatalf("expected locale header, got: %s", output)
+	}
+	if !strings.Contains(output, "en-US") {
+		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionLocalizations(t *testing.T) {
+	resp := &AppStoreVersionLocalizationsResponse{
+		Data: []Resource[AppStoreVersionLocalizationAttributes]{
+			{
+				ID: "loc-1",
+				Attributes: AppStoreVersionLocalizationAttributes{
+					Locale:   "en-US",
+					WhatsNew: "Bug fixes",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Locale | Whats New |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "en-US") {
+		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppInfoLocalizations(t *testing.T) {
+	resp := &AppInfoLocalizationsResponse{
+		Data: []Resource[AppInfoLocalizationAttributes]{
+			{
+				ID: "loc-1",
+				Attributes: AppInfoLocalizationAttributes{
+					Locale:           "en-US",
+					Name:             "Demo App",
+					PrivacyPolicyURL: "https://example.com",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Privacy Policy URL") {
+		t.Fatalf("expected privacy policy header, got: %s", output)
+	}
+	if !strings.Contains(output, "Demo App") {
+		t.Fatalf("expected name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppInfoLocalizations(t *testing.T) {
+	resp := &AppInfoLocalizationsResponse{
+		Data: []Resource[AppInfoLocalizationAttributes]{
+			{
+				ID: "loc-1",
+				Attributes: AppInfoLocalizationAttributes{
+					Locale: "en-US",
+					Name:   "Demo App",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Locale | Name | Subtitle |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "Demo App") {
+		t.Fatalf("expected name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_LocalizationDownloadResult(t *testing.T) {
+	result := &LocalizationDownloadResult{
+		Files: []LocalizationFileResult{
+			{Locale: "en-US", Path: "localizations/en-US.strings"},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Path") {
+		t.Fatalf("expected path header, got: %s", output)
+	}
+	if !strings.Contains(output, "en-US") {
+		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_LocalizationUploadResult(t *testing.T) {
+	result := &LocalizationUploadResult{
+		Results: []LocalizationUploadLocaleResult{
+			{Locale: "en-US", Action: "create", LocalizationID: "loc-1"},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| Locale | Action |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "loc-1") {
+		t.Fatalf("expected localization id in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_BetaGroups(t *testing.T) {
 	resp := &BetaGroupsResponse{
 		Data: []Resource[BetaGroupAttributes]{
