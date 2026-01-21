@@ -54,6 +54,7 @@ func SandboxListCommand() *ffcli.Command {
 	territory := fs.String("territory", "", "Filter by territory (e.g., USA, JPN)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -67,7 +68,8 @@ Examples:
   asc sandbox list
   asc sandbox list --email "tester@example.com"
   asc sandbox list --territory "USA"
-  asc sandbox list --limit 50`,
+  asc sandbox list --limit 50
+  asc sandbox list --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -104,6 +106,26 @@ Examples:
 			}
 			if normalizedTerritory != "" {
 				opts = append(opts, asc.WithSandboxTestersTerritory(normalizedTerritory))
+			}
+
+			// Sandbox testers use a different response type - need to handle separately
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithSandboxTestersLimit(200))
+				firstPage, err := client.GetSandboxTesters(requestCtx, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("sandbox list: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetSandboxTesters(ctx, asc.WithSandboxTestersNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("sandbox list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSandboxTesters(requestCtx, opts...)

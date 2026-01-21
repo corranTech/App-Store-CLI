@@ -70,7 +70,8 @@ Analytics & sales env:
 ### Agent Quickstart
 
 - JSON output is default for machine parsing; add `--pretty` when debugging.
-- Use `--limit` + `--next "<links.next>"` for pagination across all list commands.
+- Use `--paginate` to automatically fetch all pages (recommended for AI agents).
+- Use `--limit` + `--next "<links.next>"` for manual pagination control.
 - Sort with `--sort` (prefix `-` for descending):
   - Feedback/Crashes: `createdDate` / `-createdDate`
   - Reviews: `rating` / `-rating`, `createdDate` / `-createdDate`
@@ -89,6 +90,9 @@ asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
 # Filter feedback by platform/build/tester
 asc feedback --app "123456789" --app-platform IOS --device-platform IOS --build "BUILD_ID" --tester "TESTER_ID"
 
+# Fetch all feedback pages automatically (AI agents)
+asc feedback --app "123456789" --paginate
+
 # Get crash reports (table format - for humans)
 asc crashes --app "123456789" --output table
 
@@ -101,8 +105,8 @@ asc crashes --app "123456789" --limit 25
 # Sort crashes by created date (newest first)
 asc crashes --app "123456789" --sort -createdDate --limit 5
 
-# Fetch next page
-asc crashes --next "<links.next>"
+# Fetch all crash pages automatically (AI agents)
+asc crashes --app "123456789" --paginate
 ```
 
 ### App Store
@@ -120,8 +124,8 @@ asc reviews --app "123456789" --territory US --output markdown
 # Sort reviews by created date (newest first)
 asc reviews --app "123456789" --sort -createdDate --limit 5
 
-# Fetch next page using links.next
-asc reviews --next "<links.next>"
+# Fetch all reviews pages automatically (AI agents)
+asc reviews --app "123456789" --paginate
 ```
 
 ### Analytics & Sales
@@ -136,8 +140,8 @@ asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequen
 # Create analytics report request
 asc analytics request --app "123456789" --access-type ONGOING
 
-# List analytics report requests
-asc analytics requests --app "123456789"
+# List analytics report requests (all pages)
+asc analytics requests --app "123456789" --paginate
 
 # Get analytics reports with instances
 asc analytics get --request-id "REQUEST_ID"
@@ -161,6 +165,9 @@ asc sandbox list
 # Filter by email or territory
 asc sandbox list --email "tester@example.com"
 asc sandbox list --territory "USA"
+
+# Fetch all sandbox testers (all pages)
+asc sandbox list --paginate
 
 # Create a sandbox tester
 asc sandbox create \
@@ -208,15 +215,17 @@ asc apps
 asc apps --sort name
 asc apps --sort -bundleId
 
+# Fetch all apps (all pages)
+asc apps --paginate
+
 # List builds for an app
 asc builds --app "123456789"
 
 # Sort builds by upload date (newest first)
 asc builds --app "123456789" --sort -uploadedDate
 
-# Fetch next page
-asc apps --next "<links.next>"
-asc builds --next "<links.next>"
+# Fetch all builds (all pages)
+asc builds list --app "123456789" --paginate
 
 # Build details
 asc builds info --build "BUILD_ID"
@@ -240,6 +249,8 @@ asc --version
 | JSON (minified) | default | AI agents, scripting |
 | Table | `--output table` | Humans in terminal |
 | Markdown | `--output markdown` | Humans, documentation |
+
+Note: When using `--paginate`, the response `links` field is cleared to avoid confusion about additional pages.
 
 ### Authentication
 

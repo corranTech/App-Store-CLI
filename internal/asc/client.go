@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,13 +22,151 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 )
 
+func init() {
+	// Seed the random number generator for jitter
+	rand.Seed(time.Now().UnixNano())
+}
+
 const (
 	// BaseURL is the App Store Connect API base URL
 	BaseURL = "https://api.appstoreconnect.apple.com"
 	// DefaultTimeout is the default request timeout
 	DefaultTimeout = 30 * time.Second
 	tokenLifetime  = 20 * time.Minute
+
+	// Retry defaults
+	DefaultMaxRetries = 3
+	DefaultBaseDelay  = 1 * time.Second
+	DefaultMaxDelay   = 30 * time.Second
 )
+
+// RetryableError is returned when a request can be retried (e.g., rate limiting).
+type RetryableError struct {
+	Err        error
+	RetryAfter time.Duration
+}
+
+func (e *RetryableError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *RetryableError) Unwrap() error {
+	return e.Err
+}
+
+// IsRetryable checks if an error indicates the request can be retried.
+func IsRetryable(err error) bool {
+	var re *RetryableError
+	return errors.As(err, &re)
+}
+
+// GetRetryAfter extracts the retry-after duration from an error.
+func GetRetryAfter(err error) time.Duration {
+	var re *RetryableError
+	if errors.As(err, &re) {
+		return re.RetryAfter
+	}
+	return 0
+}
+
+// RetryOptions configures retry behavior.
+type RetryOptions struct {
+	MaxRetries int
+	BaseDelay  time.Duration
+	MaxDelay   time.Duration
+}
+
+// ResolveRetryOptions returns retry options, optionally overridden by env vars.
+func ResolveRetryOptions() RetryOptions {
+	opts := RetryOptions{
+		MaxRetries: DefaultMaxRetries,
+		BaseDelay:  DefaultBaseDelay,
+		MaxDelay:   DefaultMaxDelay,
+	}
+
+	if override := strings.TrimSpace(os.Getenv("ASC_MAX_RETRIES")); override != "" {
+		if parsed, err := strconv.Atoi(override); err == nil && parsed >= 0 {
+			opts.MaxRetries = parsed
+		}
+	}
+	if override := strings.TrimSpace(os.Getenv("ASC_BASE_DELAY")); override != "" {
+		if parsed, err := time.ParseDuration(override); err == nil && parsed > 0 {
+			opts.BaseDelay = parsed
+		}
+	}
+	if override := strings.TrimSpace(os.Getenv("ASC_MAX_DELAY")); override != "" {
+		if parsed, err := time.ParseDuration(override); err == nil && parsed > 0 {
+			opts.MaxDelay = parsed
+		}
+	}
+	return opts
+}
+
+// WithRetry executes a function with retry logic for rate limiting.
+// It uses exponential backoff with jitter and respects Retry-After headers.
+func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptions) (T, error) {
+	var zero T
+
+	// If retries are disabled (0 or negative), fail fast
+	if opts.MaxRetries <= 0 {
+		return fn()
+	}
+
+	if opts.BaseDelay <= 0 {
+		opts.BaseDelay = DefaultBaseDelay
+	}
+	if opts.MaxDelay <= 0 {
+		opts.MaxDelay = DefaultMaxDelay
+	}
+
+	retryCount := 0
+
+	for {
+		result, err := fn()
+		if err == nil {
+			return result, nil
+		}
+
+		// Check if error is retryable
+		if !IsRetryable(err) {
+			return zero, err
+		}
+
+		// Check if we've exceeded max retries
+		if retryCount >= opts.MaxRetries {
+			return zero, fmt.Errorf("retry limit exceeded after %d retries: %w", retryCount, err)
+		}
+
+		// Calculate delay
+		delay := GetRetryAfter(err)
+		if delay == 0 {
+			// Exponential backoff with jitter, capped to prevent overflow
+			expDelay := opts.BaseDelay
+			if retryCount > 0 && retryCount < 31 { // Prevent overflow for reasonable retry counts
+				expDelay = opts.BaseDelay * time.Duration(1<<retryCount)
+			}
+			if expDelay > opts.MaxDelay || expDelay <= 0 {
+				expDelay = opts.MaxDelay
+			}
+			// Add jitter: ±25% of the delay
+			jitter := float64(expDelay) * 0.25 * (2*rand.Float64() - 1)
+			delay = expDelay + time.Duration(jitter)
+			if delay < 0 {
+				delay = expDelay / 2 // minimum delay
+			}
+		}
+
+		retryCount++
+
+		// Wait with context cancellation support
+		select {
+		case <-ctx.Done():
+			return zero, fmt.Errorf("retry cancelled: %w", ctx.Err())
+		case <-time.After(delay):
+			// Continue to next retry
+		}
+	}
+}
 
 // ResolveTimeout returns the request timeout, optionally overridden by env vars.
 func ResolveTimeout() time.Duration {
@@ -1309,6 +1449,16 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
+
+		// Check for rate limiting (429) or service unavailable (503)
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+			retryAfter := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
+			return nil, &RetryableError{
+				Err:        fmt.Errorf("API request failed with status %d", resp.StatusCode),
+				RetryAfter: retryAfter,
+			}
+		}
+
 		if err := ParseError(respBody); err != nil {
 			return nil, err
 		}
@@ -1316,6 +1466,36 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+// parseRetryAfterHeader parses the Retry-After header value.
+// Supports seconds (e.g., "60") or HTTP-date format (RFC1123, RFC850, ANSIC).
+func parseRetryAfterHeader(value string) time.Duration {
+	if value = strings.TrimSpace(value); value == "" {
+		return 0
+	}
+
+	// Try to parse as seconds first
+	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+
+	// Try to parse as HTTP-date (try multiple formats)
+	formats := []string{
+		http.TimeFormat,   // RFC1123: "Mon, 02 Jan 2006 15:04:05 GMT"
+		time.RFC850,       // RFC850: "Monday, 02-Jan-06 15:04:05 MST"
+		time.ANSIC,        // ANSIC: "Mon Jan _2 15:04:05 2006"
+	}
+	for _, format := range formats {
+		if t, err := time.Parse(format, value); err == nil {
+			delay := time.Until(t)
+			if delay > 0 {
+				return delay
+			}
+		}
+	}
+
+	return 0
 }
 
 func (c *Client) doStream(ctx context.Context, method, path string, body io.Reader, accept string) (*http.Response, error) {
@@ -2338,6 +2518,153 @@ type Links struct {
 	Self string `json:"self,omitempty"`
 	Next string `json:"next,omitempty"`
 	Prev string `json:"prev,omitempty"`
+}
+
+// PaginatedResponse represents a response that supports pagination
+type PaginatedResponse interface {
+	GetLinks() *Links
+	GetData() interface{}
+}
+
+// GetLinks returns the links field for pagination
+func (r *Response[T]) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation
+func (r *Response[T]) GetData() interface{} {
+	return r.Data
+}
+
+// PaginateFunc is a function that fetches a page of results
+type PaginateFunc func(ctx context.Context, nextURL string) (PaginatedResponse, error)
+
+// PaginateAll fetches all pages and aggregates results
+func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext PaginateFunc) (PaginatedResponse, error) {
+	if firstPage == nil {
+		return nil, nil
+	}
+
+	// Determine the response type from the first page
+	var result PaginatedResponse
+	switch firstPage.(type) {
+	case *FeedbackResponse:
+		result = &FeedbackResponse{Links: Links{}}
+	case *CrashesResponse:
+		result = &CrashesResponse{Links: Links{}}
+	case *ReviewsResponse:
+		result = &ReviewsResponse{Links: Links{}}
+	case *AppsResponse:
+		result = &AppsResponse{Links: Links{}}
+	case *BuildsResponse:
+		result = &BuildsResponse{Links: Links{}}
+	case *AppStoreVersionsResponse:
+		result = &AppStoreVersionsResponse{Links: Links{}}
+	case *AppStoreVersionLocalizationsResponse:
+		result = &AppStoreVersionLocalizationsResponse{Links: Links{}}
+	case *AppInfoLocalizationsResponse:
+		result = &AppInfoLocalizationsResponse{Links: Links{}}
+	case *BetaGroupsResponse:
+		result = &BetaGroupsResponse{Links: Links{}}
+	case *BetaTestersResponse:
+		result = &BetaTestersResponse{Links: Links{}}
+	case *SandboxTestersResponse:
+		result = &SandboxTestersResponse{Links: Links{}}
+	case *AnalyticsReportRequestsResponse:
+		result = &AnalyticsReportRequestsResponse{Links: Links{}}
+	default:
+		return nil, fmt.Errorf("unsupported response type for pagination")
+	}
+
+	page := 1
+	for {
+		// Aggregate data from current page
+		switch p := firstPage.(type) {
+		case *FeedbackResponse:
+			result.(*FeedbackResponse).Data = append(result.(*FeedbackResponse).Data, p.Data...)
+		case *CrashesResponse:
+			result.(*CrashesResponse).Data = append(result.(*CrashesResponse).Data, p.Data...)
+		case *ReviewsResponse:
+			result.(*ReviewsResponse).Data = append(result.(*ReviewsResponse).Data, p.Data...)
+		case *AppsResponse:
+			result.(*AppsResponse).Data = append(result.(*AppsResponse).Data, p.Data...)
+		case *BuildsResponse:
+			result.(*BuildsResponse).Data = append(result.(*BuildsResponse).Data, p.Data...)
+		case *AppStoreVersionsResponse:
+			result.(*AppStoreVersionsResponse).Data = append(result.(*AppStoreVersionsResponse).Data, p.Data...)
+		case *AppStoreVersionLocalizationsResponse:
+			result.(*AppStoreVersionLocalizationsResponse).Data = append(result.(*AppStoreVersionLocalizationsResponse).Data, p.Data...)
+		case *AppInfoLocalizationsResponse:
+			result.(*AppInfoLocalizationsResponse).Data = append(result.(*AppInfoLocalizationsResponse).Data, p.Data...)
+		case *BetaGroupsResponse:
+			result.(*BetaGroupsResponse).Data = append(result.(*BetaGroupsResponse).Data, p.Data...)
+		case *BetaTestersResponse:
+			result.(*BetaTestersResponse).Data = append(result.(*BetaTestersResponse).Data, p.Data...)
+		case *SandboxTestersResponse:
+			result.(*SandboxTestersResponse).Data = append(result.(*SandboxTestersResponse).Data, p.Data...)
+		case *AnalyticsReportRequestsResponse:
+			result.(*AnalyticsReportRequestsResponse).Data = append(result.(*AnalyticsReportRequestsResponse).Data, p.Data...)
+		}
+
+		// Check for next page
+		links := firstPage.GetLinks()
+		if links == nil || links.Next == "" {
+			break
+		}
+
+		page++
+
+		// Fetch next page with retry logic for rate limiting
+		retryOpts := ResolveRetryOptions()
+		nextPage, err := WithRetry(ctx, func() (PaginatedResponse, error) {
+			return fetchNext(ctx, links.Next)
+		}, retryOpts)
+
+		if err != nil {
+			return result, fmt.Errorf("page %d: %w", page, err)
+		}
+
+		// Validate that the response type matches
+		if typeOf(nextPage) != typeOf(firstPage) {
+			return result, fmt.Errorf("page %d: unexpected response type (expected %T, got %T)", page, firstPage, nextPage)
+		}
+
+		firstPage = nextPage
+	}
+
+	return result, nil
+}
+
+// typeOf returns the runtime type of a PaginatedResponse
+func typeOf(p PaginatedResponse) string {
+	switch p.(type) {
+	case *FeedbackResponse:
+		return "FeedbackResponse"
+	case *CrashesResponse:
+		return "CrashesResponse"
+	case *ReviewsResponse:
+		return "ReviewsResponse"
+	case *AppsResponse:
+		return "AppsResponse"
+	case *BuildsResponse:
+		return "BuildsResponse"
+	case *AppStoreVersionsResponse:
+		return "AppStoreVersionsResponse"
+	case *AppStoreVersionLocalizationsResponse:
+		return "AppStoreVersionLocalizationsResponse"
+	case *AppInfoLocalizationsResponse:
+		return "AppInfoLocalizationsResponse"
+	case *BetaGroupsResponse:
+		return "BetaGroupsResponse"
+	case *BetaTestersResponse:
+		return "BetaTestersResponse"
+	case *SandboxTestersResponse:
+		return "SandboxTestersResponse"
+	case *AnalyticsReportRequestsResponse:
+		return "AnalyticsReportRequestsResponse"
+	default:
+		return "unknown"
+	}
 }
 
 // PrintJSON prints data as minified JSON (best for AI agents)

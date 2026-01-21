@@ -74,6 +74,7 @@ func VersionsListCommand() *ffcli.Command {
 	state := fs.String("state", "", "Filter by state (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -86,7 +87,8 @@ func VersionsListCommand() *ffcli.Command {
 Examples:
   asc versions list --app "123456789"
   asc versions list --app "123456789" --version "1.0.0"
-  asc versions list --app "123456789" --platform IOS --state READY_FOR_REVIEW`,
+  asc versions list --app "123456789" --platform IOS --state READY_FOR_REVIEW
+  asc versions list --app "123456789" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -126,6 +128,25 @@ Examples:
 				asc.WithAppStoreVersionsVersionStrings(splitCSV(*version)),
 				asc.WithAppStoreVersionsStates(states),
 				asc.WithAppStoreVersionsNextURL(*next),
+			}
+
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithAppStoreVersionsLimit(200))
+				firstPage, err := client.GetAppStoreVersions(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("versions list: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				versions, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetAppStoreVersions(ctx, resolvedAppID, asc.WithAppStoreVersionsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("versions list: %w", err)
+				}
+
+				return printOutput(versions, *output, *pretty)
 			}
 
 			versions, err := client.GetAppStoreVersions(requestCtx, resolvedAppID, opts...)
