@@ -48,6 +48,28 @@ Output formats:
 | Table | `--output table` | Humans in terminal |
 | Markdown | `--output markdown` | Humans, documentation |
 
+### Pagination
+
+List commands support `--paginate` to automatically fetch all pages:
+
+- Opt-in flag (default false) for backward compatibility
+- When set, automatically uses limit=200 (max) for consistent pagination
+- Aggregates all results into a single response
+- Clears pagination links in output to avoid confusion
+
+Commands supporting `--paginate`:
+- `asc apps --paginate`
+- `asc builds list --app "ID" --paginate`
+- `asc feedback --app "ID" --paginate`
+- `asc crashes --app "ID" --paginate`
+- `asc reviews --app "ID" --paginate`
+- `asc versions list --app "ID" --paginate`
+- `asc localizations list --version "ID" --paginate`
+- `asc beta-groups list --app "ID" --paginate`
+- `asc beta-testers list --app "ID" --paginate`
+- `asc sandbox list --paginate`
+- `asc analytics requests --app "ID" --paginate`
+
 ## Commands
 
 ### Core Commands (v1)
@@ -63,11 +85,18 @@ asc feedback --app "123456789" --output table
 # TestFlight - Markdown for docs
 asc crashes --app "123456789" --output markdown
 
+# TestFlight - Paginate all results
+asc feedback --app "123456789" --paginate
+asc crashes --app "123456789" --paginate
+
 # App Store - JSON for AI agents
 asc reviews --app "123456789"
 
 # App Store - Table for humans
 asc reviews --app "123456789" --stars 1 --output table
+
+# App Store - Paginate all reviews
+asc reviews --app "123456789" --paginate
 
 # Apps & Builds - JSON for AI agents
 asc apps
@@ -77,11 +106,20 @@ asc builds --app "123456789" --sort -uploadedDate
 asc builds info --build "BUILD_ID"
 asc builds expire --build "BUILD_ID"
 
+# Apps - Paginate all apps
+asc apps --paginate
+
+# Builds - Paginate all builds
+asc builds list --app "123456789" --paginate
+
 # Sandbox testers
 asc sandbox list
 asc sandbox create --email "tester@example.com" --first-name "Test" --last-name "User" --password "Passwordtest1" --confirm-password "Passwordtest1" --secret-question "Question" --secret-answer "Answer" --birth-date "1980-03-01" --territory "USA"
 asc sandbox update --id "SANDBOX_TESTER_ID" --territory "USA"
 asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
+
+# Sandbox - Paginate all testers
+asc sandbox list --paginate
 
 # Utilities
 asc version
