@@ -212,6 +212,50 @@ func TestBuildBetaTestersQuery(t *testing.T) {
 	}
 }
 
+func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
+	query := &appStoreVersionLocalizationsQuery{}
+	opts := []AppStoreVersionLocalizationsOption{
+		WithAppStoreVersionLocalizationsLimit(10),
+		WithAppStoreVersionLocalizationLocales([]string{"en-US", "ja"}),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildAppStoreVersionLocalizationsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[locale]"); got != "en-US,ja" {
+		t.Fatalf("expected filter[locale]=en-US,ja, got %q", got)
+	}
+	if got := values.Get("limit"); got != "10" {
+		t.Fatalf("expected limit=10, got %q", got)
+	}
+}
+
+func TestBuildAppInfoLocalizationsQuery(t *testing.T) {
+	query := &appInfoLocalizationsQuery{}
+	opts := []AppInfoLocalizationsOption{
+		WithAppInfoLocalizationsLimit(5),
+		WithAppInfoLocalizationLocales([]string{"en-US"}),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildAppInfoLocalizationsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[locale]"); got != "en-US" {
+		t.Fatalf("expected filter[locale]=en-US, got %q", got)
+	}
+	if got := values.Get("limit"); got != "5" {
+		t.Fatalf("expected limit=5, got %q", got)
+	}
+}
+
 func TestBuildRequestBody(t *testing.T) {
 	body, err := BuildRequestBody(map[string]string{"hello": "world"})
 	if err != nil {
