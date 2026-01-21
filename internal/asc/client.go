@@ -22,6 +22,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 )
 
+func init() {
+	// Seed the random number generator for jitter
+	rand.Seed(time.Now().UnixNano())
+}
+
 const (
 	// BaseURL is the App Store Connect API base URL
 	BaseURL = "https://api.appstoreconnect.apple.com"
@@ -102,9 +107,11 @@ func ResolveRetryOptions() RetryOptions {
 func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptions) (T, error) {
 	var zero T
 
+	// If retries are disabled (0 or negative), fail fast
 	if opts.MaxRetries <= 0 {
-		opts.MaxRetries = DefaultMaxRetries
+		return fn()
 	}
+
 	if opts.BaseDelay <= 0 {
 		opts.BaseDelay = DefaultBaseDelay
 	}
@@ -112,7 +119,7 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 		opts.MaxDelay = DefaultMaxDelay
 	}
 
-	attempt := 0
+	retryCount := 0
 
 	for {
 		result, err := fn()
@@ -126,16 +133,19 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 		}
 
 		// Check if we've exceeded max retries
-		if attempt >= opts.MaxRetries {
-			return zero, fmt.Errorf("retry limit exceeded after %d attempts: %w", attempt, err)
+		if retryCount >= opts.MaxRetries {
+			return zero, fmt.Errorf("retry limit exceeded after %d retries: %w", retryCount, err)
 		}
 
 		// Calculate delay
 		delay := GetRetryAfter(err)
 		if delay == 0 {
-			// Exponential backoff with jitter
-			expDelay := opts.BaseDelay * time.Duration(1<<attempt)
-			if expDelay > opts.MaxDelay {
+			// Exponential backoff with jitter, capped to prevent overflow
+			expDelay := opts.BaseDelay
+			if retryCount > 0 && retryCount < 31 { // Prevent overflow for reasonable retry counts
+				expDelay = opts.BaseDelay * time.Duration(1<<retryCount)
+			}
+			if expDelay > opts.MaxDelay || expDelay <= 0 {
 				expDelay = opts.MaxDelay
 			}
 			// Add jitter: ±25% of the delay
@@ -146,7 +156,7 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 			}
 		}
 
-		attempt++
+		retryCount++
 
 		// Wait with context cancellation support
 		select {
@@ -1459,9 +1469,9 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 }
 
 // parseRetryAfterHeader parses the Retry-After header value.
-// Supports seconds (e.g., "60") or HTTP-date format (e.g., "Wed, 21 Oct 2015 07:28:00 GMT").
+// Supports seconds (e.g., "60") or HTTP-date format (RFC1123, RFC850, ANSIC).
 func parseRetryAfterHeader(value string) time.Duration {
-	if value == "" {
+	if value = strings.TrimSpace(value); value == "" {
 		return 0
 	}
 
@@ -1470,11 +1480,18 @@ func parseRetryAfterHeader(value string) time.Duration {
 		return time.Duration(seconds) * time.Second
 	}
 
-	// Try to parse as HTTP-date
-	if t, err := time.Parse(http.TimeFormat, value); err == nil {
-		delay := time.Until(t)
-		if delay > 0 {
-			return delay
+	// Try to parse as HTTP-date (try multiple formats)
+	formats := []string{
+		http.TimeFormat,   // RFC1123: "Mon, 02 Jan 2006 15:04:05 GMT"
+		time.RFC850,       // RFC850: "Monday, 02-Jan-06 15:04:05 MST"
+		time.ANSIC,        // ANSIC: "Mon Jan _2 15:04:05 2006"
+	}
+	for _, format := range formats {
+		if t, err := time.Parse(format, value); err == nil {
+			delay := time.Until(t)
+			if delay > 0 {
+				return delay
+			}
 		}
 	}
 
