@@ -126,6 +126,7 @@ func FeedbackCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by createdDate or -createdDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 
 	return &ffcli.Command{
 		Name:       "feedback",
@@ -140,7 +141,8 @@ Examples:
   asc feedback --app "123456789" --include-screenshots
   asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
   asc feedback --app "123456789" --sort -createdDate --limit 5
-  asc feedback --next "<links.next>"`,
+  asc feedback --next "<links.next>"
+  asc feedback --app "123456789" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -186,6 +188,26 @@ Examples:
 				opts = append(opts, asc.WithFeedbackIncludeScreenshots())
 			}
 
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithFeedbackLimit(200))
+				firstPage, err := client.GetFeedback(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("feedback: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				feedback, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetFeedback(ctx, resolvedAppID, asc.WithFeedbackNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("feedback: %w", err)
+				}
+
+				format := *output
+				return printOutput(feedback, format, *pretty)
+			}
+
 			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
 			if err != nil {
 				return fmt.Errorf("feedback: failed to fetch: %w", err)
@@ -215,6 +237,7 @@ func CrashesCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by createdDate or -createdDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 
 	return &ffcli.Command{
 		Name:       "crashes",
@@ -230,7 +253,8 @@ Examples:
   asc crashes --app "123456789" > crashes.json
   asc crashes --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
   asc crashes --app "123456789" --sort -createdDate --limit 5
-  asc crashes --next "<links.next>"`,
+  asc crashes --next "<links.next>"
+  asc crashes --app "123456789" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -273,6 +297,26 @@ Examples:
 				opts = append(opts, asc.WithCrashSort(*sort))
 			}
 
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithCrashLimit(200))
+				firstPage, err := client.GetCrashes(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("crashes: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				crashes, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCrashes(ctx, resolvedAppID, asc.WithCrashNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("crashes: %w", err)
+				}
+
+				format := *output
+				return printOutput(crashes, format, *pretty)
+			}
+
 			crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
 			if err != nil {
 				return fmt.Errorf("crashes: failed to fetch: %w", err)
@@ -297,6 +341,7 @@ func ReviewsCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by rating, -rating, createdDate, or -createdDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 
 	return &ffcli.Command{
 		Name:       "reviews",
@@ -311,7 +356,8 @@ Examples:
   asc reviews --app "123456789"
   asc reviews --app "123456789" --stars 1 --territory US
   asc reviews --app "123456789" --sort -createdDate --limit 5
-  asc reviews --next "<links.next>"`,
+  asc reviews --next "<links.next>"
+  asc reviews --app "123456789" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -359,6 +405,26 @@ Examples:
 				opts = append(opts, asc.WithReviewSort(*sort))
 			}
 
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithLimit(200))
+				firstPage, err := client.GetReviews(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("reviews: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				reviews, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetReviews(ctx, resolvedAppID, asc.WithNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("reviews: %w", err)
+				}
+
+				format := *output
+				return printOutput(reviews, format, *pretty)
+			}
+
 			reviews, err := client.GetReviews(requestCtx, resolvedAppID, opts...)
 			if err != nil {
 				return fmt.Errorf("reviews: failed to fetch: %w", err)
@@ -380,6 +446,7 @@ func AppsCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by name or -name, bundleId or -bundleId")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 
 	return &ffcli.Command{
 		Name:       "apps",
@@ -395,7 +462,8 @@ Examples:
   asc apps --limit 10
   asc apps --sort name
   asc apps --output table
-  asc apps --next "<links.next>"`,
+  asc apps --next "<links.next>"
+  asc apps --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -423,6 +491,26 @@ Examples:
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithAppsSort(*sort))
+			}
+
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithAppsLimit(200))
+				firstPage, err := client.GetApps(requestCtx, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("apps: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				apps, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("apps: %w", err)
+				}
+
+				format := *output
+				return printOutput(apps, format, *pretty)
 			}
 
 			apps, err := client.GetApps(requestCtx, opts...)
@@ -611,6 +699,7 @@ func BuildsListCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -623,7 +712,8 @@ including processing status and expiration dates.
 
 Examples:
   asc builds list --app "123456789"
-  asc builds list --app "123456789" --limit 10`,
+  asc builds list --app "123456789" --limit 10
+  asc builds list --app "123456789" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -661,6 +751,26 @@ Examples:
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildsSort(*sort))
+			}
+
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithBuildsLimit(200))
+				firstPage, err := client.GetBuilds(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("builds: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				builds, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBuilds(ctx, resolvedAppID, asc.WithBuildsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("builds: %w", err)
+				}
+
+				format := *output
+				return printOutput(builds, format, *pretty)
 			}
 
 			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)

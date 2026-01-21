@@ -77,6 +77,7 @@ func LocalizationsListCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -89,7 +90,8 @@ func LocalizationsListCommand() *ffcli.Command {
 Examples:
   asc localizations list --version "VERSION_ID"
   asc localizations list --app "APP_ID" --type app-info
-  asc localizations list --version "VERSION_ID" --locale "en-US,ja"`,
+  asc localizations list --version "VERSION_ID" --locale "en-US,ja"
+  asc localizations list --version "VERSION_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -130,6 +132,24 @@ Examples:
 					opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
 				}
 
+				if *paginate {
+					// Fetch first page with limit set for consistent pagination
+					paginateOpts := append(opts, asc.WithAppStoreVersionLocalizationsLimit(200))
+					firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), paginateOpts...)
+					if err != nil {
+						return fmt.Errorf("localizations list: failed to fetch: %w", err)
+					}
+
+					// Fetch all remaining pages
+					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAppStoreVersionLocalizations(ctx, strings.TrimSpace(*versionID), asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+					})
+					if err != nil {
+						return fmt.Errorf("localizations list: %w", err)
+					}
+					return printOutput(resp, *output, *pretty)
+				}
+
 				resp, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), opts...)
 				if err != nil {
 					return fmt.Errorf("localizations list: failed to fetch: %w", err)
@@ -161,6 +181,24 @@ Examples:
 				}
 				if len(locales) > 0 {
 					opts = append(opts, asc.WithAppInfoLocalizationLocales(locales))
+				}
+
+				if *paginate {
+					// Fetch first page with limit set for consistent pagination
+					paginateOpts := append(opts, asc.WithAppInfoLocalizationsLimit(200))
+					firstPage, err := client.GetAppInfoLocalizations(requestCtx, appInfo, paginateOpts...)
+					if err != nil {
+						return fmt.Errorf("localizations list: failed to fetch: %w", err)
+					}
+
+					// Fetch all remaining pages
+					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAppInfoLocalizations(ctx, appInfo, asc.WithAppInfoLocalizationsNextURL(nextURL))
+					})
+					if err != nil {
+						return fmt.Errorf("localizations list: %w", err)
+					}
+					return printOutput(resp, *output, *pretty)
 				}
 
 				resp, err := client.GetAppInfoLocalizations(requestCtx, appInfo, opts...)

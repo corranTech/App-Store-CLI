@@ -49,6 +49,7 @@ func BetaGroupsListCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -58,7 +59,8 @@ func BetaGroupsListCommand() *ffcli.Command {
 
 Examples:
   asc beta-groups list --app "APP_ID"
-  asc beta-groups list --app "APP_ID" --limit 10`,
+  asc beta-groups list --app "APP_ID" --limit 10
+  asc beta-groups list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -86,6 +88,25 @@ Examples:
 			opts := []asc.BetaGroupsOption{
 				asc.WithBetaGroupsLimit(*limit),
 				asc.WithBetaGroupsNextURL(*next),
+			}
+
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithBetaGroupsLimit(200))
+				firstPage, err := client.GetBetaGroups(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				groups, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBetaGroups(ctx, resolvedAppID, asc.WithBetaGroupsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("beta-groups list: %w", err)
+				}
+
+				return printOutput(groups, *output, *pretty)
 			}
 
 			groups, err := client.GetBetaGroups(requestCtx, resolvedAppID, opts...)
@@ -187,6 +208,7 @@ func BetaTestersListCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -197,7 +219,8 @@ func BetaTestersListCommand() *ffcli.Command {
 Examples:
   asc beta-testers list --app "APP_ID"
   asc beta-testers list --app "APP_ID" --group "Beta"
-  asc beta-testers list --app "APP_ID" --limit 25`,
+  asc beta-testers list --app "APP_ID" --limit 25
+  asc beta-testers list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -237,6 +260,25 @@ Examples:
 					return fmt.Errorf("beta-testers list: %w", err)
 				}
 				opts = append(opts, asc.WithBetaTestersGroupIDs([]string{groupID}))
+			}
+
+			if *paginate {
+				// Fetch first page with limit set for consistent pagination
+				paginateOpts := append(opts, asc.WithBetaTestersLimit(200))
+				firstPage, err := client.GetBetaTesters(requestCtx, resolvedAppID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("beta-testers list: failed to fetch: %w", err)
+				}
+
+				// Fetch all remaining pages
+				testers, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBetaTesters(ctx, resolvedAppID, asc.WithBetaTestersNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("beta-testers list: %w", err)
+				}
+
+				return printOutput(testers, *output, *pretty)
 			}
 
 			testers, err := client.GetBetaTesters(requestCtx, resolvedAppID, opts...)
