@@ -341,6 +341,9 @@ func TestGetBetaTesters_WithFilters(t *testing.T) {
 		if values.Get("filter[betaGroups]") != "group-1,group-2" {
 			t.Fatalf("expected filter[betaGroups]=group-1,group-2, got %q", values.Get("filter[betaGroups]"))
 		}
+		if values.Get("filter[builds]") != "build-1" {
+			t.Fatalf("expected filter[builds]=build-1, got %q", values.Get("filter[builds]"))
+		}
 		if values.Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
 		}
@@ -352,6 +355,7 @@ func TestGetBetaTesters_WithFilters(t *testing.T) {
 		"123",
 		WithBetaTestersEmail("tester@example.com"),
 		WithBetaTestersGroupIDs([]string{"group-1", "group-2"}),
+		WithBetaTestersBuildID("build-1"),
 		WithBetaTestersLimit(5),
 	); err != nil {
 		t.Fatalf("GetBetaTesters() error: %v", err)
@@ -483,6 +487,36 @@ func TestGetBetaGroup_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetBetaGroup(context.Background(), "bg1"); err != nil {
 		t.Fatalf("GetBetaGroup() error: %v", err)
+	}
+}
+
+func TestGetBetaTester_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaTesters","id":"bt1","attributes":{"email":"tester@example.com","firstName":"Test","lastName":"User","state":"INVITED","inviteType":"EMAIL"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaTesters/bt1" {
+			t.Fatalf("expected path /v1/betaTesters/bt1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	tester, err := client.GetBetaTester(context.Background(), "bt1")
+	if err != nil {
+		t.Fatalf("GetBetaTester() error: %v", err)
+	}
+	if tester.Data.ID != "bt1" {
+		t.Fatalf("expected tester id bt1, got %q", tester.Data.ID)
+	}
+	if tester.Data.Attributes.Email != "tester@example.com" {
+		t.Fatalf("expected tester email tester@example.com, got %q", tester.Data.Attributes.Email)
+	}
+	if tester.Data.Attributes.State != BetaTesterStateInvited {
+		t.Fatalf("expected state %q, got %q", BetaTesterStateInvited, tester.Data.Attributes.State)
+	}
+	if tester.Data.Attributes.InviteType != BetaInviteTypeEmail {
+		t.Fatalf("expected invite type %q, got %q", BetaInviteTypeEmail, tester.Data.Attributes.InviteType)
 	}
 }
 
