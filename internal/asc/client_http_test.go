@@ -194,6 +194,74 @@ func TestGetAppStoreVersions_UsesNextURL(t *testing.T) {
 	}
 }
 
+func TestGetPreReleaseVersions_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"1","attributes":{"version":"1.0.0","platform":"IOS"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/preReleaseVersions" {
+			t.Fatalf("expected path /v1/preReleaseVersions, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[app]") != "123" {
+			t.Fatalf("expected filter[app]=123, got %q", values.Get("filter[app]"))
+		}
+		if values.Get("filter[platform]") != "IOS" {
+			t.Fatalf("expected filter[platform]=IOS, got %q", values.Get("filter[platform]"))
+		}
+		if values.Get("filter[version]") != "1.0.0" {
+			t.Fatalf("expected filter[version]=1.0.0, got %q", values.Get("filter[version]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetPreReleaseVersions(
+		context.Background(),
+		"123",
+		WithPreReleaseVersionsLimit(5),
+		WithPreReleaseVersionsPlatform("ios"),
+		WithPreReleaseVersionsVersion("1.0.0"),
+	); err != nil {
+		t.Fatalf("GetPreReleaseVersions() error: %v", err)
+	}
+}
+
+func TestGetPreReleaseVersions_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/preReleaseVersions?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetPreReleaseVersions(context.Background(), "123", WithPreReleaseVersionsNextURL(next)); err != nil {
+		t.Fatalf("GetPreReleaseVersions() error: %v", err)
+	}
+}
+
+func TestGetPreReleaseVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-1","attributes":{"version":"1.0.0","platform":"IOS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/preReleaseVersions/pr-1" {
+			t.Fatalf("expected path /v1/preReleaseVersions/pr-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetPreReleaseVersion(context.Background(), "pr-1"); err != nil {
+		t.Fatalf("GetPreReleaseVersion() error: %v", err)
+	}
+}
+
 func TestGetAppStoreVersion(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"1","attributes":{"versionString":"1.0.0","platform":"IOS"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
