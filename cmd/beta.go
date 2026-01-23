@@ -370,7 +370,7 @@ Examples:
 				return fmt.Errorf("beta-groups delete: failed to delete: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully deleted beta group %s\n", *id)
+			fmt.Fprintf(os.Stderr, "Successfully deleted beta group %s\n", strings.TrimSpace(*id))
 			return nil
 		},
 	}
