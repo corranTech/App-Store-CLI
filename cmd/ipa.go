@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 
@@ -53,11 +55,16 @@ func readBundleInfoFromInfoPlist(file *zip.File) (ipaBundleInfo, error) {
 	}
 	defer reader.Close()
 
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return ipaBundleInfo{}, fmt.Errorf("read Info.plist: %w", err)
+	}
+
 	var info struct {
 		ShortVersion string `plist:"CFBundleShortVersionString"`
 		BuildVersion string `plist:"CFBundleVersion"`
 	}
-	decoder := plist.NewDecoder(reader)
+	decoder := plist.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&info); err != nil {
 		return ipaBundleInfo{}, fmt.Errorf("decode Info.plist: %w", err)
 	}
