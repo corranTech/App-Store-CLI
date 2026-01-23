@@ -469,6 +469,84 @@ func TestCreateBetaGroup_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetBetaGroup_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaGroups","id":"bg1","attributes":{"name":"Beta Testers","isInternalGroup":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/bg1" {
+			t.Fatalf("expected path /v1/betaGroups/bg1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaGroup(context.Background(), "bg1"); err != nil {
+		t.Fatalf("GetBetaGroup() error: %v", err)
+	}
+}
+
+func TestUpdateBetaGroup_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaGroups","id":"bg1","attributes":{"name":"Updated Beta Testers","publicLinkEnabled":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/bg1" {
+			t.Fatalf("expected path /v1/betaGroups/bg1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BetaGroupUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeBetaGroups {
+			t.Fatalf("expected type betaGroups, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "bg1" {
+			t.Fatalf("expected id bg1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil {
+			t.Fatalf("expected attributes to be set")
+		}
+		if payload.Data.Attributes.Name != "Updated Beta Testers" {
+			t.Fatalf("expected name Updated Beta Testers, got %q", payload.Data.Attributes.Name)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	req := BetaGroupUpdateRequest{
+		Data: BetaGroupUpdateData{
+			Type:       ResourceTypeBetaGroups,
+			ID:         "bg1",
+			Attributes: &BetaGroupUpdateAttributes{Name: "Updated Beta Testers"},
+		},
+	}
+	if _, err := client.UpdateBetaGroup(context.Background(), "bg1", req); err != nil {
+		t.Fatalf("UpdateBetaGroup() error: %v", err)
+	}
+}
+
+func TestDeleteBetaGroup_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/bg1" {
+			t.Fatalf("expected path /v1/betaGroups/bg1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteBetaGroup(context.Background(), "bg1"); err != nil {
+		t.Fatalf("DeleteBetaGroup() error: %v", err)
+	}
+}
+
 func TestCreateBetaTester_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"betaTesters","id":"bt1","attributes":{"email":"tester@example.com"}}}`)
 	client := newTestClient(t, func(req *http.Request) {

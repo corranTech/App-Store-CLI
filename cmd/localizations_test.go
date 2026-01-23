@@ -66,3 +66,23 @@ func TestReadLocalizationStrings_FileLocale(t *testing.T) {
 		t.Fatalf("expected description Hello, got %q", values["en-US"]["description"])
 	}
 }
+
+func TestReadLocalizationStrings_RejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.strings")
+	if err := os.WriteFile(target, []byte("\"description\" = \"Hello\";\n"), 0o644); err != nil {
+		t.Fatalf("write file error: %v", err)
+	}
+	link := filepath.Join(dir, "en-US.strings")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	_, err := readLocalizationStrings(dir, nil)
+	if err == nil {
+		t.Fatal("expected error for symlinked strings file")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink error, got %v", err)
+	}
+}

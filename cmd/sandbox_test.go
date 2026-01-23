@@ -87,6 +87,39 @@ func TestSandboxCreateValidationErrors(t *testing.T) {
 	}
 }
 
+func TestSandboxCreateStdinFlagsMutuallyExclusive(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	args := []string{
+		"sandbox", "create",
+		"--email", "tester@example.com",
+		"--first-name", "Test",
+		"--last-name", "User",
+		"--password-stdin",
+		"--secret-answer-stdin",
+		"--secret-question", "Question",
+		"--birth-date", "1980-03-01",
+		"--territory", "USA",
+	}
+
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	var runErr error
+	_, _ = captureOutput(t, func() {
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error for mutually exclusive stdin flags")
+	}
+	if !strings.Contains(runErr.Error(), "cannot both be set") {
+		t.Fatalf("expected mutual exclusion error, got %v", runErr)
+	}
+}
+
 func TestSandboxGetValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

@@ -33,6 +33,9 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			BetaGroupsListCommand(),
 			BetaGroupsCreateCommand(),
+			BetaGroupsGetCommand(),
+			BetaGroupsUpdateCommand(),
+			BetaGroupsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -163,6 +166,212 @@ Examples:
 			}
 
 			return printOutput(group, *output, *pretty)
+		},
+	}
+}
+
+// BetaGroupsGetCommand returns the beta groups get subcommand.
+func BetaGroupsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta group ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc beta-groups get [flags]",
+		ShortHelp:  "Get a TestFlight beta group by ID.",
+		LongHelp: `Get a TestFlight beta group by ID.
+
+Examples:
+  asc beta-groups get --id "GROUP_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if strings.TrimSpace(*id) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-groups get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			group, err := client.GetBetaGroup(requestCtx, strings.TrimSpace(*id))
+			if err != nil {
+				return fmt.Errorf("beta-groups get: failed to fetch: %w", err)
+			}
+
+			return printOutput(group, *output, *pretty)
+		},
+	}
+}
+
+// BetaGroupsUpdateCommand returns the beta groups update subcommand.
+func BetaGroupsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta group ID")
+	name := fs.String("name", "", "Beta group name")
+	publicLinkEnabled := fs.Bool("public-link-enabled", false, "Enable public link")
+	publicLinkLimitEnabled := fs.Bool("public-link-limit-enabled", false, "Enable public link limit")
+	publicLinkLimit := fs.Int("public-link-limit", 0, "Public link limit (1-10000)")
+	feedbackEnabled := fs.Bool("feedback-enabled", false, "Enable feedback")
+	internal := fs.Bool("internal", false, "Set as internal group")
+	allBuilds := fs.Bool("all-builds", false, "Grant access to all builds")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "update",
+		ShortUsage: "asc beta-groups update [flags]",
+		ShortHelp:  "Update a TestFlight beta group.",
+		LongHelp: `Update a TestFlight beta group.
+
+Examples:
+  asc beta-groups update --id "GROUP_ID" --name "New Name"
+  asc beta-groups update --id "GROUP_ID" --public-link-enabled --public-link-limit 100
+  asc beta-groups update --id "GROUP_ID" --feedback-enabled`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if strings.TrimSpace(*id) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			// Use a map to track which flags were explicitly set
+			flagSet := make(map[string]bool)
+			fs.Visit(func(f *flag.Flag) {
+				flagSet[f.Name] = true
+			})
+
+			// Validate update flags before creating client
+			attrs := asc.BetaGroupUpdateAttributes{}
+			hasUpdates := false
+
+			if strings.TrimSpace(*name) != "" {
+				attrs.Name = strings.TrimSpace(*name)
+				hasUpdates = true
+			}
+
+			if flagSet["public-link-enabled"] {
+				publicLinkEnabledVal := *publicLinkEnabled
+				attrs.PublicLinkEnabled = &publicLinkEnabledVal
+				hasUpdates = true
+			}
+
+			if flagSet["public-link-limit-enabled"] {
+				publicLinkLimitEnabledVal := *publicLinkLimitEnabled
+				attrs.PublicLinkLimitEnabled = &publicLinkLimitEnabledVal
+				hasUpdates = true
+			}
+
+			if flagSet["public-link-limit"] {
+				if *publicLinkLimit < 1 || *publicLinkLimit > 10000 {
+					fmt.Fprintf(os.Stderr, "Error: --public-link-limit must be between 1 and 10000\n\n")
+					return flag.ErrHelp
+				}
+				attrs.PublicLinkLimit = *publicLinkLimit
+				hasUpdates = true
+			}
+
+			if flagSet["feedback-enabled"] {
+				feedbackEnabledVal := *feedbackEnabled
+				attrs.FeedbackEnabled = &feedbackEnabledVal
+				hasUpdates = true
+			}
+
+			if flagSet["internal"] {
+				internalVal := *internal
+				attrs.IsInternalGroup = &internalVal
+				hasUpdates = true
+			}
+
+			if flagSet["all-builds"] {
+				allBuildsVal := *allBuilds
+				attrs.HasAccessToAllBuilds = &allBuildsVal
+				hasUpdates = true
+			}
+
+			if !hasUpdates {
+				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-groups update: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			req := asc.BetaGroupUpdateRequest{
+				Data: asc.BetaGroupUpdateData{
+					Type:       asc.ResourceTypeBetaGroups,
+					ID:         strings.TrimSpace(*id),
+					Attributes: &attrs,
+				},
+			}
+
+			group, err := client.UpdateBetaGroup(requestCtx, strings.TrimSpace(*id), req)
+			if err != nil {
+				return fmt.Errorf("beta-groups update: failed to update: %w", err)
+			}
+
+			return printOutput(group, *output, *pretty)
+		},
+	}
+}
+
+// BetaGroupsDeleteCommand returns the beta groups delete subcommand.
+func BetaGroupsDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta group ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc beta-groups delete [flags]",
+		ShortHelp:  "Delete a TestFlight beta group.",
+		LongHelp: `Delete a TestFlight beta group.
+
+Examples:
+  asc beta-groups delete --id "GROUP_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if strings.TrimSpace(*id) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete a beta group")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-groups delete: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.DeleteBetaGroup(requestCtx, strings.TrimSpace(*id)); err != nil {
+				return fmt.Errorf("beta-groups delete: failed to delete: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully deleted beta group %s\n", *id)
+			return nil
 		},
 	}
 }

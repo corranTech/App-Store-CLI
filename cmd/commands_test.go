@@ -234,6 +234,36 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			args:    []string{"beta-testers", "invite", "--app", "APP_ID"},
 			wantErr: "--email is required",
 		},
+		{
+			name:    "beta-groups get missing id",
+			args:    []string{"beta-groups", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-groups update missing id",
+			args:    []string{"beta-groups", "update"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-groups update missing update flags",
+			args:    []string{"beta-groups", "update", "--id", "GROUP_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "beta-groups update public-link-limit out of range",
+			args:    []string{"beta-groups", "update", "--id", "GROUP_ID", "--public-link-limit", "50000"},
+			wantErr: "--public-link-limit must be between 1 and 10000",
+		},
+		{
+			name:    "beta-groups delete missing id",
+			args:    []string{"beta-groups", "delete"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-groups delete missing confirm",
+			args:    []string{"beta-groups", "delete", "--id", "GROUP_ID"},
+			wantErr: "--confirm is required to delete",
+		},
 	}
 
 	for _, test := range tests {
