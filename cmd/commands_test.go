@@ -255,6 +255,26 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			wantErr: "--public-link-limit must be between 1 and 10000",
 		},
 		{
+			name:    "beta-groups add-testers missing group",
+			args:    []string{"beta-groups", "add-testers"},
+			wantErr: "--group is required",
+		},
+		{
+			name:    "beta-groups add-testers missing tester",
+			args:    []string{"beta-groups", "add-testers", "--group", "GROUP_ID"},
+			wantErr: "--tester is required",
+		},
+		{
+			name:    "beta-groups remove-testers missing group",
+			args:    []string{"beta-groups", "remove-testers"},
+			wantErr: "--group is required",
+		},
+		{
+			name:    "beta-groups remove-testers missing tester",
+			args:    []string{"beta-groups", "remove-testers", "--group", "GROUP_ID"},
+			wantErr: "--tester is required",
+		},
+		{
 			name:    "beta-groups delete missing id",
 			args:    []string{"beta-groups", "delete"},
 			wantErr: "--id is required",
@@ -286,6 +306,49 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestParseCommaSeparatedIDs(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "empty input",
+			input: "",
+			want:  []string{},
+		},
+		{
+			name:  "single id",
+			input: "tester-1",
+			want:  []string{"tester-1"},
+		},
+		{
+			name:  "comma separated",
+			input: "tester-1, tester-2, tester-3",
+			want:  []string{"tester-1", "tester-2", "tester-3"},
+		},
+		{
+			name:  "drops empty entries",
+			input: "tester-1,, ,tester-2",
+			want:  []string{"tester-1", "tester-2"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := parseCommaSeparatedIDs(test.input)
+			if len(got) != len(test.want) {
+				t.Fatalf("expected %d ids, got %d", len(test.want), len(got))
+			}
+			for i, want := range test.want {
+				if got[i] != want {
+					t.Fatalf("expected %q at index %d, got %q", want, i, got[i])
+				}
 			}
 		})
 	}

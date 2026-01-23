@@ -552,6 +552,17 @@ type RelationshipList struct {
 	Data []ResourceData `json:"data"`
 }
 
+// RelationshipRequest represents a relationship list payload.
+type RelationshipRequest struct {
+	Data []RelationshipData `json:"data"`
+}
+
+// RelationshipData represents data in a relationship payload.
+type RelationshipData struct {
+	Type ResourceType `json:"type"`
+	ID   string       `json:"id"`
+}
+
 // ResourceData represents the data portion of a resource.
 type ResourceData struct {
 	Type ResourceType `json:"type"`
@@ -2265,6 +2276,52 @@ func (c *Client) UpdateBetaGroup(ctx context.Context, groupID string, req BetaGr
 func (c *Client) DeleteBetaGroup(ctx context.Context, groupID string) error {
 	path := fmt.Sprintf("/v1/betaGroups/%s", groupID)
 	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
+}
+
+// AddBetaTestersToGroup adds testers to a beta group.
+func (c *Client) AddBetaTestersToGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	testerIDs = normalizeList(testerIDs)
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID)
+	_, err = c.do(ctx, "POST", path, body)
+	return err
+}
+
+// RemoveBetaTestersFromGroup removes testers from a beta group.
+func (c *Client) RemoveBetaTestersFromGroup(ctx context.Context, groupID string, testerIDs []string) error {
+	testerIDs = normalizeList(testerIDs)
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID)
+	_, err = c.do(ctx, "DELETE", path, body)
 	return err
 }
 
