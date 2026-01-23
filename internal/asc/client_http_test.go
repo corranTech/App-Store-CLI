@@ -131,6 +131,23 @@ func TestGetApps_WithFilters(t *testing.T) {
 	}
 }
 
+func TestGetApp(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"123","attributes":{"name":"Demo","bundleId":"com.example.demo","sku":"SKU1"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/123" {
+			t.Fatalf("expected path /v1/apps/123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetApp(context.Background(), "123"); err != nil {
+		t.Fatalf("GetApp() error: %v", err)
+	}
+}
+
 func TestGetBuilds_WithSortAndLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -483,6 +500,78 @@ func TestGetBetaGroups_UsesNextURL(t *testing.T) {
 
 	if _, err := client.GetBetaGroups(context.Background(), "123", WithBetaGroupsLimit(5), WithBetaGroupsNextURL(next)); err != nil {
 		t.Fatalf("GetBetaGroups() error: %v", err)
+	}
+}
+
+func TestGetBetaGroupBuilds_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/group-1/builds" {
+			t.Fatalf("expected path /v1/betaGroups/group-1/builds, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "50" {
+			t.Fatalf("expected limit=50, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaGroupBuilds(context.Background(), "group-1", WithBetaGroupBuildsLimit(50)); err != nil {
+		t.Fatalf("GetBetaGroupBuilds() error: %v", err)
+	}
+}
+
+func TestGetBetaGroupBuilds_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaGroupBuilds(context.Background(), "group-1", WithBetaGroupBuildsNextURL(next)); err != nil {
+		t.Fatalf("GetBetaGroupBuilds() error: %v", err)
+	}
+}
+
+func TestGetBetaGroupTesters_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/group-1/betaTesters" {
+			t.Fatalf("expected path /v1/betaGroups/group-1/betaTesters, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "20" {
+			t.Fatalf("expected limit=20, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaGroupTesters(context.Background(), "group-1", WithBetaGroupTestersLimit(20)); err != nil {
+		t.Fatalf("GetBetaGroupTesters() error: %v", err)
+	}
+}
+
+func TestGetBetaGroupTesters_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaGroupTesters(context.Background(), "group-1", WithBetaGroupTestersNextURL(next)); err != nil {
+		t.Fatalf("GetBetaGroupTesters() error: %v", err)
 	}
 }
 

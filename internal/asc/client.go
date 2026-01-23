@@ -436,6 +436,14 @@ type betaGroupsQuery struct {
 	listQuery
 }
 
+type betaGroupBuildsQuery struct {
+	listQuery
+}
+
+type betaGroupTestersQuery struct {
+	listQuery
+}
+
 type betaTestersQuery struct {
 	listQuery
 	email        string
@@ -1070,6 +1078,12 @@ type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
 // BetaGroupsOption is a functional option for GetBetaGroups.
 type BetaGroupsOption func(*betaGroupsQuery)
 
+// BetaGroupBuildsOption is a functional option for GetBetaGroupBuilds.
+type BetaGroupBuildsOption func(*betaGroupBuildsQuery)
+
+// BetaGroupTestersOption is a functional option for GetBetaGroupTesters.
+type BetaGroupTestersOption func(*betaGroupTestersQuery)
+
 // BetaTestersOption is a functional option for GetBetaTesters.
 type BetaTestersOption func(*betaTestersQuery)
 
@@ -1447,6 +1461,42 @@ func WithBetaGroupsLimit(limit int) BetaGroupsOption {
 // WithBetaGroupsNextURL uses a next page URL directly.
 func WithBetaGroupsNextURL(next string) BetaGroupsOption {
 	return func(q *betaGroupsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaGroupBuildsLimit sets the max number of builds to return for a group.
+func WithBetaGroupBuildsLimit(limit int) BetaGroupBuildsOption {
+	return func(q *betaGroupBuildsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaGroupBuildsNextURL uses a next page URL directly.
+func WithBetaGroupBuildsNextURL(next string) BetaGroupBuildsOption {
+	return func(q *betaGroupBuildsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaGroupTestersLimit sets the max number of testers to return for a group.
+func WithBetaGroupTestersLimit(limit int) BetaGroupTestersOption {
+	return func(q *betaGroupTestersQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaGroupTestersNextURL uses a next page URL directly.
+func WithBetaGroupTestersNextURL(next string) BetaGroupTestersOption {
+	return func(q *betaGroupTestersQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
@@ -1932,6 +1982,18 @@ func buildCrashQuery(query *crashQuery) string {
 }
 
 func buildBetaGroupsQuery(query *betaGroupsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBetaGroupBuildsQuery(query *betaGroupBuildsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBetaGroupTestersQuery(query *betaGroupTestersQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -2431,6 +2493,68 @@ func (c *Client) GetBetaGroups(ctx context.Context, appID string, opts ...BetaGr
 	}
 
 	var response BetaGroupsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBetaGroupBuilds retrieves builds assigned to a beta group.
+func (c *Client) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ...BetaGroupBuildsOption) (*BuildsResponse, error) {
+	query := &betaGroupBuildsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/betaGroups/%s/builds", groupID)
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("betaGroupBuilds: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildBetaGroupBuildsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBetaGroupTesters retrieves beta testers assigned to a beta group.
+func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts ...BetaGroupTestersOption) (*BetaTestersResponse, error) {
+	query := &betaGroupTestersQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/betaGroups/%s/betaTesters", groupID)
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("betaGroupTesters: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildBetaGroupTestersQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BetaTestersResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
