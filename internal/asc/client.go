@@ -177,7 +177,13 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 
 // ResolveTimeout returns the request timeout, optionally overridden by env vars.
 func ResolveTimeout() time.Duration {
-	timeout := DefaultTimeout
+	return ResolveTimeoutWithDefault(DefaultTimeout)
+}
+
+// ResolveTimeoutWithDefault returns the request timeout using a custom default.
+// ASC_TIMEOUT and ASC_TIMEOUT_SECONDS override the default when set.
+func ResolveTimeoutWithDefault(defaultTimeout time.Duration) time.Duration {
+	timeout := defaultTimeout
 	if override := strings.TrimSpace(os.Getenv("ASC_TIMEOUT")); override != "" {
 		if parsed, err := time.ParseDuration(override); err == nil && parsed > 0 {
 			timeout = parsed
@@ -2709,6 +2715,14 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &SandboxTestersResponse{Links: Links{}}
 	case *AnalyticsReportRequestsResponse:
 		result = &AnalyticsReportRequestsResponse{Links: Links{}}
+	case *CiProductsResponse:
+		result = &CiProductsResponse{Links: Links{}}
+	case *CiWorkflowsResponse:
+		result = &CiWorkflowsResponse{Links: Links{}}
+	case *ScmGitReferencesResponse:
+		result = &ScmGitReferencesResponse{Links: Links{}}
+	case *CiBuildRunsResponse:
+		result = &CiBuildRunsResponse{Links: Links{}}
 	default:
 		return nil, fmt.Errorf("unsupported response type for pagination")
 	}
@@ -2741,6 +2755,14 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 			result.(*SandboxTestersResponse).Data = append(result.(*SandboxTestersResponse).Data, p.Data...)
 		case *AnalyticsReportRequestsResponse:
 			result.(*AnalyticsReportRequestsResponse).Data = append(result.(*AnalyticsReportRequestsResponse).Data, p.Data...)
+		case *CiProductsResponse:
+			result.(*CiProductsResponse).Data = append(result.(*CiProductsResponse).Data, p.Data...)
+		case *CiWorkflowsResponse:
+			result.(*CiWorkflowsResponse).Data = append(result.(*CiWorkflowsResponse).Data, p.Data...)
+		case *ScmGitReferencesResponse:
+			result.(*ScmGitReferencesResponse).Data = append(result.(*ScmGitReferencesResponse).Data, p.Data...)
+		case *CiBuildRunsResponse:
+			result.(*CiBuildRunsResponse).Data = append(result.(*CiBuildRunsResponse).Data, p.Data...)
 		}
 
 		// Check for next page
@@ -2799,6 +2821,14 @@ func typeOf(p PaginatedResponse) string {
 		return "SandboxTestersResponse"
 	case *AnalyticsReportRequestsResponse:
 		return "AnalyticsReportRequestsResponse"
+	case *CiProductsResponse:
+		return "CiProductsResponse"
+	case *CiWorkflowsResponse:
+		return "CiWorkflowsResponse"
+	case *ScmGitReferencesResponse:
+		return "ScmGitReferencesResponse"
+	case *CiBuildRunsResponse:
+		return "CiBuildRunsResponse"
 	default:
 		return "unknown"
 	}

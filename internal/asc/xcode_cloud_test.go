@@ -3,6 +3,7 @@ package asc
 import (
 	"bytes"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -356,5 +357,61 @@ func TestIsBuildRunSuccessful(t *testing.T) {
 				t.Errorf("IsBuildRunSuccessful(%s) = %v, want %v", tt.status, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestBuildCiProductsQuery(t *testing.T) {
+	query := &ciProductsQuery{}
+	WithCiProductsAppID("app-1")(query)
+	WithCiProductsLimit(25)(query)
+
+	values, err := url.ParseQuery(buildCiProductsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[app]"); got != "app-1" {
+		t.Fatalf("expected filter[app]=app-1, got %q", got)
+	}
+	if got := values.Get("limit"); got != "25" {
+		t.Fatalf("expected limit=25, got %q", got)
+	}
+}
+
+func TestBuildCiWorkflowsQuery(t *testing.T) {
+	query := &ciWorkflowsQuery{}
+	WithCiWorkflowsLimit(50)(query)
+
+	values, err := url.ParseQuery(buildCiWorkflowsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "50" {
+		t.Fatalf("expected limit=50, got %q", got)
+	}
+}
+
+func TestBuildScmGitReferencesQuery(t *testing.T) {
+	query := &scmGitReferencesQuery{}
+	WithScmGitReferencesLimit(100)(query)
+
+	values, err := url.ParseQuery(buildScmGitReferencesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "100" {
+		t.Fatalf("expected limit=100, got %q", got)
+	}
+}
+
+func TestBuildCiBuildRunsQuery(t *testing.T) {
+	query := &ciBuildRunsQuery{}
+	WithCiBuildRunsLimit(10)(query)
+
+	values, err := url.ParseQuery(buildCiBuildRunsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "10" {
+		t.Fatalf("expected limit=10, got %q", got)
 	}
 }

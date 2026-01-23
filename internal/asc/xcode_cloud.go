@@ -66,6 +66,16 @@ type CiProductsResponse struct {
 	Links Links               `json:"links,omitempty"`
 }
 
+// GetLinks returns the links field for pagination.
+func (r *CiProductsResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *CiProductsResponse) GetData() interface{} {
+	return r.Data
+}
+
 // CiProductResponse is the response from CI product detail endpoints.
 type CiProductResponse struct {
 	Data  CiProductResource `json:"data"`
@@ -178,6 +188,16 @@ type CiWorkflowsResponse struct {
 	Links Links                `json:"links,omitempty"`
 }
 
+// GetLinks returns the links field for pagination.
+func (r *CiWorkflowsResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *CiWorkflowsResponse) GetData() interface{} {
+	return r.Data
+}
+
 // CiWorkflowResponse is the response from CI workflow detail endpoints.
 type CiWorkflowResponse struct {
 	Data  CiWorkflowResource `json:"data"`
@@ -238,6 +258,16 @@ type ScmGitReferenceResource struct {
 type ScmGitReferencesResponse struct {
 	Data  []ScmGitReferenceResource `json:"data"`
 	Links Links                     `json:"links,omitempty"`
+}
+
+// GetLinks returns the links field for pagination.
+func (r *ScmGitReferencesResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *ScmGitReferencesResponse) GetData() interface{} {
+	return r.Data
 }
 
 // CiBuildRunAttributes describes a CI build run resource.
@@ -301,6 +331,16 @@ type CiBuildRunResource struct {
 type CiBuildRunsResponse struct {
 	Data  []CiBuildRunResource `json:"data"`
 	Links Links                `json:"links,omitempty"`
+}
+
+// GetLinks returns the links field for pagination.
+func (r *CiBuildRunsResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *CiBuildRunsResponse) GetData() interface{} {
+	return r.Data
 }
 
 // CiBuildRunResponse is the response from CI build run detail/create endpoints.

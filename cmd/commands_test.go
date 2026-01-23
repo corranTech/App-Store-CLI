@@ -535,6 +535,16 @@ func TestXcodeCloudValidationErrors(t *testing.T) {
 			args:    []string{"xcode-cloud", "status"},
 			wantErr: "--run-id is required",
 		},
+		{
+			name:    "xcode-cloud workflows missing app",
+			args:    []string{"xcode-cloud", "workflows"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "xcode-cloud build-runs missing workflow-id",
+			args:    []string{"xcode-cloud", "build-runs"},
+			wantErr: "--workflow-id is required",
+		},
 	}
 
 	for _, test := range tests {
@@ -577,6 +587,16 @@ func TestXcodeCloudMutualExclusiveFlags(t *testing.T) {
 			name:    "xcode-cloud run branch and git-reference-id are mutually exclusive",
 			args:    []string{"xcode-cloud", "run", "--workflow-id", "WF_ID", "--branch", "main", "--git-reference-id", "REF_ID"},
 			wantErr: "--branch and --git-reference-id are mutually exclusive",
+		},
+		{
+			name:    "xcode-cloud run invalid poll-interval",
+			args:    []string{"xcode-cloud", "run", "--workflow-id", "WF_ID", "--branch", "main", "--wait", "--poll-interval", "0s"},
+			wantErr: "--poll-interval must be greater than 0",
+		},
+		{
+			name:    "xcode-cloud status invalid timeout",
+			args:    []string{"xcode-cloud", "status", "--run-id", "RUN_ID", "--timeout", "-1s"},
+			wantErr: "--timeout must be greater than or equal to 0",
 		},
 	}
 
