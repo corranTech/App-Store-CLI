@@ -292,12 +292,13 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud workflows: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			nextURL := strings.TrimSpace(*next)
+			if err := validateNextURL(nextURL); err != nil {
 				return fmt.Errorf("xcode-cloud workflows: %w", err)
 			}
 
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
@@ -311,7 +312,7 @@ Examples:
 			defer cancel()
 
 			productID := ""
-			if resolvedAppID != "" {
+			if nextURL == "" && resolvedAppID != "" {
 				product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
 				if err != nil {
 					return fmt.Errorf("xcode-cloud workflows: %w", err)
@@ -321,7 +322,7 @@ Examples:
 
 			opts := []asc.CiWorkflowsOption{
 				asc.WithCiWorkflowsLimit(*limit),
-				asc.WithCiWorkflowsNextURL(*next),
+				asc.WithCiWorkflowsNextURL(nextURL),
 			}
 
 			if *paginate {
@@ -454,6 +455,9 @@ func waitForBuildCompletion(ctx context.Context, client *asc.Client, buildRunID 
 
 		select {
 		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.Canceled) {
+				return fmt.Errorf("xcode-cloud: canceled waiting for build run %s (last status: %s)", buildRunID, resp.Data.Attributes.ExecutionProgress)
+			}
 			return fmt.Errorf("xcode-cloud: timed out waiting for build run %s (last status: %s)", buildRunID, resp.Data.Attributes.ExecutionProgress)
 		case <-ticker.C:
 			// Continue polling

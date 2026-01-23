@@ -2778,7 +2778,6 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		nextPage, err := WithRetry(ctx, func() (PaginatedResponse, error) {
 			return fetchNext(ctx, links.Next)
 		}, retryOpts)
-
 		if err != nil {
 			return result, fmt.Errorf("page %d: %w", page, err)
 		}

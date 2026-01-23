@@ -719,7 +719,6 @@ func TestWithRetry_SuccessOnFirstTry(t *testing.T) {
 		callCount++
 		return "success", nil
 	}, RetryOptions{MaxRetries: 3})
-
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}

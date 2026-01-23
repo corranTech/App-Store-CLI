@@ -1574,6 +1574,22 @@ func TestResolveGitReferenceByName_CanonicalMatch(t *testing.T) {
 	}
 }
 
+func TestResolveGitReferenceByName_SuffixMatchNotAllowed(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"scmGitReferences","id":"ref-1","attributes":{"name":"feature/main","canonicalName":"refs/heads/feature/main","isDeleted":false}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/scmRepositories/repo-1/gitReferences" {
+			t.Fatalf("expected path /v1/scmRepositories/repo-1/gitReferences, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.ResolveGitReferenceByName(context.Background(), "repo-1", "main"); err == nil {
+		t.Fatal("expected error")
+	} else if !strings.Contains(err.Error(), "no git reference named") {
+		t.Fatalf("expected no git reference named error, got %v", err)
+	}
+}
+
 func TestResolveGitReferenceByName_NoMatch(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"scmGitReferences","id":"ref-1","attributes":{"name":"develop","canonicalName":"refs/heads/develop","isDeleted":false}}]}`)
 	client := newTestClient(t, nil, response)

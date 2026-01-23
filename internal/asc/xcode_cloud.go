@@ -841,12 +841,16 @@ func (c *Client) ResolveGitReferenceByName(ctx context.Context, repositoryID, re
 
 	// Find matching references by name
 	normalizedName := strings.TrimSpace(refName)
+	headsName := "refs/heads/" + normalizedName
+	tagsName := "refs/tags/" + normalizedName
 	var matches []ScmGitReferenceResource
 	for _, ref := range allRefs {
-		// Match by name or canonical name (e.g., "main" or "refs/heads/main")
+		// Match by exact name or canonical ref (e.g., "main" or "refs/heads/main").
+		canonical := ref.Attributes.CanonicalName
 		if ref.Attributes.Name == normalizedName ||
-			ref.Attributes.CanonicalName == normalizedName ||
-			strings.HasSuffix(ref.Attributes.CanonicalName, "/"+normalizedName) {
+			canonical == normalizedName ||
+			canonical == headsName ||
+			canonical == tagsName {
 			if !ref.Attributes.IsDeleted {
 				matches = append(matches, ref)
 			}
