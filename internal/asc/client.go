@@ -802,6 +802,29 @@ type BetaGroupCreateRequest struct {
 	Data BetaGroupCreateData `json:"data"`
 }
 
+// BetaGroupUpdateAttributes describes attributes for updating a beta group.
+type BetaGroupUpdateAttributes struct {
+	Name                   string `json:"name,omitempty"`
+	PublicLinkEnabled      *bool  `json:"publicLinkEnabled,omitempty"`
+	PublicLinkLimitEnabled *bool  `json:"publicLinkLimitEnabled,omitempty"`
+	PublicLinkLimit        int    `json:"publicLinkLimit,omitempty"`
+	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
+	IsInternalGroup        *bool  `json:"isInternalGroup,omitempty"`
+	HasAccessToAllBuilds   *bool  `json:"hasAccessToAllBuilds,omitempty"`
+}
+
+// BetaGroupUpdateData is the data portion of a beta group update request.
+type BetaGroupUpdateData struct {
+	Type       ResourceType               `json:"type"`
+	ID         string                     `json:"id"`
+	Attributes *BetaGroupUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BetaGroupUpdateRequest is a request to update a beta group.
+type BetaGroupUpdateRequest struct {
+	Data BetaGroupUpdateData `json:"data"`
+}
+
 // BetaGroupRelationships describes relationships for beta groups.
 type BetaGroupRelationships struct {
 	App *Relationship `json:"app"`
@@ -1548,9 +1571,9 @@ func validateNextURL(nextURL string) error {
 }
 
 // allowedAnalyticsHosts contains the allowed host suffixes for analytics report downloads.
-// Analytics reports are typically hosted on Apple's CDN or S3 buckets.
+// Analytics reports are typically hosted on Apple-owned domains/CDNs.
 // Based on Apple's enterprise network documentation and App Store Connect API behavior.
-// Using suffix matching to allow subdomains (e.g., *.mzstatic.com, *.cloudfront.net).
+// Using suffix matching to allow subdomains (e.g., *.mzstatic.com).
 var allowedAnalyticsHosts = []string{
 	// Apple domains (allow subdomains)
 	"itunes.apple.com",
@@ -1558,7 +1581,11 @@ var allowedAnalyticsHosts = []string{
 	"apple.com",
 	"mzstatic.com",  // Apple static content CDN
 	"cdn-apple.com", // Apple CDN
-	// Cloud CDNs commonly used by Apple (allow subdomains)
+}
+
+// allowedAnalyticsCDNHosts contains CDN host suffixes that require signed URLs.
+// These hosts are used by Apple for analytics report delivery via presigned URLs.
+var allowedAnalyticsCDNHosts = []string{
 	"cloudfront.net",   // AWS CloudFront
 	"amazonaws.com",    // AWS S3
 	"s3.amazonaws.com", // AWS S3
@@ -1576,8 +1603,38 @@ func isAllowedAnalyticsHost(host string) bool {
 	return false
 }
 
+// isAllowedAnalyticsCDNHost checks if the host matches any CDN host suffix.
+func isAllowedAnalyticsCDNHost(host string) bool {
+	for _, allowed := range allowedAnalyticsCDNHosts {
+		if host == allowed || strings.HasSuffix(host, "."+allowed) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasSignedAnalyticsQuery checks for common signed URL query parameters.
+func hasSignedAnalyticsQuery(values url.Values) bool {
+	signatureKeys := []string{
+		"X-Amz-Signature",
+		"X-Amz-Credential",
+		"X-Amz-Algorithm",
+		"X-Amz-SignedHeaders",
+		"Signature",
+		"Key-Pair-Id",
+		"Policy",
+		"sig",
+	}
+	for _, key := range signatureKeys {
+		if values.Get(key) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // validateAnalyticsDownloadURL validates that an analytics download URL is safe.
-// It requires HTTPS and allows only trusted hosts (Apple CDN, S3, etc.)
+// It requires HTTPS and allows only trusted hosts, with signed URLs for CDNs.
 func validateAnalyticsDownloadURL(downloadURL string) error {
 	if downloadURL == "" {
 		return fmt.Errorf("empty analytics download URL")
@@ -1593,12 +1650,21 @@ func validateAnalyticsDownloadURL(downloadURL string) error {
 		return fmt.Errorf("rejected analytics download URL with insecure scheme %q (expected https)", parsedURL.Scheme)
 	}
 
+	host := strings.ToLower(parsedURL.Hostname())
 	// Check against allowed hosts (with subdomain support)
-	if !isAllowedAnalyticsHost(parsedURL.Host) {
-		return fmt.Errorf("rejected analytics download URL from untrusted host %q", parsedURL.Host)
+	if isAllowedAnalyticsHost(host) {
+		return nil
 	}
-
-	return nil
+	if isAllowedAnalyticsCDNHost(host) {
+		if !hasSignedAnalyticsQuery(parsedURL.Query()) {
+			return fmt.Errorf("rejected analytics download URL from CDN host %q without signed query", parsedURL.Host)
+		}
+		return nil
+	}
+	if host == "" {
+		return fmt.Errorf("rejected analytics download URL with empty host")
+	}
+	return fmt.Errorf("rejected analytics download URL from untrusted host %q", parsedURL.Host)
 }
 
 func (c *Client) doStream(ctx context.Context, method, path string, body io.Reader, accept string) (*http.Response, error) {
@@ -2157,6 +2223,49 @@ func (c *Client) CreateBetaGroup(ctx context.Context, appID, name string) (*Beta
 	}
 
 	return &response, nil
+}
+
+// GetBetaGroup retrieves a beta group by ID.
+func (c *Client) GetBetaGroup(ctx context.Context, groupID string) (*BetaGroupResponse, error) {
+	path := fmt.Sprintf("/v1/betaGroups/%s", groupID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BetaGroupResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateBetaGroup updates a beta group by ID.
+func (c *Client) UpdateBetaGroup(ctx context.Context, groupID string, req BetaGroupUpdateRequest) (*BetaGroupResponse, error) {
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/betaGroups/%s", groupID), body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BetaGroupResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteBetaGroup deletes a beta group by ID.
+func (c *Client) DeleteBetaGroup(ctx context.Context, groupID string) error {
+	path := fmt.Sprintf("/v1/betaGroups/%s", groupID)
+	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
 }
 
 // GetBetaTesters retrieves beta testers for an app.
@@ -3065,6 +3174,23 @@ func sanitizeErrorBody(body []byte) string {
 	return string(result)
 }
 
+// sanitizeTerminal strips control characters to prevent terminal escape injection.
+// It removes ASCII control characters (0x00-0x1F) and DEL (0x7F).
+func sanitizeTerminal(input string) string {
+	if input == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(input))
+	for _, r := range input {
+		if r < 0x20 || r == 0x7f {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // IsNotFound checks if the error is a "not found" error
 func IsNotFound(err error) bool {
 	if err == nil {
@@ -3083,7 +3209,8 @@ func IsUnauthorized(err error) bool {
 }
 
 func compactWhitespace(input string) string {
-	return strings.Join(strings.Fields(input), " ")
+	clean := sanitizeTerminal(input)
+	return strings.Join(strings.Fields(clean), " ")
 }
 
 func escapeMarkdown(input string) string {
@@ -3125,16 +3252,16 @@ func printFeedbackTable(resp *FeedbackResponse) error {
 	for _, item := range resp.Data {
 		if hasScreenshots {
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-				item.Attributes.CreatedDate,
-				item.Attributes.Email,
+				sanitizeTerminal(item.Attributes.CreatedDate),
+				sanitizeTerminal(item.Attributes.Email),
 				compactWhitespace(item.Attributes.Comment),
-				formatScreenshotURLs(item.Attributes.Screenshots),
+				sanitizeTerminal(formatScreenshotURLs(item.Attributes.Screenshots)),
 			)
 			continue
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
-			item.Attributes.CreatedDate,
-			item.Attributes.Email,
+			sanitizeTerminal(item.Attributes.CreatedDate),
+			sanitizeTerminal(item.Attributes.Email),
 			compactWhitespace(item.Attributes.Comment),
 		)
 	}
@@ -3146,10 +3273,10 @@ func printCrashesTable(resp *CrashesResponse) error {
 	fmt.Fprintln(w, "Created\tEmail\tDevice\tOS\tComment")
 	for _, item := range resp.Data {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			item.Attributes.CreatedDate,
-			item.Attributes.Email,
-			item.Attributes.DeviceModel,
-			item.Attributes.OSVersion,
+			sanitizeTerminal(item.Attributes.CreatedDate),
+			sanitizeTerminal(item.Attributes.Email),
+			sanitizeTerminal(item.Attributes.DeviceModel),
+			sanitizeTerminal(item.Attributes.OSVersion),
 			compactWhitespace(item.Attributes.Comment),
 		)
 	}
@@ -3161,9 +3288,9 @@ func printReviewsTable(resp *ReviewsResponse) error {
 	fmt.Fprintln(w, "Created\tRating\tTerritory\tTitle")
 	for _, item := range resp.Data {
 		fmt.Fprintf(w, "%s\t%d\t%s\t%s\n",
-			item.Attributes.CreatedDate,
+			sanitizeTerminal(item.Attributes.CreatedDate),
 			item.Attributes.Rating,
-			item.Attributes.Territory,
+			sanitizeTerminal(item.Attributes.Territory),
 			compactWhitespace(item.Attributes.Title),
 		)
 	}

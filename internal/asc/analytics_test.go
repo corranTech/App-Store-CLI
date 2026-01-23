@@ -274,3 +274,35 @@ func TestDownloadAnalyticsReport_InsecureScheme(t *testing.T) {
 		t.Fatalf("expected 'insecure scheme' error, got: %v", err)
 	}
 }
+
+func TestDownloadAnalyticsReport_CDNHostRequiresSignature(t *testing.T) {
+	downloadURL := "https://example.cloudfront.net/report.gz"
+	client := newTestClient(t, nil, nil)
+
+	_, err := client.DownloadAnalyticsReport(context.Background(), downloadURL)
+	if err == nil {
+		t.Fatal("expected error for unsigned CDN host, got nil")
+	}
+	if !strings.Contains(err.Error(), "without signed query") {
+		t.Fatalf("expected 'signed query' error, got: %v", err)
+	}
+}
+
+func TestDownloadAnalyticsReport_CDNHostWithSignature(t *testing.T) {
+	downloadURL := "https://example.cloudfront.net/report.gz?Signature=abc&Key-Pair-Id=key"
+	response := rawResponse(http.StatusOK, "gzdata")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != downloadURL {
+			t.Fatalf("expected URL %q, got %q", downloadURL, req.URL.String())
+		}
+		if req.Header.Get("Authorization") != "" {
+			t.Fatalf("expected no Authorization header")
+		}
+	}, response)
+
+	download, err := client.DownloadAnalyticsReport(context.Background(), downloadURL)
+	if err != nil {
+		t.Fatalf("DownloadAnalyticsReport() error: %v", err)
+	}
+	_ = download.Body.Close()
+}

@@ -91,6 +91,29 @@ func TestPrintTable_FeedbackWithScreenshots(t *testing.T) {
 	}
 }
 
+func TestPrintTable_Feedback_StripsControlChars(t *testing.T) {
+	resp := &FeedbackResponse{
+		Data: []Resource[FeedbackAttributes]{
+			{
+				ID: "1",
+				Attributes: FeedbackAttributes{
+					CreatedDate: "2026-01-20T00:00:00Z",
+					Email:       "test\x1b[2J@example.com",
+					Comment:     "ok\x1b[31mRED\x1b[0m",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if strings.Contains(output, "\x1b") {
+		t.Fatalf("expected control characters to be stripped, got: %q", output)
+	}
+}
+
 func TestPrintMarkdown_FeedbackWithScreenshots(t *testing.T) {
 	resp := &FeedbackResponse{
 		Data: []Resource[FeedbackAttributes]{
@@ -144,6 +167,30 @@ func TestPrintMarkdown_Reviews(t *testing.T) {
 	}
 	if !strings.Contains(output, "Great app") {
 		t.Fatalf("expected title in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Reviews_StripsControlChars(t *testing.T) {
+	resp := &ReviewsResponse{
+		Data: []Resource[ReviewAttributes]{
+			{
+				ID: "1",
+				Attributes: ReviewAttributes{
+					CreatedDate: "2026-01-20T00:00:00Z",
+					Rating:      5,
+					Title:       "Nice\x1b[31mTitle\x1b[0m",
+					Territory:   "US",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if strings.Contains(output, "\x1b") {
+		t.Fatalf("expected control characters to be stripped, got: %q", output)
 	}
 }
 

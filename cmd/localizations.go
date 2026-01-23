@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -897,7 +898,24 @@ type stringsParser struct {
 }
 
 func readStringsFile(path string) (map[string]string, error) {
-	data, err := os.ReadFile(path)
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("refusing to read symlink %q", path)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("expected regular file: %q", path)
+	}
+
+	file, err := openExistingNoFollow(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
