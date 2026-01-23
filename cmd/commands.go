@@ -911,6 +911,7 @@ func RootCommand(version string) *ffcli.Command {
 			AppsCommand(),
 			BuildsCommand(),
 			VersionsCommand(),
+			PreReleaseVersionsCommand(),
 			LocalizationsCommand(),
 			BetaGroupsCommand(),
 			BetaTestersCommand(),

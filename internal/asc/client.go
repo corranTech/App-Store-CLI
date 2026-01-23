@@ -213,6 +213,7 @@ const (
 	ResourceTypeBuildUploads                 ResourceType = "buildUploads"
 	ResourceTypeBuildUploadFiles             ResourceType = "buildUploadFiles"
 	ResourceTypeAppStoreVersions             ResourceType = "appStoreVersions"
+	ResourceTypePreReleaseVersions           ResourceType = "preReleaseVersions"
 	ResourceTypeAppStoreVersionSubmissions   ResourceType = "appStoreVersionSubmissions"
 	ResourceTypeBetaGroups                   ResourceType = "betaGroups"
 	ResourceTypeBetaTesters                  ResourceType = "betaTesters"
@@ -310,6 +311,18 @@ type AppStoreVersionsResponse = Response[AppStoreVersionAttributes]
 // AppStoreVersionResponse is the response from app store version detail.
 type AppStoreVersionResponse = SingleResponse[AppStoreVersionAttributes]
 
+// PreReleaseVersionsResponse is the response from pre-release versions endpoints.
+type PreReleaseVersionsResponse struct {
+	Data  []PreReleaseVersion `json:"data"`
+	Links Links               `json:"links,omitempty"`
+}
+
+// PreReleaseVersionResponse is the response from pre-release version detail.
+type PreReleaseVersionResponse struct {
+	Data  PreReleaseVersion `json:"data"`
+	Links Links             `json:"links,omitempty"`
+}
+
 // BuildResponse is the response from build detail/updates.
 type BuildResponse = SingleResponse[BuildAttributes]
 
@@ -397,6 +410,12 @@ type appStoreVersionsQuery struct {
 	states         []string
 }
 
+type preReleaseVersionsQuery struct {
+	listQuery
+	platform string
+	version  string
+}
+
 type appStoreVersionLocalizationsQuery struct {
 	listQuery
 	locales []string
@@ -444,6 +463,19 @@ type AppStoreVersionAttributes struct {
 	AppStoreState   string   `json:"appStoreState,omitempty"`
 	AppVersionState string   `json:"appVersionState,omitempty"`
 	CreatedDate     string   `json:"createdDate,omitempty"`
+}
+
+// PreReleaseVersionAttributes describes TestFlight pre-release version metadata.
+type PreReleaseVersionAttributes struct {
+	Version  string   `json:"version,omitempty"`
+	Platform Platform `json:"platform,omitempty"`
+}
+
+// PreReleaseVersion represents a pre-release version resource.
+type PreReleaseVersion struct {
+	Type       ResourceType                `json:"type"`
+	ID         string                      `json:"id"`
+	Attributes PreReleaseVersionAttributes `json:"attributes"`
 }
 
 // AppStoreVersionLocalizationAttributes describes app store version localization metadata.
@@ -1025,6 +1057,9 @@ type BuildsOption func(*buildsQuery)
 // AppStoreVersionsOption is a functional option for GetAppStoreVersions.
 type AppStoreVersionsOption func(*appStoreVersionsQuery)
 
+// PreReleaseVersionsOption is a functional option for GetPreReleaseVersions.
+type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
+
 // BetaGroupsOption is a functional option for GetBetaGroups.
 type BetaGroupsOption func(*betaGroupsQuery)
 
@@ -1331,6 +1366,44 @@ func WithAppStoreVersionsVersionStrings(versions []string) AppStoreVersionsOptio
 func WithAppStoreVersionsStates(states []string) AppStoreVersionsOption {
 	return func(q *appStoreVersionsQuery) {
 		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithPreReleaseVersionsPlatform filters pre-release versions by platform.
+func WithPreReleaseVersionsPlatform(platform string) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		normalized := normalizeUpperCSVString(platform)
+		if normalized != "" {
+			q.platform = normalized
+		}
+	}
+}
+
+// WithPreReleaseVersionsVersion filters pre-release versions by version string.
+func WithPreReleaseVersionsVersion(version string) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		normalized := normalizeCSVString(version)
+		if normalized != "" {
+			q.version = normalized
+		}
+	}
+}
+
+// WithPreReleaseVersionsLimit sets the max number of pre-release versions to return.
+func WithPreReleaseVersionsLimit(limit int) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithPreReleaseVersionsNextURL uses a next page URL directly.
+func WithPreReleaseVersionsNextURL(next string) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 
@@ -1849,6 +1922,21 @@ func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
 	return values.Encode()
 }
 
+func buildPreReleaseVersionsQuery(appID string, query *preReleaseVersionsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(appID) != "" {
+		values.Set("filter[app]", strings.TrimSpace(appID))
+	}
+	if strings.TrimSpace(query.platform) != "" {
+		values.Set("filter[platform]", strings.TrimSpace(query.platform))
+	}
+	if strings.TrimSpace(query.version) != "" {
+		values.Set("filter[version]", strings.TrimSpace(query.version))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[locale]", query.locales)
@@ -1891,6 +1979,28 @@ func normalizeUpperList(values []string) []string {
 		normalized = append(normalized, strings.ToUpper(value))
 	}
 	return normalized
+}
+
+func normalizeCSVString(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	normalized := normalizeList(strings.Split(value, ","))
+	if len(normalized) == 0 {
+		return ""
+	}
+	return strings.Join(normalized, ",")
+}
+
+func normalizeUpperCSVString(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	normalized := normalizeUpperList(strings.Split(value, ","))
+	if len(normalized) == 0 {
+		return ""
+	}
+	return strings.Join(normalized, ",")
 }
 
 func addCSV(values url.Values, key string, items []string) {
@@ -2109,6 +2219,55 @@ func (c *Client) GetAppStoreVersions(ctx context.Context, appID string, opts ...
 	}
 
 	var response AppStoreVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetPreReleaseVersions retrieves TestFlight pre-release versions for an app.
+func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
+	query := &preReleaseVersionsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	appID = strings.TrimSpace(appID)
+	path := "/v1/preReleaseVersions"
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("preReleaseVersions: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildPreReleaseVersionsQuery(appID, query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response PreReleaseVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetPreReleaseVersion retrieves a TestFlight pre-release version by ID.
+func (c *Client) GetPreReleaseVersion(ctx context.Context, id string) (*PreReleaseVersionResponse, error) {
+	id = strings.TrimSpace(id)
+	path := fmt.Sprintf("/v1/preReleaseVersions/%s", id)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response PreReleaseVersionResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -3003,6 +3162,16 @@ func (r *Response[T]) GetData() interface{} {
 	return r.Data
 }
 
+// GetLinks returns the links field for pagination.
+func (r *PreReleaseVersionsResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *PreReleaseVersionsResponse) GetData() interface{} {
+	return r.Data
+}
+
 // PaginateFunc is a function that fetches a page of results
 type PaginateFunc func(ctx context.Context, nextURL string) (PaginatedResponse, error)
 
@@ -3027,6 +3196,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BuildsResponse{Links: Links{}}
 	case *AppStoreVersionsResponse:
 		result = &AppStoreVersionsResponse{Links: Links{}}
+	case *PreReleaseVersionsResponse:
+		result = &PreReleaseVersionsResponse{Links: Links{}}
 	case *AppStoreVersionLocalizationsResponse:
 		result = &AppStoreVersionLocalizationsResponse{Links: Links{}}
 	case *AppInfoLocalizationsResponse:
@@ -3067,6 +3238,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 			result.(*BuildsResponse).Data = append(result.(*BuildsResponse).Data, p.Data...)
 		case *AppStoreVersionsResponse:
 			result.(*AppStoreVersionsResponse).Data = append(result.(*AppStoreVersionsResponse).Data, p.Data...)
+		case *PreReleaseVersionsResponse:
+			result.(*PreReleaseVersionsResponse).Data = append(result.(*PreReleaseVersionsResponse).Data, p.Data...)
 		case *AppStoreVersionLocalizationsResponse:
 			result.(*AppStoreVersionLocalizationsResponse).Data = append(result.(*AppStoreVersionLocalizationsResponse).Data, p.Data...)
 		case *AppInfoLocalizationsResponse:
@@ -3132,6 +3305,8 @@ func typeOf(p PaginatedResponse) string {
 		return "BuildsResponse"
 	case *AppStoreVersionsResponse:
 		return "AppStoreVersionsResponse"
+	case *PreReleaseVersionsResponse:
+		return "PreReleaseVersionsResponse"
 	case *AppStoreVersionLocalizationsResponse:
 		return "AppStoreVersionLocalizationsResponse"
 	case *AppInfoLocalizationsResponse:
@@ -3185,8 +3360,12 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildsMarkdown(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsMarkdown(v)
+	case *PreReleaseVersionsResponse:
+		return printPreReleaseVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *PreReleaseVersionResponse:
+		return printPreReleaseVersionsMarkdown(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
 		return printAppStoreVersionLocalizationsMarkdown(v)
 	case *AppInfoLocalizationsResponse:
@@ -3275,8 +3454,12 @@ func PrintTable(data interface{}) error {
 		return printBuildsTable(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsTable(v)
+	case *PreReleaseVersionsResponse:
+		return printPreReleaseVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *PreReleaseVersionResponse:
+		return printPreReleaseVersionsTable(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
 		return printAppStoreVersionLocalizationsTable(v)
 	case *AppInfoLocalizationsResponse:
@@ -3702,6 +3885,19 @@ func printAppStoreVersionsTable(resp *AppStoreVersionsResponse) error {
 	return w.Flush()
 }
 
+func printPreReleaseVersionsTable(resp *PreReleaseVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tPlatform")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\n",
+			item.ID,
+			compactWhitespace(item.Attributes.Version),
+			string(item.Attributes.Platform),
+		)
+	}
+	return w.Flush()
+}
+
 func printAppsMarkdown(resp *AppsResponse) error {
 	fmt.Fprintln(os.Stdout, "| ID | Name | Bundle ID | SKU |")
 	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
@@ -3730,6 +3926,19 @@ func printAppStoreVersionsMarkdown(resp *AppStoreVersionsResponse) error {
 			escapeMarkdown(string(item.Attributes.Platform)),
 			escapeMarkdown(state),
 			escapeMarkdown(item.Attributes.CreatedDate),
+		)
+	}
+	return nil
+}
+
+func printPreReleaseVersionsMarkdown(resp *PreReleaseVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | Platform |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.Version),
+			escapeMarkdown(string(item.Attributes.Platform)),
 		)
 	}
 	return nil

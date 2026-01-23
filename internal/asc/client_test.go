@@ -246,6 +246,35 @@ func TestBuildAppStoreVersionsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildPreReleaseVersionsQuery(t *testing.T) {
+	query := &preReleaseVersionsQuery{}
+	opts := []PreReleaseVersionsOption{
+		WithPreReleaseVersionsLimit(15),
+		WithPreReleaseVersionsPlatform(" ios, MAC_OS "),
+		WithPreReleaseVersionsVersion("1.0.0, 1.1.0"),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildPreReleaseVersionsQuery("APP_ID", query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[app]"); got != "APP_ID" {
+		t.Fatalf("expected filter[app]=APP_ID, got %q", got)
+	}
+	if got := values.Get("filter[platform]"); got != "IOS,MAC_OS" {
+		t.Fatalf("expected filter[platform]=IOS,MAC_OS, got %q", got)
+	}
+	if got := values.Get("filter[version]"); got != "1.0.0,1.1.0" {
+		t.Fatalf("expected filter[version]=1.0.0,1.1.0, got %q", got)
+	}
+	if got := values.Get("limit"); got != "15" {
+		t.Fatalf("expected limit=15, got %q", got)
+	}
+}
+
 func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 	query := &appStoreVersionLocalizationsQuery{}
 	opts := []AppStoreVersionLocalizationsOption{
