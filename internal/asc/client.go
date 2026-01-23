@@ -1659,8 +1659,35 @@ func (c *Client) generateJWT() (string, error) {
 	return signedToken, nil
 }
 
-// do performs an HTTP request and returns the response
+// do performs an HTTP request and returns the response.
+// GET/HEAD requests use retry logic for rate limiting by default.
 func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read request body: %w", err)
+		}
+	}
+
+	request := func() ([]byte, error) {
+		var reader io.Reader
+		if bodyBytes != nil {
+			reader = bytes.NewReader(bodyBytes)
+		}
+		return c.doOnce(ctx, method, path, reader)
+	}
+
+	if shouldRetryMethod(method) {
+		retryOpts := ResolveRetryOptions()
+		return WithRetry(ctx, request, retryOpts)
+	}
+
+	return request()
+}
+
+func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
 	req, err := c.newRequest(ctx, method, path, body)
 	if err != nil {
 		return nil, err
@@ -1679,7 +1706,7 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
 			retryAfter := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
 			return nil, &RetryableError{
-				Err:        fmt.Errorf("API request failed with status %d", resp.StatusCode),
+				Err:        buildRetryableError(resp.StatusCode, retryAfter, respBody),
 				RetryAfter: retryAfter,
 			}
 		}
@@ -1691,6 +1718,36 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+func shouldRetryMethod(method string) bool {
+	switch strings.ToUpper(method) {
+	case http.MethodGet, http.MethodHead:
+		return true
+	default:
+		return false
+	}
+}
+
+func buildRetryableError(statusCode int, retryAfter time.Duration, respBody []byte) error {
+	base := "API request failed"
+	switch statusCode {
+	case http.StatusTooManyRequests:
+		base = "rate limited by App Store Connect"
+	case http.StatusServiceUnavailable:
+		base = "App Store Connect service unavailable"
+	}
+
+	message := fmt.Sprintf("%s (status %d)", base, statusCode)
+	if len(respBody) > 0 {
+		if err := ParseError(respBody); err != nil {
+			message = fmt.Sprintf("%s: %s", message, err)
+		}
+	}
+	if retryAfter > 0 {
+		message = fmt.Sprintf("%s (retry after %s)", message, retryAfter)
+	}
+	return errors.New(message)
 }
 
 // parseRetryAfterHeader parses the Retry-After header value.
@@ -3483,11 +3540,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 
 		page++
 
-		// Fetch next page with retry logic for rate limiting
-		retryOpts := ResolveRetryOptions()
-		nextPage, err := WithRetry(ctx, func() (PaginatedResponse, error) {
-			return fetchNext(ctx, links.Next)
-		}, retryOpts)
+		// Fetch next page
+		nextPage, err := fetchNext(ctx, links.Next)
 		if err != nil {
 			return result, fmt.Errorf("page %d: %w", page, err)
 		}
