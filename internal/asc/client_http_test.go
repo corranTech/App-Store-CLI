@@ -605,6 +605,23 @@ func TestGetApp_ByID(t *testing.T) {
 	}
 }
 
+func TestGetBuildAppStoreVersion_ByBuildID(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/123/appStoreVersion" {
+			t.Fatalf("expected path /v1/builds/123/appStoreVersion, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBuildAppStoreVersion(context.Background(), "123"); err != nil {
+		t.Fatalf("GetBuildAppStoreVersion() error: %v", err)
+	}
+}
+
 func TestExpireBuild_SendsPatch(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"123","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z","expired":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1074,6 +1091,23 @@ func TestGetAppStoreVersionLocalizations_WithFilters(t *testing.T) {
 	}
 }
 
+func TestGetAppStoreVersionLocalization_ByID(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersionLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/appStoreVersionLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersionLocalization(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetAppStoreVersionLocalization() error: %v", err)
+	}
+}
+
 func TestCreateAppStoreVersionLocalization_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1146,6 +1180,23 @@ func TestUpdateAppStoreVersionLocalization_SendsRequest(t *testing.T) {
 	}
 	if _, err := client.UpdateAppStoreVersionLocalization(context.Background(), "loc-1", attrs); err != nil {
 		t.Fatalf("UpdateAppStoreVersionLocalization() error: %v", err)
+	}
+}
+
+func TestDeleteAppStoreVersionLocalization_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersionLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/appStoreVersionLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteAppStoreVersionLocalization(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("DeleteAppStoreVersionLocalization() error: %v", err)
 	}
 }
 

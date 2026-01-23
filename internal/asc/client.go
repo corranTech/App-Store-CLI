@@ -1007,6 +1007,12 @@ type BetaTesterGroupsUpdateResult struct {
 	Action   string   `json:"action"`
 }
 
+// AppStoreVersionLocalizationDeleteResult represents CLI output for localization deletions.
+type AppStoreVersionLocalizationDeleteResult struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
 // LocalizationFileResult represents a localization file written or read.
 type LocalizationFileResult struct {
 	Locale string `json:"locale"`
@@ -2792,6 +2798,22 @@ func (c *Client) GetAppStoreVersionLocalizations(ctx context.Context, versionID 
 	return &response, nil
 }
 
+// GetAppStoreVersionLocalization retrieves a single app store version localization by ID.
+func (c *Client) GetAppStoreVersionLocalization(ctx context.Context, localizationID string) (*AppStoreVersionLocalizationResponse, error) {
+	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateAppStoreVersionLocalization creates a localization for an app store version.
 func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionID string, attributes AppStoreVersionLocalizationAttributes) (*AppStoreVersionLocalizationResponse, error) {
 	payload := AppStoreVersionLocalizationCreateRequest{
@@ -2854,6 +2876,15 @@ func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localiza
 	}
 
 	return &response, nil
+}
+
+// DeleteAppStoreVersionLocalization deletes a localization by ID.
+func (c *Client) DeleteAppStoreVersionLocalization(ctx context.Context, localizationID string) error {
+	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)
+	if _, err := c.do(ctx, "DELETE", path, nil); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetAppInfoLocalizations retrieves localizations for an app info resource.
@@ -2976,6 +3007,22 @@ func (c *Client) GetBuild(ctx context.Context, buildID string) (*BuildResponse, 
 	}
 
 	var response BuildResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBuildAppStoreVersion retrieves the app store version for a build.
+func (c *Client) GetBuildAppStoreVersion(ctx context.Context, buildID string) (*AppStoreVersionResponse, error) {
+	path := fmt.Sprintf("/v1/builds/%s/appStoreVersion", buildID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppStoreVersionResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -3412,6 +3459,8 @@ func PrintMarkdown(data interface{}) error {
 		return printPreReleaseVersionsMarkdown(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
 		return printAppStoreVersionLocalizationsMarkdown(v)
+	case *AppStoreVersionLocalizationResponse:
+		return printAppStoreVersionLocalizationsMarkdown(&AppStoreVersionLocalizationsResponse{Data: []Resource[AppStoreVersionLocalizationAttributes]{v.Data}})
 	case *AppInfoLocalizationsResponse:
 		return printAppInfoLocalizationsMarkdown(v)
 	case *BetaGroupsResponse:
@@ -3462,6 +3511,8 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaTesterDeleteResultMarkdown(v)
 	case *BetaTesterGroupsUpdateResult:
 		return printBetaTesterGroupsUpdateResultMarkdown(v)
+	case *AppStoreVersionLocalizationDeleteResult:
+		return printAppStoreVersionLocalizationDeleteResultMarkdown(v)
 	case *BetaTesterInvitationResult:
 		return printBetaTesterInvitationResultMarkdown(v)
 	case *SandboxTesterDeleteResult:
@@ -3508,6 +3559,8 @@ func PrintTable(data interface{}) error {
 		return printPreReleaseVersionsTable(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
 		return printAppStoreVersionLocalizationsTable(v)
+	case *AppStoreVersionLocalizationResponse:
+		return printAppStoreVersionLocalizationsTable(&AppStoreVersionLocalizationsResponse{Data: []Resource[AppStoreVersionLocalizationAttributes]{v.Data}})
 	case *AppInfoLocalizationsResponse:
 		return printAppInfoLocalizationsTable(v)
 	case *BetaGroupsResponse:
@@ -3558,6 +3611,8 @@ func PrintTable(data interface{}) error {
 		return printBetaTesterDeleteResultTable(v)
 	case *BetaTesterGroupsUpdateResult:
 		return printBetaTesterGroupsUpdateResultTable(v)
+	case *AppStoreVersionLocalizationDeleteResult:
+		return printAppStoreVersionLocalizationDeleteResultTable(v)
 	case *BetaTesterInvitationResult:
 		return printBetaTesterInvitationResultTable(v)
 	case *SandboxTesterDeleteResult:
@@ -4341,6 +4396,26 @@ func printLocalizationUploadResultMarkdown(result *LocalizationUploadResult) err
 			escapeMarkdown(item.LocalizationID),
 		)
 	}
+	return nil
+}
+
+func printAppStoreVersionLocalizationDeleteResultTable(result *AppStoreVersionLocalizationDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n",
+		result.ID,
+		result.Deleted,
+	)
+	return w.Flush()
+}
+
+func printAppStoreVersionLocalizationDeleteResultMarkdown(result *AppStoreVersionLocalizationDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Deleted,
+	)
 	return nil
 }
 

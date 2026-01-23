@@ -272,6 +272,26 @@ func TestPrintTable_AppStoreVersionLocalizations(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppStoreVersionLocalization(t *testing.T) {
+	resp := &AppStoreVersionLocalizationResponse{
+		Data: Resource[AppStoreVersionLocalizationAttributes]{
+			ID: "loc-1",
+			Attributes: AppStoreVersionLocalizationAttributes{
+				Locale:   "en-US",
+				WhatsNew: "Bug fixes",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "en-US") {
+		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
 func TestPrintMarkdown_AppStoreVersionLocalizations(t *testing.T) {
 	resp := &AppStoreVersionLocalizationsResponse{
 		Data: []Resource[AppStoreVersionLocalizationAttributes]{
@@ -294,6 +314,65 @@ func TestPrintMarkdown_AppStoreVersionLocalizations(t *testing.T) {
 	}
 	if !strings.Contains(output, "en-US") {
 		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionLocalization(t *testing.T) {
+	resp := &AppStoreVersionLocalizationResponse{
+		Data: Resource[AppStoreVersionLocalizationAttributes]{
+			ID: "loc-1",
+			Attributes: AppStoreVersionLocalizationAttributes{
+				Locale:   "en-US",
+				WhatsNew: "Bug fixes",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Locale | Whats New |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "en-US") {
+		t.Fatalf("expected locale in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppStoreVersionLocalizationDeleteResult(t *testing.T) {
+	result := &AppStoreVersionLocalizationDeleteResult{
+		ID:      "loc-1",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected deleted header, got: %s", output)
+	}
+	if !strings.Contains(output, "loc-1") {
+		t.Fatalf("expected id in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionLocalizationDeleteResult(t *testing.T) {
+	result := &AppStoreVersionLocalizationDeleteResult{
+		ID:      "loc-1",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| ID | Deleted |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "loc-1") {
+		t.Fatalf("expected id in output, got: %s", output)
 	}
 }
 
