@@ -35,6 +35,8 @@ Examples:
 			BetaGroupsCreateCommand(),
 			BetaGroupsGetCommand(),
 			BetaGroupsUpdateCommand(),
+			BetaGroupsAddTestersCommand(),
+			BetaGroupsRemoveTestersCommand(),
 			BetaGroupsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -371,6 +373,104 @@ Examples:
 			}
 
 			fmt.Fprintf(os.Stderr, "Successfully deleted beta group %s\n", strings.TrimSpace(*id))
+			return nil
+		},
+	}
+}
+
+// BetaGroupsAddTestersCommand returns the beta groups add-testers subcommand.
+func BetaGroupsAddTestersCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("add-testers", flag.ExitOnError)
+
+	group := fs.String("group", "", "Beta group ID")
+	tester := fs.String("tester", "", "Beta tester ID(s), comma-separated")
+
+	return &ffcli.Command{
+		Name:       "add-testers",
+		ShortUsage: "asc beta-groups add-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortHelp:  "Add beta testers to a beta group.",
+		LongHelp: `Add beta testers to a beta group.
+
+Examples:
+  asc beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
+  asc beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			groupID := strings.TrimSpace(*group)
+			if groupID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group is required")
+				return flag.ErrHelp
+			}
+
+			testerIDs := parseCommaSeparatedIDs(*tester)
+			if len(testerIDs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --tester is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-groups add-testers: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.AddBetaTestersToGroup(requestCtx, groupID, testerIDs); err != nil {
+				return fmt.Errorf("beta-groups add-testers: failed to add testers: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully added %d tester(s) to group %s\n", len(testerIDs), groupID)
+			return nil
+		},
+	}
+}
+
+// BetaGroupsRemoveTestersCommand returns the beta groups remove-testers subcommand.
+func BetaGroupsRemoveTestersCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("remove-testers", flag.ExitOnError)
+
+	group := fs.String("group", "", "Beta group ID")
+	tester := fs.String("tester", "", "Beta tester ID(s), comma-separated")
+
+	return &ffcli.Command{
+		Name:       "remove-testers",
+		ShortUsage: "asc beta-groups remove-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortHelp:  "Remove beta testers from a beta group.",
+		LongHelp: `Remove beta testers from a beta group.
+
+Examples:
+  asc beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
+  asc beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			groupID := strings.TrimSpace(*group)
+			if groupID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group is required")
+				return flag.ErrHelp
+			}
+
+			testerIDs := parseCommaSeparatedIDs(*tester)
+			if len(testerIDs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --tester is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-groups remove-testers: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.RemoveBetaTestersFromGroup(requestCtx, groupID, testerIDs); err != nil {
+				return fmt.Errorf("beta-groups remove-testers: failed to remove testers: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully removed %d tester(s) from group %s\n", len(testerIDs), groupID)
 			return nil
 		},
 	}
@@ -750,4 +850,15 @@ func findBetaTesterIDByEmail(ctx context.Context, client *asc.Client, appID, ema
 	}
 
 	return testers.Data[0].ID, nil
+}
+
+func parseCommaSeparatedIDs(input string) []string {
+	parts := strings.Split(input, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

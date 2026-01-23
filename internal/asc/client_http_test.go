@@ -547,6 +547,63 @@ func TestDeleteBetaGroup_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestAddBetaTestersToGroup_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/bg1/relationships/betaTesters" {
+			t.Fatalf("expected path /v1/betaGroups/bg1/relationships/betaTesters, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 tester relationships, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeBetaTesters || payload.Data[0].ID != "tester-1" {
+			t.Fatalf("unexpected tester data: %+v", payload.Data[0])
+		}
+		if payload.Data[1].Type != ResourceTypeBetaTesters || payload.Data[1].ID != "tester-2" {
+			t.Fatalf("unexpected tester data: %+v", payload.Data[1])
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.AddBetaTestersToGroup(context.Background(), "bg1", []string{"tester-1", "tester-2"}); err != nil {
+		t.Fatalf("AddBetaTestersToGroup() error: %v", err)
+	}
+}
+
+func TestRemoveBetaTestersFromGroup_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/bg1/relationships/betaTesters" {
+			t.Fatalf("expected path /v1/betaGroups/bg1/relationships/betaTesters, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if len(payload.Data) != 1 {
+			t.Fatalf("expected 1 tester relationship, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeBetaTesters || payload.Data[0].ID != "tester-1" {
+			t.Fatalf("unexpected tester data: %+v", payload.Data[0])
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.RemoveBetaTestersFromGroup(context.Background(), "bg1", []string{"tester-1"}); err != nil {
+		t.Fatalf("RemoveBetaTestersFromGroup() error: %v", err)
+	}
+}
+
 func TestCreateBetaTester_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"betaTesters","id":"bt1","attributes":{"email":"tester@example.com"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -584,6 +641,40 @@ func TestCreateBetaTester_SendsRequest(t *testing.T) {
 
 	if _, err := client.CreateBetaTester(context.Background(), "tester@example.com", "Test", "User", []string{"group-1", "group-2"}); err != nil {
 		t.Fatalf("CreateBetaTester() error: %v", err)
+	}
+}
+
+func TestBetaGroupTesterRelationshipMethods_ErrorResponse(t *testing.T) {
+	ctx := context.Background()
+	errorBody := `{"errors":[{"code":"BAD_REQUEST","title":"Bad Request","detail":"nope"}]}`
+
+	tests := []struct {
+		name string
+		call func(*Client) error
+	}{
+		{
+			name: "AddBetaTestersToGroup",
+			call: func(c *Client) error {
+				return c.AddBetaTestersToGroup(ctx, "bg1", []string{"tester-1"})
+			},
+		},
+		{
+			name: "RemoveBetaTestersFromGroup",
+			call: func(c *Client) error {
+				return c.RemoveBetaTestersFromGroup(ctx, "bg1", []string{"tester-1"})
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, nil, jsonResponse(http.StatusBadRequest, errorBody))
+			if err := test.call(client); err == nil {
+				t.Fatalf("expected error")
+			} else if !strings.Contains(err.Error(), "Bad Request") {
+				t.Fatalf("expected error to contain title, got %v", err)
+			}
+		})
 	}
 }
 
