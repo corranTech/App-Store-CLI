@@ -572,6 +572,54 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestBuildLocalizationsValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "build-localizations list missing build",
+			args:    []string{"build-localizations", "list"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "build-localizations create missing locale",
+			args:    []string{"build-localizations", "create", "--build", "BUILD_ID"},
+			wantErr: "--locale is required",
+		},
+		{
+			name:    "build-localizations delete missing confirm",
+			args:    []string{"build-localizations", "delete", "--id", "LOC_ID"},
+			wantErr: "--confirm is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
 func TestBuildsUploadValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
