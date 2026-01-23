@@ -235,6 +235,11 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			wantErr: "--email is required",
 		},
 		{
+			name:    "beta-testers get missing id",
+			args:    []string{"beta-testers", "get"},
+			wantErr: "--id is required",
+		},
+		{
 			name:    "beta-groups get missing id",
 			args:    []string{"beta-groups", "get"},
 			wantErr: "--id is required",
@@ -351,6 +356,15 @@ func TestParseCommaSeparatedIDs(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBetaTestersListAcceptsBuildFilter(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{"beta-testers", "list", "--app", "X", "--build", "Y"}); err != nil {
+		t.Fatalf("parse error: %v", err)
 	}
 }
 

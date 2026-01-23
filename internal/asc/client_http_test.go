@@ -322,7 +322,7 @@ func TestGetBetaGroups_UsesNextURL(t *testing.T) {
 	}
 }
 
-func TestGetBetaTesters_WithFilters(t *testing.T) {
+func TestGetBetaTesters_WithAppFilter(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"1","attributes":{"email":"tester@example.com"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
@@ -353,6 +353,40 @@ func TestGetBetaTesters_WithFilters(t *testing.T) {
 		WithBetaTestersEmail("tester@example.com"),
 		WithBetaTestersGroupIDs([]string{"group-1", "group-2"}),
 		WithBetaTestersLimit(5),
+	); err != nil {
+		t.Fatalf("GetBetaTesters() error: %v", err)
+	}
+}
+
+func TestGetBetaTesters_WithBuildFilter(t *testing.T) {
+	// API only allows one relationship filter, so builds takes precedence over apps
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"1","attributes":{"email":"tester@example.com"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaTesters" {
+			t.Fatalf("expected path /v1/betaTesters, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		// When build filter is provided, apps filter should NOT be present
+		if values.Get("filter[apps]") != "" {
+			t.Fatalf("expected no filter[apps] when filter[builds] is set, got %q", values.Get("filter[apps]"))
+		}
+		if values.Get("filter[builds]") != "build-1" {
+			t.Fatalf("expected filter[builds]=build-1, got %q", values.Get("filter[builds]"))
+		}
+		if values.Get("filter[email]") != "tester@example.com" {
+			t.Fatalf("expected filter[email]=tester@example.com, got %q", values.Get("filter[email]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaTesters(
+		context.Background(),
+		"123", // appID provided but should be ignored when build filter is set
+		WithBetaTestersEmail("tester@example.com"),
+		WithBetaTestersBuildID("build-1"),
 	); err != nil {
 		t.Fatalf("GetBetaTesters() error: %v", err)
 	}
@@ -483,6 +517,36 @@ func TestGetBetaGroup_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetBetaGroup(context.Background(), "bg1"); err != nil {
 		t.Fatalf("GetBetaGroup() error: %v", err)
+	}
+}
+
+func TestGetBetaTester_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaTesters","id":"bt1","attributes":{"email":"tester@example.com","firstName":"Test","lastName":"User","state":"INVITED","inviteType":"EMAIL"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaTesters/bt1" {
+			t.Fatalf("expected path /v1/betaTesters/bt1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	tester, err := client.GetBetaTester(context.Background(), "bt1")
+	if err != nil {
+		t.Fatalf("GetBetaTester() error: %v", err)
+	}
+	if tester.Data.ID != "bt1" {
+		t.Fatalf("expected tester id bt1, got %q", tester.Data.ID)
+	}
+	if tester.Data.Attributes.Email != "tester@example.com" {
+		t.Fatalf("expected tester email tester@example.com, got %q", tester.Data.Attributes.Email)
+	}
+	if tester.Data.Attributes.State != BetaTesterStateInvited {
+		t.Fatalf("expected state %q, got %q", BetaTesterStateInvited, tester.Data.Attributes.State)
+	}
+	if tester.Data.Attributes.InviteType != BetaInviteTypeEmail {
+		t.Fatalf("expected invite type %q, got %q", BetaInviteTypeEmail, tester.Data.Attributes.InviteType)
 	}
 }
 
