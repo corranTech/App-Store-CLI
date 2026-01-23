@@ -1807,16 +1807,16 @@ func buildBetaGroupsQuery(query *betaGroupsQuery) string {
 
 func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
 	values := url.Values{}
-	if strings.TrimSpace(appID) != "" {
+	// API allows only one relationship filter, so prefer builds over apps if provided
+	if strings.TrimSpace(query.filterBuilds) != "" {
+		values.Set("filter[builds]", strings.TrimSpace(query.filterBuilds))
+	} else if strings.TrimSpace(appID) != "" {
 		values.Set("filter[apps]", strings.TrimSpace(appID))
 	}
 	if strings.TrimSpace(query.email) != "" {
 		values.Set("filter[email]", strings.TrimSpace(query.email))
 	}
 	addCSV(values, "filter[betaGroups]", query.groupIDs)
-	if strings.TrimSpace(query.filterBuilds) != "" {
-		values.Set("filter[builds]", strings.TrimSpace(query.filterBuilds))
-	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
