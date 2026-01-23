@@ -450,6 +450,61 @@ func TestTestFlightAppsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestTestFlightSyncValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "testflight sync pull missing app",
+			args:    []string{"testflight", "sync", "pull", "--output", "./testflight.yaml"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "testflight sync pull missing output",
+			args:    []string{"testflight", "sync", "pull", "--app", "APP_ID"},
+			wantErr: "--output is required",
+		},
+		{
+			name:    "testflight sync pull build filter without include",
+			args:    []string{"testflight", "sync", "pull", "--app", "APP_ID", "--output", "./testflight.yaml", "--build", "BUILD_ID"},
+			wantErr: "--build requires --include-builds",
+		},
+		{
+			name:    "testflight sync pull tester filter without include",
+			args:    []string{"testflight", "sync", "pull", "--app", "APP_ID", "--output", "./testflight.yaml", "--tester", "tester@example.com"},
+			wantErr: "--tester requires --include-testers",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
 func TestParseCommaSeparatedIDs(t *testing.T) {
 	tests := []struct {
 		name  string

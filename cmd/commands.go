@@ -917,6 +917,7 @@ func RootCommand(version string) *ffcli.Command {
 			BuildLocalizationsCommand(),
 			BetaGroupsCommand(),
 			BetaTestersCommand(),
+			TestFlightCommand(),
 			SandboxCommand(),
 			SubmitCommand(),
 			XcodeCloudCommand(),
