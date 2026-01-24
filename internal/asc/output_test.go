@@ -1023,6 +1023,94 @@ func TestPrintMarkdown_AppStoreVersionDetailResult(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppStoreVersionPhasedReleaseResponse(t *testing.T) {
+	resp := &AppStoreVersionPhasedReleaseResponse{
+		Data: Resource[AppStoreVersionPhasedReleaseAttributes]{
+			Type: "appStoreVersionPhasedReleases",
+			ID:   "PHASED_123",
+			Attributes: AppStoreVersionPhasedReleaseAttributes{
+				PhasedReleaseState: PhasedReleaseStateActive,
+				StartDate:          "2026-01-20",
+				CurrentDayNumber:   3,
+				TotalPauseDuration: 0,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Phased Release ID") {
+		t.Fatalf("expected phased release header, got: %s", output)
+	}
+	if !strings.Contains(output, "PHASED_123") {
+		t.Fatalf("expected phased release ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionPhasedReleaseResponse(t *testing.T) {
+	resp := &AppStoreVersionPhasedReleaseResponse{
+		Data: Resource[AppStoreVersionPhasedReleaseAttributes]{
+			Type: "appStoreVersionPhasedReleases",
+			ID:   "PHASED_123",
+			Attributes: AppStoreVersionPhasedReleaseAttributes{
+				PhasedReleaseState: PhasedReleaseStatePaused,
+				StartDate:          "2026-01-21",
+				CurrentDayNumber:   2,
+				TotalPauseDuration: 1,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Phased Release ID | State | Start Date | Current Day | Total Pause Duration |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "PHASED_123") {
+		t.Fatalf("expected phased release ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppStoreVersionPhasedReleaseDeleteResult(t *testing.T) {
+	resp := &AppStoreVersionPhasedReleaseDeleteResult{
+		ID:      "PHASED_123",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected deleted header, got: %s", output)
+	}
+	if !strings.Contains(output, "PHASED_123") {
+		t.Fatalf("expected phased release ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionPhasedReleaseDeleteResult(t *testing.T) {
+	resp := &AppStoreVersionPhasedReleaseDeleteResult{
+		ID:      "PHASED_123",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Phased Release ID | Deleted |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "PHASED_123") {
+		t.Fatalf("expected phased release ID in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_AppStoreVersionAttachBuildResult(t *testing.T) {
 	resp := &AppStoreVersionAttachBuildResult{
 		VersionID: "VERSION_123",

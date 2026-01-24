@@ -185,6 +185,27 @@ func printAppStoreVersionDetailTable(result *AppStoreVersionDetailResult) error 
 	return w.Flush()
 }
 
+func printAppStoreVersionPhasedReleaseTable(resp *AppStoreVersionPhasedReleaseResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Phased Release ID\tState\tStart Date\tCurrent Day\tTotal Pause Duration")
+	attrs := resp.Data.Attributes
+	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\n",
+		resp.Data.ID,
+		attrs.PhasedReleaseState,
+		attrs.StartDate,
+		attrs.CurrentDayNumber,
+		attrs.TotalPauseDuration,
+	)
+	return w.Flush()
+}
+
+func printAppStoreVersionPhasedReleaseDeleteResultTable(result *AppStoreVersionPhasedReleaseDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Phased Release ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
+	return w.Flush()
+}
+
 func printAppStoreVersionAttachBuildTable(result *AppStoreVersionAttachBuildResult) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "Version ID\tBuild ID\tAttached")
@@ -261,6 +282,30 @@ func printAppStoreVersionDetailMarkdown(result *AppStoreVersionDetailResult) err
 		escapeMarkdown(result.BuildID),
 		escapeMarkdown(result.BuildVersion),
 		escapeMarkdown(result.SubmissionID),
+	)
+	return nil
+}
+
+func printAppStoreVersionPhasedReleaseMarkdown(resp *AppStoreVersionPhasedReleaseResponse) error {
+	fmt.Fprintln(os.Stdout, "| Phased Release ID | State | Start Date | Current Day | Total Pause Duration |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	attrs := resp.Data.Attributes
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %d |\n",
+		escapeMarkdown(resp.Data.ID),
+		escapeMarkdown(string(attrs.PhasedReleaseState)),
+		escapeMarkdown(attrs.StartDate),
+		attrs.CurrentDayNumber,
+		attrs.TotalPauseDuration,
+	)
+	return nil
+}
+
+func printAppStoreVersionPhasedReleaseDeleteResultMarkdown(result *AppStoreVersionPhasedReleaseDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| Phased Release ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Deleted,
 	)
 	return nil
 }

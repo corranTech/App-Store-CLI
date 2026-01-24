@@ -93,6 +93,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionDetailMarkdown(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildMarkdown(v)
+	case *AppStoreVersionPhasedReleaseResponse:
+		return printAppStoreVersionPhasedReleaseMarkdown(v)
+	case *AppStoreVersionPhasedReleaseDeleteResult:
+		return printAppStoreVersionPhasedReleaseDeleteResultMarkdown(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateMarkdown(v)
 	case *BetaTesterDeleteResult:
@@ -201,6 +205,10 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionDetailTable(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildTable(v)
+	case *AppStoreVersionPhasedReleaseResponse:
+		return printAppStoreVersionPhasedReleaseTable(v)
+	case *AppStoreVersionPhasedReleaseDeleteResult:
+		return printAppStoreVersionPhasedReleaseDeleteResultTable(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateTable(v)
 	case *BetaTesterDeleteResult:
