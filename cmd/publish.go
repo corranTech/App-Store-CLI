@@ -2,12 +2,8 @@ package cmd
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"flag"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -129,7 +125,7 @@ Examples:
 			defer cancel()
 
 			platformValue := asc.Platform(normalizedPlatform)
-			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue)
+			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval)
 			if err != nil {
 				return fmt.Errorf("publish testflight: %w", err)
 			}
@@ -243,7 +239,7 @@ Examples:
 			defer cancel()
 
 			platformValue := asc.Platform(normalizedPlatform)
-			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue)
+			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval)
 			if err != nil {
 				return fmt.Errorf("publish appstore: %w", err)
 			}
@@ -303,18 +299,24 @@ type publishUploadResult struct {
 	BuildNumber string
 }
 
-func uploadBuildAndWaitForID(ctx context.Context, client *asc.Client, appID, ipaPath string, fileInfo os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval time.Duration, timeout time.Duration) (*publishUploadResult, error) {
+func uploadBuildAndWaitForID(ctx context.Context, client *asc.Client, appID, ipaPath string, fileInfo os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval time.Duration) (*publishUploadResult, error) {
 	_, fileResp, err := prepareBuildUpload(ctx, client, appID, fileInfo, version, buildNumber, platform)
 	if err != nil {
 		return nil, err
 	}
 
-	checksum, err := uploadIPAWithOperations(ctx, ipaPath, fileResp.Data.Attributes.UploadOperations, timeout)
+	if len(fileResp.Data.Attributes.UploadOperations) == 0 {
+		return nil, fmt.Errorf("no upload operations returned")
+	}
+
+	uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+	err = asc.ExecuteUploadOperations(uploadCtx, ipaPath, fileResp.Data.Attributes.UploadOperations)
+	uploadCancel()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := commitBuildUploadFile(ctx, client, fileResp.Data.ID, checksum); err != nil {
+	if err := commitBuildUploadFile(ctx, client, fileResp.Data.ID, nil); err != nil {
 		return nil, err
 	}
 
@@ -440,101 +442,11 @@ func prepareBuildUpload(ctx context.Context, client *asc.Client, appID string, f
 	return uploadResp, fileResp, nil
 }
 
-func uploadIPAWithOperations(ctx context.Context, ipaPath string, operations []asc.UploadOperation, timeout time.Duration) (string, error) {
-	if len(operations) == 0 {
-		return "", fmt.Errorf("no upload operations returned")
-	}
-
-	checksum, err := computeMD5(ipaPath)
-	if err != nil {
-		return "", err
-	}
-
-	file, err := os.Open(ipaPath)
-	if err != nil {
-		return "", fmt.Errorf("open IPA: %w", err)
-	}
-	defer file.Close()
-
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return "", fmt.Errorf("stat IPA: %w", err)
-	}
-
-	client := &http.Client{Timeout: timeout}
-
-	for _, op := range operations {
-		if op.URL == "" {
-			return "", fmt.Errorf("upload operation missing URL")
-		}
-		method := strings.TrimSpace(op.Method)
-		if method == "" {
-			method = http.MethodPut
-		}
-		if op.Length <= 0 {
-			return "", fmt.Errorf("upload operation length must be positive")
-		}
-		if op.Offset < 0 {
-			return "", fmt.Errorf("upload operation offset must be non-negative")
-		}
-		if op.Offset+op.Length > fileInfo.Size() {
-			return "", fmt.Errorf("upload operation exceeds file size")
-		}
-
-		section := io.NewSectionReader(file, op.Offset, op.Length)
-		req, err := http.NewRequestWithContext(ctx, method, op.URL, section)
-		if err != nil {
-			return "", fmt.Errorf("create upload request: %w", err)
-		}
-		req.ContentLength = op.Length
-		for _, header := range op.RequestHeaders {
-			if strings.TrimSpace(header.Name) == "" {
-				continue
-			}
-			req.Header.Set(header.Name, header.Value)
-		}
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", fmt.Errorf("upload operation failed: %w", err)
-		}
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			body, _ := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			return "", fmt.Errorf("upload operation failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-		}
-		_ = resp.Body.Close()
-	}
-
-	return checksum, nil
-}
-
-func computeMD5(path string) (string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", fmt.Errorf("open IPA for checksum: %w", err)
-	}
-	defer file.Close()
-
-	hash := md5.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", fmt.Errorf("read IPA for checksum: %w", err)
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func commitBuildUploadFile(ctx context.Context, client *asc.Client, fileID, checksum string) error {
+func commitBuildUploadFile(ctx context.Context, client *asc.Client, fileID string, checksums *asc.Checksums) error {
 	uploaded := true
 	attrs := &asc.BuildUploadFileUpdateAttributes{
-		Uploaded: &uploaded,
-	}
-	if checksum != "" {
-		attrs.SourceFileChecksums = &asc.Checksums{
-			File: &asc.Checksum{
-				Hash:      checksum,
-				Algorithm: asc.ChecksumAlgorithmMD5,
-			},
-		}
+		Uploaded:            &uploaded,
+		SourceFileChecksums: checksums,
 	}
 	req := asc.BuildUploadFileUpdateRequest{
 		Data: asc.BuildUploadFileUpdateData{
@@ -544,7 +456,10 @@ func commitBuildUploadFile(ctx context.Context, client *asc.Client, fileID, chec
 		},
 	}
 
-	if _, err := client.UpdateBuildUploadFile(ctx, fileID, req); err != nil {
+	commitCtx, commitCancel := contextWithUploadTimeout(ctx)
+	_, err := client.UpdateBuildUploadFile(commitCtx, fileID, req)
+	commitCancel()
+	if err != nil {
 		return fmt.Errorf("commit upload file: %w", err)
 	}
 	return nil
