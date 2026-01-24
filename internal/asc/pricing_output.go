@@ -53,6 +53,34 @@ func printAppPricePointsMarkdown(resp *AppPricePointsV3Response) error {
 	return nil
 }
 
+func printAppPricesTable(resp *AppPricesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tStart Date\tEnd Date\tManual")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%t\n",
+			item.ID,
+			compactWhitespace(item.Attributes.StartDate),
+			compactWhitespace(item.Attributes.EndDate),
+			item.Attributes.Manual,
+		)
+	}
+	return w.Flush()
+}
+
+func printAppPricesMarkdown(resp *AppPricesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Start Date | End Date | Manual |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %t |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.StartDate),
+			escapeMarkdown(item.Attributes.EndDate),
+			item.Attributes.Manual,
+		)
+	}
+	return nil
+}
+
 func printAppPriceScheduleTable(resp *AppPriceScheduleResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID")
@@ -81,5 +109,33 @@ func printAppAvailabilityMarkdown(resp *AppAvailabilityV2Response) error {
 		escapeMarkdown(resp.Data.ID),
 		resp.Data.Attributes.AvailableInNewTerritories,
 	)
+	return nil
+}
+
+func printTerritoryAvailabilitiesTable(resp *TerritoryAvailabilitiesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tAvailable\tRelease Date\tPreorder Enabled")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%t\t%s\t%t\n",
+			item.ID,
+			item.Attributes.Available,
+			compactWhitespace(item.Attributes.ReleaseDate),
+			item.Attributes.PreOrderEnabled,
+		)
+	}
+	return w.Flush()
+}
+
+func printTerritoryAvailabilitiesMarkdown(resp *TerritoryAvailabilitiesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Available | Release Date | Preorder Enabled |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %t | %s | %t |\n",
+			escapeMarkdown(item.ID),
+			item.Attributes.Available,
+			escapeMarkdown(item.Attributes.ReleaseDate),
+			item.Attributes.PreOrderEnabled,
+		)
+	}
 	return nil
 }

@@ -37,6 +37,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppPricePointsMarkdown(v)
 	case *AppPriceScheduleResponse:
 		return printAppPriceScheduleMarkdown(v)
+	case *AppPricesResponse:
+		return printAppPricesMarkdown(v)
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
 	case *AppStoreVersionsResponse:
@@ -47,6 +49,8 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityMarkdown(v)
+	case *TerritoryAvailabilitiesResponse:
+		return printTerritoryAvailabilitiesMarkdown(v)
 	case *PreReleaseVersionResponse:
 		return printPreReleaseVersionsMarkdown(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
@@ -157,6 +161,8 @@ func PrintTable(data interface{}) error {
 		return printAppPricePointsTable(v)
 	case *AppPriceScheduleResponse:
 		return printAppPriceScheduleTable(v)
+	case *AppPricesResponse:
+		return printAppPricesTable(v)
 	case *BuildsResponse:
 		return printBuildsTable(v)
 	case *AppStoreVersionsResponse:
@@ -167,6 +173,8 @@ func PrintTable(data interface{}) error {
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityTable(v)
+	case *TerritoryAvailabilitiesResponse:
+		return printTerritoryAvailabilitiesTable(v)
 	case *PreReleaseVersionResponse:
 		return printPreReleaseVersionsTable(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
