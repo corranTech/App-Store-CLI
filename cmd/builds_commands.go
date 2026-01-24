@@ -193,16 +193,18 @@ Examples:
 				var verifiedChecksums *asc.Checksums
 				var checksumVerified *bool
 				if *verifyChecksum {
-					if fileResp.Data.Attributes.SourceFileChecksums == nil {
-						return fmt.Errorf("builds upload: --checksum requested but no source file checksums were provided")
+					src := fileResp.Data.Attributes.SourceFileChecksums
+					if src == nil || (src.File == nil && src.Composite == nil) {
+						fmt.Fprintln(os.Stderr, "Warning: --checksum requested but API provided no checksums to verify; skipping")
+					} else {
+						checksums, err := asc.VerifySourceFileChecksums(*ipaPath, src)
+						if err != nil {
+							return fmt.Errorf("builds upload: checksum verification failed: %w", err)
+						}
+						verifiedChecksums = checksums
+						verified := true
+						checksumVerified = &verified
 					}
-					checksums, err := asc.VerifySourceFileChecksums(*ipaPath, fileResp.Data.Attributes.SourceFileChecksums)
-					if err != nil {
-						return fmt.Errorf("builds upload: checksum verification failed: %w", err)
-					}
-					verifiedChecksums = checksums
-					verified := true
-					checksumVerified = &verified
 				}
 
 				uploaded := true
