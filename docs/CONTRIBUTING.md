@@ -1,5 +1,9 @@
 # Contributing
 
+For development setup, integration tests, and PR guidelines, see the root `CONTRIBUTING.md`.
+
+This file covers patterns for AI agents working on the codebase.
+
 ## Git Workflow
 
 - Branch from `main` and keep one logical change per branch
