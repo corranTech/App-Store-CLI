@@ -179,11 +179,16 @@ func writeECDSAPEM(t *testing.T, path string, mode os.FileMode, pkcs8 bool) {
 func withArrayKeyring(t *testing.T) {
 	t.Helper()
 	previous := keyringOpener
+	previousLegacy := legacyKeyringOpener
 	kr := keyring.NewArrayKeyring([]keyring.Item{})
 	keyringOpener = func() (keyring.Keyring, error) {
 		return kr, nil
 	}
 	t.Cleanup(func() {
 		keyringOpener = previous
+		legacyKeyringOpener = previousLegacy
 	})
+	legacyKeyringOpener = func() (keyring.Keyring, error) {
+		return kr, nil
+	}
 }

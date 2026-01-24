@@ -18,6 +18,7 @@ import (
 const (
 	keyringService    = "asc"
 	keyringItemPrefix = "asc:credential:"
+	legacyKeychain    = "asc"
 )
 
 // Credential represents stored API credentials
@@ -41,10 +42,9 @@ type credentialPayload struct {
 	PrivateKeyPath string `json:"private_key_path"`
 }
 
-var keyringOpener = func() (keyring.Keyring, error) {
-	return keyring.Open(keyring.Config{
+func keyringConfig(keychainName string) keyring.Config {
+	cfg := keyring.Config{
 		ServiceName:                    keyringService,
-		KeychainName:                   keyringService,
 		KeychainTrustApplication:       true,
 		KeychainSynchronizable:         false,
 		KeychainAccessibleWhenUnlocked: true,
@@ -55,7 +55,19 @@ var keyringOpener = func() (keyring.Keyring, error) {
 			keyring.KWalletBackend,
 			keyring.KeyCtlBackend,
 		},
-	})
+	}
+	if keychainName != "" {
+		cfg.KeychainName = keychainName
+	}
+	return cfg
+}
+
+var keyringOpener = func() (keyring.Keyring, error) {
+	return keyring.Open(keyringConfig(""))
+}
+
+var legacyKeyringOpener = func() (keyring.Keyring, error) {
+	return keyring.Open(keyringConfig(legacyKeychain))
 }
 
 // ValidateKeyFile validates that the private key file exists and is valid
@@ -180,6 +192,7 @@ func ListCredentials() ([]Credential, error) {
 // RemoveCredentials removes a named credential.
 func RemoveCredentials(name string) error {
 	if err := removeFromKeychain(name); err == nil {
+		_ = removeFromLegacyKeychain(name)
 		return clearDefaultNameIf(name)
 	} else if !isKeyringUnavailable(err) {
 		return err
@@ -191,6 +204,7 @@ func RemoveCredentials(name string) error {
 // RemoveAllCredentials removes all stored credentials
 func RemoveAllCredentials() error {
 	if err := removeAllFromKeychain(); err == nil {
+		_ = removeAllFromLegacyKeychain()
 		return config.Remove()
 	} else if !isKeyringUnavailable(err) {
 		return err
@@ -256,6 +270,32 @@ func listFromKeychain() ([]Credential, error) {
 	if err != nil {
 		return nil, err
 	}
+	credentials, err := listFromKeyring(kr)
+	if err != nil {
+		return nil, err
+	}
+	if len(credentials) > 0 {
+		return credentials, nil
+	}
+
+	legacy, err := listFromLegacyKeychain()
+	if err == nil && len(legacy) > 0 {
+		migrateLegacyCredentials(legacy)
+		return legacy, nil
+	}
+
+	return credentials, nil
+}
+
+func listFromLegacyKeychain() ([]Credential, error) {
+	kr, err := legacyKeyringOpener()
+	if err != nil {
+		return nil, err
+	}
+	return listFromKeyring(kr)
+}
+
+func listFromKeyring(kr keyring.Keyring) ([]Credential, error) {
 	keys, err := kr.Keys()
 	if err != nil {
 		return nil, err
@@ -288,6 +328,20 @@ func listFromKeychain() ([]Credential, error) {
 	return credentials, nil
 }
 
+func migrateLegacyCredentials(credentials []Credential) {
+	for _, cred := range credentials {
+		payload := credentialPayload{
+			KeyID:          cred.KeyID,
+			IssuerID:       cred.IssuerID,
+			PrivateKeyPath: cred.PrivateKeyPath,
+		}
+		if err := storeInKeychain(cred.Name, payload); err != nil {
+			continue
+		}
+		_ = removeFromLegacyKeychain(cred.Name)
+	}
+}
+
 func removeFromKeychain(name string) error {
 	kr, err := keyringOpener()
 	if err != nil {
@@ -296,8 +350,35 @@ func removeFromKeychain(name string) error {
 	return kr.Remove(keyringKey(name))
 }
 
+func removeFromLegacyKeychain(name string) error {
+	kr, err := legacyKeyringOpener()
+	if err != nil {
+		return err
+	}
+	return kr.Remove(keyringKey(name))
+}
+
 func removeAllFromKeychain() error {
 	kr, err := keyringOpener()
+	if err != nil {
+		return err
+	}
+	keys, err := kr.Keys()
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		if strings.HasPrefix(key, keyringItemPrefix) {
+			if err := kr.Remove(key); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func removeAllFromLegacyKeychain() error {
+	kr, err := legacyKeyringOpener()
 	if err != nil {
 		return err
 	}
