@@ -125,7 +125,8 @@ Examples:
 			defer cancel()
 
 			platformValue := asc.Platform(normalizedPlatform)
-			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval)
+			timeoutOverride := *timeout > 0
+			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue, timeoutOverride)
 			if err != nil {
 				return fmt.Errorf("publish testflight: %w", err)
 			}
@@ -239,7 +240,8 @@ Examples:
 			defer cancel()
 
 			platformValue := asc.Platform(normalizedPlatform)
-			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval)
+			timeoutOverride := *timeout > 0
+			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue, timeoutOverride)
 			if err != nil {
 				return fmt.Errorf("publish appstore: %w", err)
 			}
@@ -299,7 +301,7 @@ type publishUploadResult struct {
 	BuildNumber string
 }
 
-func uploadBuildAndWaitForID(ctx context.Context, client *asc.Client, appID, ipaPath string, fileInfo os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval time.Duration) (*publishUploadResult, error) {
+func uploadBuildAndWaitForID(ctx context.Context, client *asc.Client, appID, ipaPath string, fileInfo os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval time.Duration, uploadTimeout time.Duration, overrideUploadTimeout bool) (*publishUploadResult, error) {
 	_, fileResp, err := prepareBuildUpload(ctx, client, appID, fileInfo, version, buildNumber, platform)
 	if err != nil {
 		return nil, err
@@ -309,14 +311,17 @@ func uploadBuildAndWaitForID(ctx context.Context, client *asc.Client, appID, ipa
 		return nil, fmt.Errorf("no upload operations returned")
 	}
 
-	uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+	uploadCtx, uploadCancel := contextWithPublishUploadTimeout(ctx, uploadTimeout, overrideUploadTimeout)
 	err = asc.ExecuteUploadOperations(uploadCtx, ipaPath, fileResp.Data.Attributes.UploadOperations)
 	uploadCancel()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := commitBuildUploadFile(ctx, client, fileResp.Data.ID, nil); err != nil {
+	commitCtx, commitCancel := contextWithPublishUploadTimeout(ctx, uploadTimeout, overrideUploadTimeout)
+	err = commitBuildUploadFile(commitCtx, client, fileResp.Data.ID, nil)
+	commitCancel()
+	if err != nil {
 		return nil, err
 	}
 
@@ -344,6 +349,16 @@ func contextWithPublishTimeout(ctx context.Context, timeout time.Duration) (cont
 		ctx = context.Background()
 	}
 	return context.WithTimeout(ctx, timeout)
+}
+
+func contextWithPublishUploadTimeout(ctx context.Context, timeout time.Duration, override bool) (context.Context, context.CancelFunc) {
+	if override {
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		return context.WithTimeout(ctx, timeout)
+	}
+	return contextWithUploadTimeout(ctx)
 }
 
 func validateIPAPath(ipaPath string) (os.FileInfo, error) {
@@ -456,10 +471,7 @@ func commitBuildUploadFile(ctx context.Context, client *asc.Client, fileID strin
 		},
 	}
 
-	commitCtx, commitCancel := contextWithUploadTimeout(ctx)
-	_, err := client.UpdateBuildUploadFile(commitCtx, fileID, req)
-	commitCancel()
-	if err != nil {
+	if _, err := client.UpdateBuildUploadFile(ctx, fileID, req); err != nil {
 		return fmt.Errorf("commit upload file: %w", err)
 	}
 	return nil
