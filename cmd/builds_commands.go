@@ -186,7 +186,10 @@ Examples:
 				uploadOpts := []asc.UploadOption{
 					asc.WithUploadConcurrency(*concurrency),
 				}
-				if err := asc.ExecuteUploadOperations(requestCtx, *ipaPath, fileResp.Data.Attributes.UploadOperations, uploadOpts...); err != nil {
+				uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+				err = asc.ExecuteUploadOperations(uploadCtx, *ipaPath, fileResp.Data.Attributes.UploadOperations, uploadOpts...)
+				uploadCancel()
+				if err != nil {
 					return fmt.Errorf("builds upload: upload failed: %w", err)
 				}
 
@@ -219,7 +222,9 @@ Examples:
 					},
 				}
 
-				commitResp, err := client.UpdateBuildUploadFile(requestCtx, fileResp.Data.ID, updateReq)
+				commitCtx, commitCancel := contextWithUploadTimeout(ctx)
+				commitResp, err := client.UpdateBuildUploadFile(commitCtx, fileResp.Data.ID, updateReq)
+				commitCancel()
 				if err != nil {
 					return fmt.Errorf("builds upload: failed to commit upload: %w", err)
 				}
@@ -231,6 +236,7 @@ Examples:
 				}
 				result.ChecksumVerified = checksumVerified
 				result.SourceFileChecksums = verifiedChecksums
+				result.Operations = nil
 			}
 
 			format := *output
