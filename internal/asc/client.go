@@ -163,6 +163,10 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 			}
 		}
 
+		if shouldLogRetries() {
+			fmt.Fprintf(os.Stderr, "retrying in %s (attempt %d/%d): %v\n", delay, retryCount+1, opts.MaxRetries, err)
+		}
+
 		retryCount++
 
 		// Wait with context cancellation support
@@ -173,6 +177,10 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 			// Continue to next retry
 		}
 	}
+}
+
+func shouldLogRetries() bool {
+	return strings.TrimSpace(os.Getenv("ASC_RETRY_LOG")) != ""
 }
 
 // ResolveTimeout returns the request timeout, optionally overridden by env vars.
