@@ -55,6 +55,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BuildsResponse{Links: Links{}}
 	case *AppStoreVersionsResponse:
 		result = &AppStoreVersionsResponse{Links: Links{}}
+	case *ReviewSubmissionsResponse:
+		result = &ReviewSubmissionsResponse{Links: Links{}}
+	case *ReviewSubmissionItemsResponse:
+		result = &ReviewSubmissionItemsResponse{Links: Links{}}
 	case *PreReleaseVersionsResponse:
 		result = &PreReleaseVersionsResponse{Links: Links{}}
 	case *AppStoreVersionLocalizationsResponse:
@@ -97,6 +101,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 			result.(*BuildsResponse).Data = append(result.(*BuildsResponse).Data, p.Data...)
 		case *AppStoreVersionsResponse:
 			result.(*AppStoreVersionsResponse).Data = append(result.(*AppStoreVersionsResponse).Data, p.Data...)
+		case *ReviewSubmissionsResponse:
+			result.(*ReviewSubmissionsResponse).Data = append(result.(*ReviewSubmissionsResponse).Data, p.Data...)
+		case *ReviewSubmissionItemsResponse:
+			result.(*ReviewSubmissionItemsResponse).Data = append(result.(*ReviewSubmissionItemsResponse).Data, p.Data...)
 		case *PreReleaseVersionsResponse:
 			result.(*PreReleaseVersionsResponse).Data = append(result.(*PreReleaseVersionsResponse).Data, p.Data...)
 		case *AppStoreVersionLocalizationsResponse:
@@ -161,6 +169,10 @@ func typeOf(p PaginatedResponse) string {
 		return "BuildsResponse"
 	case *AppStoreVersionsResponse:
 		return "AppStoreVersionsResponse"
+	case *ReviewSubmissionsResponse:
+		return "ReviewSubmissionsResponse"
+	case *ReviewSubmissionItemsResponse:
+		return "ReviewSubmissionItemsResponse"
 	case *PreReleaseVersionsResponse:
 		return "PreReleaseVersionsResponse"
 	case *AppStoreVersionLocalizationsResponse:

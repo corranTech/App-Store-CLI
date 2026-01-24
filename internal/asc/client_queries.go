@@ -64,6 +64,16 @@ type appStoreVersionsQuery struct {
 	states         []string
 }
 
+type reviewSubmissionsQuery struct {
+	listQuery
+	platforms []string
+	states    []string
+}
+
+type reviewSubmissionItemsQuery struct {
+	listQuery
+}
+
 type preReleaseVersionsQuery struct {
 	listQuery
 	platform string
@@ -215,6 +225,20 @@ func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
 	addCSV(values, "filter[platform]", query.platforms)
 	addCSV(values, "filter[versionString]", query.versionStrings)
 	addCSV(values, "filter[appStoreState]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildReviewSubmissionsQuery(query *reviewSubmissionsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[state]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

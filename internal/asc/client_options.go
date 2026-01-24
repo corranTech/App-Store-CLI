@@ -20,6 +20,12 @@ type BuildsOption func(*buildsQuery)
 // AppStoreVersionsOption is a functional option for GetAppStoreVersions.
 type AppStoreVersionsOption func(*appStoreVersionsQuery)
 
+// ReviewSubmissionsOption is a functional option for GetReviewSubmissions.
+type ReviewSubmissionsOption func(*reviewSubmissionsQuery)
+
+// ReviewSubmissionItemsOption is a functional option for GetReviewSubmissionItems.
+type ReviewSubmissionItemsOption func(*reviewSubmissionItemsQuery)
+
 // PreReleaseVersionsOption is a functional option for GetPreReleaseVersions.
 type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
 
@@ -365,6 +371,56 @@ func WithAppStoreVersionsVersionStrings(versions []string) AppStoreVersionsOptio
 func WithAppStoreVersionsStates(states []string) AppStoreVersionsOption {
 	return func(q *appStoreVersionsQuery) {
 		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithReviewSubmissionsLimit sets the max number of review submissions to return.
+func WithReviewSubmissionsLimit(limit int) ReviewSubmissionsOption {
+	return func(q *reviewSubmissionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithReviewSubmissionsNextURL uses a next page URL directly.
+func WithReviewSubmissionsNextURL(next string) ReviewSubmissionsOption {
+	return func(q *reviewSubmissionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithReviewSubmissionsPlatforms filters review submissions by platform.
+func WithReviewSubmissionsPlatforms(platforms []string) ReviewSubmissionsOption {
+	return func(q *reviewSubmissionsQuery) {
+		q.platforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithReviewSubmissionsStates filters review submissions by state.
+func WithReviewSubmissionsStates(states []string) ReviewSubmissionsOption {
+	return func(q *reviewSubmissionsQuery) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithReviewSubmissionItemsLimit sets the max number of review submission items to return.
+func WithReviewSubmissionItemsLimit(limit int) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithReviewSubmissionItemsNextURL uses a next page URL directly.
+func WithReviewSubmissionItemsNextURL(next string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 
