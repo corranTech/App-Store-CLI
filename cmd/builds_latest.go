@@ -17,7 +17,7 @@ func BuildsLatestCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("latest", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
-	version := fs.String("version", "", "Filter by version string (e.g., 1.2.3)")
+	version := fs.String("version", "", "Filter by version string (e.g., 1.2.3); requires --platform for deterministic results")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
@@ -34,15 +34,23 @@ build number, version, processing state, and upload date.
 This command is useful for CI/CD scripts and AI agents that need to
 query the current build state before uploading a new build.
 
+Platform and version filtering:
+  --platform alone    Returns latest build for the specified platform
+  --version alone     Returns latest build for that version (may be any platform)
+  --platform + --version  Returns latest build matching both (recommended)
+
 Examples:
   # Get latest build (JSON output for AI agents)
   asc builds latest --app "123456789"
 
-  # Get latest build for a specific version
-  asc builds latest --app "123456789" --version "1.2.3"
+  # Get latest build for a specific version and platform (recommended)
+  asc builds latest --app "123456789" --version "1.2.3" --platform IOS
 
-  # Filter by platform
+  # Get latest build for a platform (any version)
   asc builds latest --app "123456789" --platform IOS
+
+  # Get latest build for a version (any platform - nondeterministic if multi-platform)
+  asc builds latest --app "123456789" --version "1.2.3"
 
   # Human-readable output
   asc builds latest --app "123456789" --output table`,
@@ -55,10 +63,11 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			// Validate platform if provided
+			// Normalize and validate platform if provided
+			normalizedPlatform := ""
 			if strings.TrimSpace(*platform) != "" {
 				validPlatforms := []string{"IOS", "MAC_OS", "TV_OS", "VISION_OS"}
-				normalizedPlatform := strings.ToUpper(strings.TrimSpace(*platform))
+				normalizedPlatform = strings.ToUpper(strings.TrimSpace(*platform))
 				valid := false
 				for _, p := range validPlatforms {
 					if normalizedPlatform == p {
@@ -72,6 +81,8 @@ Examples:
 				}
 			}
 
+			normalizedVersion := strings.TrimSpace(*version)
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("builds latest: %w", err)
@@ -80,68 +91,130 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			// If version is specified, we need to find the preReleaseVersion ID first
-			var preReleaseVersionID string
-			if strings.TrimSpace(*version) != "" {
-				preReleaseVersionID, err = findPreReleaseVersionID(requestCtx, client, resolvedAppID, strings.TrimSpace(*version), strings.TrimSpace(*platform))
+			// Determine which preReleaseVersion(s) to filter by
+			var preReleaseVersionIDs []string
+
+			if normalizedVersion != "" || normalizedPlatform != "" {
+				// Need to look up preReleaseVersions with the specified filters
+				preReleaseVersionIDs, err = findPreReleaseVersionIDs(requestCtx, client, resolvedAppID, normalizedVersion, normalizedPlatform)
 				if err != nil {
 					return fmt.Errorf("builds latest: %w", err)
 				}
-				if preReleaseVersionID == "" {
-					return fmt.Errorf("builds latest: no pre-release version found for version %q", *version)
+				if len(preReleaseVersionIDs) == 0 {
+					if normalizedVersion != "" && normalizedPlatform != "" {
+						return fmt.Errorf("builds latest: no pre-release version found for version %q on platform %s", normalizedVersion, normalizedPlatform)
+					} else if normalizedVersion != "" {
+						return fmt.Errorf("builds latest: no pre-release version found for version %q", normalizedVersion)
+					} else {
+						return fmt.Errorf("builds latest: no pre-release version found for platform %s", normalizedPlatform)
+					}
 				}
 			}
 
-			// Get latest build with sort by uploadedDate descending, limit 1
-			opts := []asc.BuildsOption{
-				asc.WithBuildsSort("-uploadedDate"),
-				asc.WithBuildsLimit(1),
+			// Get latest build with sort by uploadedDate descending
+			// If we have preReleaseVersion filter(s), we need to find the latest across them
+			var latestBuild *asc.BuildResponse
+
+			if len(preReleaseVersionIDs) == 0 {
+				// No filters - just get the latest build for the app
+				opts := []asc.BuildsOption{
+					asc.WithBuildsSort("-uploadedDate"),
+					asc.WithBuildsLimit(1),
+				}
+				builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
+				if err != nil {
+					return fmt.Errorf("builds latest: failed to fetch: %w", err)
+				}
+				if len(builds.Data) == 0 {
+					return fmt.Errorf("builds latest: no builds found for app %s", resolvedAppID)
+				}
+				latestBuild = &asc.BuildResponse{
+					Data:  builds.Data[0],
+					Links: builds.Links,
+				}
+			} else if len(preReleaseVersionIDs) == 1 {
+				// Single preReleaseVersion - straightforward query
+				opts := []asc.BuildsOption{
+					asc.WithBuildsSort("-uploadedDate"),
+					asc.WithBuildsLimit(1),
+					asc.WithBuildsPreReleaseVersion(preReleaseVersionIDs[0]),
+				}
+				builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
+				if err != nil {
+					return fmt.Errorf("builds latest: failed to fetch: %w", err)
+				}
+				if len(builds.Data) == 0 {
+					return fmt.Errorf("builds latest: no builds found matching filters")
+				}
+				latestBuild = &asc.BuildResponse{
+					Data:  builds.Data[0],
+					Links: builds.Links,
+				}
+			} else {
+				// Multiple preReleaseVersions (platform filter without version filter)
+				// Query each and find the one with the most recent uploadedDate
+				var newestBuild *asc.Resource[asc.BuildAttributes]
+				var newestDate string
+
+				for _, prvID := range preReleaseVersionIDs {
+					opts := []asc.BuildsOption{
+						asc.WithBuildsSort("-uploadedDate"),
+						asc.WithBuildsLimit(1),
+						asc.WithBuildsPreReleaseVersion(prvID),
+					}
+					builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
+					if err != nil {
+						return fmt.Errorf("builds latest: failed to fetch: %w", err)
+					}
+					if len(builds.Data) > 0 {
+						if newestBuild == nil || builds.Data[0].Attributes.UploadedDate > newestDate {
+							newestBuild = &builds.Data[0]
+							newestDate = builds.Data[0].Attributes.UploadedDate
+						}
+					}
+				}
+
+				if newestBuild == nil {
+					return fmt.Errorf("builds latest: no builds found matching filters")
+				}
+				latestBuild = &asc.BuildResponse{
+					Data: *newestBuild,
+				}
 			}
 
-			// Add version filter if we found a preReleaseVersion ID
-			if preReleaseVersionID != "" {
-				opts = append(opts, asc.WithBuildsPreReleaseVersion(preReleaseVersionID))
-			}
-
-			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("builds latest: failed to fetch: %w", err)
-			}
-
-			if len(builds.Data) == 0 {
-				// Return empty result with appropriate message
-				return fmt.Errorf("builds latest: no builds found for app %s", resolvedAppID)
-			}
-
-			// Return single build (not array) for cleaner output
-			singleBuild := &asc.BuildResponse{
-				Data:  builds.Data[0],
-				Links: builds.Links,
-			}
-
-			return printOutput(singleBuild, *output, *pretty)
+			return printOutput(latestBuild, *output, *pretty)
 		},
 	}
 }
 
-// findPreReleaseVersionID looks up the preReleaseVersion ID for a given version string.
-func findPreReleaseVersionID(ctx context.Context, client *asc.Client, appID, version, platform string) (string, error) {
-	opts := []asc.PreReleaseVersionsOption{
-		asc.WithPreReleaseVersionsVersion(version),
-		asc.WithPreReleaseVersionsLimit(1),
+// findPreReleaseVersionIDs looks up preReleaseVersion IDs for given filters.
+// Returns all matching IDs when only platform is specified (to find latest across versions),
+// or a single ID when version is specified.
+func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
+	opts := []asc.PreReleaseVersionsOption{}
+
+	if version != "" {
+		opts = append(opts, asc.WithPreReleaseVersionsVersion(version))
+		// When version is specified, we only need one result (platform narrows it further)
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
+	} else {
+		// When only platform is specified, get multiple versions to find the latest build across them
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(50))
 	}
+
 	if platform != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsPlatform(platform))
 	}
 
 	versions, err := client.GetPreReleaseVersions(ctx, appID, opts...)
 	if err != nil {
-		return "", fmt.Errorf("failed to lookup pre-release version: %w", err)
+		return nil, fmt.Errorf("failed to lookup pre-release versions: %w", err)
 	}
 
-	if len(versions.Data) == 0 {
-		return "", nil
+	ids := make([]string, len(versions.Data))
+	for i, v := range versions.Data {
+		ids[i] = v.ID
 	}
 
-	return versions.Data[0].ID, nil
+	return ids, nil
 }
