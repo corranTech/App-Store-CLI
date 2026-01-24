@@ -188,34 +188,50 @@ Examples:
 }
 
 // findPreReleaseVersionIDs looks up preReleaseVersion IDs for given filters.
-// Returns all matching IDs when only platform is specified (to find latest across versions),
-// or a single ID when version and platform are both specified.
+// Returns all matching IDs when only platform is specified (paginates to get all),
+// or a single ID when version is specified.
 func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	opts := []asc.PreReleaseVersionsOption{}
 
 	if version != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsVersion(version))
+		// When version is specified, we only need one result (platform narrows it further)
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
+	} else {
+		// When only platform is specified, use max limit for pagination
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
 	}
 
 	if platform != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsPlatform(platform))
 	}
 
-	if version != "" && platform != "" {
-		// When version and platform are specified, we only need one result.
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
-	} else {
-		// When version or platform is specified alone, get multiple results to find the latest build across them.
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(50))
-	}
-
-	versions, err := client.GetPreReleaseVersions(ctx, appID, opts...)
+	// Get first page
+	firstPage, err := client.GetPreReleaseVersions(ctx, appID, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup pre-release versions: %w", err)
 	}
 
-	ids := make([]string, len(versions.Data))
-	for i, v := range versions.Data {
+	// If version is specified, we only need the first result
+	if version != "" {
+		if len(firstPage.Data) == 0 {
+			return nil, nil
+		}
+		return []string{firstPage.Data[0].ID}, nil
+	}
+
+	// For platform-only filtering, paginate to get ALL preReleaseVersions
+	allVersions, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetPreReleaseVersions(ctx, appID, asc.WithPreReleaseVersionsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to paginate pre-release versions: %w", err)
+	}
+
+	// Extract IDs from paginated results
+	versionsResp := allVersions.(*asc.PreReleaseVersionsResponse)
+	ids := make([]string, len(versionsResp.Data))
+	for i, v := range versionsResp.Data {
 		ids[i] = v.ID
 	}
 
