@@ -21,21 +21,26 @@ func BuildsUploadCommand() *ffcli.Command {
 	version := fs.String("version", "", "CFBundleShortVersionString (e.g., 1.0.0, auto-extracted from IPA if not provided)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (e.g., 123, auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
+	doUpload := fs.Bool("upload", false, "Upload IPA to presigned URLs and commit the upload")
+	concurrency := fs.Int("concurrency", 1, "Upload concurrency (default 1)")
+	verifyChecksum := fs.Bool("checksum", false, "Verify upload checksums if provided by API")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "upload",
 		ShortUsage: "asc builds upload [flags]",
-		ShortHelp:  "Prepare a build upload in App Store Connect.",
-		LongHelp: `Prepare a build upload in App Store Connect.
+		ShortHelp:  "Prepare or upload a build in App Store Connect.",
+		LongHelp: `Prepare or upload a build in App Store Connect.
 
-This command creates a build upload record and reserves upload operations
-with presigned URLs. The actual file upload must be done separately.
+By default, this command creates a build upload record and reserves upload
+operations with presigned URLs. Use --upload to perform the actual upload
+and commit the file.
 
 Examples:
   asc builds upload --app "123456789" --ipa "path/to/app.ipa"
-  asc builds upload --ipa "app.ipa" --version "1.0.0" --build-number "123"`,
+  asc builds upload --ipa "app.ipa" --version "1.0.0" --build-number "123"
+  asc builds upload --app "123456789" --ipa "app.ipa" --upload`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -65,6 +70,16 @@ Examples:
 			case asc.PlatformIOS, asc.PlatformMacOS, asc.PlatformTVOS, asc.PlatformVisionOS:
 			default:
 				return fmt.Errorf("builds upload: --platform must be IOS, MAC_OS, TV_OS, or VISION_OS")
+			}
+			if !*doUpload {
+				if *concurrency != 1 {
+					return fmt.Errorf("builds upload: --concurrency requires --upload")
+				}
+				if *verifyChecksum {
+					return fmt.Errorf("builds upload: --checksum requires --upload")
+				}
+			} else if *concurrency < 1 {
+				return fmt.Errorf("builds upload: --concurrency must be at least 1")
 			}
 
 			versionValue := strings.TrimSpace(*version)
@@ -162,6 +177,59 @@ Examples:
 				FileName:   fileResp.Data.Attributes.FileName,
 				FileSize:   fileResp.Data.Attributes.FileSize,
 				Operations: fileResp.Data.Attributes.UploadOperations,
+			}
+
+			if *doUpload {
+				if len(fileResp.Data.Attributes.UploadOperations) == 0 {
+					return fmt.Errorf("builds upload: no upload operations returned")
+				}
+
+				uploadOpts := []asc.UploadOption{
+					asc.WithUploadConcurrency(*concurrency),
+				}
+				if err := asc.ExecuteUploadOperations(requestCtx, *ipaPath, fileResp.Data.Attributes.UploadOperations, uploadOpts...); err != nil {
+					return fmt.Errorf("builds upload: upload failed: %w", err)
+				}
+
+				var verifiedChecksums *asc.Checksums
+				var checksumVerified *bool
+				if *verifyChecksum {
+					if fileResp.Data.Attributes.SourceFileChecksums == nil {
+						return fmt.Errorf("builds upload: --checksum requested but no source file checksums were provided")
+					}
+					checksums, err := asc.VerifySourceFileChecksums(*ipaPath, fileResp.Data.Attributes.SourceFileChecksums)
+					if err != nil {
+						return fmt.Errorf("builds upload: checksum verification failed: %w", err)
+					}
+					verifiedChecksums = checksums
+					verified := true
+					checksumVerified = &verified
+				}
+
+				uploaded := true
+				updateReq := asc.BuildUploadFileUpdateRequest{
+					Data: asc.BuildUploadFileUpdateData{
+						Type: asc.ResourceTypeBuildUploadFiles,
+						ID:   fileResp.Data.ID,
+						Attributes: &asc.BuildUploadFileUpdateAttributes{
+							Uploaded:            &uploaded,
+							SourceFileChecksums: verifiedChecksums,
+						},
+					},
+				}
+
+				commitResp, err := client.UpdateBuildUploadFile(requestCtx, fileResp.Data.ID, updateReq)
+				if err != nil {
+					return fmt.Errorf("builds upload: failed to commit upload: %w", err)
+				}
+
+				if commitResp != nil && commitResp.Data.Attributes.Uploaded != nil {
+					result.Uploaded = commitResp.Data.Attributes.Uploaded
+				} else {
+					result.Uploaded = &uploaded
+				}
+				result.ChecksumVerified = checksumVerified
+				result.SourceFileChecksums = verifiedChecksums
 			}
 
 			format := *output
