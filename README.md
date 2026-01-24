@@ -533,6 +533,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 [Rudrank Riyam](https://github.com/rudrankriyam)
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=rudrankriyam/App-Store-Connect-CLI&type=Date)](https://star-history.com/#rudrankriyam/App-Store-Connect-CLI&Date)
+
 ---
 
 <p align="center">
