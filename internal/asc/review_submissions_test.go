@@ -267,10 +267,6 @@ func TestReviewSubmissionValidationErrors(t *testing.T) {
 		t.Fatalf("expected unsupported itemType error, got %v", err)
 	}
 
-	if _, err := client.UpdateReviewSubmissionItem(context.Background(), "", ReviewSubmissionItemUpdateAttributes{}); err == nil || !strings.Contains(err.Error(), "itemID is required") {
-		t.Fatalf("expected itemID required error, got %v", err)
-	}
-
 	if err := client.DeleteReviewSubmissionItem(context.Background(), ""); err == nil || !strings.Contains(err.Error(), "itemID is required") {
 		t.Fatalf("expected itemID required error, got %v", err)
 	}

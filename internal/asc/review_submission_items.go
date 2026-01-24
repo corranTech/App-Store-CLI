@@ -84,23 +84,6 @@ type ReviewSubmissionItemCreateRequest struct {
 	Data ReviewSubmissionItemCreateData `json:"data"`
 }
 
-// ReviewSubmissionItemUpdateAttributes describes attributes for updating a review submission item.
-type ReviewSubmissionItemUpdateAttributes struct {
-	State *string `json:"state,omitempty"`
-}
-
-// ReviewSubmissionItemUpdateData is the data portion of a review submission item update request.
-type ReviewSubmissionItemUpdateData struct {
-	Type       ResourceType                         `json:"type"`
-	ID         string                               `json:"id"`
-	Attributes ReviewSubmissionItemUpdateAttributes `json:"attributes"`
-}
-
-// ReviewSubmissionItemUpdateRequest is a request to update a review submission item.
-type ReviewSubmissionItemUpdateRequest struct {
-	Data ReviewSubmissionItemUpdateData `json:"data"`
-}
-
 // ReviewSubmissionItemDeleteResult represents CLI output for review submission item deletions.
 type ReviewSubmissionItemDeleteResult struct {
 	ID      string `json:"id"`
@@ -205,39 +188,6 @@ func (c *Client) CreateReviewSubmissionItem(ctx context.Context, submissionID st
 	}
 
 	data, err := c.do(ctx, "POST", "/v1/reviewSubmissionItems", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ReviewSubmissionItemResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse review submission item response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// UpdateReviewSubmissionItem updates a review submission item by ID.
-func (c *Client) UpdateReviewSubmissionItem(ctx context.Context, itemID string, attrs ReviewSubmissionItemUpdateAttributes) (*ReviewSubmissionItemResponse, error) {
-	itemID = strings.TrimSpace(itemID)
-	if itemID == "" {
-		return nil, fmt.Errorf("itemID is required")
-	}
-
-	payload := ReviewSubmissionItemUpdateRequest{
-		Data: ReviewSubmissionItemUpdateData{
-			Type:       ResourceTypeReviewSubmissionItems,
-			ID:         itemID,
-			Attributes: attrs,
-		},
-	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/reviewSubmissionItems/%s", itemID), body)
 	if err != nil {
 		return nil, err
 	}
