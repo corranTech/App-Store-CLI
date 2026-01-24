@@ -69,6 +69,18 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaTestersMarkdown(v)
 	case *BetaTesterResponse:
 		return printBetaTesterMarkdown(v)
+	case *UsersResponse:
+		return printUsersMarkdown(v)
+	case *UserResponse:
+		return printUsersMarkdown(&UsersResponse{Data: []Resource[UserAttributes]{v.Data}})
+	case *UserInvitationsResponse:
+		return printUserInvitationsMarkdown(v)
+	case *UserInvitationResponse:
+		return printUserInvitationsMarkdown(&UserInvitationsResponse{Data: []Resource[UserInvitationAttributes]{v.Data}})
+	case *UserDeleteResult:
+		return printUserDeleteResultMarkdown(v)
+	case *UserInvitationRevokeResult:
+		return printUserInvitationRevokeResultMarkdown(v)
 	case *SandboxTestersResponse:
 		return printSandboxTestersMarkdown(v)
 	case *SandboxTesterResponse:
@@ -201,6 +213,18 @@ func PrintTable(data interface{}) error {
 		return printBetaTestersTable(v)
 	case *BetaTesterResponse:
 		return printBetaTesterTable(v)
+	case *UsersResponse:
+		return printUsersTable(v)
+	case *UserResponse:
+		return printUsersTable(&UsersResponse{Data: []Resource[UserAttributes]{v.Data}})
+	case *UserInvitationsResponse:
+		return printUserInvitationsTable(v)
+	case *UserInvitationResponse:
+		return printUserInvitationsTable(&UserInvitationsResponse{Data: []Resource[UserInvitationAttributes]{v.Data}})
+	case *UserDeleteResult:
+		return printUserDeleteResultTable(v)
+	case *UserInvitationRevokeResult:
+		return printUserInvitationRevokeResultTable(v)
 	case *SandboxTestersResponse:
 		return printSandboxTestersTable(v)
 	case *SandboxTesterResponse:
