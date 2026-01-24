@@ -189,21 +189,24 @@ Examples:
 
 // findPreReleaseVersionIDs looks up preReleaseVersion IDs for given filters.
 // Returns all matching IDs when only platform is specified (to find latest across versions),
-// or a single ID when version is specified.
+// or a single ID when version and platform are both specified.
 func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	opts := []asc.PreReleaseVersionsOption{}
 
 	if version != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsVersion(version))
-		// When version is specified, we only need one result (platform narrows it further)
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
-	} else {
-		// When only platform is specified, get multiple versions to find the latest build across them
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(50))
 	}
 
 	if platform != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsPlatform(platform))
+	}
+
+	if version != "" && platform != "" {
+		// When version and platform are specified, we only need one result.
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
+	} else {
+		// When version or platform is specified alone, get multiple results to find the latest build across them.
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(50))
 	}
 
 	versions, err := client.GetPreReleaseVersions(ctx, appID, opts...)
