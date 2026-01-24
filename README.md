@@ -50,7 +50,7 @@ asc auth login \
 # Create a template config.json (no secrets)
 asc auth init
 
-# Store credentials in config.json (skip keychain)
+# Store credentials in config.json (bypass keychain)
 asc auth login \
   --storage config \
   --name "MyApp" \

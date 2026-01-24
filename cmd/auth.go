@@ -105,7 +105,7 @@ func AuthLoginCommand() *ffcli.Command {
 	keyID := fs.String("key-id", "", "App Store Connect API Key ID")
 	issuerID := fs.String("issuer-id", "", "App Store Connect Issuer ID")
 	keyPath := fs.String("private-key", "", "Path to private key (.p8) file")
-	storage := fs.String("storage", "keychain", "Storage backend: keychain or config")
+	storage := fs.String("storage", "keychain", "Storage backend: keychain (default) or config (bypass keychain)")
 
 	return &ffcli.Command{
 		Name:       "login",
@@ -115,7 +115,7 @@ func AuthLoginCommand() *ffcli.Command {
 
 This command stores your API credentials in the system keychain when available,
 with a local config fallback (restricted permissions). Use --storage config to
-write credentials to ~/.asc/config.json instead.
+explicitly bypass keychain and write credentials to ~/.asc/config.json instead.
 
 Examples:
   asc auth login --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
