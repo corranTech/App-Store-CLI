@@ -60,17 +60,33 @@ func readBundleInfoFromInfoPlist(file *zip.File) (ipaBundleInfo, error) {
 		return ipaBundleInfo{}, fmt.Errorf("read Info.plist: %w", err)
 	}
 
-	var info struct {
-		ShortVersion string `plist:"CFBundleShortVersionString"`
-		BuildVersion string `plist:"CFBundleVersion"`
-	}
+	var info map[string]interface{}
 	decoder := plist.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&info); err != nil {
 		return ipaBundleInfo{}, fmt.Errorf("decode Info.plist: %w", err)
 	}
 
 	return ipaBundleInfo{
-		Version:     strings.TrimSpace(info.ShortVersion),
-		BuildNumber: strings.TrimSpace(info.BuildVersion),
+		Version:     coercePlistValueToString(info["CFBundleShortVersionString"]),
+		BuildNumber: coercePlistValueToString(info["CFBundleVersion"]),
 	}, nil
+}
+
+func coercePlistValueToString(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case []byte:
+		return strings.TrimSpace(string(v))
+	case int, int8, int16, int32, int64:
+		return fmt.Sprint(v)
+	case uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprint(v)
+	case float32, float64:
+		return strings.TrimSpace(fmt.Sprint(v))
+	case fmt.Stringer:
+		return strings.TrimSpace(v.String())
+	default:
+		return ""
+	}
 }

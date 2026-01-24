@@ -66,6 +66,42 @@ func TestExtractBundleInfoFromIPA_MissingInfoPlist(t *testing.T) {
 	}
 }
 
+func TestExtractBundleInfoFromIPA_NumericBuildVersion(t *testing.T) {
+	plistData := buildInfoPlistWithValues(t, "3.1.0", 210, plist.XMLFormat)
+	ipaPath := writeTestIPA(t, map[string][]byte{
+		"Payload/Demo.app/Info.plist": plistData,
+	})
+
+	info, err := extractBundleInfoFromIPA(ipaPath)
+	if err != nil {
+		t.Fatalf("extractBundleInfoFromIPA() error: %v", err)
+	}
+	if info.Version != "3.1.0" {
+		t.Fatalf("expected version 3.1.0, got %q", info.Version)
+	}
+	if info.BuildNumber != "210" {
+		t.Fatalf("expected build number 210, got %q", info.BuildNumber)
+	}
+}
+
+func TestExtractBundleInfoFromIPA_BinaryPlist(t *testing.T) {
+	plistData := buildInfoPlistWithValues(t, "4.0.1", int64(7), plist.BinaryFormat)
+	ipaPath := writeTestIPA(t, map[string][]byte{
+		"Payload/Demo.app/Info.plist": plistData,
+	})
+
+	info, err := extractBundleInfoFromIPA(ipaPath)
+	if err != nil {
+		t.Fatalf("extractBundleInfoFromIPA() error: %v", err)
+	}
+	if info.Version != "4.0.1" {
+		t.Fatalf("expected version 4.0.1, got %q", info.Version)
+	}
+	if info.BuildNumber != "7" {
+		t.Fatalf("expected build number 7, got %q", info.BuildNumber)
+	}
+}
+
 func writeTestIPA(t *testing.T, files map[string][]byte) string {
 	t.Helper()
 
@@ -96,14 +132,18 @@ func writeTestIPA(t *testing.T, files map[string][]byte) string {
 func buildInfoPlist(t *testing.T, version string, build string) []byte {
 	t.Helper()
 
-	var payload struct {
-		ShortVersion string `plist:"CFBundleShortVersionString"`
-		BuildVersion string `plist:"CFBundleVersion"`
-	}
-	payload.ShortVersion = version
-	payload.BuildVersion = build
+	return buildInfoPlistWithValues(t, version, build, plist.XMLFormat)
+}
 
-	data, err := plist.Marshal(payload, plist.XMLFormat)
+func buildInfoPlistWithValues(t *testing.T, versionValue interface{}, buildValue interface{}, format int) []byte {
+	t.Helper()
+
+	payload := map[string]interface{}{
+		"CFBundleShortVersionString": versionValue,
+		"CFBundleVersion":            buildValue,
+	}
+
+	data, err := plist.Marshal(payload, format)
 	if err != nil {
 		t.Fatalf("marshal plist: %v", err)
 	}
