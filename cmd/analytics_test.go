@@ -10,6 +10,9 @@ import (
 )
 
 func TestAnalyticsSalesValidationErrors(t *testing.T) {
+	t.Setenv("ASC_VENDOR_NUMBER", "")
+	t.Setenv("ASC_ANALYTICS_VENDOR_NUMBER", "")
+
 	tests := []struct {
 		name    string
 		args    []string

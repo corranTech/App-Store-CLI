@@ -61,7 +61,7 @@ App ID fallback:
 - `ASC_APP_ID`
 
 Analytics & sales env:
-- `ASC_VENDOR_NUMBER` (Sales and Trends reports)
+- `ASC_VENDOR_NUMBER` (Sales, Trends, and Finance reports)
 - `ASC_ANALYTICS_VENDOR_NUMBER` (fallback for analytics vendor number)
 - `ASC_TIMEOUT` (e.g., `90s`, `2m`)
 - `ASC_TIMEOUT_SECONDS` (e.g., `120`)
@@ -226,6 +226,27 @@ Notes:
 - Reports may not be available yet; ASC returns availability errors when data is pending
 - Use `ASC_TIMEOUT` or `ASC_TIMEOUT_SECONDS` for long analytics pagination
 - `asc analytics get --date ... --paginate` will scan all report pages (slower, but avoids missing instances)
+
+### Finance Reports
+
+```bash
+# Download monthly finance report (writes .tsv.gz)
+asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"
+
+# Download detailed finance report and decompress
+asc finance reports --vendor "12345678" --report-type FINANCE_DETAIL --region "Z1" --date "2025-12" --decompress
+
+# List finance report region codes and currencies
+asc finance regions --output table
+```
+
+Notes:
+- Report date format: `YYYY-MM` (Apple fiscal month)
+- Reports typically appear the first Friday of the following fiscal month
+- Region codes are listed by Apple: https://developer.apple.com/help/app-store-connect/reference/financial-report-regions-and-currencies/
+- `FINANCE_DETAIL` reports require region code `Z1` (financial detail consolidated)
+- Use `asc finance regions` to list valid region codes and currencies
+- Requires Account Holder, Admin, or Finance role
 
 ### Sandbox Testers
 

@@ -1124,6 +1124,98 @@ func TestPrintTable_SalesReportResult(t *testing.T) {
 	}
 }
 
+func TestPrintTable_FinanceReportResult(t *testing.T) {
+	result := &FinanceReportResult{
+		VendorNumber: "12345678",
+		ReportType:   "FINANCIAL",
+		RegionCode:   "US",
+		ReportDate:   "2025-12",
+		FilePath:     "finance_report_2025-12_FINANCIAL_US.tsv.gz",
+		Bytes:        2048,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Region") {
+		t.Fatalf("expected region header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "finance_report_2025-12_FINANCIAL_US.tsv.gz") {
+		t.Fatalf("expected file path in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_FinanceReportResult(t *testing.T) {
+	result := &FinanceReportResult{
+		VendorNumber: "12345678",
+		ReportType:   "FINANCE_DETAIL",
+		RegionCode:   "Z1",
+		ReportDate:   "2025-12",
+		FilePath:     "finance_report_2025-12_FINANCE_DETAIL_Z1.tsv.gz",
+		Bytes:        2048,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| Vendor | Type | Region |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "finance_report_2025-12_FINANCE_DETAIL_Z1.tsv.gz") {
+		t.Fatalf("expected file path in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_FinanceRegionsResult(t *testing.T) {
+	result := &FinanceRegionsResult{
+		Regions: []FinanceRegion{
+			{
+				ReportRegion:       "Americas",
+				ReportCurrency:     "USD",
+				RegionCode:         "US",
+				CountriesOrRegions: "United States",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Region") {
+		t.Fatalf("expected region header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "United States") {
+		t.Fatalf("expected country in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_FinanceRegionsResult(t *testing.T) {
+	result := &FinanceRegionsResult{
+		Regions: []FinanceRegion{
+			{
+				ReportRegion:       "Americas",
+				ReportCurrency:     "USD",
+				RegionCode:         "US",
+				CountriesOrRegions: "United States",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| Region | Currency | Code | Countries or Regions |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "| Americas | USD | US | United States |") {
+		t.Fatalf("expected region row, got: %s", output)
+	}
+}
+
 func TestPrintMarkdown_AnalyticsReportRequestResult(t *testing.T) {
 	result := &AnalyticsReportRequestResult{
 		RequestID:   "req-1",
