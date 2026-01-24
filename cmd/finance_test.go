@@ -81,6 +81,11 @@ func TestFinanceReportsInvalidFlags(t *testing.T) {
 			args:    []string{"finance", "reports", "--vendor", "12345678", "--report-type", "FINANCIAL", "--region", "US", "--date", "2025-13"},
 			wantErr: "--date must be in YYYY-MM format",
 		},
+		{
+			name:    "invalid finance detail region",
+			args:    []string{"finance", "reports", "--vendor", "12345678", "--report-type", "FINANCE_DETAIL", "--region", "US", "--date", "2025-12"},
+			wantErr: "--region must be Z1 for FINANCE_DETAIL reports",
+		},
 	}
 
 	for _, test := range tests {

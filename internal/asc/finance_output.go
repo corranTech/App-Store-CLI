@@ -50,3 +50,31 @@ func printFinanceReportResultMarkdown(result *FinanceReportResult) error {
 	)
 	return nil
 }
+
+func printFinanceRegionsTable(result *FinanceRegionsResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Region\tCurrency\tCode\tCountries or Regions")
+	for _, region := range result.Regions {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+			region.ReportRegion,
+			region.ReportCurrency,
+			region.RegionCode,
+			region.CountriesOrRegions,
+		)
+	}
+	return w.Flush()
+}
+
+func printFinanceRegionsMarkdown(result *FinanceRegionsResult) error {
+	fmt.Fprintln(os.Stdout, "| Region | Currency | Code | Countries or Regions |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, region := range result.Regions {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+			escapeMarkdown(region.ReportRegion),
+			escapeMarkdown(region.ReportCurrency),
+			escapeMarkdown(region.RegionCode),
+			escapeMarkdown(region.CountriesOrRegions),
+		)
+	}
+	return nil
+}
