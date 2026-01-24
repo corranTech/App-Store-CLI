@@ -473,6 +473,9 @@ func listFromConfig() ([]Credential, error) {
 		}
 		return nil, err
 	}
+	if cfg.KeyID == "" || cfg.IssuerID == "" || cfg.PrivateKeyPath == "" {
+		return []Credential{}, nil
+	}
 	credentials := []Credential{
 		{
 			Name:           cfg.DefaultKeyName,
