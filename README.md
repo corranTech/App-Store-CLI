@@ -62,6 +62,7 @@ App ID fallback:
 
 Analytics & sales env:
 - `ASC_VENDOR_NUMBER` (Sales and Trends reports)
+- `ASC_ANALYTICS_VENDOR_NUMBER` (fallback for analytics vendor number)
 - `ASC_TIMEOUT` (e.g., `90s`, `2m`)
 - `ASC_TIMEOUT_SECONDS` (e.g., `120`)
 
@@ -207,6 +208,15 @@ asc analytics requests --app "123456789" --paginate
 # Get analytics reports with instances
 asc analytics get --request-id "REQUEST_ID"
 
+# Get analytics report instances for a specific date
+asc analytics get --request-id "REQUEST_ID" --date "2024-01-20"
+
+# Include report segments in the output
+asc analytics get --request-id "REQUEST_ID" --include-segments
+
+# Fetch a specific instance and include segments
+asc analytics get --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --include-segments
+
 # Download analytics report data
 asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
 ```
@@ -340,6 +350,9 @@ asc builds expire --build "BUILD_ID"
 
 # Prepare a build upload
 asc builds upload --app "123456789" --ipa "app.ipa"
+
+Notes:
+- Build upload currently prepares upload operations only (upload + commit is not yet automated).
 
 # Add/remove beta groups from a build
 asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
