@@ -2522,3 +2522,241 @@ func TestDeleteBundleIDCapability_SendsRequest(t *testing.T) {
 		t.Fatalf("DeleteBundleIDCapability() error: %v", err)
 	}
 }
+
+func TestGetCertificates_WithFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/certificates" {
+			t.Fatalf("expected path /v1/certificates, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[certificateType]") != "IOS_DISTRIBUTION,IOS_DEVELOPMENT" {
+			t.Fatalf("expected filter[certificateType] to be set, got %q", values.Get("filter[certificateType]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCertificates(
+		context.Background(),
+		WithCertificatesTypes([]string{"IOS_DISTRIBUTION", "IOS_DEVELOPMENT"}),
+		WithCertificatesLimit(5),
+	); err != nil {
+		t.Fatalf("GetCertificates() error: %v", err)
+	}
+}
+
+func TestGetCertificates_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/certificates?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCertificates(context.Background(), WithCertificatesNextURL(next)); err != nil {
+		t.Fatalf("GetCertificates() error: %v", err)
+	}
+}
+
+func TestCreateCertificate_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/certificates" {
+			t.Fatalf("expected path /v1/certificates, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload CertificateCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeCertificates {
+			t.Fatalf("expected type certificates, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.CertificateType != "IOS_DISTRIBUTION" {
+			t.Fatalf("expected certificate type IOS_DISTRIBUTION, got %q", payload.Data.Attributes.CertificateType)
+		}
+		if payload.Data.Attributes.CSRContent != "CSR_CONTENT" {
+			t.Fatalf("expected csr content, got %q", payload.Data.Attributes.CSRContent)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateCertificate(context.Background(), "CSR_CONTENT", "IOS_DISTRIBUTION"); err != nil {
+		t.Fatalf("CreateCertificate() error: %v", err)
+	}
+}
+
+func TestGetCertificate_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/certificates/c1" {
+			t.Fatalf("expected path /v1/certificates/c1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCertificate(context.Background(), "c1"); err != nil {
+		t.Fatalf("GetCertificate() error: %v", err)
+	}
+}
+
+func TestRevokeCertificate_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/certificates/c1" {
+			t.Fatalf("expected path /v1/certificates/c1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.RevokeCertificate(context.Background(), "c1"); err != nil {
+		t.Fatalf("RevokeCertificate() error: %v", err)
+	}
+}
+
+func TestGetDevices_WithFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"devices","id":"d1","attributes":{"name":"Device","udid":"UDID","platform":"IOS","status":"ENABLED"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices" {
+			t.Fatalf("expected path /v1/devices, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[platform]") != "IOS,MAC_OS" {
+			t.Fatalf("expected filter[platform] to be set, got %q", values.Get("filter[platform]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetDevices(context.Background(), WithDevicesPlatforms([]string{"IOS", "MAC_OS"})); err != nil {
+		t.Fatalf("GetDevices() error: %v", err)
+	}
+}
+
+func TestGetDevices_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/devices?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetDevices(context.Background(), WithDevicesNextURL(next)); err != nil {
+		t.Fatalf("GetDevices() error: %v", err)
+	}
+}
+
+func TestGetDevice_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"devices","id":"d1","attributes":{"name":"Device","udid":"UDID","platform":"IOS","status":"ENABLED"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices/d1" {
+			t.Fatalf("expected path /v1/devices/d1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetDevice(context.Background(), "d1"); err != nil {
+		t.Fatalf("GetDevice() error: %v", err)
+	}
+}
+
+func TestRegisterDevice_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"devices","id":"d1","attributes":{"name":"Device","udid":"UDID","platform":"IOS","status":"ENABLED"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices" {
+			t.Fatalf("expected path /v1/devices, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload DeviceCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeDevices {
+			t.Fatalf("expected type devices, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.UDID != "UDID" {
+			t.Fatalf("expected udid UDID, got %q", payload.Data.Attributes.UDID)
+		}
+		if payload.Data.Attributes.Platform != PlatformIOS {
+			t.Fatalf("expected platform IOS, got %q", payload.Data.Attributes.Platform)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := DeviceCreateAttributes{
+		Name:     "Device",
+		UDID:     "UDID",
+		Platform: PlatformIOS,
+	}
+	if _, err := client.RegisterDevice(context.Background(), attrs); err != nil {
+		t.Fatalf("RegisterDevice() error: %v", err)
+	}
+}
+
+func TestUpdateDevice_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"devices","id":"d1","attributes":{"name":"Device","udid":"UDID","platform":"IOS","status":"DISABLED"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices/d1" {
+			t.Fatalf("expected path /v1/devices/d1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload DeviceUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeDevices {
+			t.Fatalf("expected type devices, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "d1" {
+			t.Fatalf("expected id d1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.Status != "DISABLED" {
+			t.Fatalf("expected status DISABLED, got %v", payload.Data.Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := DeviceUpdateAttributes{Status: "DISABLED"}
+	if _, err := client.UpdateDevice(context.Background(), "d1", attrs); err != nil {
+		t.Fatalf("UpdateDevice() error: %v", err)
+	}
+}

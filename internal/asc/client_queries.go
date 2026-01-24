@@ -107,6 +107,16 @@ type bundleIDCapabilitiesQuery struct {
 	listQuery
 }
 
+type certificatesQuery struct {
+	listQuery
+	certificateTypes []string
+}
+
+type devicesQuery struct {
+	listQuery
+	platforms []string
+}
+
 func buildReviewQuery(opts []ReviewOption) string {
 	query := &reviewQuery{}
 	for _, opt := range opts {
@@ -226,6 +236,20 @@ func buildBundleIDsQuery(query *bundleIDsQuery) string {
 
 func buildBundleIDCapabilitiesQuery(query *bundleIDCapabilitiesQuery) string {
 	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildCertificatesQuery(query *certificatesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[certificateType]", query.certificateTypes)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildDevicesQuery(query *devicesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

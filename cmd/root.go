@@ -41,6 +41,8 @@ func RootCommand(version string) *ffcli.Command {
 			FinanceCommand(),
 			AppsCommand(),
 			BundleIDsCommand(),
+			CertificatesCommand(),
+			DevicesCommand(),
 			TestFlightCommand(),
 			BuildsCommand(),
 			VersionsCommand(),

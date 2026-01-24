@@ -41,6 +41,12 @@ type BundleIDsOption func(*bundleIDsQuery)
 // BundleIDCapabilitiesOption is a functional option for GetBundleIDCapabilities.
 type BundleIDCapabilitiesOption func(*bundleIDCapabilitiesQuery)
 
+// CertificatesOption is a functional option for GetCertificates.
+type CertificatesOption func(*certificatesQuery)
+
+// DevicesOption is a functional option for GetDevices.
+type DevicesOption func(*devicesQuery)
+
 // AppStoreVersionLocalizationsOption is a functional option for version localizations.
 type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
 
@@ -538,6 +544,56 @@ func WithBundleIDCapabilitiesNextURL(next string) BundleIDCapabilitiesOption {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
+	}
+}
+
+// WithCertificatesLimit sets the max number of certificates to return.
+func WithCertificatesLimit(limit int) CertificatesOption {
+	return func(q *certificatesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithCertificatesNextURL uses a next page URL directly.
+func WithCertificatesNextURL(next string) CertificatesOption {
+	return func(q *certificatesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithCertificatesTypes filters certificates by type.
+func WithCertificatesTypes(types []string) CertificatesOption {
+	return func(q *certificatesQuery) {
+		q.certificateTypes = normalizeUpperList(types)
+	}
+}
+
+// WithDevicesLimit sets the max number of devices to return.
+func WithDevicesLimit(limit int) DevicesOption {
+	return func(q *devicesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithDevicesNextURL uses a next page URL directly.
+func WithDevicesNextURL(next string) DevicesOption {
+	return func(q *devicesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithDevicesPlatforms filters devices by platform.
+func WithDevicesPlatforms(platforms []string) DevicesOption {
+	return func(q *devicesQuery) {
+		q.platforms = normalizeUpperList(platforms)
 	}
 }
 

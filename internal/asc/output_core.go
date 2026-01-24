@@ -35,6 +35,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBundleIDsMarkdown(v)
 	case *BundleIDResponse:
 		return printBundleIDsMarkdown(&BundleIDsResponse{Data: []Resource[BundleIDAttributes]{v.Data}})
+	case *CertificatesResponse:
+		return printCertificatesMarkdown(v)
+	case *CertificateResponse:
+		return printCertificatesMarkdown(&CertificatesResponse{Data: []Resource[CertificateAttributes]{v.Data}})
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
 	case *AppStoreVersionsResponse:
@@ -67,6 +71,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBundleIDCapabilitiesMarkdown(v)
 	case *BundleIDCapabilityResponse:
 		return printBundleIDCapabilitiesMarkdown(&BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}})
+	case *DevicesResponse:
+		return printDevicesMarkdown(v)
+	case *DeviceResponse:
+		return printDevicesMarkdown(&DevicesResponse{Data: []Resource[DeviceAttributes]{v.Data}})
 	case *LocalizationDownloadResult:
 		return printLocalizationDownloadResultMarkdown(v)
 	case *LocalizationUploadResult:
@@ -123,6 +131,8 @@ func PrintMarkdown(data interface{}) error {
 		return printBundleIDDeleteResultMarkdown(v)
 	case *BundleIDCapabilityDeleteResult:
 		return printBundleIDCapabilityDeleteResultMarkdown(v)
+	case *CertificateRevokeResult:
+		return printCertificateRevokeResultMarkdown(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultMarkdown(v)
 	case *XcodeCloudStatusResult:
@@ -159,6 +169,10 @@ func PrintTable(data interface{}) error {
 		return printBundleIDsTable(v)
 	case *BundleIDResponse:
 		return printBundleIDsTable(&BundleIDsResponse{Data: []Resource[BundleIDAttributes]{v.Data}})
+	case *CertificatesResponse:
+		return printCertificatesTable(v)
+	case *CertificateResponse:
+		return printCertificatesTable(&CertificatesResponse{Data: []Resource[CertificateAttributes]{v.Data}})
 	case *BuildsResponse:
 		return printBuildsTable(v)
 	case *AppStoreVersionsResponse:
@@ -191,6 +205,10 @@ func PrintTable(data interface{}) error {
 		return printBundleIDCapabilitiesTable(v)
 	case *BundleIDCapabilityResponse:
 		return printBundleIDCapabilitiesTable(&BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}})
+	case *DevicesResponse:
+		return printDevicesTable(v)
+	case *DeviceResponse:
+		return printDevicesTable(&DevicesResponse{Data: []Resource[DeviceAttributes]{v.Data}})
 	case *LocalizationDownloadResult:
 		return printLocalizationDownloadResultTable(v)
 	case *LocalizationUploadResult:
@@ -247,6 +265,8 @@ func PrintTable(data interface{}) error {
 		return printBundleIDDeleteResultTable(v)
 	case *BundleIDCapabilityDeleteResult:
 		return printBundleIDCapabilityDeleteResultTable(v)
+	case *CertificateRevokeResult:
+		return printCertificateRevokeResultTable(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultTable(v)
 	case *XcodeCloudStatusResult:

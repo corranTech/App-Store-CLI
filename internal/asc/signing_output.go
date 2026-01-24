@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -17,6 +18,12 @@ type BundleIDDeleteResult struct {
 type BundleIDCapabilityDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
+}
+
+// CertificateRevokeResult represents CLI output for certificate revocations.
+type CertificateRevokeResult struct {
+	ID      string `json:"id"`
+	Revoked bool   `json:"revoked"`
 }
 
 func printBundleIDsTable(resp *BundleIDsResponse) error {
@@ -109,6 +116,83 @@ func printBundleIDCapabilityDeleteResultMarkdown(result *BundleIDCapabilityDelet
 	return nil
 }
 
+func printCertificatesTable(resp *CertificatesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tName\tType\tExpiration\tSerial")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			item.ID,
+			compactWhitespace(certificateDisplayName(item.Attributes)),
+			item.Attributes.CertificateType,
+			item.Attributes.ExpirationDate,
+			item.Attributes.SerialNumber,
+		)
+	}
+	return w.Flush()
+}
+
+func printCertificatesMarkdown(resp *CertificatesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Name | Type | Expiration | Serial |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
+			item.ID,
+			escapeMarkdown(certificateDisplayName(item.Attributes)),
+			escapeMarkdown(item.Attributes.CertificateType),
+			escapeMarkdown(item.Attributes.ExpirationDate),
+			escapeMarkdown(item.Attributes.SerialNumber),
+		)
+	}
+	return nil
+}
+
+func printDevicesTable(resp *DevicesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tName\tUDID\tPlatform\tStatus")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			item.ID,
+			compactWhitespace(item.Attributes.Name),
+			item.Attributes.UDID,
+			item.Attributes.Platform,
+			item.Attributes.Status,
+		)
+	}
+	return w.Flush()
+}
+
+func printDevicesMarkdown(resp *DevicesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Name | UDID | Platform | Status |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
+			item.ID,
+			escapeMarkdown(item.Attributes.Name),
+			escapeMarkdown(item.Attributes.UDID),
+			escapeMarkdown(string(item.Attributes.Platform)),
+			escapeMarkdown(item.Attributes.Status),
+		)
+	}
+	return nil
+}
+
+func printCertificateRevokeResultTable(result *CertificateRevokeResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tRevoked")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Revoked)
+	return w.Flush()
+}
+
+func printCertificateRevokeResultMarkdown(result *CertificateRevokeResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Revoked |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Revoked,
+	)
+	return nil
+}
+
 func formatCapabilitySettings(settings []CapabilitySetting) string {
 	if len(settings) == 0 {
 		return ""
@@ -118,4 +202,11 @@ func formatCapabilitySettings(settings []CapabilitySetting) string {
 		return ""
 	}
 	return sanitizeTerminal(string(payload))
+}
+
+func certificateDisplayName(attrs CertificateAttributes) string {
+	if strings.TrimSpace(attrs.DisplayName) != "" {
+		return attrs.DisplayName
+	}
+	return attrs.Name
 }

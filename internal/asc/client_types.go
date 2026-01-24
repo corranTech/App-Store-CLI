@@ -10,6 +10,7 @@ const (
 	ResourceTypeBuilds                       ResourceType = "builds"
 	ResourceTypeBuildUploads                 ResourceType = "buildUploads"
 	ResourceTypeBuildUploadFiles             ResourceType = "buildUploadFiles"
+	ResourceTypeCertificates                 ResourceType = "certificates"
 	ResourceTypeAppStoreVersions             ResourceType = "appStoreVersions"
 	ResourceTypePreReleaseVersions           ResourceType = "preReleaseVersions"
 	ResourceTypeAppStoreVersionSubmissions   ResourceType = "appStoreVersionSubmissions"
@@ -25,6 +26,7 @@ const (
 	ResourceTypeAnalyticsReports             ResourceType = "analyticsReports"
 	ResourceTypeAnalyticsReportInstances     ResourceType = "analyticsReportInstances"
 	ResourceTypeAnalyticsReportSegments      ResourceType = "analyticsReportSegments"
+	ResourceTypeDevices                      ResourceType = "devices"
 )
 
 // Resource is a generic ASC API resource wrapper.

@@ -69,6 +69,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaTestersResponse{Links: Links{}}
 	case *BundleIDCapabilitiesResponse:
 		result = &BundleIDCapabilitiesResponse{Links: Links{}}
+	case *CertificatesResponse:
+		result = &CertificatesResponse{Links: Links{}}
+	case *DevicesResponse:
+		result = &DevicesResponse{Links: Links{}}
 	case *SandboxTestersResponse:
 		result = &SandboxTestersResponse{Links: Links{}}
 	case *AnalyticsReportRequestsResponse:
@@ -115,6 +119,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 			result.(*BetaTestersResponse).Data = append(result.(*BetaTestersResponse).Data, p.Data...)
 		case *BundleIDCapabilitiesResponse:
 			result.(*BundleIDCapabilitiesResponse).Data = append(result.(*BundleIDCapabilitiesResponse).Data, p.Data...)
+		case *CertificatesResponse:
+			result.(*CertificatesResponse).Data = append(result.(*CertificatesResponse).Data, p.Data...)
+		case *DevicesResponse:
+			result.(*DevicesResponse).Data = append(result.(*DevicesResponse).Data, p.Data...)
 		case *SandboxTestersResponse:
 			result.(*SandboxTestersResponse).Data = append(result.(*SandboxTestersResponse).Data, p.Data...)
 		case *AnalyticsReportRequestsResponse:
@@ -183,6 +191,10 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaTestersResponse"
 	case *BundleIDCapabilitiesResponse:
 		return "BundleIDCapabilitiesResponse"
+	case *CertificatesResponse:
+		return "CertificatesResponse"
+	case *DevicesResponse:
+		return "DevicesResponse"
 	case *SandboxTestersResponse:
 		return "SandboxTestersResponse"
 	case *AnalyticsReportRequestsResponse:
