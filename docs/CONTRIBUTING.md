@@ -42,3 +42,27 @@ git diff        # Review changes before staging
 ## Releases
 
 Tag releases with plain semver like `0.1.0` (no `v` prefix).
+
+### Pre-Release Checklist
+
+Before tagging a release, verify:
+
+```bash
+# 1. All tests pass
+make test
+
+# 2. Audit help output for all parent commands
+for cmd in auth analytics finance apps testflight builds versions \
+           pre-release-versions localizations build-localizations \
+           beta-groups beta-testers sandbox submit xcode-cloud reviews; do
+  echo "=== $cmd ===" && ./asc $cmd --help 2>&1
+done
+
+# 3. Check for duplicate sections (should see SUBCOMMANDS only once per command)
+# 4. Verify bold formatting renders correctly
+```
+
+**Common issues to check:**
+- No duplicate "Subcommands:" sections (don't list subcommands in LongHelp; DefaultUsageFunc handles it)
+- All flags have descriptions
+- Examples are up to date
