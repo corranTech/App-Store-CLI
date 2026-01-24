@@ -99,6 +99,14 @@ type betaTestersQuery struct {
 	filterBuilds string
 }
 
+type bundleIDsQuery struct {
+	listQuery
+}
+
+type bundleIDCapabilitiesQuery struct {
+	listQuery
+}
+
 func buildReviewQuery(opts []ReviewOption) string {
 	query := &reviewQuery{}
 	for _, opt := range opts {
@@ -206,6 +214,18 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
 		values.Set("filter[email]", strings.TrimSpace(query.email))
 	}
 	addCSV(values, "filter[betaGroups]", query.groupIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBundleIDsQuery(query *bundleIDsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBundleIDCapabilitiesQuery(query *bundleIDCapabilitiesQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

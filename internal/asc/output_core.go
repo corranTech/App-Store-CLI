@@ -31,6 +31,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAppsMarkdown(v)
 	case *AppResponse:
 		return printAppsMarkdown(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *BundleIDsResponse:
+		return printBundleIDsMarkdown(v)
+	case *BundleIDResponse:
+		return printBundleIDsMarkdown(&BundleIDsResponse{Data: []Resource[BundleIDAttributes]{v.Data}})
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
 	case *AppStoreVersionsResponse:
@@ -59,6 +63,10 @@ func PrintMarkdown(data interface{}) error {
 		return printSandboxTestersMarkdown(v)
 	case *SandboxTesterResponse:
 		return printSandboxTestersMarkdown(&SandboxTestersResponse{Data: []Resource[SandboxTesterAttributes]{v.Data}})
+	case *BundleIDCapabilitiesResponse:
+		return printBundleIDCapabilitiesMarkdown(v)
+	case *BundleIDCapabilityResponse:
+		return printBundleIDCapabilitiesMarkdown(&BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}})
 	case *LocalizationDownloadResult:
 		return printLocalizationDownloadResultMarkdown(v)
 	case *LocalizationUploadResult:
@@ -111,6 +119,10 @@ func PrintMarkdown(data interface{}) error {
 		return printSandboxTesterDeleteResultMarkdown(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultMarkdown(v)
+	case *BundleIDDeleteResult:
+		return printBundleIDDeleteResultMarkdown(v)
+	case *BundleIDCapabilityDeleteResult:
+		return printBundleIDCapabilityDeleteResultMarkdown(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultMarkdown(v)
 	case *XcodeCloudStatusResult:
@@ -143,6 +155,10 @@ func PrintTable(data interface{}) error {
 		return printAppsTable(v)
 	case *AppResponse:
 		return printAppsTable(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *BundleIDsResponse:
+		return printBundleIDsTable(v)
+	case *BundleIDResponse:
+		return printBundleIDsTable(&BundleIDsResponse{Data: []Resource[BundleIDAttributes]{v.Data}})
 	case *BuildsResponse:
 		return printBuildsTable(v)
 	case *AppStoreVersionsResponse:
@@ -171,6 +187,10 @@ func PrintTable(data interface{}) error {
 		return printSandboxTestersTable(v)
 	case *SandboxTesterResponse:
 		return printSandboxTestersTable(&SandboxTestersResponse{Data: []Resource[SandboxTesterAttributes]{v.Data}})
+	case *BundleIDCapabilitiesResponse:
+		return printBundleIDCapabilitiesTable(v)
+	case *BundleIDCapabilityResponse:
+		return printBundleIDCapabilitiesTable(&BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}})
 	case *LocalizationDownloadResult:
 		return printLocalizationDownloadResultTable(v)
 	case *LocalizationUploadResult:
@@ -223,6 +243,10 @@ func PrintTable(data interface{}) error {
 		return printSandboxTesterDeleteResultTable(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultTable(v)
+	case *BundleIDDeleteResult:
+		return printBundleIDDeleteResultTable(v)
+	case *BundleIDCapabilityDeleteResult:
+		return printBundleIDCapabilityDeleteResultTable(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultTable(v)
 	case *XcodeCloudStatusResult:

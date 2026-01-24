@@ -51,6 +51,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &ReviewsResponse{Links: Links{}}
 	case *AppsResponse:
 		result = &AppsResponse{Links: Links{}}
+	case *BundleIDsResponse:
+		result = &BundleIDsResponse{Links: Links{}}
 	case *BuildsResponse:
 		result = &BuildsResponse{Links: Links{}}
 	case *AppStoreVersionsResponse:
@@ -65,6 +67,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaGroupsResponse{Links: Links{}}
 	case *BetaTestersResponse:
 		result = &BetaTestersResponse{Links: Links{}}
+	case *BundleIDCapabilitiesResponse:
+		result = &BundleIDCapabilitiesResponse{Links: Links{}}
 	case *SandboxTestersResponse:
 		result = &SandboxTestersResponse{Links: Links{}}
 	case *AnalyticsReportRequestsResponse:
@@ -93,6 +97,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 			result.(*ReviewsResponse).Data = append(result.(*ReviewsResponse).Data, p.Data...)
 		case *AppsResponse:
 			result.(*AppsResponse).Data = append(result.(*AppsResponse).Data, p.Data...)
+		case *BundleIDsResponse:
+			result.(*BundleIDsResponse).Data = append(result.(*BundleIDsResponse).Data, p.Data...)
 		case *BuildsResponse:
 			result.(*BuildsResponse).Data = append(result.(*BuildsResponse).Data, p.Data...)
 		case *AppStoreVersionsResponse:
@@ -107,6 +113,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 			result.(*BetaGroupsResponse).Data = append(result.(*BetaGroupsResponse).Data, p.Data...)
 		case *BetaTestersResponse:
 			result.(*BetaTestersResponse).Data = append(result.(*BetaTestersResponse).Data, p.Data...)
+		case *BundleIDCapabilitiesResponse:
+			result.(*BundleIDCapabilitiesResponse).Data = append(result.(*BundleIDCapabilitiesResponse).Data, p.Data...)
 		case *SandboxTestersResponse:
 			result.(*SandboxTestersResponse).Data = append(result.(*SandboxTestersResponse).Data, p.Data...)
 		case *AnalyticsReportRequestsResponse:
@@ -157,6 +165,8 @@ func typeOf(p PaginatedResponse) string {
 		return "ReviewsResponse"
 	case *AppsResponse:
 		return "AppsResponse"
+	case *BundleIDsResponse:
+		return "BundleIDsResponse"
 	case *BuildsResponse:
 		return "BuildsResponse"
 	case *AppStoreVersionsResponse:
@@ -171,6 +181,8 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaGroupsResponse"
 	case *BetaTestersResponse:
 		return "BetaTestersResponse"
+	case *BundleIDCapabilitiesResponse:
+		return "BundleIDCapabilitiesResponse"
 	case *SandboxTestersResponse:
 		return "SandboxTestersResponse"
 	case *AnalyticsReportRequestsResponse:

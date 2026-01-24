@@ -2295,3 +2295,230 @@ func TestResolveGitReferenceByName_NoMatch(t *testing.T) {
 		t.Fatalf("expected no git reference named error, got %v", err)
 	}
 }
+
+func TestGetBundleIDs_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds" {
+			t.Fatalf("expected path /v1/bundleIds, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleIDs(context.Background(), WithBundleIDsLimit(10)); err != nil {
+		t.Fatalf("GetBundleIDs() error: %v", err)
+	}
+}
+
+func TestGetBundleIDs_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/bundleIds?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleIDs(context.Background(), WithBundleIDsNextURL(next)); err != nil {
+		t.Fatalf("GetBundleIDs() error: %v", err)
+	}
+}
+
+func TestGetBundleID_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds/b1" {
+			t.Fatalf("expected path /v1/bundleIds/b1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleID(context.Background(), "b1"); err != nil {
+		t.Fatalf("GetBundleID() error: %v", err)
+	}
+}
+
+func TestCreateBundleID_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds" {
+			t.Fatalf("expected path /v1/bundleIds, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BundleIDCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeBundleIds {
+			t.Fatalf("expected type bundleIds, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.Identifier != "com.example.demo" {
+			t.Fatalf("expected identifier com.example.demo, got %q", payload.Data.Attributes.Identifier)
+		}
+		if payload.Data.Attributes.Platform != PlatformIOS {
+			t.Fatalf("expected platform IOS, got %q", payload.Data.Attributes.Platform)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := BundleIDCreateAttributes{
+		Name:       "Demo",
+		Identifier: "com.example.demo",
+		Platform:   PlatformIOS,
+	}
+	if _, err := client.CreateBundleID(context.Background(), attrs); err != nil {
+		t.Fatalf("CreateBundleID() error: %v", err)
+	}
+}
+
+func TestUpdateBundleID_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Updated","identifier":"com.example.demo","platform":"IOS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds/b1" {
+			t.Fatalf("expected path /v1/bundleIds/b1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BundleIDUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeBundleIds {
+			t.Fatalf("expected type bundleIds, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "b1" {
+			t.Fatalf("expected id b1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.Name != "Updated" {
+			t.Fatalf("expected name Updated, got %v", payload.Data.Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := BundleIDUpdateAttributes{Name: "Updated"}
+	if _, err := client.UpdateBundleID(context.Background(), "b1", attrs); err != nil {
+		t.Fatalf("UpdateBundleID() error: %v", err)
+	}
+}
+
+func TestDeleteBundleID_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds/b1" {
+			t.Fatalf("expected path /v1/bundleIds/b1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteBundleID(context.Background(), "b1"); err != nil {
+		t.Fatalf("DeleteBundleID() error: %v", err)
+	}
+}
+
+func TestGetBundleIDCapabilities_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"ICLOUD"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds/b1/bundleIdCapabilities" {
+			t.Fatalf("expected path /v1/bundleIds/b1/bundleIdCapabilities, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleIDCapabilities(context.Background(), "b1"); err != nil {
+		t.Fatalf("GetBundleIDCapabilities() error: %v", err)
+	}
+}
+
+func TestCreateBundleIDCapability_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"ICLOUD"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIdCapabilities" {
+			t.Fatalf("expected path /v1/bundleIdCapabilities, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BundleIDCapabilityCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeBundleIdCapabilities {
+			t.Fatalf("expected type bundleIdCapabilities, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.CapabilityType != "ICLOUD" {
+			t.Fatalf("expected capability ICLOUD, got %q", payload.Data.Attributes.CapabilityType)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.BundleID == nil {
+			t.Fatalf("expected bundleId relationship")
+		}
+		if payload.Data.Relationships.BundleID.Data.ID != "b1" {
+			t.Fatalf("expected bundleId b1, got %q", payload.Data.Relationships.BundleID.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	enabled := true
+	attrs := BundleIDCapabilityCreateAttributes{
+		CapabilityType: "ICLOUD",
+		Settings: []CapabilitySetting{
+			{
+				Key: "ICLOUD_VERSION",
+				Options: []CapabilityOption{
+					{Key: "XCODE_13", Enabled: &enabled},
+				},
+			},
+		},
+	}
+	if _, err := client.CreateBundleIDCapability(context.Background(), "b1", attrs); err != nil {
+		t.Fatalf("CreateBundleIDCapability() error: %v", err)
+	}
+}
+
+func TestDeleteBundleIDCapability_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIdCapabilities/cap1" {
+			t.Fatalf("expected path /v1/bundleIdCapabilities/cap1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteBundleIDCapability(context.Background(), "cap1"); err != nil {
+		t.Fatalf("DeleteBundleIDCapability() error: %v", err)
+	}
+}

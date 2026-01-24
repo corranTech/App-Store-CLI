@@ -35,6 +35,12 @@ type BetaGroupTestersOption func(*betaGroupTestersQuery)
 // BetaTestersOption is a functional option for GetBetaTesters.
 type BetaTestersOption func(*betaTestersQuery)
 
+// BundleIDsOption is a functional option for GetBundleIDs.
+type BundleIDsOption func(*bundleIDsQuery)
+
+// BundleIDCapabilitiesOption is a functional option for GetBundleIDCapabilities.
+type BundleIDCapabilitiesOption func(*bundleIDCapabilitiesQuery)
+
 // AppStoreVersionLocalizationsOption is a functional option for version localizations.
 type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
 
@@ -496,6 +502,42 @@ func WithBetaTestersGroupIDs(ids []string) BetaTestersOption {
 func WithBetaTestersBuildID(buildID string) BetaTestersOption {
 	return func(q *betaTestersQuery) {
 		q.filterBuilds = strings.TrimSpace(buildID)
+	}
+}
+
+// WithBundleIDsLimit sets the max number of bundle IDs to return.
+func WithBundleIDsLimit(limit int) BundleIDsOption {
+	return func(q *bundleIDsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBundleIDsNextURL uses a next page URL directly.
+func WithBundleIDsNextURL(next string) BundleIDsOption {
+	return func(q *bundleIDsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBundleIDCapabilitiesLimit sets the max number of capabilities to return.
+func WithBundleIDCapabilitiesLimit(limit int) BundleIDCapabilitiesOption {
+	return func(q *bundleIDCapabilitiesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBundleIDCapabilitiesNextURL uses a next page URL directly.
+func WithBundleIDCapabilitiesNextURL(next string) BundleIDCapabilitiesOption {
+	return func(q *bundleIDCapabilitiesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 
