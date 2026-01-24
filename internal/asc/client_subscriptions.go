@@ -294,29 +294,6 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 	return &response, nil
 }
 
-// DeleteSubscriptionPrice deletes a subscription price.
-func (c *Client) DeleteSubscriptionPrice(ctx context.Context, priceID string) error {
-	path := fmt.Sprintf("/v1/subscriptionPrices/%s", strings.TrimSpace(priceID))
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
-}
-
-// GetSubscriptionAvailability retrieves a subscription availability by ID.
-func (c *Client) GetSubscriptionAvailability(ctx context.Context, availabilityID string) (*SubscriptionAvailabilityResponse, error) {
-	path := fmt.Sprintf("/v1/subscriptionAvailabilities/%s", strings.TrimSpace(availabilityID))
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionAvailabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // CreateSubscriptionAvailability sets subscription availability in territories.
 func (c *Client) CreateSubscriptionAvailability(ctx context.Context, subID string, territoryIDs []string, attrs SubscriptionAvailabilityAttributes) (*SubscriptionAvailabilityResponse, error) {
 	subID = strings.TrimSpace(subID)
