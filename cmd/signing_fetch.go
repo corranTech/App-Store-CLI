@@ -316,15 +316,16 @@ func extractIDs[T any](items []asc.Resource[T]) []string {
 }
 
 func safeFileName(value, fallback string) string {
-	clean := strings.TrimSpace(value)
-	if clean == "" {
-		clean = fallback
+	sanitize := func(input string) string {
+		clean := strings.TrimSpace(input)
+		clean = strings.ReplaceAll(clean, "/", "_")
+		clean = strings.ReplaceAll(clean, "\\", "_")
+		return strings.Trim(clean, ". ")
 	}
-	clean = strings.ReplaceAll(clean, "/", "_")
-	clean = strings.ReplaceAll(clean, "\\", "_")
-	clean = strings.Trim(clean, ". ")
+
+	clean := sanitize(value)
 	if clean == "" || clean == "." || clean == ".." {
-		return fallback
+		clean = sanitize(fallback)
 	}
 	return clean
 }
