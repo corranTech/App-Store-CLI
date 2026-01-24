@@ -2,6 +2,7 @@ package asc
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestExecuteUploadOperations_UploadsSlices(t *testing.T) {
@@ -146,6 +149,95 @@ func TestExecuteUploadOperations_FailsOnInvalidRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected range validation error")
 	}
+}
+
+func TestExecuteUploadOperations_CancelsDuringDispatch(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "app.ipa")
+	if err := os.WriteFile(filePath, []byte("abcdefghij"), 0600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	started := make(chan struct{})
+	var startedOnce sync.Once
+	var op1Seen int32
+
+	client := &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/op0":
+				startedOnce.Do(func() { close(started) })
+				<-req.Context().Done()
+				return nil, req.Context().Err()
+			case "/op1":
+				atomic.StoreInt32(&op1Seen, 1)
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Status:     "200 OK",
+					Body:       io.NopCloser(strings.NewReader("")),
+					Header:     make(http.Header),
+				}, nil
+			default:
+				return nil, errors.New("unexpected request path: " + req.URL.Path)
+			}
+		}),
+	}
+
+	ops := []UploadOperation{
+		{
+			Method: "PUT",
+			URL:    "https://example.test/op0",
+			Length: 5,
+			Offset: 0,
+		},
+		{
+			Method: "PUT",
+			URL:    "https://example.test/op1",
+			Length: 5,
+			Offset: 5,
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- ExecuteUploadOperations(ctx, filePath, ops,
+			WithUploadConcurrency(1),
+			WithUploadHTTPClient(client),
+		)
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for upload dispatch")
+	}
+
+	cancel()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatalf("expected cancellation error")
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context canceled error, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for cancellation")
+	}
+
+	if atomic.LoadInt32(&op1Seen) != 0 {
+		t.Fatalf("unexpected upload dispatch after cancellation")
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func TestComputeFileChecksum_MD5(t *testing.T) {
