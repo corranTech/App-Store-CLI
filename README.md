@@ -188,6 +188,18 @@ asc reviews --app "123456789" --sort -createdDate --limit 5
 
 # Fetch all reviews pages automatically (AI agents)
 asc reviews --app "123456789" --paginate
+
+# Respond to a customer review
+asc reviews respond --review-id "REVIEW_ID" --response "Thanks for your feedback!"
+
+# Get a review response by ID
+asc reviews response get --id "RESPONSE_ID"
+
+# Get the response for a specific review
+asc reviews response for-review --review-id "REVIEW_ID"
+
+# Delete a review response
+asc reviews response delete --id "RESPONSE_ID" --confirm
 ```
 
 ### Analytics & Sales
