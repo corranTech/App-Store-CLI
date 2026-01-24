@@ -21,7 +21,7 @@ func BuildsUploadCommand() *ffcli.Command {
 	version := fs.String("version", "", "CFBundleShortVersionString (e.g., 1.0.0, auto-extracted from IPA if not provided)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (e.g., 123, auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
-	doUpload := fs.Bool("upload", false, "Upload IPA to presigned URLs and commit the upload")
+	dryRun := fs.Bool("dry-run", false, "Reserve upload operations without uploading the file")
 	concurrency := fs.Int("concurrency", 1, "Upload concurrency (default 1)")
 	verifyChecksum := fs.Bool("checksum", false, "Verify upload checksums if provided by API")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
@@ -30,17 +30,16 @@ func BuildsUploadCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "upload",
 		ShortUsage: "asc builds upload [flags]",
-		ShortHelp:  "Prepare or upload a build in App Store Connect.",
-		LongHelp: `Prepare or upload a build in App Store Connect.
+		ShortHelp:  "Upload a build to App Store Connect.",
+		LongHelp: `Upload a build to App Store Connect.
 
-By default, this command creates a build upload record and reserves upload
-operations with presigned URLs. Use --upload to perform the actual upload
-and commit the file.
+By default, this command uploads the IPA to the presigned URLs and commits
+the file. Use --dry-run to only reserve the upload operations.
 
 Examples:
   asc builds upload --app "123456789" --ipa "path/to/app.ipa"
   asc builds upload --ipa "app.ipa" --version "1.0.0" --build-number "123"
-  asc builds upload --app "123456789" --ipa "app.ipa" --upload`,
+  asc builds upload --app "123456789" --ipa "app.ipa" --dry-run`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -71,12 +70,12 @@ Examples:
 			default:
 				return fmt.Errorf("builds upload: --platform must be IOS, MAC_OS, TV_OS, or VISION_OS")
 			}
-			if !*doUpload {
+			if *dryRun {
 				if *concurrency != 1 {
-					return fmt.Errorf("builds upload: --concurrency requires --upload")
+					return fmt.Errorf("builds upload: --concurrency is not supported with --dry-run")
 				}
 				if *verifyChecksum {
-					return fmt.Errorf("builds upload: --checksum requires --upload")
+					return fmt.Errorf("builds upload: --checksum is not supported with --dry-run")
 				}
 			} else if *concurrency < 1 {
 				return fmt.Errorf("builds upload: --concurrency must be at least 1")
@@ -179,7 +178,7 @@ Examples:
 				Operations: fileResp.Data.Attributes.UploadOperations,
 			}
 
-			if *doUpload {
+			if !*dryRun {
 				if len(fileResp.Data.Attributes.UploadOperations) == 0 {
 					return fmt.Errorf("builds upload: no upload operations returned")
 				}
