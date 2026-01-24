@@ -3709,6 +3709,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionDetailMarkdown(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildMarkdown(v)
+	case *AppStoreVersionPhasedReleaseResponse:
+		return printAppStoreVersionPhasedReleaseMarkdown(v)
+	case *AppStoreVersionPhasedReleaseDeleteResult:
+		return printAppStoreVersionPhasedReleaseDeleteResultMarkdown(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateMarkdown(v)
 	case *BetaTesterDeleteResult:
@@ -3817,6 +3821,10 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionDetailTable(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildTable(v)
+	case *AppStoreVersionPhasedReleaseResponse:
+		return printAppStoreVersionPhasedReleaseTable(v)
+	case *AppStoreVersionPhasedReleaseDeleteResult:
+		return printAppStoreVersionPhasedReleaseDeleteResultTable(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateTable(v)
 	case *BetaTesterDeleteResult:
@@ -4441,6 +4449,26 @@ func printAppStoreVersionAttachBuildTable(result *AppStoreVersionAttachBuildResu
 	return w.Flush()
 }
 
+func printAppStoreVersionPhasedReleaseTable(resp *AppStoreVersionPhasedReleaseResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tState\tStart Date\tTotal Pause Duration\tCurrent Day")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\n",
+		resp.Data.ID,
+		resp.Data.Attributes.PhasedReleaseState,
+		resp.Data.Attributes.StartDate,
+		resp.Data.Attributes.TotalPauseDuration,
+		resp.Data.Attributes.CurrentDayNumber,
+	)
+	return w.Flush()
+}
+
+func printAppStoreVersionPhasedReleaseDeleteResultTable(result *AppStoreVersionPhasedReleaseDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
+	return w.Flush()
+}
+
 func printBuildBetaGroupsUpdateTable(result *BuildBetaGroupsUpdateResult) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "Build ID\tGroup IDs\tAction")
@@ -4557,6 +4585,29 @@ func printAppStoreVersionAttachBuildMarkdown(result *AppStoreVersionAttachBuildR
 		escapeMarkdown(result.VersionID),
 		escapeMarkdown(result.BuildID),
 		result.Attached,
+	)
+	return nil
+}
+
+func printAppStoreVersionPhasedReleaseMarkdown(resp *AppStoreVersionPhasedReleaseResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | State | Start Date | Total Pause Duration | Current Day |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %d |\n",
+		escapeMarkdown(resp.Data.ID),
+		escapeMarkdown(string(resp.Data.Attributes.PhasedReleaseState)),
+		escapeMarkdown(resp.Data.Attributes.StartDate),
+		resp.Data.Attributes.TotalPauseDuration,
+		resp.Data.Attributes.CurrentDayNumber,
+	)
+	return nil
+}
+
+func printAppStoreVersionPhasedReleaseDeleteResultMarkdown(result *AppStoreVersionPhasedReleaseDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Deleted,
 	)
 	return nil
 }
