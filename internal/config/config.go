@@ -41,6 +41,11 @@ func configPath() (string, error) {
 	return filepath.Join(dir, configFileName), nil
 }
 
+// Path returns the configuration file path.
+func Path() (string, error) {
+	return configPath()
+}
+
 // Load loads the configuration from the config file
 func Load() (*Config, error) {
 	path, err := configPath()

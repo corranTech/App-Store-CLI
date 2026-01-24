@@ -163,6 +163,16 @@ func StoreCredentials(name, keyID, issuerID, keyPath string) error {
 	return storeInConfig(name, payload)
 }
 
+// StoreCredentialsConfig stores credentials in the config file only.
+func StoreCredentialsConfig(name, keyID, issuerID, keyPath string) error {
+	payload := credentialPayload{
+		KeyID:          keyID,
+		IssuerID:       issuerID,
+		PrivateKeyPath: keyPath,
+	}
+	return storeInConfig(name, payload)
+}
+
 // clearConfigCredentials clears credentials from the config file.
 // This is called after successfully migrating to keychain storage.
 func clearConfigCredentials() error {

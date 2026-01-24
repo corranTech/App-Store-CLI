@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestConfigSaveLoadRemove(t *testing.T) {
 	tempDir := t.TempDir()
@@ -50,5 +53,20 @@ func TestLoadMissingConfig(t *testing.T) {
 
 	if _, err := Load(); err != ErrNotFound {
 		t.Fatalf("expected ErrNotFound for missing config, got %v", err)
+	}
+}
+
+func TestConfigPath(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("HOME", tempDir)
+
+	path, err := Path()
+	if err != nil {
+		t.Fatalf("Path() error: %v", err)
+	}
+
+	expected := filepath.Join(tempDir, ".asc", "config.json")
+	if path != expected {
+		t.Fatalf("Path() mismatch: got %q want %q", path, expected)
 	}
 }

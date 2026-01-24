@@ -46,6 +46,17 @@ asc auth login \
   --key-id "ABC123" \
   --issuer-id "DEF456" \
   --private-key /path/to/AuthKey.p8
+
+# Create a template config.json (no secrets)
+asc auth init
+
+# Store credentials in config.json (skip keychain)
+asc auth login \
+  --storage config \
+  --name "MyApp" \
+  --key-id "ABC123" \
+  --issuer-id "DEF456" \
+  --private-key /path/to/AuthKey.p8
 ```
 
 Generate API keys at: https://appstoreconnect.apple.com/access/integrations/api

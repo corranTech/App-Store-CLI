@@ -13,6 +13,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
 // ANSI escape codes for bold text
@@ -131,7 +132,10 @@ func getASCClient() (*asc.Client, error) {
 	}
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
-		return nil, fmt.Errorf("missing authentication. Run 'asc auth login'")
+		if path, err := config.Path(); err == nil {
+			return nil, fmt.Errorf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)
+		}
+		return nil, fmt.Errorf("missing authentication. Run 'asc auth login' or 'asc auth init'")
 	}
 
 	return asc.NewClient(actualKeyID, actualIssuerID, actualKeyPath)
