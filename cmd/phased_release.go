@@ -39,8 +39,8 @@ Phased release gradually rolls out your app update over 7 days:
 You can pause, resume, or complete the rollout at any time.
 
 Examples:
-  asc versions phased-release get --version "VERSION_ID"
-  asc versions phased-release create --version "VERSION_ID"
+  asc versions phased-release get --version-id "VERSION_ID"
+  asc versions phased-release create --version-id "VERSION_ID"
   asc versions phased-release update --id "PHASED_ID" --state PAUSED
   asc versions phased-release delete --id "PHASED_ID" --confirm`,
 		UsageFunc: DefaultUsageFunc,
@@ -60,7 +60,7 @@ Examples:
 func PhasedReleaseGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("phased-release get", flag.ExitOnError)
 
-	versionID := fs.String("version", "", "App Store version ID (required)")
+	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -71,13 +71,13 @@ func PhasedReleaseGetCommand() *ffcli.Command {
 		LongHelp: `Get phased release status for an app store version.
 
 Examples:
-  asc versions phased-release get --version "VERSION_ID"`,
+  asc versions phased-release get --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version is required")
+				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return flag.ErrHelp
 			}
 
@@ -103,7 +103,7 @@ Examples:
 func PhasedReleaseCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("phased-release create", flag.ExitOnError)
 
-	versionID := fs.String("version", "", "App Store version ID (required)")
+	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	state := fs.String("state", "", "Initial state: INACTIVE, ACTIVE (optional, defaults to INACTIVE)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
@@ -118,14 +118,14 @@ The phased release will start when the app is released to the App Store.
 Use --state ACTIVE to start immediately, or leave empty to start as INACTIVE.
 
 Examples:
-  asc versions phased-release create --version "VERSION_ID"
-  asc versions phased-release create --version "VERSION_ID" --state ACTIVE`,
+  asc versions phased-release create --version-id "VERSION_ID"
+  asc versions phased-release create --version-id "VERSION_ID" --state ACTIVE`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version is required")
+				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return flag.ErrHelp
 			}
 

@@ -420,6 +420,12 @@ asc versions get --version-id "VERSION_ID"
 
 # Attach a build to a version
 asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
+
+# Manage phased release
+asc versions phased-release get --version-id "VERSION_ID"
+asc versions phased-release create --version-id "VERSION_ID"
+asc versions phased-release update --id "PHASED_ID" --state PAUSED
+asc versions phased-release delete --id "PHASED_ID" --confirm
 ```
 
 ### Pre-Release Versions

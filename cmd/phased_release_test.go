@@ -37,7 +37,7 @@ func TestPhasedReleaseCreateCommand_MissingVersion(t *testing.T) {
 func TestPhasedReleaseCreateCommand_InvalidState(t *testing.T) {
 	cmd := PhasedReleaseCreateCommand()
 
-	if err := cmd.FlagSet.Parse([]string{"--version", "123", "--state", "INVALID"}); err != nil {
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "123", "--state", "INVALID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
@@ -54,7 +54,7 @@ func TestPhasedReleaseCreateCommand_ValidStates(t *testing.T) {
 		t.Run(state, func(t *testing.T) {
 			cmd := PhasedReleaseCreateCommand()
 
-			if err := cmd.FlagSet.Parse([]string{"--version", "123", "--state", state}); err != nil {
+			if err := cmd.FlagSet.Parse([]string{"--version-id", "123", "--state", state}); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
@@ -155,7 +155,7 @@ func TestPhasedReleaseDeleteCommand_MissingConfirm(t *testing.T) {
 func TestPhasedReleaseCommand_FlagDefinitions(t *testing.T) {
 	// Test get command flags
 	getCmd := PhasedReleaseGetCommand()
-	expectedGetFlags := []string{"version", "output", "pretty"}
+	expectedGetFlags := []string{"version-id", "output", "pretty"}
 	for _, name := range expectedGetFlags {
 		if getCmd.FlagSet.Lookup(name) == nil {
 			t.Errorf("get: expected flag --%s to be defined", name)
@@ -164,7 +164,7 @@ func TestPhasedReleaseCommand_FlagDefinitions(t *testing.T) {
 
 	// Test create command flags
 	createCmd := PhasedReleaseCreateCommand()
-	expectedCreateFlags := []string{"version", "state", "output", "pretty"}
+	expectedCreateFlags := []string{"version-id", "state", "output", "pretty"}
 	for _, name := range expectedCreateFlags {
 		if createCmd.FlagSet.Lookup(name) == nil {
 			t.Errorf("create: expected flag --%s to be defined", name)
