@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestParseStringsContent(t *testing.T) {
@@ -84,5 +88,78 @@ func TestReadLocalizationStrings_RejectsSymlink(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "symlink") {
 		t.Fatalf("expected symlink error, got %v", err)
+	}
+}
+
+func TestWriteVersionLocalizationStrings_Paginated(t *testing.T) {
+	dir := t.TempDir()
+
+	makePage := func(locale, next string) *asc.AppStoreVersionLocalizationsResponse {
+		return &asc.AppStoreVersionLocalizationsResponse{
+			Data: []asc.Resource[asc.AppStoreVersionLocalizationAttributes]{
+				{
+					ID: "loc-" + locale,
+					Attributes: asc.AppStoreVersionLocalizationAttributes{
+						Locale:      locale,
+						Description: "Description " + locale,
+						WhatsNew:    "Bug fixes",
+					},
+				},
+			},
+			Links: asc.Links{Next: next},
+		}
+	}
+
+	firstPage := makePage("en-US", "page=2")
+	response, err := asc.PaginateAll(context.Background(), firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		if nextURL != "page=2" {
+			return nil, fmt.Errorf("unexpected next URL %q", nextURL)
+		}
+		return makePage("ja", ""), nil
+	})
+	if err != nil {
+		t.Fatalf("PaginateAll() error: %v", err)
+	}
+
+	aggregated, ok := response.(*asc.AppStoreVersionLocalizationsResponse)
+	if !ok {
+		t.Fatalf("expected AppStoreVersionLocalizationsResponse, got %T", response)
+	}
+	if len(aggregated.Data) != 2 {
+		t.Fatalf("expected 2 localizations, got %d", len(aggregated.Data))
+	}
+
+	files, err := writeVersionLocalizationStrings(dir, aggregated.Data)
+	if err != nil {
+		t.Fatalf("writeVersionLocalizationStrings() error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+
+	paths := map[string]string{}
+	for _, file := range files {
+		paths[file.Locale] = file.Path
+	}
+	for _, locale := range []string{"en-US", "ja"} {
+		path, ok := paths[locale]
+		if !ok {
+			t.Fatalf("expected locale %q in results", locale)
+		}
+		expectedPath := filepath.Join(dir, locale+".strings")
+		if path != expectedPath {
+			t.Fatalf("expected path %q for %q, got %q", expectedPath, locale, path)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read file error: %v", err)
+		}
+		content := string(data)
+		if !strings.Contains(content, "\"description\" = \"Description "+locale+"\";") {
+			t.Fatalf("expected description for %q, got %q", locale, content)
+		}
+		if !strings.Contains(content, "\"whatsNew\" = \"Bug fixes\";") {
+			t.Fatalf("expected whatsNew for %q, got %q", locale, content)
+		}
 	}
 }
