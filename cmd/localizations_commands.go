@@ -198,6 +198,7 @@ func LocalizationsDownloadCommand() *ffcli.Command {
 	path := fs.String("path", "localizations", "Output path (directory or .strings file)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -210,7 +211,8 @@ func LocalizationsDownloadCommand() *ffcli.Command {
 Examples:
   asc localizations download --version "VERSION_ID" --path "./localizations"
   asc localizations download --app "APP_ID" --type app-info --path "./localizations"
-  asc localizations download --version "VERSION_ID" --locale "en-US" --path "en-US.strings"`,
+  asc localizations download --version "VERSION_ID" --locale "en-US" --path "en-US.strings"
+  asc localizations download --version "VERSION_ID" --paginate --path "./localizations"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -249,6 +251,40 @@ Examples:
 				}
 				if len(locales) > 0 {
 					opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
+				}
+
+				if *paginate {
+					paginateOpts := append(opts, asc.WithAppStoreVersionLocalizationsLimit(200))
+					firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), paginateOpts...)
+					if err != nil {
+						return fmt.Errorf("localizations download: failed to fetch: %w", err)
+					}
+
+					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAppStoreVersionLocalizations(ctx, strings.TrimSpace(*versionID), asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+					})
+					if err != nil {
+						return fmt.Errorf("localizations download: %w", err)
+					}
+
+					aggregated, ok := resp.(*asc.AppStoreVersionLocalizationsResponse)
+					if !ok {
+						return fmt.Errorf("localizations download: unexpected pagination response type")
+					}
+
+					files, err := writeVersionLocalizationStrings(*path, aggregated.Data)
+					if err != nil {
+						return fmt.Errorf("localizations download: %w", err)
+					}
+
+					result := asc.LocalizationDownloadResult{
+						Type:       normalizedType,
+						VersionID:  strings.TrimSpace(*versionID),
+						OutputPath: *path,
+						Files:      files,
+					}
+
+					return printOutput(&result, *output, *pretty)
 				}
 
 				resp, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), opts...)
@@ -295,6 +331,41 @@ Examples:
 				}
 				if len(locales) > 0 {
 					opts = append(opts, asc.WithAppInfoLocalizationLocales(locales))
+				}
+
+				if *paginate {
+					paginateOpts := append(opts, asc.WithAppInfoLocalizationsLimit(200))
+					firstPage, err := client.GetAppInfoLocalizations(requestCtx, appInfo, paginateOpts...)
+					if err != nil {
+						return fmt.Errorf("localizations download: failed to fetch: %w", err)
+					}
+
+					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAppInfoLocalizations(ctx, appInfo, asc.WithAppInfoLocalizationsNextURL(nextURL))
+					})
+					if err != nil {
+						return fmt.Errorf("localizations download: %w", err)
+					}
+
+					aggregated, ok := resp.(*asc.AppInfoLocalizationsResponse)
+					if !ok {
+						return fmt.Errorf("localizations download: unexpected pagination response type")
+					}
+
+					files, err := writeAppInfoLocalizationStrings(*path, aggregated.Data)
+					if err != nil {
+						return fmt.Errorf("localizations download: %w", err)
+					}
+
+					result := asc.LocalizationDownloadResult{
+						Type:       normalizedType,
+						AppID:      resolvedAppID,
+						AppInfoID:  appInfo,
+						OutputPath: *path,
+						Files:      files,
+					}
+
+					return printOutput(&result, *output, *pretty)
 				}
 
 				resp, err := client.GetAppInfoLocalizations(requestCtx, appInfo, opts...)

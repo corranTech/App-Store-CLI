@@ -16,7 +16,7 @@ import (
 func AnalyticsSalesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("sales", flag.ExitOnError)
 
-	vendor := fs.String("vendor", "", "Vendor number (or ASC_VENDOR_NUMBER env)")
+	vendor := fs.String("vendor", "", "Vendor number (or ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER env)")
 	reportType := fs.String("type", "", "Report type: SALES, PRE_ORDER, NEWSSTAND, SUBSCRIPTION, SUBSCRIPTION_EVENT")
 	reportSubType := fs.String("subtype", "", "Report subtype: SUMMARY, DETAILED")
 	frequency := fs.String("frequency", "", "Frequency: DAILY, WEEKLY, MONTHLY, YEARLY")
@@ -43,7 +43,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			vendorNumber := resolveVendorNumber(*vendor)
 			if vendorNumber == "" {
-				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER)")
+				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER)")
 				return flag.ErrHelp
 			}
 			if strings.TrimSpace(*reportType) == "" {
