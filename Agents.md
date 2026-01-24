@@ -118,6 +118,11 @@ asc analytics requests --app "123456789" --paginate
 asc analytics get --request-id "REQUEST_ID" --date "2024-01-20" --paginate
 asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
 
+# Finance reports
+asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"
+asc finance reports --vendor "12345678" --report-type FINANCE_DETAIL --region "Z1" --date "2025-12" --decompress
+asc finance regions --output table
+
 # Apps & Builds - JSON for AI agents
 asc apps
 asc apps --sort name
@@ -245,6 +250,9 @@ Analytics & sales env:
 - Vendor number comes from Sales and Trends → Reports URL (`vendorNumber=...`)
 - Use `--paginate` with `asc analytics get --date` to avoid missing instances on later pages
 - Long analytics runs can require raising `ASC_TIMEOUT`
+- Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months
+- `FINANCE_DETAIL` reports require region code `Z1` (financial detail consolidated)
+- Region codes reference: https://developer.apple.com/help/app-store-connect/reference/financial-report-regions-and-currencies/
 
 ## Sandbox Testers Notes
 

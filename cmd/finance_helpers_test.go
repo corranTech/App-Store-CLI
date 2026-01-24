@@ -31,3 +31,26 @@ func TestNormalizeFinanceReportDate(t *testing.T) {
 		t.Fatal("expected error for invalid date")
 	}
 }
+
+func TestNormalizeFinanceReportRegion(t *testing.T) {
+	region, err := normalizeFinanceReportRegion("FINANCIAL", "us")
+	if err != nil {
+		t.Fatalf("expected region to parse, got %v", err)
+	}
+	if region != "US" {
+		t.Fatalf("expected region to be US, got %q", region)
+	}
+
+	region, err = normalizeFinanceReportRegion("FINANCE_DETAIL", "z1")
+	if err != nil {
+		t.Fatalf("expected Z1 to parse, got %v", err)
+	}
+	if region != "Z1" {
+		t.Fatalf("expected region to be Z1, got %q", region)
+	}
+
+	_, err = normalizeFinanceReportRegion("FINANCE_DETAIL", "US")
+	if err == nil {
+		t.Fatal("expected error for non-Z1 FINANCE_DETAIL region")
+	}
+}

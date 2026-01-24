@@ -234,12 +234,18 @@ Notes:
 asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"
 
 # Download detailed finance report and decompress
-asc finance reports --vendor "12345678" --report-type FINANCE_DETAIL --region "US" --date "2025-12" --decompress
+asc finance reports --vendor "12345678" --report-type FINANCE_DETAIL --region "Z1" --date "2025-12" --decompress
+
+# List finance report region codes and currencies
+asc finance regions --output table
 ```
 
 Notes:
 - Report date format: `YYYY-MM` (Apple fiscal month)
 - Reports typically appear the first Friday of the following fiscal month
+- Region codes are listed by Apple: https://developer.apple.com/help/app-store-connect/reference/financial-report-regions-and-currencies/
+- `FINANCE_DETAIL` reports require region code `Z1` (financial detail consolidated)
+- Use `asc finance regions` to list valid region codes and currencies
 - Requires Account Holder, Admin, or Finance role
 
 ### Sandbox Testers

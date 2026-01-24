@@ -26,11 +26,13 @@ Finance reports are monthly and available through the App Store Connect API.
 Requires Account Holder, Admin, or Finance role.
 
 Examples:
-  asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"`,
+  asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"
+  asc finance regions --output table`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			FinanceReportsCommand(),
+			FinanceRegionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -44,7 +46,7 @@ func FinanceReportsCommand() *ffcli.Command {
 
 	vendor := fs.String("vendor", "", "Vendor number (or ASC_VENDOR_NUMBER env)")
 	reportType := fs.String("report-type", "", "Report type: FINANCIAL or FINANCE_DETAIL")
-	region := fs.String("region", "", "Region code (e.g., US)")
+	region := fs.String("region", "", "Region code (e.g., US; use Z1 for FINANCE_DETAIL, see 'asc finance regions')")
 	date := fs.String("date", "", "Report date (YYYY-MM)")
 	output := fs.String("output", "", "Output file path (default: finance_report_{date}_{type}_{region}.tsv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .tsv")
@@ -61,7 +63,7 @@ Requires Account Holder, Admin, or Finance role.
 
 Examples:
   asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"
-  asc finance reports --vendor "12345678" --report-type FINANCE_DETAIL --region "US" --date "2025-12" --decompress
+  asc finance reports --vendor "12345678" --report-type FINANCE_DETAIL --region "Z1" --date "2025-12" --decompress
   asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12" --output "reports/finance.tsv.gz"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
@@ -92,8 +94,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("finance reports: %w", err)
 			}
-
-			regionCode := strings.ToUpper(strings.TrimSpace(*region))
+			regionCode, err := normalizeFinanceReportRegion(normalizedReportType, *region)
+			if err != nil {
+				return fmt.Errorf("finance reports: %w", err)
+			}
 			defaultOutput := fmt.Sprintf("finance_report_%s_%s_%s.tsv.gz", reportDate, string(normalizedReportType), regionCode)
 			compressedPath, decompressedPath := resolveReportOutputPaths(*output, defaultOutput, ".tsv", *decompress)
 
@@ -141,6 +145,33 @@ Examples:
 				DecompressedBytes: decompressedSize,
 			}
 
+			return printOutput(result, *outputFormat, *pretty)
+		},
+	}
+}
+
+// FinanceRegionsCommand lists finance report regions and currencies.
+func FinanceRegionsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("regions", flag.ExitOnError)
+
+	outputFormat := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "regions",
+		ShortUsage: "asc finance regions [flags]",
+		ShortHelp:  "List finance report region codes and currencies.",
+		LongHelp: `List finance report region codes and currencies.
+
+Source: https://developer.apple.com/help/app-store-connect/reference/financial-report-regions-and-currencies/
+
+Examples:
+  asc finance regions
+  asc finance regions --output table`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			result := &asc.FinanceRegionsResult{Regions: asc.FinanceRegions()}
 			return printOutput(result, *outputFormat, *pretty)
 		},
 	}

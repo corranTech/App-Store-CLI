@@ -31,3 +31,14 @@ func normalizeFinanceReportDate(value string) (string, error) {
 	}
 	return parsed.Format("2006-01"), nil
 }
+
+func normalizeFinanceReportRegion(reportType asc.FinanceReportType, value string) (string, error) {
+	regionCode := strings.ToUpper(strings.TrimSpace(value))
+	if regionCode == "" {
+		return "", fmt.Errorf("--region is required")
+	}
+	if reportType == asc.FinanceReportTypeFinanceDetail && regionCode != "Z1" {
+		return "", fmt.Errorf("--region must be Z1 for FINANCE_DETAIL reports")
+	}
+	return regionCode, nil
+}

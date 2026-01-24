@@ -3671,6 +3671,8 @@ func PrintMarkdown(data interface{}) error {
 		return printSalesReportResultMarkdown(v)
 	case *FinanceReportResult:
 		return printFinanceReportResultMarkdown(v)
+	case *FinanceRegionsResult:
+		return printFinanceRegionsMarkdown(v)
 	case *AnalyticsReportRequestResult:
 		return printAnalyticsReportRequestResultMarkdown(v)
 	case *AnalyticsReportRequestsResponse:
@@ -3773,6 +3775,8 @@ func PrintTable(data interface{}) error {
 		return printSalesReportResultTable(v)
 	case *FinanceReportResult:
 		return printFinanceReportResultTable(v)
+	case *FinanceRegionsResult:
+		return printFinanceRegionsTable(v)
 	case *AnalyticsReportRequestResult:
 		return printAnalyticsReportRequestResultTable(v)
 	case *AnalyticsReportRequestsResponse:
