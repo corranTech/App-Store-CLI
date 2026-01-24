@@ -111,6 +111,12 @@ asc reviews --app "123456789" --stars 1 --output table
 # App Store - Paginate all reviews
 asc reviews --app "123456789" --paginate
 
+# Review responses - respond to customer reviews
+asc reviews respond --review-id "REVIEW_ID" --response "Thanks for your feedback!"
+asc reviews response get --id "RESPONSE_ID"
+asc reviews response for-review --review-id "REVIEW_ID"
+asc reviews response delete --id "RESPONSE_ID" --confirm
+
 # Analytics
 asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequency DAILY --date "2024-01-20"
 asc analytics request --app "123456789" --access-type ONGOING
