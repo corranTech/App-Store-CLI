@@ -250,7 +250,8 @@ func inferCertificateType(profileType string) (string, error) {
 	case strings.Contains(normalized, "TVOS_APP_DEVELOPMENT"):
 		return "TVOS_DEVELOPMENT", nil
 	case strings.Contains(normalized, "TVOS_APP_STORE"),
-		strings.Contains(normalized, "TVOS_APP_ADHOC"):
+		strings.Contains(normalized, "TVOS_APP_ADHOC"),
+		strings.Contains(normalized, "TVOS_APP_INHOUSE"):
 		return "TVOS_DISTRIBUTION", nil
 	case strings.Contains(normalized, "MAC_APP_DEVELOPMENT"):
 		return "MAC_APP_DEVELOPMENT", nil
