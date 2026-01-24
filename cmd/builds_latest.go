@@ -80,15 +80,27 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
+			versionValue := strings.TrimSpace(*version)
+			platformValue := strings.TrimSpace(*platform)
+
 			// If version is specified, we need to find the preReleaseVersion ID first
 			var preReleaseVersionID string
-			if strings.TrimSpace(*version) != "" {
-				preReleaseVersionID, err = findPreReleaseVersionID(requestCtx, client, resolvedAppID, strings.TrimSpace(*version), strings.TrimSpace(*platform))
+			var preReleaseVersionIDs []string
+			if versionValue != "" {
+				preReleaseVersionID, err = findPreReleaseVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
 					return fmt.Errorf("builds latest: %w", err)
 				}
 				if preReleaseVersionID == "" {
 					return fmt.Errorf("builds latest: no pre-release version found for version %q", *version)
+				}
+			} else if platformValue != "" {
+				preReleaseVersionIDs, err = findPreReleaseVersionIDsByPlatform(requestCtx, client, resolvedAppID, platformValue)
+				if err != nil {
+					return fmt.Errorf("builds latest: %w", err)
+				}
+				if len(preReleaseVersionIDs) == 0 {
+					return fmt.Errorf("builds latest: no pre-release versions found for platform %q", *platform)
 				}
 			}
 
@@ -101,6 +113,8 @@ Examples:
 			// Add version filter if we found a preReleaseVersion ID
 			if preReleaseVersionID != "" {
 				opts = append(opts, asc.WithBuildsPreReleaseVersion(preReleaseVersionID))
+			} else if len(preReleaseVersionIDs) > 0 {
+				opts = append(opts, asc.WithBuildsPreReleaseVersion(strings.Join(preReleaseVersionIDs, ",")))
 			}
 
 			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
@@ -144,4 +158,34 @@ func findPreReleaseVersionID(ctx context.Context, client *asc.Client, appID, ver
 	}
 
 	return versions.Data[0].ID, nil
+}
+
+func findPreReleaseVersionIDsByPlatform(ctx context.Context, client *asc.Client, appID, platform string) ([]string, error) {
+	opts := []asc.PreReleaseVersionsOption{
+		asc.WithPreReleaseVersionsPlatform(platform),
+		asc.WithPreReleaseVersionsLimit(200),
+	}
+
+	firstPage, err := client.GetPreReleaseVersions(ctx, appID, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup pre-release versions: %w", err)
+	}
+
+	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetPreReleaseVersions(ctx, appID, asc.WithPreReleaseVersionsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to paginate pre-release versions: %w", err)
+	}
+
+	versions := allPages.(*asc.PreReleaseVersionsResponse)
+	ids := make([]string, 0, len(versions.Data))
+	for _, version := range versions.Data {
+		if strings.TrimSpace(version.ID) == "" {
+			continue
+		}
+		ids = append(ids, version.ID)
+	}
+
+	return ids, nil
 }
