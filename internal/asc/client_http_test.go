@@ -2760,3 +2760,127 @@ func TestUpdateDevice_SendsRequest(t *testing.T) {
 		t.Fatalf("UpdateDevice() error: %v", err)
 	}
 }
+
+func TestGetProfiles_WithFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"profiles","id":"p1","attributes":{"name":"Profile","profileType":"IOS_APP_DEVELOPMENT"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles" {
+			t.Fatalf("expected path /v1/profiles, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[profileType]") != "IOS_APP_DEVELOPMENT,IOS_APP_STORE" {
+			t.Fatalf("expected filter[profileType] to be set, got %q", values.Get("filter[profileType]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfiles(
+		context.Background(),
+		WithProfilesTypes([]string{"IOS_APP_DEVELOPMENT", "IOS_APP_STORE"}),
+		WithProfilesLimit(5),
+	); err != nil {
+		t.Fatalf("GetProfiles() error: %v", err)
+	}
+}
+
+func TestGetProfiles_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/profiles?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfiles(context.Background(), WithProfilesNextURL(next)); err != nil {
+		t.Fatalf("GetProfiles() error: %v", err)
+	}
+}
+
+func TestGetProfile_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"profiles","id":"p1","attributes":{"name":"Profile","profileType":"IOS_APP_DEVELOPMENT"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1" {
+			t.Fatalf("expected path /v1/profiles/p1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfile(context.Background(), "p1"); err != nil {
+		t.Fatalf("GetProfile() error: %v", err)
+	}
+}
+
+func TestCreateProfile_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"profiles","id":"p1","attributes":{"name":"Profile","profileType":"IOS_APP_DEVELOPMENT"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles" {
+			t.Fatalf("expected path /v1/profiles, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload ProfileCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeProfiles {
+			t.Fatalf("expected type profiles, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.ProfileType != "IOS_APP_DEVELOPMENT" {
+			t.Fatalf("expected profile type IOS_APP_DEVELOPMENT, got %q", payload.Data.Attributes.ProfileType)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.BundleID == nil {
+			t.Fatalf("expected bundleId relationship")
+		}
+		if payload.Data.Relationships.BundleID.Data.ID != "b1" {
+			t.Fatalf("expected bundleId b1, got %q", payload.Data.Relationships.BundleID.Data.ID)
+		}
+		if payload.Data.Relationships.Certificates == nil || len(payload.Data.Relationships.Certificates.Data) != 2 {
+			t.Fatalf("expected 2 certificate relationships")
+		}
+		if payload.Data.Relationships.Devices == nil || len(payload.Data.Relationships.Devices.Data) != 1 {
+			t.Fatalf("expected 1 device relationship")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := ProfileCreateAttributes{
+		Name:        "Profile",
+		ProfileType: "IOS_APP_DEVELOPMENT",
+	}
+	if _, err := client.CreateProfile(context.Background(), attrs, "b1", []string{"c1", "c2"}, []string{"d1"}); err != nil {
+		t.Fatalf("CreateProfile() error: %v", err)
+	}
+}
+
+func TestDeleteProfile_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1" {
+			t.Fatalf("expected path /v1/profiles/p1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteProfile(context.Background(), "p1"); err != nil {
+		t.Fatalf("DeleteProfile() error: %v", err)
+	}
+}

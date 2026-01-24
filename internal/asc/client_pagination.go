@@ -73,6 +73,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &CertificatesResponse{Links: Links{}}
 	case *DevicesResponse:
 		result = &DevicesResponse{Links: Links{}}
+	case *ProfilesResponse:
+		result = &ProfilesResponse{Links: Links{}}
 	case *SandboxTestersResponse:
 		result = &SandboxTestersResponse{Links: Links{}}
 	case *AnalyticsReportRequestsResponse:
@@ -123,6 +125,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 			result.(*CertificatesResponse).Data = append(result.(*CertificatesResponse).Data, p.Data...)
 		case *DevicesResponse:
 			result.(*DevicesResponse).Data = append(result.(*DevicesResponse).Data, p.Data...)
+		case *ProfilesResponse:
+			result.(*ProfilesResponse).Data = append(result.(*ProfilesResponse).Data, p.Data...)
 		case *SandboxTestersResponse:
 			result.(*SandboxTestersResponse).Data = append(result.(*SandboxTestersResponse).Data, p.Data...)
 		case *AnalyticsReportRequestsResponse:
@@ -195,6 +199,8 @@ func typeOf(p PaginatedResponse) string {
 		return "CertificatesResponse"
 	case *DevicesResponse:
 		return "DevicesResponse"
+	case *ProfilesResponse:
+		return "ProfilesResponse"
 	case *SandboxTestersResponse:
 		return "SandboxTestersResponse"
 	case *AnalyticsReportRequestsResponse:

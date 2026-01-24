@@ -47,6 +47,9 @@ type CertificatesOption func(*certificatesQuery)
 // DevicesOption is a functional option for GetDevices.
 type DevicesOption func(*devicesQuery)
 
+// ProfilesOption is a functional option for GetProfiles.
+type ProfilesOption func(*profilesQuery)
+
 // AppStoreVersionLocalizationsOption is a functional option for version localizations.
 type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
 
@@ -594,6 +597,31 @@ func WithDevicesNextURL(next string) DevicesOption {
 func WithDevicesPlatforms(platforms []string) DevicesOption {
 	return func(q *devicesQuery) {
 		q.platforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithProfilesLimit sets the max number of profiles to return.
+func WithProfilesLimit(limit int) ProfilesOption {
+	return func(q *profilesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithProfilesNextURL uses a next page URL directly.
+func WithProfilesNextURL(next string) ProfilesOption {
+	return func(q *profilesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithProfilesTypes filters profiles by profile type.
+func WithProfilesTypes(types []string) ProfilesOption {
+	return func(q *profilesQuery) {
+		q.profileTypes = normalizeUpperList(types)
 	}
 }
 

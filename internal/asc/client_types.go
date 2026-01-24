@@ -27,6 +27,7 @@ const (
 	ResourceTypeAnalyticsReportInstances     ResourceType = "analyticsReportInstances"
 	ResourceTypeAnalyticsReportSegments      ResourceType = "analyticsReportSegments"
 	ResourceTypeDevices                      ResourceType = "devices"
+	ResourceTypeProfiles                     ResourceType = "profiles"
 )
 
 // Resource is a generic ASC API resource wrapper.

@@ -39,6 +39,10 @@ func PrintMarkdown(data interface{}) error {
 		return printCertificatesMarkdown(v)
 	case *CertificateResponse:
 		return printCertificatesMarkdown(&CertificatesResponse{Data: []Resource[CertificateAttributes]{v.Data}})
+	case *ProfilesResponse:
+		return printProfilesMarkdown(v)
+	case *ProfileResponse:
+		return printProfilesMarkdown(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
 	case *AppStoreVersionsResponse:
@@ -133,6 +137,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBundleIDCapabilityDeleteResultMarkdown(v)
 	case *CertificateRevokeResult:
 		return printCertificateRevokeResultMarkdown(v)
+	case *ProfileDeleteResult:
+		return printProfileDeleteResultMarkdown(v)
+	case *ProfileDownloadResult:
+		return printProfileDownloadResultMarkdown(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultMarkdown(v)
 	case *XcodeCloudStatusResult:
@@ -173,6 +181,10 @@ func PrintTable(data interface{}) error {
 		return printCertificatesTable(v)
 	case *CertificateResponse:
 		return printCertificatesTable(&CertificatesResponse{Data: []Resource[CertificateAttributes]{v.Data}})
+	case *ProfilesResponse:
+		return printProfilesTable(v)
+	case *ProfileResponse:
+		return printProfilesTable(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
 	case *BuildsResponse:
 		return printBuildsTable(v)
 	case *AppStoreVersionsResponse:
@@ -267,6 +279,10 @@ func PrintTable(data interface{}) error {
 		return printBundleIDCapabilityDeleteResultTable(v)
 	case *CertificateRevokeResult:
 		return printCertificateRevokeResultTable(v)
+	case *ProfileDeleteResult:
+		return printProfileDeleteResultTable(v)
+	case *ProfileDownloadResult:
+		return printProfileDownloadResultTable(v)
 	case *XcodeCloudRunResult:
 		return printXcodeCloudRunResultTable(v)
 	case *XcodeCloudStatusResult:

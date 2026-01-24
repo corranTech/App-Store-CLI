@@ -117,6 +117,11 @@ type devicesQuery struct {
 	platforms []string
 }
 
+type profilesQuery struct {
+	listQuery
+	profileTypes []string
+}
+
 func buildReviewQuery(opts []ReviewOption) string {
 	query := &reviewQuery{}
 	for _, opt := range opts {
@@ -250,6 +255,13 @@ func buildCertificatesQuery(query *certificatesQuery) string {
 func buildDevicesQuery(query *devicesQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[platform]", query.platforms)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildProfilesQuery(query *profilesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[profileType]", query.profileTypes)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

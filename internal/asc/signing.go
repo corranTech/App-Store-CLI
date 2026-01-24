@@ -184,3 +184,47 @@ type DevicesResponse = Response[DeviceAttributes]
 
 // DeviceResponse is the response from device detail endpoint.
 type DeviceResponse = SingleResponse[DeviceAttributes]
+
+// ProfileAttributes describes a profile resource.
+type ProfileAttributes struct {
+	Name           string   `json:"name"`
+	Platform       Platform `json:"platform,omitempty"`
+	ProfileType    string   `json:"profileType"`
+	ProfileState   string   `json:"profileState,omitempty"`
+	ProfileContent string   `json:"profileContent,omitempty"`
+	UUID           string   `json:"uuid,omitempty"`
+	CreatedDate    string   `json:"createdDate,omitempty"`
+	ExpirationDate string   `json:"expirationDate,omitempty"`
+}
+
+// ProfileCreateAttributes describes attributes for creating a profile.
+type ProfileCreateAttributes struct {
+	Name        string   `json:"name"`
+	Platform    Platform `json:"platform,omitempty"`
+	ProfileType string   `json:"profileType"`
+}
+
+// ProfileCreateRelationships describes relationships for profile creation.
+type ProfileCreateRelationships struct {
+	BundleID     *Relationship     `json:"bundleId"`
+	Certificates *RelationshipList `json:"certificates"`
+	Devices      *RelationshipList `json:"devices,omitempty"`
+}
+
+// ProfileCreateData is the data portion of a profile create request.
+type ProfileCreateData struct {
+	Type          ResourceType                `json:"type"`
+	Attributes    ProfileCreateAttributes     `json:"attributes"`
+	Relationships *ProfileCreateRelationships `json:"relationships"`
+}
+
+// ProfileCreateRequest is a request to create a profile.
+type ProfileCreateRequest struct {
+	Data ProfileCreateData `json:"data"`
+}
+
+// ProfilesResponse is the response from profiles list endpoint.
+type ProfilesResponse = Response[ProfileAttributes]
+
+// ProfileResponse is the response from profile detail endpoint.
+type ProfileResponse = SingleResponse[ProfileAttributes]

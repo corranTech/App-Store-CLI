@@ -26,6 +26,19 @@ type CertificateRevokeResult struct {
 	Revoked bool   `json:"revoked"`
 }
 
+// ProfileDeleteResult represents CLI output for profile deletions.
+type ProfileDeleteResult struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
+// ProfileDownloadResult represents CLI output for profile downloads.
+type ProfileDownloadResult struct {
+	ID         string `json:"id"`
+	Name       string `json:"name,omitempty"`
+	OutputPath string `json:"outputPath"`
+}
+
 func printBundleIDsTable(resp *BundleIDsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tIdentifier\tPlatform\tSeed ID")
@@ -189,6 +202,75 @@ func printCertificateRevokeResultMarkdown(result *CertificateRevokeResult) error
 	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
 		escapeMarkdown(result.ID),
 		result.Revoked,
+	)
+	return nil
+}
+
+func printProfilesTable(resp *ProfilesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tName\tType\tState\tExpiration")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			item.ID,
+			compactWhitespace(item.Attributes.Name),
+			item.Attributes.ProfileType,
+			item.Attributes.ProfileState,
+			item.Attributes.ExpirationDate,
+		)
+	}
+	return w.Flush()
+}
+
+func printProfilesMarkdown(resp *ProfilesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Name | Type | State | Expiration |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
+			item.ID,
+			escapeMarkdown(item.Attributes.Name),
+			escapeMarkdown(item.Attributes.ProfileType),
+			escapeMarkdown(item.Attributes.ProfileState),
+			escapeMarkdown(item.Attributes.ExpirationDate),
+		)
+	}
+	return nil
+}
+
+func printProfileDeleteResultTable(result *ProfileDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
+	return w.Flush()
+}
+
+func printProfileDeleteResultMarkdown(result *ProfileDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Deleted,
+	)
+	return nil
+}
+
+func printProfileDownloadResultTable(result *ProfileDownloadResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tName\tOutput Path")
+	fmt.Fprintf(w, "%s\t%s\t%s\n",
+		result.ID,
+		compactWhitespace(result.Name),
+		result.OutputPath,
+	)
+	return w.Flush()
+}
+
+func printProfileDownloadResultMarkdown(result *ProfileDownloadResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Name | Output Path |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+		escapeMarkdown(result.ID),
+		escapeMarkdown(result.Name),
+		escapeMarkdown(result.OutputPath),
 	)
 	return nil
 }

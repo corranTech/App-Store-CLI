@@ -384,3 +384,120 @@ func (c *Client) UpdateDevice(ctx context.Context, id string, attrs DeviceUpdate
 
 	return &response, nil
 }
+
+// GetProfiles retrieves the list of profiles.
+func (c *Client) GetProfiles(ctx context.Context, opts ...ProfilesOption) (*ProfilesResponse, error) {
+	query := &profilesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := "/v1/profiles"
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("profiles: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildProfilesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response ProfilesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetProfile retrieves a single profile by ID.
+func (c *Client) GetProfile(ctx context.Context, id string) (*ProfileResponse, error) {
+	id = strings.TrimSpace(id)
+	path := fmt.Sprintf("/v1/profiles/%s", id)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response ProfileResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// CreateProfile creates a new provisioning profile.
+func (c *Client) CreateProfile(ctx context.Context, attrs ProfileCreateAttributes, bundleID string, certificateIDs []string, deviceIDs []string) (*ProfileResponse, error) {
+	bundleID = strings.TrimSpace(bundleID)
+	certificateIDs = normalizeList(certificateIDs)
+	deviceIDs = normalizeList(deviceIDs)
+
+	relationships := &ProfileCreateRelationships{
+		BundleID: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeBundleIds,
+				ID:   bundleID,
+			},
+		},
+		Certificates: &RelationshipList{
+			Data: make([]ResourceData, 0, len(certificateIDs)),
+		},
+	}
+	for _, certificateID := range certificateIDs {
+		relationships.Certificates.Data = append(relationships.Certificates.Data, ResourceData{
+			Type: ResourceTypeCertificates,
+			ID:   certificateID,
+		})
+	}
+	if len(deviceIDs) > 0 {
+		relationships.Devices = &RelationshipList{
+			Data: make([]ResourceData, 0, len(deviceIDs)),
+		}
+		for _, deviceID := range deviceIDs {
+			relationships.Devices.Data = append(relationships.Devices.Data, ResourceData{
+				Type: ResourceTypeDevices,
+				ID:   deviceID,
+			})
+		}
+	}
+
+	request := ProfileCreateRequest{
+		Data: ProfileCreateData{
+			Type:          ResourceTypeProfiles,
+			Attributes:    attrs,
+			Relationships: relationships,
+		},
+	}
+
+	body, err := BuildRequestBody(request)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/profiles", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response ProfileResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteProfile deletes a profile by ID.
+func (c *Client) DeleteProfile(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	path := fmt.Sprintf("/v1/profiles/%s", id)
+	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
+}
