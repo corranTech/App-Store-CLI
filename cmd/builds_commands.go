@@ -13,7 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-const buildWaitDefaultTimeout = 3 * time.Minute
+const buildWaitDefaultTimeout = 30 * time.Minute
 
 // BuildsUploadCommand returns a command to upload a build
 func BuildsUploadCommand() *ffcli.Command {
