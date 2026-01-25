@@ -172,19 +172,43 @@ Examples:
 				}
 
 				expiredCount++
-				item.Expired = true
+				expired := true
+				item.Expired = &expired
 				items = append(items, item)
+			}
+
+			var olderThanPtr *string
+			if olderThanValue != "" {
+				olderThanPtr = &olderThanValue
+			}
+
+			var keepLatestPtr *int
+			if *keepLatest > 0 {
+				keepLatestValue := *keepLatest
+				keepLatestPtr = &keepLatestValue
+			}
+
+			var skippedExpiredPtr *int
+			if skippedExpired > 0 {
+				skippedExpiredValue := skippedExpired
+				skippedExpiredPtr = &skippedExpiredValue
+			}
+
+			var skippedInvalidPtr *int
+			if skippedInvalid > 0 {
+				skippedInvalidValue := skippedInvalid
+				skippedInvalidPtr = &skippedInvalidValue
 			}
 
 			result := &asc.BuildExpireAllResult{
 				DryRun:              *dryRun,
 				AppID:               resolvedAppID,
-				OlderThan:           olderThanValue,
-				KeepLatest:          *keepLatest,
+				OlderThan:           olderThanPtr,
+				KeepLatest:          keepLatestPtr,
 				SelectedCount:       len(candidates),
 				ExpiredCount:        expiredCount,
-				SkippedExpiredCount: skippedExpired,
-				SkippedInvalidCount: skippedInvalid,
+				SkippedExpiredCount: skippedExpiredPtr,
+				SkippedInvalidCount: skippedInvalidPtr,
 				Builds:              items,
 				Failures:            failures,
 			}

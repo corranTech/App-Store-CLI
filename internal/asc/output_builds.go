@@ -32,7 +32,7 @@ type BuildExpireAllItem struct {
 	Version      string `json:"version"`
 	UploadedDate string `json:"uploadedDate"`
 	AgeDays      int    `json:"ageDays"`
-	Expired      bool   `json:"expired,omitempty"`
+	Expired      *bool  `json:"expired,omitempty"`
 }
 
 // BuildExpireAllFailure represents a failed expiration attempt.
@@ -45,12 +45,12 @@ type BuildExpireAllFailure struct {
 type BuildExpireAllResult struct {
 	DryRun              bool                    `json:"dryRun"`
 	AppID               string                  `json:"appId"`
-	OlderThan           string                  `json:"olderThan,omitempty"`
-	KeepLatest          int                     `json:"keepLatest,omitempty"`
+	OlderThan           *string                 `json:"olderThan,omitempty"`
+	KeepLatest          *int                    `json:"keepLatest,omitempty"`
 	SelectedCount       int                     `json:"selectedCount"`
 	ExpiredCount        int                     `json:"expiredCount"`
-	SkippedExpiredCount int                     `json:"skippedExpiredCount,omitempty"`
-	SkippedInvalidCount int                     `json:"skippedInvalidCount,omitempty"`
+	SkippedExpiredCount *int                    `json:"skippedExpiredCount,omitempty"`
+	SkippedInvalidCount *int                    `json:"skippedInvalidCount,omitempty"`
 	Builds              []BuildExpireAllItem    `json:"builds"`
 	Failures            []BuildExpireAllFailure `json:"failures,omitempty"`
 }

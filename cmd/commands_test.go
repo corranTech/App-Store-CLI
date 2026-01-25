@@ -174,6 +174,7 @@ func TestBuildsExpireRequiresBuildID(t *testing.T) {
 
 func TestBuildsExpireAllValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	tests := []struct {
 		name    string
@@ -547,6 +548,7 @@ func TestTestFlightAppsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_KEY_ID", "")
 	t.Setenv("ASC_ISSUER_ID", "")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	// Isolate from user's config file
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 

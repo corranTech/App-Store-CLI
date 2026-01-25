@@ -81,6 +81,7 @@ Environment variable fallback:
 - `ASC_ISSUER_ID`
 - `ASC_PRIVATE_KEY_PATH`
 - `ASC_CONFIG_PATH`
+- `ASC_BYPASS_KEYCHAIN` (ignore keychain and use config/env auth)
 
 App ID fallback:
 - `ASC_APP_ID`
