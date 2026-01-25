@@ -45,12 +45,16 @@ func WithUploadHTTPClient(client *http.Client) UploadOption {
 }
 
 // newUploadClient creates a dedicated HTTP client for upload operations
-// with appropriate timeouts and a cloned transport to avoid sharing the
-// connection pool with http.DefaultClient.
+// with appropriate timeouts and a cloned transport when possible to avoid
+// sharing the connection pool with http.DefaultClient.
 func newUploadClient() *http.Client {
+	transport := http.DefaultTransport
+	if base, ok := transport.(*http.Transport); ok {
+		transport = base.Clone()
+	}
 	return &http.Client{
 		Timeout:   ResolveUploadTimeout(),
-		Transport: http.DefaultTransport.(*http.Transport).Clone(),
+		Transport: transport,
 	}
 }
 
