@@ -110,6 +110,17 @@ type usersQuery struct {
 	roles []string
 }
 
+type devicesQuery struct {
+	listQuery
+	names    []string
+	platform string
+	status   string
+	udids    []string
+	ids      []string
+	sort     string
+	fields   []string
+}
+
 type userInvitationsQuery struct {
 	listQuery
 }
@@ -259,6 +270,31 @@ func buildUsersQuery(query *usersQuery) string {
 	}
 	addCSV(values, "filter[roles]", query.roles)
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildDevicesQuery(query *devicesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[name]", query.names)
+	if strings.TrimSpace(query.platform) != "" {
+		values.Set("filter[platform]", strings.TrimSpace(query.platform))
+	}
+	if strings.TrimSpace(query.status) != "" {
+		values.Set("filter[status]", strings.TrimSpace(query.status))
+	}
+	addCSV(values, "filter[udid]", query.udids)
+	addCSV(values, "filter[id]", query.ids)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
+	addCSV(values, "fields[devices]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildDevicesFieldsQuery(fields []string) string {
+	values := url.Values{}
+	addCSV(values, "fields[devices]", fields)
 	return values.Encode()
 }
 

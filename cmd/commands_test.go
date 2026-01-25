@@ -493,6 +493,83 @@ func TestUsersValidationErrors(t *testing.T) {
 	}
 }
 
+func TestDevicesValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "devices get missing id",
+			args:    []string{"devices", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "devices update missing id",
+			args:    []string{"devices", "update", "--status", "ENABLED"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "devices update missing updates",
+			args:    []string{"devices", "update", "--id", "DEVICE_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "devices register missing name",
+			args:    []string{"devices", "register", "--udid", "UDID", "--platform", "IOS"},
+			wantErr: "--name is required",
+		},
+		{
+			name:    "devices register missing udid",
+			args:    []string{"devices", "register", "--name", "My Device", "--platform", "IOS"},
+			wantErr: "--udid is required",
+		},
+		{
+			name:    "devices register missing platform",
+			args:    []string{"devices", "register", "--name", "My Device", "--udid", "UDID"},
+			wantErr: "--platform is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestDevicesListLimitValidation(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{"devices", "list", "--limit", "500"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !strings.Contains(err.Error(), "devices list: --limit must be between 1 and 200") {
+		t.Fatalf("expected limit validation error, got %v", err)
+	}
+}
+
 func TestTestFlightAppsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")

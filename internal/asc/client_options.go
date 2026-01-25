@@ -38,6 +38,9 @@ type BetaTestersOption func(*betaTestersQuery)
 // UsersOption is a functional option for GetUsers.
 type UsersOption func(*usersQuery)
 
+// DevicesOption is a functional option for GetDevices.
+type DevicesOption func(*devicesQuery)
+
 // UserInvitationsOption is a functional option for GetUserInvitations.
 type UserInvitationsOption func(*userInvitationsQuery)
 
@@ -555,6 +558,79 @@ func WithUsersEmail(email string) UsersOption {
 func WithUsersRoles(roles []string) UsersOption {
 	return func(q *usersQuery) {
 		q.roles = normalizeList(roles)
+	}
+}
+
+// WithDevicesLimit sets the max number of devices to return.
+func WithDevicesLimit(limit int) DevicesOption {
+	return func(q *devicesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithDevicesNextURL uses a next page URL directly.
+func WithDevicesNextURL(next string) DevicesOption {
+	return func(q *devicesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithDevicesNames filters devices by name(s).
+func WithDevicesNames(names []string) DevicesOption {
+	return func(q *devicesQuery) {
+		q.names = normalizeList(names)
+	}
+}
+
+// WithDevicesPlatform filters devices by platform.
+func WithDevicesPlatform(platform string) DevicesOption {
+	return func(q *devicesQuery) {
+		if strings.TrimSpace(platform) != "" {
+			q.platform = strings.ToUpper(strings.TrimSpace(platform))
+		}
+	}
+}
+
+// WithDevicesStatus filters devices by status.
+func WithDevicesStatus(status string) DevicesOption {
+	return func(q *devicesQuery) {
+		if strings.TrimSpace(status) != "" {
+			q.status = strings.ToUpper(strings.TrimSpace(status))
+		}
+	}
+}
+
+// WithDevicesUDIDs filters devices by UDID(s).
+func WithDevicesUDIDs(udids []string) DevicesOption {
+	return func(q *devicesQuery) {
+		q.udids = normalizeList(udids)
+	}
+}
+
+// WithDevicesIDs filters devices by ID(s).
+func WithDevicesIDs(ids []string) DevicesOption {
+	return func(q *devicesQuery) {
+		q.ids = normalizeList(ids)
+	}
+}
+
+// WithDevicesSort sets the sort order for devices.
+func WithDevicesSort(sort string) DevicesOption {
+	return func(q *devicesQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithDevicesFields sets fields[devices] for device responses.
+func WithDevicesFields(fields []string) DevicesOption {
+	return func(q *devicesQuery) {
+		q.fields = normalizeList(fields)
 	}
 }
 

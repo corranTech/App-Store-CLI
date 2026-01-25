@@ -1631,3 +1631,58 @@ func TestPrintMarkdown_SandboxTesterClearHistoryResult(t *testing.T) {
 		t.Fatalf("expected request ID in output, got: %s", output)
 	}
 }
+
+func TestPrintTable_Devices(t *testing.T) {
+	resp := &DevicesResponse{
+		Data: []Resource[DeviceAttributes]{
+			{
+				ID: "device-1",
+				Attributes: DeviceAttributes{
+					Name:     "My iPhone",
+					UDID:     "UDID-1",
+					Platform: DevicePlatformIOS,
+					Status:   DeviceStatusEnabled,
+					Model:    "iPhone15,3",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "UDID") {
+		t.Fatalf("expected UDID header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "My iPhone") {
+		t.Fatalf("expected device name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Devices(t *testing.T) {
+	resp := &DevicesResponse{
+		Data: []Resource[DeviceAttributes]{
+			{
+				ID: "device-1",
+				Attributes: DeviceAttributes{
+					Name:     "My iPhone",
+					UDID:     "UDID-1",
+					Platform: DevicePlatformIOS,
+					Status:   DeviceStatusEnabled,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Name | UDID | Platform | Status |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "UDID-1") {
+		t.Fatalf("expected UDID in output, got: %s", output)
+	}
+}
