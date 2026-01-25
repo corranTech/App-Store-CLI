@@ -47,12 +47,24 @@ asc auth login \
   --issuer-id "DEF456" \
   --private-key /path/to/AuthKey.p8
 
-# Create a template config.json (no secrets)
+# Create a template config.json (global, no secrets)
 asc auth init
 
-# Store credentials in config.json (bypass keychain)
+# Create a repo-local config.json
+asc auth init --local
+
+# Store credentials in global config.json (bypass keychain)
 asc auth login \
-  --storage config \
+  --bypass-keychain \
+  --name "MyApp" \
+  --key-id "ABC123" \
+  --issuer-id "DEF456" \
+  --private-key /path/to/AuthKey.p8
+
+# Store credentials in repo-local config.json
+asc auth login \
+  --bypass-keychain \
+  --local \
   --name "MyApp" \
   --key-id "ABC123" \
   --issuer-id "DEF456" \
@@ -61,12 +73,14 @@ asc auth login \
 
 Generate API keys at: https://appstoreconnect.apple.com/access/integrations/api
 
-Credentials are stored in the system keychain when available, with a local config fallback
-at `~/.asc/config.json` (restricted permissions).
+Credentials are stored in the system keychain when available, with a config fallback
+at `~/.asc/config.json` (restricted permissions). A repo-local `./.asc/config.json`
+takes precedence when present. Override with `ASC_CONFIG_PATH`.
 Environment variable fallback:
 - `ASC_KEY_ID`
 - `ASC_ISSUER_ID`
 - `ASC_PRIVATE_KEY_PATH`
+- `ASC_CONFIG_PATH`
 
 App ID fallback:
 - `ASC_APP_ID`
@@ -85,6 +99,17 @@ Retry behavior env:
 - `ASC_MAX_DELAY` (default: `30s`)
 - `ASC_RETRY_LOG=1` to log retries to stderr
 - Retry errors include `retry after` in the final error message when available
+
+Config.json keys (same semantics, snake_case):
+- `app_id`
+- `vendor_number`
+- `analytics_vendor_number`
+- `timeout`, `timeout_seconds`
+- `upload_timeout`, `upload_timeout_seconds`
+- `max_retries`
+- `base_delay`
+- `max_delay`
+- `retry_log` (set to `1` or `true` to enable)
 
 ## Commands
 

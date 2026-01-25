@@ -173,6 +173,16 @@ func StoreCredentialsConfig(name, keyID, issuerID, keyPath string) error {
 	return storeInConfig(name, payload)
 }
 
+// StoreCredentialsConfigAt stores credentials in the specified config file.
+func StoreCredentialsConfigAt(name, keyID, issuerID, keyPath, configPath string) error {
+	payload := credentialPayload{
+		KeyID:          keyID,
+		IssuerID:       issuerID,
+		PrivateKeyPath: keyPath,
+	}
+	return storeInConfigAt(name, payload, configPath)
+}
+
 // clearConfigCredentials clears credentials from the config file.
 // This is called after successfully migrating to keychain storage.
 func clearConfigCredentials() error {
@@ -451,7 +461,15 @@ func removeAllFromLegacyKeychain() error {
 }
 
 func storeInConfig(name string, payload credentialPayload) error {
-	cfg, err := config.Load()
+	path, err := config.Path()
+	if err != nil {
+		return err
+	}
+	return storeInConfigAt(name, payload, path)
+}
+
+func storeInConfigAt(name string, payload credentialPayload, configPath string) error {
+	cfg, err := config.LoadAt(configPath)
 	if err != nil && err != config.ErrNotFound {
 		return err
 	}
@@ -462,7 +480,7 @@ func storeInConfig(name string, payload credentialPayload) error {
 	cfg.IssuerID = payload.IssuerID
 	cfg.PrivateKeyPath = payload.PrivateKeyPath
 	cfg.DefaultKeyName = name
-	return config.Save(cfg)
+	return config.SaveAt(configPath, cfg)
 }
 
 func listFromConfig() ([]Credential, error) {

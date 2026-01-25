@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -27,7 +26,8 @@ func AuthCommand() *ffcli.Command {
 Authentication is handled via App Store Connect API keys. Generate keys at:
 https://appstoreconnect.apple.com/access/integrations/api
 
-Credentials are stored in the system keychain when available, with a local config fallback.`,
+Credentials are stored in the system keychain when available, with a config fallback.
+A repo-local ./.asc/config.json (if present) takes precedence.`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -50,6 +50,7 @@ func AuthInitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth init", flag.ExitOnError)
 
 	force := fs.Bool("force", false, "Overwrite existing config.json")
+	local := fs.Bool("local", false, "Write config.json to ./.asc in the current repo")
 
 	return &ffcli.Command{
 		Name:       "init",
@@ -58,14 +59,22 @@ func AuthInitCommand() *ffcli.Command {
 		LongHelp: `Create a template config.json for authentication.
 
 This writes ~/.asc/config.json with empty fields and secure permissions.
+Use --local to write ./.asc/config.json in the current repo instead.
 
 Examples:
   asc auth init
+  asc auth init --local
   asc auth init --force`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			path, err := config.Path()
+			var path string
+			var err error
+			if *local {
+				path, err = config.LocalPath()
+			} else {
+				path, err = config.GlobalPath()
+			}
 			if err != nil {
 				return fmt.Errorf("auth init: %w", err)
 			}
@@ -79,7 +88,7 @@ Examples:
 			}
 
 			template := &config.Config{}
-			if err := config.Save(template); err != nil {
+			if err := config.SaveAt(path, template); err != nil {
 				return fmt.Errorf("auth init: %w", err)
 			}
 
@@ -105,7 +114,8 @@ func AuthLoginCommand() *ffcli.Command {
 	keyID := fs.String("key-id", "", "App Store Connect API Key ID")
 	issuerID := fs.String("issuer-id", "", "App Store Connect Issuer ID")
 	keyPath := fs.String("private-key", "", "Path to private key (.p8) file")
-	storage := fs.String("storage", "keychain", "Storage backend: keychain (default) or config (bypass keychain)")
+	bypassKeychain := fs.Bool("bypass-keychain", false, "Store credentials in config.json instead of keychain")
+	local := fs.Bool("local", false, "When bypassing keychain, write to ./.asc/config.json")
 
 	return &ffcli.Command{
 		Name:       "login",
@@ -114,19 +124,20 @@ func AuthLoginCommand() *ffcli.Command {
 		LongHelp: `Register and store App Store Connect API key.
 
 This command stores your API credentials in the system keychain when available,
-with a local config fallback (restricted permissions). Use --storage config to
+with a local config fallback (restricted permissions). Use --bypass-keychain to
 explicitly bypass keychain and write credentials to ~/.asc/config.json instead.
+Add --local to write ./.asc/config.json for the current repo.
 
 Examples:
   asc auth login --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+  asc auth login --bypass-keychain --local --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
 
 The private key file path is stored securely. The key content is never saved.`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			normalizedStorage := strings.ToLower(strings.TrimSpace(*storage))
-			if normalizedStorage != "keychain" && normalizedStorage != "config" {
-				return fmt.Errorf("auth login: --storage must be one of: keychain, config")
+			if *local && !*bypassKeychain {
+				return fmt.Errorf("auth login: --local requires --bypass-keychain")
 			}
 			if *name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
@@ -151,9 +162,19 @@ The private key file path is stored securely. The key content is never saved.`,
 			}
 
 			// Store credentials securely
-			if normalizedStorage == "config" {
-				if err := auth.StoreCredentialsConfig(*name, *keyID, *issuerID, *keyPath); err != nil {
-					return fmt.Errorf("auth login: failed to store credentials: %w", err)
+			if *bypassKeychain {
+				if *local {
+					path, err := config.LocalPath()
+					if err != nil {
+						return fmt.Errorf("auth login: %w", err)
+					}
+					if err := auth.StoreCredentialsConfigAt(*name, *keyID, *issuerID, *keyPath, path); err != nil {
+						return fmt.Errorf("auth login: failed to store credentials: %w", err)
+					}
+				} else {
+					if err := auth.StoreCredentialsConfig(*name, *keyID, *issuerID, *keyPath); err != nil {
+						return fmt.Errorf("auth login: failed to store credentials: %w", err)
+					}
 				}
 			} else {
 				if err := auth.StoreCredentials(*name, *keyID, *issuerID, *keyPath); err != nil {

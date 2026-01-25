@@ -168,7 +168,14 @@ func resolveAppID(appID string) string {
 	if appID != "" {
 		return appID
 	}
-	return os.Getenv("ASC_APP_ID")
+	if env, ok := os.LookupEnv("ASC_APP_ID"); ok {
+		return strings.TrimSpace(env)
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(cfg.AppID)
 }
 
 func contextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
