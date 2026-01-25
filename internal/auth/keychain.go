@@ -20,6 +20,7 @@ const (
 	keyringService    = "asc"
 	keyringItemPrefix = "asc:credential:"
 	legacyKeychain    = "asc"
+	bypassKeychainEnv = "ASC_BYPASS_KEYCHAIN"
 )
 
 // Credential represents stored API credentials
@@ -61,6 +62,23 @@ func keyringConfig(keychainName string) keyring.Config {
 		cfg.KeychainName = keychainName
 	}
 	return cfg
+}
+
+func shouldBypassKeychain() bool {
+	value, ok := os.LookupEnv(bypassKeychainEnv)
+	if !ok {
+		return false
+	}
+	trimmed := strings.ToLower(strings.TrimSpace(value))
+	if trimmed == "" {
+		return true
+	}
+	switch trimmed {
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return true
+	}
 }
 
 var keyringOpener = func() (keyring.Keyring, error) {
@@ -223,6 +241,9 @@ func clearConfigCredentialsAt(path string) error {
 
 // ListCredentials lists all stored credentials
 func ListCredentials() ([]Credential, error) {
+	if shouldBypassKeychain() {
+		return listFromConfig()
+	}
 	credentials, err := listFromKeychain()
 	if err == nil {
 		if len(credentials) > 0 {
@@ -290,6 +311,9 @@ func sameConfigPath(left, right string) bool {
 
 // GetDefaultCredentials returns the default credentials
 func GetDefaultCredentials() (*config.Config, error) {
+	if shouldBypassKeychain() {
+		return getDefaultFromConfig()
+	}
 	credentials, err := listFromKeychain()
 	if err == nil {
 		name, err := defaultName()
