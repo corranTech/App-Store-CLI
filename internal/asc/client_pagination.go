@@ -189,6 +189,8 @@ func typeOf(p PaginatedResponse) string {
 		return "PreReleaseVersionsResponse"
 	case *AppStoreVersionLocalizationsResponse:
 		return "AppStoreVersionLocalizationsResponse"
+	case *BetaBuildLocalizationsResponse:
+		return "BetaBuildLocalizationsResponse"
 	case *AppInfoLocalizationsResponse:
 		return "AppInfoLocalizationsResponse"
 	case *BetaGroupsResponse:
