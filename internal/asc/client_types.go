@@ -35,7 +35,6 @@ const (
 	ResourceTypeAnalyticsReportSegments         ResourceType = "analyticsReportSegments"
 	ResourceTypeInAppPurchases                  ResourceType = "inAppPurchases"
 	ResourceTypeInAppPurchaseLocalizations      ResourceType = "inAppPurchaseLocalizations"
-	ResourceTypeInAppPurchasePriceSchedules     ResourceType = "inAppPurchasePriceSchedules"
 	ResourceTypeSubscriptionGroups              ResourceType = "subscriptionGroups"
 	ResourceTypeSubscriptions                   ResourceType = "subscriptions"
 	ResourceTypeSubscriptionPrices              ResourceType = "subscriptionPrices"

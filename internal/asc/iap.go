@@ -89,9 +89,6 @@ type InAppPurchaseLocalizationAttributes struct {
 	Description string `json:"description,omitempty"`
 }
 
-// InAppPurchasePriceScheduleAttributes describes a price schedule.
-type InAppPurchasePriceScheduleAttributes struct{}
-
 // InAppPurchasesV2Response is the response from in-app purchase list endpoints.
 type InAppPurchasesV2Response = Response[InAppPurchaseV2Attributes]
 
