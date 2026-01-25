@@ -50,11 +50,23 @@ type DevicesOption func(*devicesQuery)
 // ProfilesOption is a functional option for GetProfiles.
 type ProfilesOption func(*profilesQuery)
 
+// UsersOption is a functional option for GetUsers.
+type UsersOption func(*usersQuery)
+
+// UserInvitationsOption is a functional option for GetUserInvitations.
+type UserInvitationsOption func(*userInvitationsQuery)
+
 // AppStoreVersionLocalizationsOption is a functional option for version localizations.
 type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
 
 // AppInfoLocalizationsOption is a functional option for app info localizations.
 type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
+
+// TerritoriesOption is a functional option for GetTerritories.
+type TerritoriesOption func(*territoriesQuery)
+
+// PricePointsOption is a functional option for GetAppPricePoints.
+type PricePointsOption func(*pricePointsQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -625,6 +637,56 @@ func WithProfilesTypes(types []string) ProfilesOption {
 	}
 }
 
+// WithUsersLimit sets the max number of users to return.
+func WithUsersLimit(limit int) UsersOption {
+	return func(q *usersQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithUsersNextURL uses a next page URL directly.
+func WithUsersNextURL(next string) UsersOption {
+	return func(q *usersQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithUsersEmail filters users by email/username.
+func WithUsersEmail(email string) UsersOption {
+	return func(q *usersQuery) {
+		q.email = strings.TrimSpace(email)
+	}
+}
+
+// WithUsersRoles filters users by roles.
+func WithUsersRoles(roles []string) UsersOption {
+	return func(q *usersQuery) {
+		q.roles = normalizeList(roles)
+	}
+}
+
+// WithUserInvitationsLimit sets the max number of invitations to return.
+func WithUserInvitationsLimit(limit int) UserInvitationsOption {
+	return func(q *userInvitationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithUserInvitationsNextURL uses a next page URL directly.
+func WithUserInvitationsNextURL(next string) UserInvitationsOption {
+	return func(q *userInvitationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithAppStoreVersionLocalizationsLimit sets the max number of localizations to return.
 func WithAppStoreVersionLocalizationsLimit(limit int) AppStoreVersionLocalizationsOption {
 	return func(q *appStoreVersionLocalizationsQuery) {
@@ -672,5 +734,50 @@ func WithAppInfoLocalizationsNextURL(next string) AppInfoLocalizationsOption {
 func WithAppInfoLocalizationLocales(locales []string) AppInfoLocalizationsOption {
 	return func(q *appInfoLocalizationsQuery) {
 		q.locales = normalizeList(locales)
+	}
+}
+
+// WithTerritoriesLimit sets the max number of territories to return.
+func WithTerritoriesLimit(limit int) TerritoriesOption {
+	return func(q *territoriesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithTerritoriesNextURL uses a next page URL directly.
+func WithTerritoriesNextURL(next string) TerritoriesOption {
+	return func(q *territoriesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithPricePointsLimit sets the max number of price points to return.
+func WithPricePointsLimit(limit int) PricePointsOption {
+	return func(q *pricePointsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithPricePointsNextURL uses a next page URL directly.
+func WithPricePointsNextURL(next string) PricePointsOption {
+	return func(q *pricePointsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithPricePointsTerritory filters app price points by territory.
+func WithPricePointsTerritory(territory string) PricePointsOption {
+	return func(q *pricePointsQuery) {
+		if strings.TrimSpace(territory) != "" {
+			q.territory = strings.ToUpper(strings.TrimSpace(territory))
+		}
 	}
 }

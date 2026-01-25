@@ -7,6 +7,11 @@ const (
 	ResourceTypeApps                         ResourceType = "apps"
 	ResourceTypeBundleIds                    ResourceType = "bundleIds"
 	ResourceTypeBundleIdCapabilities         ResourceType = "bundleIdCapabilities"
+	ResourceTypeAppCategories                ResourceType = "appCategories"
+	ResourceTypeAppAvailabilities            ResourceType = "appAvailabilities"
+	ResourceTypeAppPricePoints               ResourceType = "appPricePoints"
+	ResourceTypeAppPriceSchedules            ResourceType = "appPriceSchedules"
+	ResourceTypeAppPrices                    ResourceType = "appPrices"
 	ResourceTypeBuilds                       ResourceType = "builds"
 	ResourceTypeBuildUploads                 ResourceType = "buildUploads"
 	ResourceTypeBuildUploadFiles             ResourceType = "buildUploadFiles"
@@ -28,6 +33,12 @@ const (
 	ResourceTypeAnalyticsReportSegments      ResourceType = "analyticsReportSegments"
 	ResourceTypeDevices                      ResourceType = "devices"
 	ResourceTypeProfiles                     ResourceType = "profiles"
+	ResourceTypeTerritories                  ResourceType = "territories"
+	ResourceTypeTerritoryAvailabilities      ResourceType = "territoryAvailabilities"
+	ResourceTypeReviewSubmissions            ResourceType = "reviewSubmissions"
+	ResourceTypeReviewSubmissionItems        ResourceType = "reviewSubmissionItems"
+	ResourceTypeUsers                        ResourceType = "users"
+	ResourceTypeUserInvitations              ResourceType = "userInvitations"
 )
 
 // Resource is a generic ASC API resource wrapper.
