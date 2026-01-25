@@ -62,7 +62,10 @@ func (c *Client) FindOrCreateAppStoreVersion(ctx context.Context, appID, version
 
 	switch len(versions.Data) {
 	case 0:
-		return c.CreateAppStoreVersion(ctx, appID, version, Platform(platformValue))
+		return c.CreateAppStoreVersion(ctx, appID, AppStoreVersionCreateAttributes{
+			Platform:      Platform(platformValue),
+			VersionString: version,
+		})
 	case 1:
 		return &AppStoreVersionResponse{Data: versions.Data[0]}, nil
 	default:
