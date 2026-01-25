@@ -2100,10 +2100,7 @@ func TestUpdateAppScreenshot(t *testing.T) {
 	}, response)
 
 	uploaded := true
-	result, err := client.UpdateAppScreenshot(context.Background(), "SHOT_123", uploaded, &Checksum{
-		Hash:      "abc123",
-		Algorithm: ChecksumAlgorithmMD5,
-	})
+	result, err := client.UpdateAppScreenshot(context.Background(), "SHOT_123", uploaded, "abc123")
 	if err != nil {
 		t.Fatalf("UpdateAppScreenshot() error: %v", err)
 	}
@@ -2264,10 +2261,7 @@ func TestUpdateAppPreview(t *testing.T) {
 	}, response)
 
 	uploaded := true
-	result, err := client.UpdateAppPreview(context.Background(), "PREVIEW_123", uploaded, &Checksum{
-		Hash:      "def456",
-		Algorithm: ChecksumAlgorithmMD5,
-	})
+	result, err := client.UpdateAppPreview(context.Background(), "PREVIEW_123", uploaded, "def456")
 	if err != nil {
 		t.Fatalf("UpdateAppPreview() error: %v", err)
 	}
