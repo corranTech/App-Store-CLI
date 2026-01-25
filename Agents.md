@@ -44,6 +44,7 @@ API keys are generated at https://appstoreconnect.apple.com/access/integrations/
 | Variable | Purpose |
 |----------|---------|
 | `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY_PATH` | Auth fallback |
+| `ASC_BYPASS_KEYCHAIN` | Ignore keychain and use config/env auth |
 | `ASC_APP_ID` | Default app ID |
 | `ASC_VENDOR_NUMBER` | Sales/finance reports |
 | `ASC_TIMEOUT` | Request timeout (e.g., `90s`, `2m`) |
