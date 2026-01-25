@@ -429,7 +429,10 @@ func TestCreateAppStoreVersion(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	result, err := client.CreateAppStoreVersion(context.Background(), "APP_123", "1.0.0", PlatformIOS)
+	result, err := client.CreateAppStoreVersion(context.Background(), "APP_123", AppStoreVersionCreateAttributes{
+		Platform:      PlatformIOS,
+		VersionString: "1.0.0",
+	})
 	if err != nil {
 		t.Fatalf("CreateAppStoreVersion() error: %v", err)
 	}
