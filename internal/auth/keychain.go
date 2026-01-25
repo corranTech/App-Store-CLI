@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/99designs/keyring"
@@ -170,7 +171,11 @@ func StoreCredentialsConfig(name, keyID, issuerID, keyPath string) error {
 		IssuerID:       issuerID,
 		PrivateKeyPath: keyPath,
 	}
-	return storeInConfig(name, payload)
+	path, err := config.GlobalPath()
+	if err != nil {
+		return err
+	}
+	return storeInConfigAt(name, payload, path)
 }
 
 // StoreCredentialsConfigAt stores credentials in the specified config file.
@@ -186,20 +191,48 @@ func StoreCredentialsConfigAt(name, keyID, issuerID, keyPath, configPath string)
 // clearConfigCredentials clears credentials from the config file.
 // This is called after successfully migrating to keychain storage.
 func clearConfigCredentials() error {
-	cfg, err := config.Load()
+	activePath, err := config.Path()
+	if err != nil {
+		return err
+	}
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		return err
+	}
+	if err := clearConfigCredentialsAt(activePath); err != nil && !errors.Is(err, config.ErrNotFound) {
+		return err
+	}
+	if !sameConfigPath(activePath, globalPath) {
+		if err := clearConfigCredentialsAt(globalPath); err != nil && !errors.Is(err, config.ErrNotFound) {
+			return err
+		}
+	}
+	return nil
+}
+
+func clearConfigCredentialsAt(path string) error {
+	cfg, err := config.LoadAt(path)
 	if err != nil {
 		return err
 	}
 	cfg.KeyID = ""
 	cfg.IssuerID = ""
 	cfg.PrivateKeyPath = ""
-	return config.Save(cfg)
+	return config.SaveAt(path, cfg)
 }
 
 // ListCredentials lists all stored credentials
 func ListCredentials() ([]Credential, error) {
 	credentials, err := listFromKeychain()
 	if err == nil {
+		if len(credentials) > 0 {
+			return credentials, nil
+		}
+		// Keychain available but empty - also check config (for --bypass-keychain case)
+		configCreds, configErr := listFromConfig()
+		if configErr == nil && len(configCreds) > 0 {
+			return configCreds, nil
+		}
 		return credentials, nil
 	}
 	if !isKeyringUnavailable(err) {
@@ -242,11 +275,35 @@ func RemoveCredentials(name string) error {
 func RemoveAllCredentials() error {
 	if err := removeAllFromKeychain(); err == nil {
 		_ = removeAllFromLegacyKeychain()
-		return config.Remove()
+		return removeConfigFiles()
 	} else if !isKeyringUnavailable(err) {
 		return err
 	}
-	return config.Remove()
+	return removeConfigFiles()
+}
+
+func removeConfigFiles() error {
+	activePath, err := config.Path()
+	if err != nil {
+		return err
+	}
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		return err
+	}
+	if err := config.RemoveAt(activePath); err != nil {
+		return err
+	}
+	if !sameConfigPath(activePath, globalPath) {
+		if err := config.RemoveAt(globalPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sameConfigPath(left, right string) bool {
+	return filepath.Clean(left) == filepath.Clean(right)
 }
 
 // GetDefaultCredentials returns the default credentials
@@ -270,7 +327,11 @@ func GetDefaultCredentials() (*config.Config, error) {
 				}, nil
 			}
 		}
-		return nil, fmt.Errorf("default credentials not found in keychain")
+		// Keychain available but credentials not found - also check config (for --bypass-keychain case)
+		if cfg, configErr := getDefaultFromConfig(); configErr == nil {
+			return cfg, nil
+		}
+		return nil, fmt.Errorf("default credentials not found")
 	}
 	if !isKeyringUnavailable(err) {
 		return nil, err
