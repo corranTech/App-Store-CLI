@@ -16,6 +16,46 @@ A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect
 | Slow, heavy tooling | Go binary, fast startup |
 | Not AI-agent friendly | JSON output, explicit flags, clean exit codes |
 
+## Table of Contents
+
+- [Why ASC?](#why-asc)
+- [Quick Start](#quick-start)
+  - [Install](#install)
+  - [Authenticate](#authenticate)
+- [Commands](#commands)
+  - [Agent Quickstart](#agent-quickstart)
+  - [TestFlight](#testflight)
+  - [Beta Groups](#beta-groups)
+  - [Beta Testers](#beta-testers)
+  - [Devices](#devices)
+  - [App Store](#app-store)
+  - [Analytics & Sales](#analytics--sales)
+  - [Finance Reports](#finance-reports)
+  - [Sandbox Testers](#sandbox-testers)
+  - [Xcode Cloud](#xcode-cloud)
+  - [Apps & Builds](#apps--builds)
+  - [Categories](#categories)
+  - [Versions](#versions)
+  - [Pre-Release Versions](#pre-release-versions)
+  - [Localizations](#localizations)
+  - [Build Localizations](#build-localizations)
+  - [Migrate (Fastlane Compatibility)](#migrate-fastlane-compatibility)
+  - [Submit](#submit)
+  - [Utilities](#utilities)
+  - [Output Formats](#output-formats)
+  - [Authentication](#authentication)
+- [Design Philosophy](#design-philosophy)
+  - [Explicit Over Cryptic](#explicit-over-cryptic)
+  - [AI-Agent Friendly](#ai-agent-friendly)
+  - [No Interactive Prompts](#no-interactive-prompts)
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Security](#security)
+- [Contributing](#contributing)
+- [License](#license)
+- [Author](#author)
+- [Star History](#star-history)
+
 ## Quick Start
 
 ### Install
