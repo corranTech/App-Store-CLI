@@ -170,6 +170,66 @@ func TestIntegrationAuthConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("auth_switch_sets_default_and_profile_override", func(t *testing.T) {
+		tempDir := t.TempDir()
+		configPath := filepath.Join(tempDir, "config.json")
+
+		cfg := &config.Config{
+			DefaultKeyName: "personal",
+			Keys: []config.Credential{
+				{
+					Name:           "personal",
+					KeyID:          keyID,
+					IssuerID:       issuerID,
+					PrivateKeyPath: keyPath,
+				},
+				{
+					Name:           "client",
+					KeyID:          keyID,
+					IssuerID:       issuerID,
+					PrivateKeyPath: keyPath,
+				},
+			},
+		}
+		if err := config.SaveAt(configPath, cfg); err != nil {
+			t.Fatalf("failed to save config: %v", err)
+		}
+
+		cmd := exec.Command(ascBinary, "auth", "switch", "--name", "client")
+		cmd.Env = append(os.Environ(),
+			"ASC_CONFIG_PATH="+configPath,
+			"ASC_BYPASS_KEYCHAIN=1",
+		)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("auth switch failed: %v\nOutput: %s", err, output)
+		}
+
+		updated, err := config.LoadAt(configPath)
+		if err != nil {
+			t.Fatalf("failed to read config: %v", err)
+		}
+		if updated.DefaultKeyName != "client" {
+			t.Fatalf("expected DefaultKeyName=client, got %q", updated.DefaultKeyName)
+		}
+
+		cmd = exec.Command(ascBinary, "--profile", "client", "apps", "list", "--limit", "1")
+		cmd.Env = filterEnv(os.Environ(),
+			"ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH",
+		)
+		cmd.Env = append(cmd.Env,
+			"ASC_CONFIG_PATH="+configPath,
+			"ASC_BYPASS_KEYCHAIN=1",
+		)
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("apps list with --profile failed: %v\nOutput: %s", err, output)
+		}
+		if !strings.Contains(string(output), `"type":"apps"`) {
+			t.Fatalf("expected apps response, got: %s", output)
+		}
+	})
+
 	t.Run("config_credentials_work_for_api", func(t *testing.T) {
 		tempDir := t.TempDir()
 		configPath := filepath.Join(tempDir, "config.json")

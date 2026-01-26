@@ -14,7 +14,110 @@ import (
 	"testing"
 
 	"github.com/99designs/keyring"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
+
+func TestConfigProfileSelection(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	cfg := &config.Config{
+		DefaultKeyName: "personal",
+		Keys: []config.Credential{
+			{
+				Name:           "personal",
+				KeyID:          "KEY1",
+				IssuerID:       "ISSUER1",
+				PrivateKeyPath: "/tmp/AuthKey1.p8",
+			},
+			{
+				Name:           "client",
+				KeyID:          "KEY2",
+				IssuerID:       "ISSUER2",
+				PrivateKeyPath: "/tmp/AuthKey2.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	defaultCreds, err := GetCredentials("")
+	if err != nil {
+		t.Fatalf("GetCredentials(default) error: %v", err)
+	}
+	if defaultCreds.KeyID != "KEY1" {
+		t.Fatalf("expected default KeyID KEY1, got %q", defaultCreds.KeyID)
+	}
+
+	clientCreds, err := GetCredentials("client")
+	if err != nil {
+		t.Fatalf("GetCredentials(client) error: %v", err)
+	}
+	if clientCreds.KeyID != "KEY2" {
+		t.Fatalf("expected client KeyID KEY2, got %q", clientCreds.KeyID)
+	}
+}
+
+func TestConfigProfileListAndSwitch(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	cfg := &config.Config{
+		DefaultKeyName: "personal",
+		Keys: []config.Credential{
+			{
+				Name:           "personal",
+				KeyID:          "KEY1",
+				IssuerID:       "ISSUER1",
+				PrivateKeyPath: "/tmp/AuthKey1.p8",
+			},
+			{
+				Name:           "client",
+				KeyID:          "KEY2",
+				IssuerID:       "ISSUER2",
+				PrivateKeyPath: "/tmp/AuthKey2.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	credentials, err := ListCredentials()
+	if err != nil {
+		t.Fatalf("ListCredentials() error: %v", err)
+	}
+	if len(credentials) != 2 {
+		t.Fatalf("expected 2 credentials, got %d", len(credentials))
+	}
+
+	defaultFound := false
+	for _, cred := range credentials {
+		if cred.Name == "personal" && cred.IsDefault {
+			defaultFound = true
+		}
+	}
+	if !defaultFound {
+		t.Fatal("expected personal credential to be default")
+	}
+
+	if err := SetDefaultCredentials("client"); err != nil {
+		t.Fatalf("SetDefaultCredentials() error: %v", err)
+	}
+	updated, err := config.LoadAt(configPath)
+	if err != nil {
+		t.Fatalf("LoadAt() error: %v", err)
+	}
+	if updated.DefaultKeyName != "client" {
+		t.Fatalf("expected DefaultKeyName to be client, got %q", updated.DefaultKeyName)
+	}
+}
 
 func TestValidateKeyFilePermissions(t *testing.T) {
 	tempDir := t.TempDir()
