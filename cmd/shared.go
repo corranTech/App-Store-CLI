@@ -133,7 +133,11 @@ func getASCClient() (*asc.Client, error) {
 
 	// Priority 1: Stored credentials (keychain/config)
 	cfg, err := auth.GetCredentials(profile)
-	if err == nil && cfg != nil {
+	if err != nil {
+		if profile != "" {
+			return nil, err
+		}
+	} else if cfg != nil {
 		actualKeyID = cfg.KeyID
 		actualIssuerID = cfg.IssuerID
 		actualKeyPath = cfg.PrivateKeyPath
