@@ -179,6 +179,156 @@ func TestGetApp(t *testing.T) {
 	}
 }
 
+func TestGetSubscriptionOfferCodeOneTimeUseCodes_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"1","attributes":{"numberOfCodes":5}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodes/123/oneTimeUseCodes" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodes/123/oneTimeUseCodes, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(context.Background(), "123", WithSubscriptionOfferCodeOneTimeUseCodesLimit(5)); err != nil {
+		t.Fatalf("GetSubscriptionOfferCodeOneTimeUseCodes() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionOfferCodeOneTimeUseCodes_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(context.Background(), "123", WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next)); err != nil {
+		t.Fatalf("GetSubscriptionOfferCodeOneTimeUseCodes() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionOfferCodeOneTimeUseCode(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"code-1","attributes":{"numberOfCodes":5}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeOneTimeUseCodes/code-1" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodeOneTimeUseCodes/code-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionOfferCodeOneTimeUseCode(context.Background(), "code-1"); err != nil {
+		t.Fatalf("GetSubscriptionOfferCodeOneTimeUseCode() error: %v", err)
+	}
+}
+
+func TestCreateSubscriptionOfferCodeOneTimeUseCode_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"code-1","attributes":{"numberOfCodes":5}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeOneTimeUseCodes" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodeOneTimeUseCodes, got %s", req.URL.Path)
+		}
+		var payload struct {
+			Data struct {
+				Type       string `json:"type"`
+				Attributes struct {
+					NumberOfCodes  int    `json:"numberOfCodes"`
+					ExpirationDate string `json:"expirationDate"`
+				} `json:"attributes"`
+				Relationships struct {
+					OfferCode struct {
+						Data struct {
+							Type string `json:"type"`
+							ID   string `json:"id"`
+						} `json:"data"`
+					} `json:"offerCode"`
+				} `json:"relationships"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if payload.Data.Type != "subscriptionOfferCodeOneTimeUseCodes" {
+			t.Fatalf("expected type=subscriptionOfferCodeOneTimeUseCodes, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.NumberOfCodes != 5 {
+			t.Fatalf("expected numberOfCodes=5, got %d", payload.Data.Attributes.NumberOfCodes)
+		}
+		if payload.Data.Attributes.ExpirationDate != "2026-02-01" {
+			t.Fatalf("expected expirationDate=2026-02-01, got %q", payload.Data.Attributes.ExpirationDate)
+		}
+		if payload.Data.Relationships.OfferCode.Data.Type != "subscriptionOfferCodes" {
+			t.Fatalf("expected offerCode type=subscriptionOfferCodes, got %q", payload.Data.Relationships.OfferCode.Data.Type)
+		}
+		if payload.Data.Relationships.OfferCode.Data.ID != "OFFER_CODE_ID" {
+			t.Fatalf("expected offerCode id=OFFER_CODE_ID, got %q", payload.Data.Relationships.OfferCode.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	req := SubscriptionOfferCodeOneTimeUseCodeCreateRequest{
+		Data: SubscriptionOfferCodeOneTimeUseCodeCreateData{
+			Type: ResourceTypeSubscriptionOfferCodeOneTimeUseCodes,
+			Attributes: SubscriptionOfferCodeOneTimeUseCodeCreateAttributes{
+				NumberOfCodes:  5,
+				ExpirationDate: "2026-02-01",
+			},
+			Relationships: SubscriptionOfferCodeOneTimeUseCodeCreateRelationships{
+				OfferCode: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptionOfferCodes,
+						ID:   "OFFER_CODE_ID",
+					},
+				},
+			},
+		},
+	}
+	if _, err := client.CreateSubscriptionOfferCodeOneTimeUseCode(context.Background(), req); err != nil {
+		t.Fatalf("CreateSubscriptionOfferCodeOneTimeUseCode() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionOfferCodeOneTimeUseCodeValues(t *testing.T) {
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader("code\nABC123\nDEF456\n")),
+		Header:     http.Header{},
+	}
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeOneTimeUseCodes/code-1/values" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodeOneTimeUseCodes/code-1/values, got %s", req.URL.Path)
+		}
+		if req.Header.Get("Accept") != "text/csv" {
+			t.Fatalf("expected Accept=text/csv, got %q", req.Header.Get("Accept"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	values, err := client.GetSubscriptionOfferCodeOneTimeUseCodeValues(context.Background(), "code-1")
+	if err != nil {
+		t.Fatalf("GetSubscriptionOfferCodeOneTimeUseCodeValues() error: %v", err)
+	}
+	if len(values) != 2 || values[0] != "ABC123" || values[1] != "DEF456" {
+		t.Fatalf("expected codes to parse, got %v", values)
+	}
+}
+
 func TestGetBuilds_WithSortAndLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

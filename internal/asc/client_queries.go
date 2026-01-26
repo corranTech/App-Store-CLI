@@ -57,6 +57,10 @@ type buildsQuery struct {
 	preReleaseVersionID string
 }
 
+type subscriptionOfferCodeOneTimeUseCodesQuery struct {
+	listQuery
+}
+
 type appStoreVersionsQuery struct {
 	listQuery
 	platforms      []string
@@ -328,6 +332,12 @@ func buildBuildBetaDetailsQuery(query *buildBetaDetailsQuery) string {
 }
 
 func buildBetaRecruitmentCriterionOptionsQuery(query *betaRecruitmentCriterionOptionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCodeOneTimeUseCodesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

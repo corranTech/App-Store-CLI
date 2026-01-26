@@ -179,7 +179,7 @@ Config.json keys (same semantics, snake_case):
 
 - JSON output is default for machine parsing; add `--pretty` when debugging.
 - Use `--paginate` to automatically fetch all pages (recommended for AI agents).
-- `--paginate` works on list commands including apps, builds list, devices list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, and Xcode Cloud workflows/build-runs.
+- `--paginate` works on list commands including apps, builds list, promo codes list, devices list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, and Xcode Cloud workflows/build-runs.
 - Use `--limit` + `--next "<links.next>"` for manual pagination control.
 - Sort with `--sort` (prefix `-` for descending):
   - Feedback/Crashes: `createdDate` / `-createdDate`
@@ -531,6 +531,22 @@ Notes:
 # Add/remove beta groups from a build
 asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
 asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
+```
+
+### Offer Codes (Subscriptions)
+
+```bash
+# List one-time use offer code batches for a subscription offer
+asc offer-codes list --offer-code "OFFER_CODE_ID"
+
+# Fetch all offer code batches (all pages)
+asc offer-codes list --offer-code "OFFER_CODE_ID" --paginate
+
+# Generate one-time use offer codes
+asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
+
+# Download one-time use offer codes to a file
+asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"
 ```
 
 ### Categories

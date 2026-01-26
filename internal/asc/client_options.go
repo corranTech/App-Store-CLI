@@ -17,6 +17,9 @@ type AppsOption func(*appsQuery)
 // BuildsOption is a functional option for GetBuilds.
 type BuildsOption func(*buildsQuery)
 
+// SubscriptionOfferCodeOneTimeUseCodesOption is a functional option for GetSubscriptionOfferCodeOneTimeUseCodes.
+type SubscriptionOfferCodeOneTimeUseCodesOption func(*subscriptionOfferCodeOneTimeUseCodesQuery)
+
 // AppStoreVersionsOption is a functional option for GetAppStoreVersions.
 type AppStoreVersionsOption func(*appStoreVersionsQuery)
 
@@ -193,6 +196,24 @@ func WithCrashBuildIDs(ids []string) CrashOption {
 func WithCrashBuildPreReleaseVersionIDs(ids []string) CrashOption {
 	return func(q *crashQuery) {
 		q.buildPreReleaseVersionIDs = normalizeList(ids)
+	}
+}
+
+// WithSubscriptionOfferCodeOneTimeUseCodesLimit sets the max number of offer code batches to return.
+func WithSubscriptionOfferCodeOneTimeUseCodesLimit(limit int) SubscriptionOfferCodeOneTimeUseCodesOption {
+	return func(q *subscriptionOfferCodeOneTimeUseCodesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithSubscriptionOfferCodeOneTimeUseCodesNextURL uses a next page URL directly.
+func WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next string) SubscriptionOfferCodeOneTimeUseCodesOption {
+	return func(q *subscriptionOfferCodeOneTimeUseCodesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 

@@ -43,12 +43,16 @@ func PrintMarkdown(data interface{}) error {
 		return printAppPricesMarkdown(v)
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
+	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
+		return printOfferCodesMarkdown(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsMarkdown(v)
 	case *PreReleaseVersionsResponse:
 		return printPreReleaseVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
+		return printOfferCodesMarkdown(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityMarkdown(v)
 	case *TerritoryAvailabilitiesResponse:
@@ -217,12 +221,16 @@ func PrintTable(data interface{}) error {
 		return printAppPricesTable(v)
 	case *BuildsResponse:
 		return printBuildsTable(v)
+	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
+		return printOfferCodesTable(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsTable(v)
 	case *PreReleaseVersionsResponse:
 		return printPreReleaseVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
+		return printOfferCodesTable(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityTable(v)
 	case *TerritoryAvailabilitiesResponse:
