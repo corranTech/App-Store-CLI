@@ -125,6 +125,8 @@ Environment variable fallback:
 - `ASC_KEY_ID`
 - `ASC_ISSUER_ID`
 - `ASC_PRIVATE_KEY_PATH`
+- `ASC_PRIVATE_KEY` (raw key content; CLI writes a temp key file)
+- `ASC_PRIVATE_KEY_B64` (base64 key content; CLI writes a temp key file)
 - `ASC_CONFIG_PATH`
 - `ASC_BYPASS_KEYCHAIN` (ignore keychain and use config/env auth)
 

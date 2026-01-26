@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"net/url"
@@ -23,6 +24,12 @@ var (
 	reset = "\033[22m"
 )
 
+const (
+	privateKeyEnvVar       = "ASC_PRIVATE_KEY"
+	privateKeyBase64EnvVar = "ASC_PRIVATE_KEY_B64"
+)
+
+var privateKeyTempPath string
 // Bold returns the string wrapped in ANSI bold codes
 func Bold(s string) string {
 	if !supportsANSI() {
@@ -144,7 +151,11 @@ func getASCClient() (*asc.Client, error) {
 		actualIssuerID = os.Getenv("ASC_ISSUER_ID")
 	}
 	if actualKeyPath == "" {
-		actualKeyPath = os.Getenv("ASC_PRIVATE_KEY_PATH")
+		resolved, err := resolvePrivateKeyPath()
+		if err != nil {
+			return nil, fmt.Errorf("invalid private key environment: %w", err)
+		}
+		actualKeyPath = resolved
 	}
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
@@ -157,6 +168,67 @@ func getASCClient() (*asc.Client, error) {
 	return asc.NewClient(actualKeyID, actualIssuerID, actualKeyPath)
 }
 
+func resolvePrivateKeyPath() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")); path != "" {
+		return path, nil
+	}
+	if privateKeyTempPath != "" {
+		return privateKeyTempPath, nil
+	}
+	if value := strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)); value != "" {
+		decoded, err := decodeBase64Secret(value)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", privateKeyBase64EnvVar, err)
+		}
+		return writeTempPrivateKey(decoded)
+	}
+	if value := strings.TrimSpace(os.Getenv(privateKeyEnvVar)); value != "" {
+		return writeTempPrivateKey([]byte(normalizePrivateKeyValue(value)))
+	}
+	return "", nil
+}
+
+func decodeBase64Secret(value string) ([]byte, error) {
+	compact := strings.Join(strings.Fields(value), "")
+	if compact == "" {
+		return nil, fmt.Errorf("empty value")
+	}
+	decoded, err := base64.StdEncoding.DecodeString(compact)
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) == 0 {
+		return nil, fmt.Errorf("decoded to empty value")
+	}
+	return decoded, nil
+}
+
+func normalizePrivateKeyValue(value string) string {
+	if strings.Contains(value, "\\n") && !strings.Contains(value, "\n") {
+		return strings.ReplaceAll(value, "\\n", "\n")
+	}
+	return value
+}
+
+func writeTempPrivateKey(data []byte) (string, error) {
+	file, err := os.CreateTemp("", "asc-key-*.p8")
+	if err != nil {
+		return "", err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		return "", err
+	}
+	privateKeyTempPath = file.Name()
+	return privateKeyTempPath, nil
+}
 func printOutput(data interface{}, format string, pretty bool) error {
 	format = strings.ToLower(format)
 	switch format {
