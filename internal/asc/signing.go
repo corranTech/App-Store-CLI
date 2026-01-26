@@ -38,20 +38,6 @@ type CertificatesResponse = Response[CertificateAttributes]
 // CertificateResponse is the response from certificate detail endpoint.
 type CertificateResponse = SingleResponse[CertificateAttributes]
 
-// DeviceAttributes describes a device resource.
-type DeviceAttributes struct {
-	Name        string   `json:"name,omitempty"`
-	DeviceClass string   `json:"deviceClass,omitempty"`
-	Model       string   `json:"model,omitempty"`
-	Platform    Platform `json:"platform,omitempty"`
-	UDID        string   `json:"udid,omitempty"`
-	Status      string   `json:"status,omitempty"`
-	AddedDate   string   `json:"addedDate,omitempty"`
-}
-
-// DevicesResponse is the response from devices endpoint.
-type DevicesResponse = Response[DeviceAttributes]
-
 // ProfileState represents profile state values.
 type ProfileState string
 
@@ -194,54 +180,6 @@ func WithProfilesNextURL(next string) ProfilesOption {
 	}
 }
 
-type devicesQuery struct {
-	listQuery
-	udids     []string
-	platforms []string
-	statuses  []string
-}
-
-// DevicesOption is a functional option for GetDevices.
-type DevicesOption func(*devicesQuery)
-
-// WithDevicesFilterUDIDs filters devices by UDID(s).
-func WithDevicesFilterUDIDs(udids []string) DevicesOption {
-	return func(q *devicesQuery) {
-		q.udids = normalizeList(udids)
-	}
-}
-
-// WithDevicesFilterPlatforms filters devices by platform(s).
-func WithDevicesFilterPlatforms(platforms []string) DevicesOption {
-	return func(q *devicesQuery) {
-		q.platforms = normalizeUpperList(platforms)
-	}
-}
-
-// WithDevicesFilterStatuses filters devices by status (e.g., ENABLED, DISABLED).
-func WithDevicesFilterStatuses(statuses []string) DevicesOption {
-	return func(q *devicesQuery) {
-		q.statuses = normalizeUpperList(statuses)
-	}
-}
-
-// WithDevicesLimit sets the max number of devices to return.
-func WithDevicesLimit(limit int) DevicesOption {
-	return func(q *devicesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithDevicesNextURL uses a next page URL directly.
-func WithDevicesNextURL(next string) DevicesOption {
-	return func(q *devicesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 // ProfileCreateAttributes describes attributes for creating a profile.
 type ProfileCreateAttributes struct {
@@ -297,15 +235,6 @@ func buildProfilesQuery(query *profilesQuery) string {
 	if strings.TrimSpace(query.profileType) != "" {
 		values.Set("filter[profileType]", strings.TrimSpace(query.profileType))
 	}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildDevicesQuery(query *devicesQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[udid]", query.udids)
-	addCSV(values, "filter[platform]", query.platforms)
-	addCSV(values, "filter[status]", query.statuses)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -393,36 +322,6 @@ func (c *Client) GetProfiles(ctx context.Context, opts ...ProfilesOption) (*Prof
 	}
 
 	var response ProfilesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetDevices retrieves devices with optional filters.
-func (c *Client) GetDevices(ctx context.Context, opts ...DevicesOption) (*DevicesResponse, error) {
-	query := &devicesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/devices"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("devices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildDevicesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response DevicesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

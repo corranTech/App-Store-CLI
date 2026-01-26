@@ -591,6 +591,33 @@ func WithDevicesLimit(limit int) DevicesOption {
 	}
 }
 
+// WithDevicesFilterUDIDs filters devices by UDID(s).
+func WithDevicesFilterUDIDs(udids []string) DevicesOption {
+	return WithDevicesUDIDs(udids)
+}
+
+// WithDevicesFilterPlatforms filters devices by platform(s).
+func WithDevicesFilterPlatforms(platforms []string) DevicesOption {
+	return func(q *devicesQuery) {
+		normalized := normalizeUpperList(platforms)
+		if len(normalized) == 0 {
+			return
+		}
+		q.platform = strings.Join(normalized, ",")
+	}
+}
+
+// WithDevicesFilterStatuses filters devices by status (e.g., ENABLED, DISABLED).
+func WithDevicesFilterStatuses(statuses []string) DevicesOption {
+	return func(q *devicesQuery) {
+		normalized := normalizeUpperList(statuses)
+		if len(normalized) == 0 {
+			return
+		}
+		q.status = strings.Join(normalized, ",")
+	}
+}
+
 // WithDevicesNextURL uses a next page URL directly.
 func WithDevicesNextURL(next string) DevicesOption {
 	return func(q *devicesQuery) {
