@@ -113,6 +113,11 @@ asc auth login \
 
 Generate API keys at: https://appstoreconnect.apple.com/access/integrations/api
 
+Open the API keys page in your browser:
+```bash
+asc auth init --open
+```
+
 Credentials are stored in the system keychain when available, with a config fallback
 at `~/.asc/config.json` (restricted permissions). A repo-local `./.asc/config.json`
 takes precedence when present. Override with `ASC_CONFIG_PATH`.

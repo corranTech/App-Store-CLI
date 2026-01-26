@@ -13,6 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
+const authKeysURL = "https://appstoreconnect.apple.com/access/integrations/api"
+
 // Auth command factory
 func AuthCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth", flag.ExitOnError)
@@ -51,6 +53,7 @@ func AuthInitCommand() *ffcli.Command {
 
 	force := fs.Bool("force", false, "Overwrite existing config.json")
 	local := fs.Bool("local", false, "Write config.json to ./.asc in the current repo")
+	open := fs.Bool("open", false, "Open the App Store Connect API keys page in your browser")
 
 	return &ffcli.Command{
 		Name:       "init",
@@ -64,7 +67,8 @@ Use --local to write ./.asc/config.json in the current repo instead.
 Examples:
   asc auth init
   asc auth init --local
-  asc auth init --force`,
+  asc auth init --force
+  asc auth init --open`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -90,6 +94,12 @@ Examples:
 			template := &config.Config{}
 			if err := config.SaveAt(path, template); err != nil {
 				return fmt.Errorf("auth init: %w", err)
+			}
+
+			if *open {
+				if err := openURL(authKeysURL); err != nil {
+					return fmt.Errorf("auth init: %w", err)
+				}
 			}
 
 			result := struct {
