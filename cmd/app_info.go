@@ -373,9 +373,11 @@ func parseAppStoreVersionCreatedDate(version asc.Resource[asc.AppStoreVersionAtt
 	if created == "" {
 		return time.Time{}
 	}
-	parsed, err := time.Parse(time.RFC3339, created)
-	if err != nil {
-		return time.Time{}
+	if parsed, err := time.Parse(time.RFC3339, created); err == nil {
+		return parsed
 	}
-	return parsed
+	if parsed, err := time.Parse(time.RFC3339Nano, created); err == nil {
+		return parsed
+	}
+	return time.Time{}
 }
