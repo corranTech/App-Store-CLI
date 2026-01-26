@@ -250,7 +250,10 @@ func ListCredentials() ([]Credential, error) {
 	if err == nil {
 		configCreds, configErr := listFromConfig()
 		if configErr != nil {
-			return nil, configErr
+			if len(credentials) == 0 {
+				return nil, configErr
+			}
+			return credentials, nil
 		}
 		merged := make([]Credential, 0, len(credentials)+len(configCreds))
 		seen := make(map[string]struct{}, len(credentials))
