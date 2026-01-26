@@ -306,6 +306,59 @@ func TestRemoveCredentials_FallsBackToLegacy(t *testing.T) {
 	}
 }
 
+func TestRemoveCredentials_TrimsName(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	newKr, _ := withSeparateKeyrings(t)
+
+	storeCredentialInKeyring(t, newKr, "trim-key", "KEY123", "ISS456", "/tmp/AuthKey.p8")
+
+	if err := RemoveCredentials("  trim-key  "); err != nil {
+		t.Fatalf("RemoveCredentials() error: %v", err)
+	}
+	if _, err := newKr.Get(keyringKey("trim-key")); !errors.Is(err, keyring.ErrKeyNotFound) {
+		t.Fatalf("expected credential to be removed, got %v", err)
+	}
+}
+
+func TestRemoveCredentials_MissingReturnsErr(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+
+	previous := keyringOpener
+	previousLegacy := legacyKeyringOpener
+	keyringOpener = func() (keyring.Keyring, error) {
+		return nil, keyring.ErrNoAvailImpl
+	}
+	legacyKeyringOpener = func() (keyring.Keyring, error) {
+		return nil, keyring.ErrNoAvailImpl
+	}
+	t.Cleanup(func() {
+		keyringOpener = previous
+		legacyKeyringOpener = previousLegacy
+	})
+
+	cfg := &config.Config{
+		DefaultKeyName: "existing",
+		Keys: []config.Credential{
+			{
+				Name:           "existing",
+				KeyID:          "KEY123",
+				IssuerID:       "ISS456",
+				PrivateKeyPath: "/tmp/AuthKey.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	err := RemoveCredentials("missing")
+	if !errors.Is(err, keyring.ErrKeyNotFound) {
+		t.Fatalf("expected ErrKeyNotFound, got %v", err)
+	}
+}
+
 func writeECDSAPEM(t *testing.T, path string, mode os.FileMode, pkcs8 bool) {
 	t.Helper()
 

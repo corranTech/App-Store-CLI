@@ -1481,6 +1481,24 @@ func TestAuthSwitchValidationErrors(t *testing.T) {
 	}
 }
 
+func TestAuthLogoutBlankNameValidation(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{"auth", "logout", "--name", "   "}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "auth logout: --name cannot be blank") {
+			t.Fatalf("expected error containing %q, got %v", "auth logout: --name cannot be blank", err)
+		}
+	})
+}
+
 func TestXcodeCloudValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
