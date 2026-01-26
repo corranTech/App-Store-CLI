@@ -194,6 +194,60 @@ func TestPrintMarkdown_Reviews_StripsControlChars(t *testing.T) {
 	}
 }
 
+func TestPrintTable_OfferCodes(t *testing.T) {
+	resp := &SubscriptionOfferCodeOneTimeUseCodesResponse{
+		Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{
+			{
+				ID: "code-1",
+				Attributes: SubscriptionOfferCodeOneTimeUseCodeAttributes{
+					NumberOfCodes:  5,
+					CreatedDate:    "2026-01-20T00:00:00Z",
+					ExpirationDate: "2026-01-31",
+					Active:         true,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Expires") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "code-1") {
+		t.Fatalf("expected offer code id in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_OfferCodes(t *testing.T) {
+	resp := &SubscriptionOfferCodeOneTimeUseCodesResponse{
+		Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{
+			{
+				ID: "code-1",
+				Attributes: SubscriptionOfferCodeOneTimeUseCodeAttributes{
+					NumberOfCodes:  5,
+					CreatedDate:    "2026-01-20T00:00:00Z",
+					ExpirationDate: "2026-01-31",
+					Active:         true,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "code-1") {
+		t.Fatalf("expected offer code id in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_Apps(t *testing.T) {
 	resp := &AppsResponse{
 		Data: []Resource[AppAttributes]{
@@ -1746,5 +1800,60 @@ func TestPrintMarkdown_SandboxTesterClearHistoryResult(t *testing.T) {
 	}
 	if !strings.Contains(output, "request-1") {
 		t.Fatalf("expected request ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_Devices(t *testing.T) {
+	resp := &DevicesResponse{
+		Data: []Resource[DeviceAttributes]{
+			{
+				ID: "device-1",
+				Attributes: DeviceAttributes{
+					Name:     "My iPhone",
+					UDID:     "UDID-1",
+					Platform: DevicePlatformIOS,
+					Status:   DeviceStatusEnabled,
+					Model:    "iPhone15,3",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "UDID") {
+		t.Fatalf("expected UDID header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "My iPhone") {
+		t.Fatalf("expected device name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Devices(t *testing.T) {
+	resp := &DevicesResponse{
+		Data: []Resource[DeviceAttributes]{
+			{
+				ID: "device-1",
+				Attributes: DeviceAttributes{
+					Name:     "My iPhone",
+					UDID:     "UDID-1",
+					Platform: DevicePlatformIOS,
+					Status:   DeviceStatusEnabled,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Name | UDID | Platform | Status |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "UDID-1") {
+		t.Fatalf("expected UDID in output, got: %s", output)
 	}
 }

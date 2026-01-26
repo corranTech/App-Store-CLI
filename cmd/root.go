@@ -40,11 +40,14 @@ func RootCommand(version string) *ffcli.Command {
 			AnalyticsCommand(),
 			FinanceCommand(),
 			AppsCommand(),
+			OfferCodesCommand(),
 			UsersCommand(),
+			DevicesCommand(),
 			TestFlightCommand(),
 			BuildsCommand(),
 			PublishCommand(),
 			VersionsCommand(),
+			AppInfoCommand(),
 			PricingCommand(),
 			PreReleaseVersionsCommand(),
 			LocalizationsCommand(),
@@ -62,6 +65,7 @@ func RootCommand(version string) *ffcli.Command {
 	}
 
 	versionFlag := root.FlagSet.Bool("version", false, "Print version and exit")
+	root.FlagSet.StringVar(&selectedProfile, "profile", "", "Use named authentication profile")
 
 	root.Exec = func(ctx context.Context, args []string) error {
 		if *versionFlag {

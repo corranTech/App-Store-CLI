@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"net/url"
@@ -21,6 +22,17 @@ import (
 var (
 	bold  = "\033[1m"
 	reset = "\033[22m"
+)
+
+const (
+	privateKeyEnvVar       = "ASC_PRIVATE_KEY"
+	privateKeyBase64EnvVar = "ASC_PRIVATE_KEY_B64"
+	profileEnvVar          = "ASC_PROFILE"
+)
+
+var (
+	privateKeyTempPath string
+	selectedProfile    string
 )
 
 // Bold returns the string wrapped in ANSI bold codes
@@ -125,15 +137,18 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 
 func getASCClient() (*asc.Client, error) {
 	var actualKeyID, actualIssuerID, actualKeyPath string
+	profile := resolveProfileName()
 
-	// Priority 1: Keychain credentials (explicit user setup via 'asc auth login')
-	if strings.TrimSpace(os.Getenv("ASC_BYPASS_KEYCHAIN")) == "" {
-		cfg, err := auth.GetDefaultCredentials()
-		if err == nil && cfg != nil {
-			actualKeyID = cfg.KeyID
-			actualIssuerID = cfg.IssuerID
-			actualKeyPath = cfg.PrivateKeyPath
+	// Priority 1: Stored credentials (keychain/config)
+	cfg, err := auth.GetCredentials(profile)
+	if err != nil {
+		if profile != "" {
+			return nil, err
 		}
+	} else if cfg != nil {
+		actualKeyID = cfg.KeyID
+		actualIssuerID = cfg.IssuerID
+		actualKeyPath = cfg.PrivateKeyPath
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
@@ -144,7 +159,11 @@ func getASCClient() (*asc.Client, error) {
 		actualIssuerID = os.Getenv("ASC_ISSUER_ID")
 	}
 	if actualKeyPath == "" {
-		actualKeyPath = os.Getenv("ASC_PRIVATE_KEY_PATH")
+		resolved, err := resolvePrivateKeyPath()
+		if err != nil {
+			return nil, fmt.Errorf("invalid private key environment: %w", err)
+		}
+		actualKeyPath = resolved
 	}
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
@@ -157,6 +176,76 @@ func getASCClient() (*asc.Client, error) {
 	return asc.NewClient(actualKeyID, actualIssuerID, actualKeyPath)
 }
 
+func resolvePrivateKeyPath() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")); path != "" {
+		return path, nil
+	}
+	if privateKeyTempPath != "" {
+		return privateKeyTempPath, nil
+	}
+	if value := strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)); value != "" {
+		decoded, err := decodeBase64Secret(value)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", privateKeyBase64EnvVar, err)
+		}
+		return writeTempPrivateKey(decoded)
+	}
+	if value := strings.TrimSpace(os.Getenv(privateKeyEnvVar)); value != "" {
+		return writeTempPrivateKey([]byte(normalizePrivateKeyValue(value)))
+	}
+	return "", nil
+}
+
+func decodeBase64Secret(value string) ([]byte, error) {
+	compact := strings.Join(strings.Fields(value), "")
+	if compact == "" {
+		return nil, fmt.Errorf("empty value")
+	}
+	decoded, err := base64.StdEncoding.DecodeString(compact)
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) == 0 {
+		return nil, fmt.Errorf("decoded to empty value")
+	}
+	return decoded, nil
+}
+
+func normalizePrivateKeyValue(value string) string {
+	if strings.Contains(value, "\\n") && !strings.Contains(value, "\n") {
+		return strings.ReplaceAll(value, "\\n", "\n")
+	}
+	return value
+}
+
+func writeTempPrivateKey(data []byte) (string, error) {
+	file, err := os.CreateTemp("", "asc-key-*.p8")
+	if err != nil {
+		return "", err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		return "", err
+	}
+	privateKeyTempPath = file.Name()
+	return privateKeyTempPath, nil
+}
+func resolveProfileName() string {
+	if strings.TrimSpace(selectedProfile) != "" {
+		return strings.TrimSpace(selectedProfile)
+	}
+	if value := strings.TrimSpace(os.Getenv(profileEnvVar)); value != "" {
+		return value
+	}
+	return ""
+}
 func printOutput(data interface{}, format string, pretty bool) error {
 	format = strings.ToLower(format)
 	switch format {
