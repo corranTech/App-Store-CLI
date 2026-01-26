@@ -324,16 +324,33 @@ Examples:
 
 			if len(credentials) == 0 {
 				fmt.Println("No credentials stored. Run 'asc auth login' to get started.")
-				return nil
+			} else {
+				fmt.Println("Stored credentials:")
+				for _, cred := range credentials {
+					active := ""
+					if cred.IsDefault {
+						active = " (default)"
+					}
+					fmt.Printf("  - %s (Key ID: %s)%s\n", cred.Name, cred.KeyID, active)
+				}
 			}
 
-			fmt.Println("Stored credentials:")
-			for _, cred := range credentials {
-				active := ""
-				if cred.IsDefault {
-					active = " (default)"
-				}
-				fmt.Printf("  - %s (Key ID: %s)%s\n", cred.Name, cred.KeyID, active)
+			profile := resolveProfileName()
+			bypassKeychain := auth.ShouldBypassKeychain()
+			envKeyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
+			envIssuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
+			hasKeyEnv := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
+				strings.TrimSpace(os.Getenv(privateKeyEnvVar)) != "" ||
+				strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)) != ""
+			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv
+			envComplete := envKeyID != "" && envIssuerID != "" && hasKeyEnv
+
+			if profile != "" && envProvided {
+				fmt.Printf("Profile %q selected; environment credentials will be ignored.\n", profile)
+			} else if bypassKeychain && envComplete {
+				fmt.Printf("Environment credentials detected (ASC_KEY_ID: %s). With ASC_BYPASS_KEYCHAIN=1, they will be used when no profile is selected.\n", envKeyID)
+			} else if bypassKeychain && envProvided && !envComplete {
+				fmt.Println("Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64.")
 			}
 			return nil
 		},

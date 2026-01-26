@@ -81,6 +81,11 @@ func shouldBypassKeychain() bool {
 	}
 }
 
+// ShouldBypassKeychain reports whether keychain usage is disabled via env.
+func ShouldBypassKeychain() bool {
+	return shouldBypassKeychain()
+}
+
 var keyringOpener = func() (keyring.Keyring, error) {
 	return keyring.Open(keyringConfig(""))
 }
