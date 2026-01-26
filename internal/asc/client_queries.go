@@ -57,7 +57,7 @@ type buildsQuery struct {
 	preReleaseVersionID string
 }
 
-type promoCodesQuery struct {
+type subscriptionOfferCodeOneTimeUseCodesQuery struct {
 	listQuery
 }
 
@@ -337,7 +337,7 @@ func buildBetaRecruitmentCriterionOptionsQuery(query *betaRecruitmentCriterionOp
 	return values.Encode()
 }
 
-func buildPromoCodesQuery(query *promoCodesQuery) string {
+func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCodeOneTimeUseCodesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

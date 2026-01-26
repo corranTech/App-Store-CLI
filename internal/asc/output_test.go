@@ -194,17 +194,16 @@ func TestPrintMarkdown_Reviews_StripsControlChars(t *testing.T) {
 	}
 }
 
-func TestPrintTable_PromoCodes(t *testing.T) {
-	resp := &PromoCodesResponse{
-		Data: []Resource[PromoCodeAttributes]{
+func TestPrintTable_OfferCodes(t *testing.T) {
+	resp := &SubscriptionOfferCodeOneTimeUseCodesResponse{
+		Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{
 			{
-				ID: "1",
-				Attributes: PromoCodeAttributes{
-					Code:        "ABC123",
-					ExpiresDate: "2026-01-31T00:00:00Z",
-					IsUsed:      false,
-					IsExpired:   false,
-					ProductType: PromoCodeProductTypeApp,
+				ID: "code-1",
+				Attributes: SubscriptionOfferCodeOneTimeUseCodeAttributes{
+					NumberOfCodes:  5,
+					CreatedDate:    "2026-01-20T00:00:00Z",
+					ExpirationDate: "2026-01-31",
+					Active:         true,
 				},
 			},
 		},
@@ -214,25 +213,24 @@ func TestPrintTable_PromoCodes(t *testing.T) {
 		return PrintTable(resp)
 	})
 
-	if !strings.Contains(output, "Code") || !strings.Contains(output, "Expires") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Expires") {
 		t.Fatalf("expected header in output, got: %s", output)
 	}
-	if !strings.Contains(output, "ABC123") {
-		t.Fatalf("expected code in output, got: %s", output)
+	if !strings.Contains(output, "code-1") {
+		t.Fatalf("expected offer code id in output, got: %s", output)
 	}
 }
 
-func TestPrintMarkdown_PromoCodes(t *testing.T) {
-	resp := &PromoCodesResponse{
-		Data: []Resource[PromoCodeAttributes]{
+func TestPrintMarkdown_OfferCodes(t *testing.T) {
+	resp := &SubscriptionOfferCodeOneTimeUseCodesResponse{
+		Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{
 			{
-				ID: "1",
-				Attributes: PromoCodeAttributes{
-					Code:        "ABC123",
-					ExpiresDate: "2026-01-31T00:00:00Z",
-					IsUsed:      false,
-					IsExpired:   false,
-					ProductType: PromoCodeProductTypeApp,
+				ID: "code-1",
+				Attributes: SubscriptionOfferCodeOneTimeUseCodeAttributes{
+					NumberOfCodes:  5,
+					CreatedDate:    "2026-01-20T00:00:00Z",
+					ExpirationDate: "2026-01-31",
+					Active:         true,
 				},
 			},
 		},
@@ -242,11 +240,11 @@ func TestPrintMarkdown_PromoCodes(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Code |") {
+	if !strings.Contains(output, "| ID |") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
-	if !strings.Contains(output, "ABC123") {
-		t.Fatalf("expected code in output, got: %s", output)
+	if !strings.Contains(output, "code-1") {
+		t.Fatalf("expected offer code id in output, got: %s", output)
 	}
 }
 

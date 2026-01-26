@@ -428,11 +428,11 @@ func TestBuildBuildsQuery(t *testing.T) {
 	}
 }
 
-func TestBuildPromoCodesQuery(t *testing.T) {
-	query := &promoCodesQuery{}
-	opts := []PromoCodesOption{
-		WithPromoCodesLimit(10),
-		WithPromoCodesNextURL("https://api.appstoreconnect.apple.com/v1/apps/123/promoCodes?cursor=abc"),
+func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
+	query := &subscriptionOfferCodeOneTimeUseCodesQuery{}
+	opts := []SubscriptionOfferCodeOneTimeUseCodesOption{
+		WithSubscriptionOfferCodeOneTimeUseCodesLimit(10),
+		WithSubscriptionOfferCodeOneTimeUseCodesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -441,11 +441,11 @@ func TestBuildPromoCodesQuery(t *testing.T) {
 	if query.limit != 10 {
 		t.Fatalf("expected limit=10, got %d", query.limit)
 	}
-	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/apps/123/promoCodes?cursor=abc" {
+	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc" {
 		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
 	}
 
-	values, err := url.ParseQuery(buildPromoCodesQuery(query))
+	values, err := url.ParseQuery(buildSubscriptionOfferCodeOneTimeUseCodesQuery(query))
 	if err != nil {
 		t.Fatalf("failed to parse query: %v", err)
 	}
@@ -527,19 +527,19 @@ func TestBuildUploadCreateRequest_JSON(t *testing.T) {
 	}
 }
 
-func TestPromoCodeCreateRequest_JSON(t *testing.T) {
-	req := PromoCodeCreateRequest{
-		Data: PromoCodeCreateData{
-			Type: ResourceTypePromoCodes,
-			Attributes: PromoCodeCreateAttributes{
-				ProductType: PromoCodeProductTypeApp,
-				Quantity:    3,
+func TestSubscriptionOfferCodeOneTimeUseCodeCreateRequest_JSON(t *testing.T) {
+	req := SubscriptionOfferCodeOneTimeUseCodeCreateRequest{
+		Data: SubscriptionOfferCodeOneTimeUseCodeCreateData{
+			Type: ResourceTypeSubscriptionOfferCodeOneTimeUseCodes,
+			Attributes: SubscriptionOfferCodeOneTimeUseCodeCreateAttributes{
+				NumberOfCodes:  3,
+				ExpirationDate: "2026-02-01",
 			},
-			Relationships: PromoCodeCreateRelationships{
-				App: Relationship{
+			Relationships: SubscriptionOfferCodeOneTimeUseCodeCreateRelationships{
+				OfferCode: Relationship{
 					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   "APP_ID_123",
+						Type: ResourceTypeSubscriptionOfferCodes,
+						ID:   "OFFER_CODE_ID",
 					},
 				},
 			},
@@ -560,16 +560,16 @@ func TestPromoCodeCreateRequest_JSON(t *testing.T) {
 		Data struct {
 			Type       string `json:"type"`
 			Attributes struct {
-				ProductType string `json:"productType"`
-				Quantity    int    `json:"quantity"`
+				NumberOfCodes  int    `json:"numberOfCodes"`
+				ExpirationDate string `json:"expirationDate"`
 			} `json:"attributes"`
 			Relationships struct {
-				App struct {
+				OfferCode struct {
 					Data struct {
 						Type string `json:"type"`
 						ID   string `json:"id"`
 					} `json:"data"`
-				} `json:"app"`
+				} `json:"offerCode"`
 			} `json:"relationships"`
 		} `json:"data"`
 	}
@@ -577,20 +577,20 @@ func TestPromoCodeCreateRequest_JSON(t *testing.T) {
 		t.Fatalf("failed to unmarshal body: %v", err)
 	}
 
-	if parsed.Data.Type != "promoCodes" {
-		t.Fatalf("expected type=promoCodes, got %q", parsed.Data.Type)
+	if parsed.Data.Type != "subscriptionOfferCodeOneTimeUseCodes" {
+		t.Fatalf("expected type=subscriptionOfferCodeOneTimeUseCodes, got %q", parsed.Data.Type)
 	}
-	if parsed.Data.Attributes.ProductType != "APP" {
-		t.Fatalf("expected productType=APP, got %q", parsed.Data.Attributes.ProductType)
+	if parsed.Data.Attributes.NumberOfCodes != 3 {
+		t.Fatalf("expected numberOfCodes=3, got %d", parsed.Data.Attributes.NumberOfCodes)
 	}
-	if parsed.Data.Attributes.Quantity != 3 {
-		t.Fatalf("expected quantity=3, got %d", parsed.Data.Attributes.Quantity)
+	if parsed.Data.Attributes.ExpirationDate != "2026-02-01" {
+		t.Fatalf("expected expirationDate=2026-02-01, got %q", parsed.Data.Attributes.ExpirationDate)
 	}
-	if parsed.Data.Relationships.App.Data.Type != "apps" {
-		t.Fatalf("expected app type=apps, got %q", parsed.Data.Relationships.App.Data.Type)
+	if parsed.Data.Relationships.OfferCode.Data.Type != "subscriptionOfferCodes" {
+		t.Fatalf("expected offerCode type=subscriptionOfferCodes, got %q", parsed.Data.Relationships.OfferCode.Data.Type)
 	}
-	if parsed.Data.Relationships.App.Data.ID != "APP_ID_123" {
-		t.Fatalf("expected app id=APP_ID_123, got %q", parsed.Data.Relationships.App.Data.ID)
+	if parsed.Data.Relationships.OfferCode.Data.ID != "OFFER_CODE_ID" {
+		t.Fatalf("expected offerCode id=OFFER_CODE_ID, got %q", parsed.Data.Relationships.OfferCode.Data.ID)
 	}
 }
 

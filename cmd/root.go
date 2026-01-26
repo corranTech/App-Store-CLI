@@ -40,7 +40,7 @@ func RootCommand(version string) *ffcli.Command {
 			AnalyticsCommand(),
 			FinanceCommand(),
 			AppsCommand(),
-			PromoCodesCommand(),
+			OfferCodesCommand(),
 			UsersCommand(),
 			DevicesCommand(),
 			TestFlightCommand(),

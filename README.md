@@ -520,20 +520,20 @@ asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
 asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
 ```
 
-### Promo Codes
+### Offer Codes (Subscriptions)
 
 ```bash
-# List promo codes for an app
-asc promocodes list --app "123456789"
+# List one-time use offer code batches for a subscription offer
+asc offer-codes list --offer-code "OFFER_CODE_ID"
 
-# Fetch all promo codes (all pages)
-asc promocodes list --app "123456789" --paginate
+# Fetch all offer code batches (all pages)
+asc offer-codes list --offer-code "OFFER_CODE_ID" --paginate
 
-# Generate app promo codes
-asc promocodes generate --app "123456789" --type app --quantity 5
+# Generate one-time use offer codes
+asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
 
-# Generate subscription promo codes and write to a file
-asc promocodes generate --app "123456789" --type subscription --quantity 3 --output "./promo-codes.txt"
+# Download one-time use offer codes to a file
+asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"
 ```
 
 ### Categories

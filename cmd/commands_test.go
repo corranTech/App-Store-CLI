@@ -172,14 +172,14 @@ func TestBuildsExpireRequiresBuildID(t *testing.T) {
 	}
 }
 
-func TestPromoCodesListRequiresApp(t *testing.T) {
+func TestOfferCodesListRequiresOfferCode(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	root := RootCommand("1.2.3")
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"promocodes", "list"}); err != nil {
+		if err := root.Parse([]string{"offer-codes", "list"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		err := root.Run(context.Background())
@@ -191,12 +191,12 @@ func TestPromoCodesListRequiresApp(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Error: --app is required") {
-		t.Fatalf("expected missing app error, got %q", stderr)
+	if !strings.Contains(stderr, "Error: --offer-code is required") {
+		t.Fatalf("expected missing offer code error, got %q", stderr)
 	}
 }
 
-func TestPromoCodesGenerateValidationErrors(t *testing.T) {
+func TestOfferCodesGenerateValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
@@ -206,18 +206,18 @@ func TestPromoCodesGenerateValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "missing app",
-			args:    []string{"promocodes", "generate", "--type", "app", "--quantity", "1"},
-			wantErr: "Error: --app is required",
+			name:    "missing offer-code",
+			args:    []string{"offer-codes", "generate", "--quantity", "1", "--expiration-date", "2026-02-01"},
+			wantErr: "Error: --offer-code is required",
 		},
 		{
-			name:    "missing type",
-			args:    []string{"promocodes", "generate", "--app", "APP_ID", "--quantity", "1"},
-			wantErr: "Error: --type is required",
+			name:    "missing expiration date",
+			args:    []string{"offer-codes", "generate", "--offer-code", "OFFER_CODE_ID", "--quantity", "1"},
+			wantErr: "Error: --expiration-date is required",
 		},
 		{
 			name:    "missing quantity",
-			args:    []string{"promocodes", "generate", "--app", "APP_ID", "--type", "app"},
+			args:    []string{"offer-codes", "generate", "--offer-code", "OFFER_CODE_ID", "--expiration-date", "2026-02-01"},
 			wantErr: "Error: --quantity is required",
 		},
 	}
