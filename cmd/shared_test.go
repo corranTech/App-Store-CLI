@@ -131,6 +131,47 @@ func TestGetASCClient_ProfileMissingSkipsEnvFallback(t *testing.T) {
 	}
 }
 
+func TestGetASCClient_BypassKeychainPrefersEnvOverConfig(t *testing.T) {
+	resetPrivateKeyTemp(t)
+
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	envKeyPath := filepath.Join(tempDir, "AuthKey-Env.p8")
+	writeECDSAPEM(t, envKeyPath)
+
+	cfg := &config.Config{
+		DefaultKeyName: "config",
+		Keys: []config.Credential{
+			{
+				Name:           "config",
+				KeyID:          "CFGKEY",
+				IssuerID:       "CFGISS",
+				PrivateKeyPath: filepath.Join(tempDir, "missing.p8"),
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "ENVKEY")
+	t.Setenv("ASC_ISSUER_ID", "ENVISS")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", envKeyPath)
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() {
+		selectedProfile = previousProfile
+	})
+
+	if _, err := getASCClient(); err != nil {
+		t.Fatalf("expected env credentials to override config, got %v", err)
+	}
+}
+
 func resetPrivateKeyTemp(t *testing.T) {
 	t.Helper()
 	if privateKeyTempPath != "" {

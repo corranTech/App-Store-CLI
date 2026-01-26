@@ -135,9 +135,55 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 	return b.String()
 }
 
+type envCredentials struct {
+	keyID    string
+	issuerID string
+	keyPath  string
+	complete bool
+}
+
+func resolveEnvCredentials() (envCredentials, error) {
+	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
+	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
+	hasKeyPathEnv := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
+		strings.TrimSpace(os.Getenv(privateKeyEnvVar)) != "" ||
+		strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)) != ""
+
+	if keyID == "" && issuerID == "" && !hasKeyPathEnv {
+		return envCredentials{}, nil
+	}
+
+	keyPath, err := resolvePrivateKeyPath()
+	if err != nil {
+		return envCredentials{}, err
+	}
+
+	creds := envCredentials{
+		keyID:    keyID,
+		issuerID: issuerID,
+		keyPath:  keyPath,
+	}
+	creds.complete = keyID != "" && issuerID != "" && keyPath != ""
+	return creds, nil
+}
+
 func getASCClient() (*asc.Client, error) {
 	var actualKeyID, actualIssuerID, actualKeyPath string
 	profile := resolveProfileName()
+	var envCreds envCredentials
+	envResolved := false
+
+	if profile == "" && auth.ShouldBypassKeychain() {
+		resolved, err := resolveEnvCredentials()
+		if err != nil {
+			return nil, fmt.Errorf("invalid private key environment: %w", err)
+		}
+		envCreds = resolved
+		envResolved = true
+		if envCreds.complete {
+			return asc.NewClient(envCreds.keyID, envCreds.issuerID, envCreds.keyPath)
+		}
+	}
 
 	// Priority 1: Stored credentials (keychain/config)
 	cfg, err := auth.GetCredentials(profile)
@@ -152,18 +198,23 @@ func getASCClient() (*asc.Client, error) {
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
-	if actualKeyID == "" {
-		actualKeyID = os.Getenv("ASC_KEY_ID")
-	}
-	if actualIssuerID == "" {
-		actualIssuerID = os.Getenv("ASC_ISSUER_ID")
-	}
-	if actualKeyPath == "" {
-		resolved, err := resolvePrivateKeyPath()
-		if err != nil {
-			return nil, fmt.Errorf("invalid private key environment: %w", err)
+	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
+		if !envResolved {
+			resolved, err := resolveEnvCredentials()
+			if err != nil {
+				return nil, fmt.Errorf("invalid private key environment: %w", err)
+			}
+			envCreds = resolved
 		}
-		actualKeyPath = resolved
+		if actualKeyID == "" {
+			actualKeyID = envCreds.keyID
+		}
+		if actualIssuerID == "" {
+			actualIssuerID = envCreds.issuerID
+		}
+		if actualKeyPath == "" {
+			actualKeyPath = envCreds.keyPath
+		}
 	}
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {

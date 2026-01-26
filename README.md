@@ -133,7 +133,9 @@ asc auth init --open
 
 Credentials are stored in the system keychain when available, with a config fallback
 at `~/.asc/config.json` (restricted permissions). A repo-local `./.asc/config.json`
-takes precedence when present. Override with `ASC_CONFIG_PATH`.
+takes precedence when present. Override with `ASC_CONFIG_PATH`. When
+`ASC_BYPASS_KEYCHAIN` is set and environment credentials are fully provided, the
+environment values take precedence over config.
 Environment variable fallback:
 - `ASC_KEY_ID`
 - `ASC_ISSUER_ID`

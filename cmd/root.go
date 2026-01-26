@@ -58,6 +58,7 @@ func RootCommand(version string) *ffcli.Command {
 			SubmitCommand(),
 			XcodeCloudCommand(),
 			CategoriesCommand(),
+			AgeRatingCommand(),
 			MigrateCommand(),
 			VersionCommand(version),
 		},
