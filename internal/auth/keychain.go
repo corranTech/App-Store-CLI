@@ -457,27 +457,29 @@ func listFromKeychain() ([]Credential, error) {
 	}
 
 	legacy, err := listFromLegacyKeychain()
-	if err != nil || len(legacy) == 0 {
-		return credentials, nil
-	}
-
-	existing := make(map[string]struct{}, len(credentials))
-	for _, cred := range credentials {
-		existing[cred.Name] = struct{}{}
-	}
-
-	var toMigrate []Credential
-	for _, cred := range legacy {
-		if _, ok := existing[cred.Name]; ok {
-			_ = removeFromLegacyKeychain(cred.Name)
-			continue
+	if err == nil && len(legacy) > 0 {
+		existing := make(map[string]struct{}, len(credentials))
+		for _, cred := range credentials {
+			existing[cred.Name] = struct{}{}
 		}
-		credentials = append(credentials, cred)
-		toMigrate = append(toMigrate, cred)
-	}
 
-	if len(toMigrate) > 0 {
-		migrateLegacyCredentials(toMigrate)
+		var toMigrate []Credential
+		for _, cred := range legacy {
+			if _, ok := existing[cred.Name]; ok {
+				_ = removeFromLegacyKeychain(cred.Name)
+				continue
+			}
+			credentials = append(credentials, cred)
+			toMigrate = append(toMigrate, cred)
+		}
+
+		if len(toMigrate) > 0 {
+			migrateLegacyCredentials(toMigrate)
+		}
+	}
+	defaultName, _ := defaultName()
+	if strings.TrimSpace(defaultName) == "" && len(credentials) == 1 {
+		credentials[0].IsDefault = true
 	}
 	return credentials, nil
 }
