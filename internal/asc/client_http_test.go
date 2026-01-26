@@ -3090,3 +3090,167 @@ func TestGetBetaGroupTesterUsages(t *testing.T) {
 		t.Fatalf("GetBetaGroupTesterUsages() error: %v", err)
 	}
 }
+
+func TestGetDevices_WithFiltersAndLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"devices","id":"device-1","attributes":{"name":"My iPhone","platform":"IOS","udid":"UDID-1","status":"ENABLED"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices" {
+			t.Fatalf("expected path /v1/devices, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[name]") != "My iPhone" {
+			t.Fatalf("expected filter[name]=My iPhone, got %q", values.Get("filter[name]"))
+		}
+		if values.Get("filter[platform]") != "IOS" {
+			t.Fatalf("expected filter[platform]=IOS, got %q", values.Get("filter[platform]"))
+		}
+		if values.Get("filter[status]") != "ENABLED" {
+			t.Fatalf("expected filter[status]=ENABLED, got %q", values.Get("filter[status]"))
+		}
+		if values.Get("filter[udid]") != "UDID-1,UDID-2" {
+			t.Fatalf("expected filter[udid] CSV, got %q", values.Get("filter[udid]"))
+		}
+		if values.Get("filter[id]") != "device-1" {
+			t.Fatalf("expected filter[id]=device-1, got %q", values.Get("filter[id]"))
+		}
+		if values.Get("sort") != "-name" {
+			t.Fatalf("expected sort=-name, got %q", values.Get("sort"))
+		}
+		if values.Get("fields[devices]") != "name,udid" {
+			t.Fatalf("expected fields[devices]=name,udid, got %q", values.Get("fields[devices]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetDevices(context.Background(),
+		WithDevicesNames([]string{"My iPhone"}),
+		WithDevicesPlatform("IOS"),
+		WithDevicesStatus("ENABLED"),
+		WithDevicesUDIDs([]string{"UDID-1", "UDID-2"}),
+		WithDevicesIDs([]string{"device-1"}),
+		WithDevicesSort("-name"),
+		WithDevicesFields([]string{"name", "udid"}),
+		WithDevicesLimit(5),
+	); err != nil {
+		t.Fatalf("GetDevices() error: %v", err)
+	}
+}
+
+func TestGetDevices_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/devices?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetDevices(context.Background(), WithDevicesNextURL(next)); err != nil {
+		t.Fatalf("GetDevices() error: %v", err)
+	}
+}
+
+func TestGetDevice_WithFields(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"devices","id":"device-1","attributes":{"name":"My iPhone","platform":"IOS","udid":"UDID-1","status":"ENABLED"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices/device-1" {
+			t.Fatalf("expected path /v1/devices/device-1, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("fields[devices]") != "name,udid" {
+			t.Fatalf("expected fields[devices]=name,udid, got %q", req.URL.Query().Get("fields[devices]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetDevice(context.Background(), "device-1", []string{"name", "udid"}); err != nil {
+		t.Fatalf("GetDevice() error: %v", err)
+	}
+}
+
+func TestCreateDevice_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"devices","id":"device-1","attributes":{"name":"My iPhone","platform":"IOS","udid":"UDID-1","status":"ENABLED"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices" {
+			t.Fatalf("expected path /v1/devices, got %s", req.URL.Path)
+		}
+		var payload DeviceCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeDevices {
+			t.Fatalf("expected type devices, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.Name != "My iPhone" {
+			t.Fatalf("expected name My iPhone, got %q", payload.Data.Attributes.Name)
+		}
+		if payload.Data.Attributes.UDID != "UDID-1" {
+			t.Fatalf("expected udid UDID-1, got %q", payload.Data.Attributes.UDID)
+		}
+		if payload.Data.Attributes.Platform != DevicePlatformIOS {
+			t.Fatalf("expected platform IOS, got %q", payload.Data.Attributes.Platform)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateDevice(context.Background(), DeviceCreateAttributes{
+		Name:     "My iPhone",
+		UDID:     "UDID-1",
+		Platform: DevicePlatformIOS,
+	}); err != nil {
+		t.Fatalf("CreateDevice() error: %v", err)
+	}
+}
+
+func TestUpdateDevice_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"devices","id":"device-1","attributes":{"name":"Updated iPhone","status":"DISABLED"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/devices/device-1" {
+			t.Fatalf("expected path /v1/devices/device-1, got %s", req.URL.Path)
+		}
+		var payload DeviceUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeDevices {
+			t.Fatalf("expected type devices, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "device-1" {
+			t.Fatalf("expected id device-1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil {
+			t.Fatalf("expected attributes to be set")
+		}
+		if payload.Data.Attributes.Name == nil || *payload.Data.Attributes.Name != "Updated iPhone" {
+			t.Fatalf("expected name Updated iPhone, got %+v", payload.Data.Attributes.Name)
+		}
+		if payload.Data.Attributes.Status == nil || *payload.Data.Attributes.Status != DeviceStatusDisabled {
+			t.Fatalf("expected status DISABLED, got %+v", payload.Data.Attributes.Status)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	status := DeviceStatusDisabled
+	name := "Updated iPhone"
+	if _, err := client.UpdateDevice(context.Background(), "device-1", DeviceUpdateAttributes{
+		Name:   &name,
+		Status: &status,
+	}); err != nil {
+		t.Fatalf("UpdateDevice() error: %v", err)
+	}
+}

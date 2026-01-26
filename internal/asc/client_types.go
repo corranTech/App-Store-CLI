@@ -40,6 +40,7 @@ const (
 	ResourceTypeReviewSubmissionItems           ResourceType = "reviewSubmissionItems"
 	ResourceTypeUsers                           ResourceType = "users"
 	ResourceTypeUserInvitations                 ResourceType = "userInvitations"
+	ResourceTypeDevices                         ResourceType = "devices"
 )
 
 // Resource is a generic ASC API resource wrapper.
