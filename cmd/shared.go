@@ -131,14 +131,12 @@ func getASCClient() (*asc.Client, error) {
 	var actualKeyID, actualIssuerID, actualKeyPath string
 	profile := resolveProfileName()
 
-	// Priority 1: Keychain credentials (explicit user setup via 'asc auth login')
-	if strings.TrimSpace(os.Getenv("ASC_BYPASS_KEYCHAIN")) == "" {
-		cfg, err := auth.GetCredentials(profile)
-		if err == nil && cfg != nil {
-			actualKeyID = cfg.KeyID
-			actualIssuerID = cfg.IssuerID
-			actualKeyPath = cfg.PrivateKeyPath
-		}
+	// Priority 1: Stored credentials (keychain/config)
+	cfg, err := auth.GetCredentials(profile)
+	if err == nil && cfg != nil {
+		actualKeyID = cfg.KeyID
+		actualIssuerID = cfg.IssuerID
+		actualKeyPath = cfg.PrivateKeyPath
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)

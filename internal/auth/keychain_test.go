@@ -340,6 +340,8 @@ func writeECDSAPEM(t *testing.T, path string, mode os.FileMode, pkcs8 bool) {
 
 func withArrayKeyring(t *testing.T) {
 	t.Helper()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "0")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	previous := keyringOpener
 	previousLegacy := legacyKeyringOpener
 	kr := keyring.NewArrayKeyring([]keyring.Item{})
@@ -357,6 +359,8 @@ func withArrayKeyring(t *testing.T) {
 
 func withSeparateKeyrings(t *testing.T) (keyring.Keyring, keyring.Keyring) {
 	t.Helper()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "0")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	previous := keyringOpener
 	previousLegacy := legacyKeyringOpener
 	kr := keyring.NewArrayKeyring([]keyring.Item{})
