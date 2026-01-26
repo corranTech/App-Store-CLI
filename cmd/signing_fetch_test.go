@@ -68,11 +68,19 @@ func TestSigningFetchWriteFiles_NoOverwrite(t *testing.T) {
 	profileContent := base64.StdEncoding.EncodeToString([]byte("profile"))
 	certContent := base64.StdEncoding.EncodeToString([]byte("certificate"))
 
-	if err := writeProfileFile(profilePath, profileContent); err != nil {
+	profileData, err := decodeBase64Content("profile", profileContent)
+	if err != nil {
+		t.Fatalf("decode profile error: %v", err)
+	}
+	if err := writeProfileFile(profilePath, profileData); err != nil {
 		t.Fatalf("writeProfileFile error: %v", err)
 	}
-	if err := writeCertificateFile(certPath, certContent); err != nil {
-		t.Fatalf("writeCertificateFile error: %v", err)
+	certData, err := decodeBase64Content("certificate", certContent)
+	if err != nil {
+		t.Fatalf("decode certificate error: %v", err)
+	}
+	if err := writeBinaryFile(certPath, certData); err != nil {
+		t.Fatalf("writeBinaryFile error: %v", err)
 	}
 
 	if data, err := os.ReadFile(profilePath); err != nil {
@@ -87,13 +95,13 @@ func TestSigningFetchWriteFiles_NoOverwrite(t *testing.T) {
 		t.Fatalf("unexpected certificate content: %q", string(data))
 	}
 
-	if err := writeProfileFile(profilePath, profileContent); err == nil {
+	if err := writeProfileFile(profilePath, profileData); err == nil {
 		t.Fatal("expected error when overwriting profile file")
 	} else if !strings.Contains(err.Error(), "output file already exists") {
 		t.Fatalf("expected overwrite error, got %v", err)
 	}
 
-	if err := writeCertificateFile(certPath, certContent); err == nil {
+	if err := writeBinaryFile(certPath, certData); err == nil {
 		t.Fatal("expected error when overwriting certificate file")
 	} else if !strings.Contains(err.Error(), "output file already exists") {
 		t.Fatalf("expected overwrite error, got %v", err)

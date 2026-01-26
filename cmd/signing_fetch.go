@@ -125,7 +125,11 @@ Examples:
 
 			profileName := safeFileName(profile.Data.Attributes.Name, profile.Data.ID)
 			profilePath := filepath.Join(outputDir, profileName+".mobileprovision")
-			if err := writeProfileFile(profilePath, profile.Data.Attributes.ProfileContent); err != nil {
+			profileContent, err := decodeBase64Content("profile", profile.Data.Attributes.ProfileContent)
+			if err != nil {
+				return fmt.Errorf("signing fetch: decode profile: %w", err)
+			}
+			if err := writeProfileFile(profilePath, profileContent); err != nil {
 				return fmt.Errorf("signing fetch: write profile: %w", err)
 			}
 			result.ProfileFile = profilePath
@@ -133,7 +137,11 @@ Examples:
 			for _, cert := range certs.Data {
 				certName := safeFileName(cert.Attributes.SerialNumber, cert.ID)
 				certPath := filepath.Join(outputDir, certName+".cer")
-				if err := writeCertificateFile(certPath, cert.Attributes.CertificateContent); err != nil {
+				certContent, err := decodeBase64Content("certificate", cert.Attributes.CertificateContent)
+				if err != nil {
+					return fmt.Errorf("signing fetch: decode certificate: %w", err)
+				}
+				if err := writeBinaryFile(certPath, certContent); err != nil {
 					return fmt.Errorf("signing fetch: write certificate: %w", err)
 				}
 				result.CertificateFiles = append(result.CertificateFiles, certPath)
@@ -234,12 +242,9 @@ func findOrCreateProfile(ctx context.Context, client *asc.Client, bundleIDResour
 	}
 	name := fmt.Sprintf("%s-%s", profileType, time.Now().Format("20060102"))
 	profile, err := client.CreateProfile(ctx, asc.ProfileCreateAttributes{
-		Name:           name,
-		ProfileType:    profileType,
-		BundleIDID:     bundleIDResourceID,
-		CertificateIDs: certIDs,
-		DeviceIDs:      deviceIDs,
-	})
+		Name:        name,
+		ProfileType: profileType,
+	}, bundleIDResourceID, certIDs, deviceIDs)
 	if err != nil {
 		return nil, false, err
 	}
@@ -284,22 +289,6 @@ func inferCertificateType(profileType string) (string, error) {
 	default:
 		return "", fmt.Errorf("unable to infer certificate type for profile type %s; use --certificate-type", profileType)
 	}
-}
-
-func writeProfileFile(path, base64Content string) error {
-	data, err := decodeBase64Content("profile", base64Content)
-	if err != nil {
-		return err
-	}
-	return writeBinaryFile(path, data)
-}
-
-func writeCertificateFile(path, base64Content string) error {
-	data, err := decodeBase64Content("certificate", base64Content)
-	if err != nil {
-		return err
-	}
-	return writeBinaryFile(path, data)
 }
 
 func decodeBase64Content(label, content string) ([]byte, error) {

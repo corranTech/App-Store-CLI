@@ -199,7 +199,7 @@ func printProfilesMarkdown(resp *ProfilesResponse) error {
 			item.ID,
 			escapeMarkdown(item.Attributes.Name),
 			escapeMarkdown(item.Attributes.ProfileType),
-			escapeMarkdown(item.Attributes.ProfileState),
+			escapeMarkdown(string(item.Attributes.ProfileState)),
 			escapeMarkdown(item.Attributes.ExpirationDate),
 		)
 	}
