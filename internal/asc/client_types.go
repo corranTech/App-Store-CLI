@@ -5,6 +5,8 @@ type ResourceType string
 
 const (
 	ResourceTypeApps                                 ResourceType = "apps"
+	ResourceTypeBundleIds                            ResourceType = "bundleIds"
+	ResourceTypeBundleIdCapabilities                 ResourceType = "bundleIdCapabilities"
 	ResourceTypeAppCategories                        ResourceType = "appCategories"
 	ResourceTypeAppAvailabilities                    ResourceType = "appAvailabilities"
 	ResourceTypeAppPricePoints                       ResourceType = "appPricePoints"
@@ -13,6 +15,7 @@ const (
 	ResourceTypeBuilds                               ResourceType = "builds"
 	ResourceTypeBuildUploads                         ResourceType = "buildUploads"
 	ResourceTypeBuildUploadFiles                     ResourceType = "buildUploadFiles"
+	ResourceTypeCertificates                         ResourceType = "certificates"
 	ResourceTypeAppStoreVersions                     ResourceType = "appStoreVersions"
 	ResourceTypePreReleaseVersions                   ResourceType = "preReleaseVersions"
 	ResourceTypeAppStoreVersionSubmissions           ResourceType = "appStoreVersionSubmissions"
@@ -35,13 +38,14 @@ const (
 	ResourceTypeAnalyticsReports                     ResourceType = "analyticsReports"
 	ResourceTypeAnalyticsReportInstances             ResourceType = "analyticsReportInstances"
 	ResourceTypeAnalyticsReportSegments              ResourceType = "analyticsReportSegments"
+	ResourceTypeDevices                              ResourceType = "devices"
+	ResourceTypeProfiles                             ResourceType = "profiles"
 	ResourceTypeTerritories                          ResourceType = "territories"
 	ResourceTypeTerritoryAvailabilities              ResourceType = "territoryAvailabilities"
 	ResourceTypeReviewSubmissions                    ResourceType = "reviewSubmissions"
 	ResourceTypeReviewSubmissionItems                ResourceType = "reviewSubmissionItems"
 	ResourceTypeUsers                                ResourceType = "users"
 	ResourceTypeUserInvitations                      ResourceType = "userInvitations"
-	ResourceTypeDevices                              ResourceType = "devices"
 	ResourceTypeSubscriptionOfferCodes               ResourceType = "subscriptionOfferCodes"
 	ResourceTypeSubscriptionOfferCodeOneTimeUseCodes ResourceType = "subscriptionOfferCodeOneTimeUseCodes"
 )
