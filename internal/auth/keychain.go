@@ -890,7 +890,27 @@ func saveDefaultName(name string) error {
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
-	cfg.DefaultKeyName = strings.TrimSpace(name)
+	trimmedName := strings.TrimSpace(name)
+	previousDefault := strings.TrimSpace(cfg.DefaultKeyName)
+	if previousDefault == "" {
+		previousDefault = "default"
+	}
+	cfg.DefaultKeyName = trimmedName
+	if trimmedName != "" {
+		for _, cred := range cfg.Keys {
+			if strings.TrimSpace(cred.Name) == trimmedName {
+				cfg.KeyID = cred.KeyID
+				cfg.IssuerID = cred.IssuerID
+				cfg.PrivateKeyPath = cred.PrivateKeyPath
+				return config.Save(cfg)
+			}
+		}
+	}
+	if trimmedName != previousDefault {
+		cfg.KeyID = ""
+		cfg.IssuerID = ""
+		cfg.PrivateKeyPath = ""
+	}
 	return config.Save(cfg)
 }
 

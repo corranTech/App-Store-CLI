@@ -119,6 +119,98 @@ func TestConfigProfileListAndSwitch(t *testing.T) {
 	}
 }
 
+func TestSaveDefaultNameAlignsLegacyFields(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	cfg := &config.Config{
+		DefaultKeyName: "personal",
+		KeyID:          "OLDKEY",
+		IssuerID:       "OLDISSUER",
+		PrivateKeyPath: "/tmp/old.p8",
+		Keys: []config.Credential{
+			{
+				Name:           "personal",
+				KeyID:          "KEY1",
+				IssuerID:       "ISSUER1",
+				PrivateKeyPath: "/tmp/personal.p8",
+			},
+			{
+				Name:           "client",
+				KeyID:          "KEY2",
+				IssuerID:       "ISSUER2",
+				PrivateKeyPath: "/tmp/client.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	if err := saveDefaultName("client"); err != nil {
+		t.Fatalf("saveDefaultName() error: %v", err)
+	}
+
+	updated, err := config.LoadAt(configPath)
+	if err != nil {
+		t.Fatalf("LoadAt() error: %v", err)
+	}
+	if updated.DefaultKeyName != "client" {
+		t.Fatalf("expected DefaultKeyName to be client, got %q", updated.DefaultKeyName)
+	}
+	if updated.KeyID != "KEY2" {
+		t.Fatalf("expected legacy KeyID KEY2, got %q", updated.KeyID)
+	}
+	if updated.IssuerID != "ISSUER2" {
+		t.Fatalf("expected legacy IssuerID ISSUER2, got %q", updated.IssuerID)
+	}
+	if updated.PrivateKeyPath != "/tmp/client.p8" {
+		t.Fatalf("expected legacy PrivateKeyPath /tmp/client.p8, got %q", updated.PrivateKeyPath)
+	}
+}
+
+func TestSaveDefaultNameClearsLegacyFieldsOnMismatch(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	cfg := &config.Config{
+		DefaultKeyName: "personal",
+		KeyID:          "KEY1",
+		IssuerID:       "ISSUER1",
+		PrivateKeyPath: "/tmp/personal.p8",
+		Keys: []config.Credential{
+			{
+				Name:           "personal",
+				KeyID:          "KEY1",
+				IssuerID:       "ISSUER1",
+				PrivateKeyPath: "/tmp/personal.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	if err := saveDefaultName("other"); err != nil {
+		t.Fatalf("saveDefaultName() error: %v", err)
+	}
+
+	updated, err := config.LoadAt(configPath)
+	if err != nil {
+		t.Fatalf("LoadAt() error: %v", err)
+	}
+	if updated.DefaultKeyName != "other" {
+		t.Fatalf("expected DefaultKeyName to be other, got %q", updated.DefaultKeyName)
+	}
+	if updated.KeyID != "" || updated.IssuerID != "" || updated.PrivateKeyPath != "" {
+		t.Fatal("expected legacy credentials to be cleared when no matching profile")
+	}
+}
+
 func TestGetCredentials_PrefersKeychainOverConfig(t *testing.T) {
 	newKr, _ := withSeparateKeyrings(t)
 	configPath := os.Getenv("ASC_CONFIG_PATH")
