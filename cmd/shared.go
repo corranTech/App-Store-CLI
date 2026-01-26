@@ -27,9 +27,14 @@ var (
 const (
 	privateKeyEnvVar       = "ASC_PRIVATE_KEY"
 	privateKeyBase64EnvVar = "ASC_PRIVATE_KEY_B64"
+	profileEnvVar          = "ASC_PROFILE"
 )
 
-var privateKeyTempPath string
+var (
+	privateKeyTempPath string
+	selectedProfile    string
+)
+
 // Bold returns the string wrapped in ANSI bold codes
 func Bold(s string) string {
 	if !supportsANSI() {
@@ -132,15 +137,18 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 
 func getASCClient() (*asc.Client, error) {
 	var actualKeyID, actualIssuerID, actualKeyPath string
+	profile := resolveProfileName()
 
-	// Priority 1: Keychain credentials (explicit user setup via 'asc auth login')
-	if strings.TrimSpace(os.Getenv("ASC_BYPASS_KEYCHAIN")) == "" {
-		cfg, err := auth.GetDefaultCredentials()
-		if err == nil && cfg != nil {
-			actualKeyID = cfg.KeyID
-			actualIssuerID = cfg.IssuerID
-			actualKeyPath = cfg.PrivateKeyPath
+	// Priority 1: Stored credentials (keychain/config)
+	cfg, err := auth.GetCredentials(profile)
+	if err != nil {
+		if profile != "" {
+			return nil, err
 		}
+	} else if cfg != nil {
+		actualKeyID = cfg.KeyID
+		actualIssuerID = cfg.IssuerID
+		actualKeyPath = cfg.PrivateKeyPath
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
@@ -228,6 +236,15 @@ func writeTempPrivateKey(data []byte) (string, error) {
 	}
 	privateKeyTempPath = file.Name()
 	return privateKeyTempPath, nil
+}
+func resolveProfileName() string {
+	if strings.TrimSpace(selectedProfile) != "" {
+		return strings.TrimSpace(selectedProfile)
+	}
+	if value := strings.TrimSpace(os.Getenv(profileEnvVar)); value != "" {
+		return value
+	}
+	return ""
 }
 func printOutput(data interface{}, format string, pretty bool) error {
 	format = strings.ToLower(format)

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -35,6 +36,7 @@ A repo-local ./.asc/config.json (if present) takes precedence.`,
 		Subcommands: []*ffcli.Command{
 			AuthInitCommand(),
 			AuthLoginCommand(),
+			AuthSwitchCommand(),
 			AuthLogoutCommand(),
 			AuthStatusCommand(),
 		},
@@ -198,10 +200,66 @@ The private key file path is stored securely. The key content is never saved.`,
 	}
 }
 
+// AuthSwitch command factory
+func AuthSwitchCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("auth switch", flag.ExitOnError)
+
+	name := fs.String("name", "", "Profile name to set as default")
+
+	return &ffcli.Command{
+		Name:       "switch",
+		ShortUsage: "asc auth switch --name <profile>",
+		ShortHelp:  "Switch the default authentication profile.",
+		LongHelp: `Switch the default authentication profile.
+
+This updates the default profile used for keychain or config credentials.
+
+Examples:
+  asc auth switch --name "Personal"
+  asc auth switch --name "Client"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedName := strings.TrimSpace(*name)
+			if trimmedName == "" {
+				fmt.Fprintln(os.Stderr, "Error: --name is required")
+				return flag.ErrHelp
+			}
+
+			credentials, err := auth.ListCredentials()
+			if err != nil {
+				return fmt.Errorf("auth switch: failed to list credentials: %w", err)
+			}
+			if len(credentials) == 0 {
+				return fmt.Errorf("auth switch: no credentials stored")
+			}
+
+			found := false
+			for _, cred := range credentials {
+				if strings.TrimSpace(cred.Name) == trimmedName {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("auth switch: profile %q not found", trimmedName)
+			}
+
+			if err := auth.SetDefaultCredentials(trimmedName); err != nil {
+				return fmt.Errorf("auth switch: %w", err)
+			}
+
+			fmt.Printf("Default profile set to '%s'\n", trimmedName)
+			return nil
+		},
+	}
+}
+
 // AuthLogout command factory
 func AuthLogoutCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth logout", flag.ExitOnError)
 	all := fs.Bool("all", false, "Remove all stored credentials (default)")
+	name := fs.String("name", "", "Remove a named credential")
 
 	return &ffcli.Command{
 		Name:       "logout",
@@ -211,12 +269,25 @@ func AuthLogoutCommand() *ffcli.Command {
 
 Examples:
   asc auth logout
-  asc auth logout --all`,
+  asc auth logout --all
+  asc auth logout --name "MyKey"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *all {
-				// Flag is accepted for future multi-key support.
+			trimmedName := strings.TrimSpace(*name)
+			if trimmedName == "" && *name != "" {
+				return fmt.Errorf("auth logout: --name cannot be blank")
+			}
+			if trimmedName != "" && *all {
+				return fmt.Errorf("auth logout: --all and --name are mutually exclusive")
+			}
+
+			if trimmedName != "" {
+				if err := auth.RemoveCredentials(trimmedName); err != nil {
+					return fmt.Errorf("auth logout: failed to remove credentials: %w", err)
+				}
+				fmt.Printf("Successfully removed stored credential '%s'\n", trimmedName)
+				return nil
 			}
 
 			if err := auth.RemoveAllCredentials(); err != nil {
