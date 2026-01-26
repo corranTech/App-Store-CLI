@@ -283,7 +283,7 @@ Examples:
 			}
 
 			if trimmedName != "" {
-				if err := auth.RemoveCredentials(*name); err != nil {
+				if err := auth.RemoveCredentials(trimmedName); err != nil {
 					return fmt.Errorf("auth logout: failed to remove credentials: %w", err)
 				}
 				fmt.Printf("Successfully removed stored credential '%s'\n", trimmedName)

@@ -196,7 +196,7 @@ func TestIntegrationAuthConfig(t *testing.T) {
 		}
 
 		cmd := exec.Command(ascBinary, "auth", "switch", "--name", "client")
-		cmd.Env = append(os.Environ(),
+		cmd.Env = append(filterEnv(os.Environ(), "ASC_CONFIG_PATH", "ASC_BYPASS_KEYCHAIN"),
 			"ASC_CONFIG_PATH="+configPath,
 			"ASC_BYPASS_KEYCHAIN=1",
 		)
@@ -214,10 +214,10 @@ func TestIntegrationAuthConfig(t *testing.T) {
 		}
 
 		cmd = exec.Command(ascBinary, "--profile", "client", "apps", "list", "--limit", "1")
-		cmd.Env = filterEnv(os.Environ(),
+		cmd.Env = append(filterEnv(os.Environ(),
 			"ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH",
-		)
-		cmd.Env = append(cmd.Env,
+			"ASC_CONFIG_PATH", "ASC_BYPASS_KEYCHAIN",
+		),
 			"ASC_CONFIG_PATH="+configPath,
 			"ASC_BYPASS_KEYCHAIN=1",
 		)

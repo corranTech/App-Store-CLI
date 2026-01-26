@@ -935,10 +935,12 @@ func removeFromConfig(name string) error {
 		return config.Save(cfg)
 	}
 
+	removed := false
 	if len(cfg.Keys) > 0 {
 		filtered := cfg.Keys[:0]
 		for _, cred := range cfg.Keys {
 			if strings.TrimSpace(cred.Name) == name {
+				removed = true
 				continue
 			}
 			filtered = append(filtered, cred)
@@ -951,6 +953,10 @@ func removeFromConfig(name string) error {
 		cfg.IssuerID = ""
 		cfg.PrivateKeyPath = ""
 		cfg.DefaultKeyName = ""
+		removed = true
+	}
+	if !removed {
+		return keyring.ErrKeyNotFound
 	}
 	return config.Save(cfg)
 }
