@@ -205,17 +205,23 @@ Examples:
 				return fmt.Errorf("promocodes generate: failed to generate: %w", err)
 			}
 
+			var writeErr error
 			if strings.TrimSpace(*outputPath) != "" {
 				codes := extractPromoCodes(resp)
 				if len(codes) == 0 {
-					return fmt.Errorf("promocodes generate: no codes returned to write")
-				}
-				if err := writePromoCodesFile(*outputPath, codes); err != nil {
-					return fmt.Errorf("promocodes generate: %w", err)
+					writeErr = fmt.Errorf("promocodes generate: no codes returned to write")
+				} else if err := writePromoCodesFile(*outputPath, codes); err != nil {
+					writeErr = fmt.Errorf("promocodes generate: %w", err)
 				}
 			}
 
-			return printOutput(resp, *outputFormat, *pretty)
+			if err := printOutput(resp, *outputFormat, *pretty); err != nil {
+				return err
+			}
+			if writeErr != nil {
+				return writeErr
+			}
+			return nil
 		},
 	}
 }
