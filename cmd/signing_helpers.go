@@ -47,18 +47,6 @@ func normalizePlatforms(values []string) ([]string, error) {
 	return normalized, nil
 }
 
-func normalizeDeviceStatus(value string) (string, error) {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	switch normalized {
-	case "ENABLED", "DISABLED":
-		return normalized, nil
-	case "":
-		return "", fmt.Errorf("--status is required")
-	default:
-		return "", fmt.Errorf("--status must be one of: ENABLED, DISABLED")
-	}
-}
-
 func signingPlatformList() []string {
 	return []string{"IOS", "MAC_OS", "TV_OS", "VISION_OS"}
 }

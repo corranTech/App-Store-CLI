@@ -56,9 +56,6 @@ type ProfilesOption func(*profilesQuery)
 // UsersOption is a functional option for GetUsers.
 type UsersOption func(*usersQuery)
 
-// DevicesOption is a functional option for GetDevices.
-type DevicesOption func(*devicesQuery)
-
 // UserInvitationsOption is a functional option for GetUserInvitations.
 type UserInvitationsOption func(*userInvitationsQuery)
 

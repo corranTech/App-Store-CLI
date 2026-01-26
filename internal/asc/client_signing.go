@@ -281,54 +281,6 @@ func (c *Client) RevokeCertificate(ctx context.Context, id string) error {
 	return err
 }
 
-// GetDevices retrieves the list of devices.
-func (c *Client) GetDevices(ctx context.Context, opts ...DevicesOption) (*DevicesResponse, error) {
-	query := &devicesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/devices"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("devices: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildDevicesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response DevicesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetDevice retrieves a single device by ID.
-func (c *Client) GetDevice(ctx context.Context, id string) (*DeviceResponse, error) {
-	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/devices/%s", id)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response DeviceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
 // RegisterDevice registers a new device.
 func (c *Client) RegisterDevice(ctx context.Context, attrs DeviceCreateAttributes) (*DeviceResponse, error) {
 	request := DeviceCreateRequest{
@@ -344,35 +296,6 @@ func (c *Client) RegisterDevice(ctx context.Context, attrs DeviceCreateAttribute
 	}
 
 	data, err := c.do(ctx, "POST", "/v1/devices", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response DeviceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// UpdateDevice updates a device by ID.
-func (c *Client) UpdateDevice(ctx context.Context, id string, attrs DeviceUpdateAttributes) (*DeviceResponse, error) {
-	id = strings.TrimSpace(id)
-	request := DeviceUpdateRequest{
-		Data: DeviceUpdateData{
-			Type:       ResourceTypeDevices,
-			ID:         id,
-			Attributes: &attrs,
-		},
-	}
-
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/devices/%s", id), body)
 	if err != nil {
 		return nil, err
 	}

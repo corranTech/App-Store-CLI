@@ -133,10 +133,6 @@ func PrintMarkdown(data interface{}) error {
 		return printBundleIDCapabilitiesMarkdown(v)
 	case *BundleIDCapabilityResponse:
 		return printBundleIDCapabilitiesMarkdown(&BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}})
-	case *DevicesResponse:
-		return printDevicesMarkdown(v)
-	case *DeviceResponse:
-		return printDevicesMarkdown(&DevicesResponse{Data: []Resource[DeviceAttributes]{v.Data}})
 	case *LocalizationDownloadResult:
 		return printLocalizationDownloadResultMarkdown(v)
 	case *LocalizationUploadResult:
@@ -343,10 +339,6 @@ func PrintTable(data interface{}) error {
 		return printBundleIDCapabilitiesTable(v)
 	case *BundleIDCapabilityResponse:
 		return printBundleIDCapabilitiesTable(&BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}})
-	case *DevicesResponse:
-		return printDevicesTable(v)
-	case *DeviceResponse:
-		return printDevicesTable(&DevicesResponse{Data: []Resource[DeviceAttributes]{v.Data}})
 	case *LocalizationDownloadResult:
 		return printLocalizationDownloadResultTable(v)
 	case *LocalizationUploadResult:
