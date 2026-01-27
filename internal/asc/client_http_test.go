@@ -174,6 +174,193 @@ func TestGetApp(t *testing.T) {
 	}
 }
 
+func TestGetAppTags_WithFiltersAndSort(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appTags","id":"tag-1","attributes":{"name":"Games","visibleInAppStore":true}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/123/appTags" {
+			t.Fatalf("expected path /v1/apps/123/appTags, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[visibleInAppStore]") != "true" {
+			t.Fatalf("expected filter[visibleInAppStore]=true, got %q", values.Get("filter[visibleInAppStore]"))
+		}
+		if values.Get("sort") != "name" {
+			t.Fatalf("expected sort=name, got %q", values.Get("sort"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		if values.Get("fields[appTags]") != "name,visibleInAppStore" {
+			t.Fatalf("expected fields[appTags]=name,visibleInAppStore, got %q", values.Get("fields[appTags]"))
+		}
+		if values.Get("include") != "territories" {
+			t.Fatalf("expected include=territories, got %q", values.Get("include"))
+		}
+		if values.Get("fields[territories]") != "currency" {
+			t.Fatalf("expected fields[territories]=currency, got %q", values.Get("fields[territories]"))
+		}
+		if values.Get("limit[territories]") != "25" {
+			t.Fatalf("expected limit[territories]=25, got %q", values.Get("limit[territories]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTags(
+		context.Background(),
+		"123",
+		WithAppTagsVisibleInAppStore([]string{"true"}),
+		WithAppTagsSort("name"),
+		WithAppTagsLimit(5),
+		WithAppTagsFields([]string{"name", "visibleInAppStore"}),
+		WithAppTagsInclude([]string{"territories"}),
+		WithAppTagsTerritoryFields([]string{"currency"}),
+		WithAppTagsTerritoryLimit(25),
+	); err != nil {
+		t.Fatalf("GetAppTags() error: %v", err)
+	}
+}
+
+func TestGetAppTags_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/apps/123/appTags?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTags(context.Background(), "123", WithAppTagsLimit(5), WithAppTagsNextURL(next)); err != nil {
+		t.Fatalf("GetAppTags() error: %v", err)
+	}
+}
+
+func TestGetAppTagTerritories_WithFieldsAndLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appTags/tag-1/territories" {
+			t.Fatalf("expected path /v1/appTags/tag-1/territories, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("fields[territories]") != "currency" {
+			t.Fatalf("expected fields[territories]=currency, got %q", values.Get("fields[territories]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagTerritories(
+		context.Background(),
+		"tag-1",
+		WithTerritoriesFields([]string{"currency"}),
+		WithTerritoriesLimit(5),
+	); err != nil {
+		t.Fatalf("GetAppTagTerritories() error: %v", err)
+	}
+}
+
+func TestGetAppTagTerritories_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagTerritories(context.Background(), "tag-1", WithTerritoriesNextURL(next)); err != nil {
+		t.Fatalf("GetAppTagTerritories() error: %v", err)
+	}
+}
+
+func TestGetAppTagTerritoriesRelationships_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appTags/tag-1/relationships/territories" {
+			t.Fatalf("expected path /v1/appTags/tag-1/relationships/territories, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagTerritoriesRelationships(context.Background(), "tag-1", WithLinkagesLimit(5)); err != nil {
+		t.Fatalf("GetAppTagTerritoriesRelationships() error: %v", err)
+	}
+}
+
+func TestGetAppTagsRelationshipsForApp_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appTags","id":"tag-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/relationships/appTags" {
+			t.Fatalf("expected path /v1/apps/app-1/relationships/appTags, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagsRelationshipsForApp(context.Background(), "app-1", WithLinkagesLimit(5)); err != nil {
+		t.Fatalf("GetAppTagsRelationshipsForApp() error: %v", err)
+	}
+}
+
+func TestUpdateAppTag_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appTags","id":"tag-1","attributes":{"name":"Games","visibleInAppStore":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appTags/tag-1" {
+			t.Fatalf("expected path /v1/appTags/tag-1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload AppTagUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppTags {
+			t.Fatalf("expected type appTags, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "tag-1" {
+			t.Fatalf("expected id tag-1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.VisibleInAppStore == nil {
+			t.Fatalf("expected visibleInAppStore attribute to be set")
+		}
+		if !*payload.Data.Attributes.VisibleInAppStore {
+			t.Fatalf("expected visibleInAppStore=true, got false")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	visible := true
+	attrs := AppTagUpdateAttributes{VisibleInAppStore: &visible}
+	if _, err := client.UpdateAppTag(context.Background(), "tag-1", attrs); err != nil {
+		t.Fatalf("UpdateAppTag() error: %v", err)
+	}
+}
+
 func TestGetSubscriptionOfferCodeOneTimeUseCodes_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"1","attributes":{"numberOfCodes":5}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

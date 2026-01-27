@@ -188,6 +188,48 @@ func TestBuildBetaGroupsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildAppTagsQuery(t *testing.T) {
+	query := &appTagsQuery{}
+	opts := []AppTagsOption{
+		WithAppTagsLimit(25),
+		WithAppTagsVisibleInAppStore([]string{"true", " false "}),
+		WithAppTagsSort("-name"),
+		WithAppTagsFields([]string{"name", "visibleInAppStore"}),
+		WithAppTagsInclude([]string{"territories"}),
+		WithAppTagsTerritoryFields([]string{"currency"}),
+		WithAppTagsTerritoryLimit(50),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildAppTagsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[visibleInAppStore]"); got != "true,false" {
+		t.Fatalf("expected filter[visibleInAppStore]=true,false, got %q", got)
+	}
+	if got := values.Get("sort"); got != "-name" {
+		t.Fatalf("expected sort=-name, got %q", got)
+	}
+	if got := values.Get("limit"); got != "25" {
+		t.Fatalf("expected limit=25, got %q", got)
+	}
+	if got := values.Get("fields[appTags]"); got != "name,visibleInAppStore" {
+		t.Fatalf("expected fields[appTags]=name,visibleInAppStore, got %q", got)
+	}
+	if got := values.Get("include"); got != "territories" {
+		t.Fatalf("expected include=territories, got %q", got)
+	}
+	if got := values.Get("fields[territories]"); got != "currency" {
+		t.Fatalf("expected fields[territories]=currency, got %q", got)
+	}
+	if got := values.Get("limit[territories]"); got != "50" {
+		t.Fatalf("expected limit[territories]=50, got %q", got)
+	}
+}
+
 func TestBuildAccessibilityDeclarationsQuery(t *testing.T) {
 	query := &accessibilityDeclarationsQuery{}
 	opts := []AccessibilityDeclarationsOption{

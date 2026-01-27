@@ -2159,6 +2159,86 @@ func TestAppInfoMutualExclusiveFlags(t *testing.T) {
 	}
 }
 
+func TestAppTagsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "app-tags list missing app",
+			args:    []string{"app-tags", "list"},
+			wantErr: "Error: --app is required",
+		},
+		{
+			name:    "app-tags get missing id",
+			args:    []string{"app-tags", "get", "--app", "APP_ID"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "app-tags get missing app",
+			args:    []string{"app-tags", "get", "--id", "TAG_ID"},
+			wantErr: "Error: --app is required",
+		},
+		{
+			name:    "app-tags update missing id",
+			args:    []string{"app-tags", "update", "--visible-in-app-store", "--confirm"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "app-tags update missing visible",
+			args:    []string{"app-tags", "update", "--id", "TAG_ID", "--confirm"},
+			wantErr: "Error: --visible-in-app-store is required",
+		},
+		{
+			name:    "app-tags update missing confirm",
+			args:    []string{"app-tags", "update", "--id", "TAG_ID", "--visible-in-app-store"},
+			wantErr: "Error: --confirm is required",
+		},
+		{
+			name:    "app-tags territories missing id",
+			args:    []string{"app-tags", "territories"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "app-tags territories-relationships missing id",
+			args:    []string{"app-tags", "territories-relationships"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "app-tags relationships missing app",
+			args:    []string{"app-tags", "relationships"},
+			wantErr: "Error: --app is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
 func TestPreReleaseVersionsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 

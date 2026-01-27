@@ -3,6 +3,7 @@ package asc
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -49,6 +50,16 @@ type appsQuery struct {
 	bundleIDs []string
 	names     []string
 	skus      []string
+}
+
+type appTagsQuery struct {
+	listQuery
+	visibleInAppStore []string
+	sort              string
+	fields            []string
+	include           []string
+	territoryFields   []string
+	territoryLimit    int
 }
 
 type buildsQuery struct {
@@ -151,6 +162,11 @@ type userInvitationsQuery struct {
 
 type territoriesQuery struct {
 	listQuery
+	fields []string
+}
+
+type linkagesQuery struct {
+	listQuery
 }
 
 type pricePointsQuery struct {
@@ -220,6 +236,22 @@ func buildAppsQuery(query *appsQuery) string {
 		values.Set("sort", query.sort)
 	}
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppTagsQuery(query *appTagsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[visibleInAppStore]", query.visibleInAppStore)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
+	addCSV(values, "fields[appTags]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.territoryLimit > 0 {
+		values.Set("limit[territories]", strconv.Itoa(query.territoryLimit))
+	}
 	return values.Encode()
 }
 
@@ -476,6 +508,13 @@ func buildAppInfoLocalizationsQuery(query *appInfoLocalizationsQuery) string {
 }
 
 func buildTerritoriesQuery(query *territoriesQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[territories]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildLinkagesQuery(query *linkagesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
