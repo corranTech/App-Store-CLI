@@ -171,6 +171,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreReviewAttachmentsMarkdown(v)
 	case *AppStoreReviewAttachmentResponse:
 		return printAppStoreReviewAttachmentMarkdown(v)
+	case *RoutingAppCoverageResponse:
+		return printRoutingAppCoverageMarkdown(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsMarkdown(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -325,6 +327,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAccessibilityDeclarationDeleteResultMarkdown(v)
 	case *AppStoreReviewAttachmentDeleteResult:
 		return printAppStoreReviewAttachmentDeleteResultMarkdown(v)
+	case *RoutingAppCoverageDeleteResult:
+		return printRoutingAppCoverageDeleteResultMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -483,6 +487,8 @@ func PrintTable(data interface{}) error {
 		return printAppStoreReviewAttachmentsTable(v)
 	case *AppStoreReviewAttachmentResponse:
 		return printAppStoreReviewAttachmentTable(v)
+	case *RoutingAppCoverageResponse:
+		return printRoutingAppCoverageTable(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsTable(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -637,6 +643,8 @@ func PrintTable(data interface{}) error {
 		return printAccessibilityDeclarationDeleteResultTable(v)
 	case *AppStoreReviewAttachmentDeleteResult:
 		return printAppStoreReviewAttachmentDeleteResultTable(v)
+	case *RoutingAppCoverageDeleteResult:
+		return printRoutingAppCoverageDeleteResultTable(v)
 	default:
 		return PrintJSON(data)
 	}
