@@ -257,13 +257,27 @@ func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAv
 }
 
 // GetTerritoryAvailabilities retrieves territory availabilities for an availability ID.
-func (c *Client) GetTerritoryAvailabilities(ctx context.Context, availabilityID string) (*TerritoryAvailabilitiesResponse, error) {
+func (c *Client) GetTerritoryAvailabilities(ctx context.Context, availabilityID string, opts ...TerritoryAvailabilitiesOption) (*TerritoryAvailabilitiesResponse, error) {
 	availabilityID = strings.TrimSpace(availabilityID)
+	query := &territoryAvailabilitiesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	path := fmt.Sprintf("/v2/appAvailabilities/%s/territoryAvailabilities", availabilityID)
-	query := url.Values{}
-	query.Set("fields[territoryAvailabilities]", "available,releaseDate,preOrderEnabled,territory")
-	query.Set("include", "territory")
-	path += "?" + query.Encode()
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("territoryAvailabilities: %w", err)
+		}
+		path = query.nextURL
+	} else {
+		values := url.Values{}
+		values.Set("fields[territoryAvailabilities]", "available,releaseDate,preOrderEnabled,territory")
+		values.Set("include", "territory")
+		addLimit(values, query.limit)
+		path += "?" + values.Encode()
+	}
 
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
