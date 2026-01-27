@@ -65,6 +65,8 @@ func RootCommand(version string) *ffcli.Command {
 			IAPCommand(),
 			SubscriptionsCommand(),
 			SubmitCommand(),
+			ReviewSubmissionsCommand(),
+			ReviewItemsCommand(),
 			XcodeCloudCommand(),
 			CategoriesCommand(),
 			AgeRatingCommand(),

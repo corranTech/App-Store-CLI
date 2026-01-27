@@ -209,6 +209,16 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionDetailMarkdown(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildMarkdown(v)
+	case *ReviewSubmissionsResponse:
+		return printReviewSubmissionsMarkdown(v)
+	case *ReviewSubmissionResponse:
+		return printReviewSubmissionsMarkdown(&ReviewSubmissionsResponse{Data: []ReviewSubmissionResource{v.Data}, Links: v.Links})
+	case *ReviewSubmissionItemsResponse:
+		return printReviewSubmissionItemsMarkdown(v)
+	case *ReviewSubmissionItemResponse:
+		return printReviewSubmissionItemsMarkdown(&ReviewSubmissionItemsResponse{Data: []ReviewSubmissionItemResource{v.Data}, Links: v.Links})
+	case *ReviewSubmissionItemDeleteResult:
+		return printReviewSubmissionItemDeleteResultMarkdown(v)
 	case *AppStoreVersionReleaseRequestResult:
 		return printAppStoreVersionReleaseRequestMarkdown(v)
 	case *AppStoreVersionPromotionCreateResult:
@@ -471,6 +481,16 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionDetailTable(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildTable(v)
+	case *ReviewSubmissionsResponse:
+		return printReviewSubmissionsTable(v)
+	case *ReviewSubmissionResponse:
+		return printReviewSubmissionsTable(&ReviewSubmissionsResponse{Data: []ReviewSubmissionResource{v.Data}, Links: v.Links})
+	case *ReviewSubmissionItemsResponse:
+		return printReviewSubmissionItemsTable(v)
+	case *ReviewSubmissionItemResponse:
+		return printReviewSubmissionItemsTable(&ReviewSubmissionItemsResponse{Data: []ReviewSubmissionItemResource{v.Data}, Links: v.Links})
+	case *ReviewSubmissionItemDeleteResult:
+		return printReviewSubmissionItemDeleteResultTable(v)
 	case *AppStoreVersionReleaseRequestResult:
 		return printAppStoreVersionReleaseRequestTable(v)
 	case *AppStoreVersionPromotionCreateResult:
