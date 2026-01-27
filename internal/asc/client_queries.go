@@ -181,6 +181,13 @@ type accessibilityDeclarationsQuery struct {
 	fields         []string
 }
 
+type appStoreReviewAttachmentsQuery struct {
+	listQuery
+	fieldsAttachments    []string
+	fieldsReviewDetails  []string
+	include              []string
+}
+
 type betaAppReviewDetailsQuery struct {
 	listQuery
 }
@@ -402,6 +409,15 @@ func buildAccessibilityDeclarationsQuery(query *accessibilityDeclarationsQuery) 
 func buildAccessibilityDeclarationsFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[accessibilityDeclarations]", fields)
+	return values.Encode()
+}
+
+func buildAppStoreReviewAttachmentsQuery(query *appStoreReviewAttachmentsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[appStoreReviewAttachments]", query.fieldsAttachments)
+	addCSV(values, "fields[appStoreReviewDetails]", query.fieldsReviewDetails)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
 	return values.Encode()
 }
 
