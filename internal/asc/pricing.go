@@ -43,6 +43,7 @@ type (
 	AppPricesResponse               = Response[AppPriceAttributes]
 	AppAvailabilityV2Response       = SingleResponse[AppAvailabilityV2Attributes]
 	TerritoryAvailabilitiesResponse = Response[TerritoryAvailabilityAttributes]
+	TerritoryAvailabilityResponse   = SingleResponse[TerritoryAvailabilityAttributes]
 )
 
 // AppPriceScheduleCreateAttributes defines inputs for creating a price schedule.
@@ -133,4 +134,45 @@ type TerritoryAvailabilityCreateResource struct {
 // TerritoryAvailabilityRelationships describes relationships for availability.
 type TerritoryAvailabilityRelationships struct {
 	Territory Relationship `json:"territory"`
+}
+
+// TerritoryAvailabilityUpdateAttributes describes update inputs for a territory availability.
+type TerritoryAvailabilityUpdateAttributes struct {
+	Available       *bool   `json:"available,omitempty"`
+	ReleaseDate     *string `json:"releaseDate,omitempty"`
+	PreOrderEnabled *bool   `json:"preOrderEnabled,omitempty"`
+}
+
+// TerritoryAvailabilityUpdateData is the data portion of an availability update request.
+type TerritoryAvailabilityUpdateData struct {
+	Type       ResourceType                           `json:"type"`
+	ID         string                                 `json:"id"`
+	Attributes *TerritoryAvailabilityUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// TerritoryAvailabilityUpdateRequest is a request to update a territory availability.
+type TerritoryAvailabilityUpdateRequest struct {
+	Data TerritoryAvailabilityUpdateData `json:"data"`
+}
+
+// EndAppAvailabilityPreOrderAttributes describes the end pre-order response attributes.
+type EndAppAvailabilityPreOrderAttributes struct{}
+
+// EndAppAvailabilityPreOrderResponse is the response from end pre-order requests.
+type EndAppAvailabilityPreOrderResponse = SingleResponse[EndAppAvailabilityPreOrderAttributes]
+
+// EndAppAvailabilityPreOrderCreateRequest is a request to end app availability pre-orders.
+type EndAppAvailabilityPreOrderCreateRequest struct {
+	Data EndAppAvailabilityPreOrderCreateData `json:"data"`
+}
+
+// EndAppAvailabilityPreOrderCreateData is the data portion of a pre-order end request.
+type EndAppAvailabilityPreOrderCreateData struct {
+	Type          ResourceType                            `json:"type"`
+	Relationships EndAppAvailabilityPreOrderRelationships `json:"relationships"`
+}
+
+// EndAppAvailabilityPreOrderRelationships describes pre-order end relationships.
+type EndAppAvailabilityPreOrderRelationships struct {
+	TerritoryAvailabilities RelationshipList `json:"territoryAvailabilities"`
 }

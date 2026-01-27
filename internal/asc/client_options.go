@@ -104,6 +104,9 @@ type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
 
+// TerritoryAvailabilitiesOption is a functional option for GetTerritoryAvailabilities.
+type TerritoryAvailabilitiesOption func(*territoryAvailabilitiesQuery)
+
 // LinkagesOption is a functional option for linkages endpoints.
 type LinkagesOption func(*linkagesQuery)
 
@@ -115,6 +118,9 @@ type AccessibilityDeclarationsOption func(*accessibilityDeclarationsQuery)
 
 // AppStoreReviewAttachmentsOption is a functional option for review attachments.
 type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
+
+// AppEncryptionDeclarationsOption is a functional option for encryption declarations.
+type AppEncryptionDeclarationsOption func(*appEncryptionDeclarationsQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -347,6 +353,61 @@ func WithAppStoreReviewAttachmentsLimit(limit int) AppStoreReviewAttachmentsOpti
 // WithAppStoreReviewAttachmentsNextURL uses a next page URL directly.
 func WithAppStoreReviewAttachmentsNextURL(next string) AppStoreReviewAttachmentsOption {
 	return func(q *appStoreReviewAttachmentsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppEncryptionDeclarationsBuildIDs filters declarations by build IDs.
+func WithAppEncryptionDeclarationsBuildIDs(ids []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.buildIDs = normalizeList(ids)
+	}
+}
+
+// WithAppEncryptionDeclarationsFields includes specific declaration fields.
+func WithAppEncryptionDeclarationsFields(fields []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAppEncryptionDeclarationsDocumentFields includes document fields when included.
+func WithAppEncryptionDeclarationsDocumentFields(fields []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.documentFields = normalizeList(fields)
+	}
+}
+
+// WithAppEncryptionDeclarationsInclude includes related resources.
+func WithAppEncryptionDeclarationsInclude(include []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppEncryptionDeclarationsLimit sets the max number of declarations to return.
+func WithAppEncryptionDeclarationsLimit(limit int) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppEncryptionDeclarationsBuildLimit sets the max number of related builds when included.
+func WithAppEncryptionDeclarationsBuildLimit(limit int) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		if limit > 0 {
+			q.buildLimit = limit
+		}
+	}
+}
+
+// WithAppEncryptionDeclarationsNextURL uses a next page URL directly.
+func WithAppEncryptionDeclarationsNextURL(next string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
@@ -1385,6 +1446,24 @@ func WithTerritoriesNextURL(next string) TerritoriesOption {
 func WithTerritoriesFields(fields []string) TerritoriesOption {
 	return func(q *territoriesQuery) {
 		q.fields = normalizeList(fields)
+	}
+}
+
+// WithTerritoryAvailabilitiesLimit sets the max number of territory availabilities to return.
+func WithTerritoryAvailabilitiesLimit(limit int) TerritoryAvailabilitiesOption {
+	return func(q *territoryAvailabilitiesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithTerritoryAvailabilitiesNextURL uses a next page URL directly.
+func WithTerritoryAvailabilitiesNextURL(next string) TerritoryAvailabilitiesOption {
+	return func(q *territoryAvailabilitiesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 

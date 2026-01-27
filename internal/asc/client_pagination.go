@@ -72,6 +72,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &InAppPurchasesV2Response{Links: Links{}}
 	case *TerritoriesResponse:
 		result = &TerritoriesResponse{Links: Links{}}
+	case *TerritoryAvailabilitiesResponse:
+		result = &TerritoryAvailabilitiesResponse{Links: Links{}}
 	case *AppPricePointsV3Response:
 		result = &AppPricePointsV3Response{Links: Links{}}
 	case *BuildsResponse:
@@ -94,6 +96,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &PreReleaseVersionsResponse{Links: Links{}}
 	case *AccessibilityDeclarationsResponse:
 		result = &AccessibilityDeclarationsResponse{Links: Links{}}
+	case *AppEncryptionDeclarationsResponse:
+		result = &AppEncryptionDeclarationsResponse{Links: Links{}}
 	case *AppStoreReviewAttachmentsResponse:
 		result = &AppStoreReviewAttachmentsResponse{Links: Links{}}
 	case *AppStoreVersionLocalizationsResponse:
@@ -237,6 +241,8 @@ func typeOf(p PaginatedResponse) string {
 		return "InAppPurchasesV2Response"
 	case *TerritoriesResponse:
 		return "TerritoriesResponse"
+	case *TerritoryAvailabilitiesResponse:
+		return "TerritoryAvailabilitiesResponse"
 	case *AppPricePointsV3Response:
 		return "AppPricePointsV3Response"
 	case *BuildsResponse:
@@ -259,6 +265,8 @@ func typeOf(p PaginatedResponse) string {
 		return "PreReleaseVersionsResponse"
 	case *AccessibilityDeclarationsResponse:
 		return "AccessibilityDeclarationsResponse"
+	case *AppEncryptionDeclarationsResponse:
+		return "AppEncryptionDeclarationsResponse"
 	case *AppStoreReviewAttachmentsResponse:
 		return "AppStoreReviewAttachmentsResponse"
 	case *AppStoreVersionLocalizationsResponse:

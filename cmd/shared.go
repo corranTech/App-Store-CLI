@@ -3,12 +3,14 @@ package cmd
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"golang.org/x/term"
@@ -320,6 +322,51 @@ func printOutput(data interface{}, format string, pretty bool) error {
 	default:
 		return fmt.Errorf("unsupported format: %s", format)
 	}
+}
+
+func normalizeDate(value, flagName string) (string, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "", fmt.Errorf("%s is required", flagName)
+	}
+	parsed, err := time.Parse("2006-01-02", trimmed)
+	if err != nil {
+		return "", fmt.Errorf("%s must be in YYYY-MM-DD format", flagName)
+	}
+	return parsed.Format("2006-01-02"), nil
+}
+
+func isAppAvailabilityMissing(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, asc.ErrNotFound) {
+		return true
+	}
+	var apiErr *asc.APIError
+	if errors.As(err, &apiErr) {
+		title := strings.ToLower(strings.TrimSpace(apiErr.Title))
+		detail := strings.ToLower(strings.TrimSpace(apiErr.Detail))
+		if strings.Contains(title, "resource does not exist") && strings.Contains(detail, "appavailabilities") {
+			return true
+		}
+		if strings.Contains(detail, "appavailabilities") && strings.Contains(detail, "does not exist") {
+			return true
+		}
+	}
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	if strings.Contains(message, "appavailabilities") {
+		if strings.Contains(message, "resource does not exist") ||
+			strings.Contains(message, "does not exist") ||
+			strings.Contains(message, "no resource") ||
+			strings.Contains(message, "not found") {
+			return true
+		}
+		if strings.Contains(message, "resource") {
+			return true
+		}
+	}
+	return false
 }
 
 func resolveAppID(appID string) string {
