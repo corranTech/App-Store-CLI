@@ -36,12 +36,14 @@ type TerritoryAvailabilityAttributes struct {
 }
 
 // Response types
-type TerritoriesResponse = Response[TerritoryAttributes]
-type AppPricePointsV3Response = Response[AppPricePointV3Attributes]
-type AppPriceScheduleResponse = SingleResponse[AppPriceScheduleAttributes]
-type AppPricesResponse = Response[AppPriceAttributes]
-type AppAvailabilityV2Response = SingleResponse[AppAvailabilityV2Attributes]
-type TerritoryAvailabilitiesResponse = Response[TerritoryAvailabilityAttributes]
+type (
+	TerritoriesResponse             = Response[TerritoryAttributes]
+	AppPricePointsV3Response        = Response[AppPricePointV3Attributes]
+	AppPriceScheduleResponse        = SingleResponse[AppPriceScheduleAttributes]
+	AppPricesResponse               = Response[AppPriceAttributes]
+	AppAvailabilityV2Response       = SingleResponse[AppAvailabilityV2Attributes]
+	TerritoryAvailabilitiesResponse = Response[TerritoryAvailabilityAttributes]
+)
 
 // AppPriceScheduleCreateAttributes defines inputs for creating a price schedule.
 type AppPriceScheduleCreateAttributes struct {

@@ -62,9 +62,9 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppsOption{
-			asc.WithAppsBundleIDs(splitCSV(*bundleID)),
-			asc.WithAppsNames(splitCSV(*name)),
-			asc.WithAppsSKUs(splitCSV(*sku)),
+				asc.WithAppsBundleIDs(splitCSV(*bundleID)),
+				asc.WithAppsNames(splitCSV(*name)),
+				asc.WithAppsSKUs(splitCSV(*sku)),
 				asc.WithAppsLimit(*limit),
 				asc.WithAppsNextURL(*next),
 			}

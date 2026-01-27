@@ -2,13 +2,13 @@ package asc
 
 // UserAttributes describes an App Store Connect user.
 type UserAttributes struct {
-	Username              string   `json:"username"`
-	FirstName             string   `json:"firstName"`
-	LastName              string   `json:"lastName"`
-	Email                 string   `json:"email,omitempty"`
-	Roles                 []string `json:"roles"`
-	AllAppsVisible        bool     `json:"allAppsVisible"`
-	ProvisioningAllowed   bool     `json:"provisioningAllowed"`
+	Username            string   `json:"username"`
+	FirstName           string   `json:"firstName"`
+	LastName            string   `json:"lastName"`
+	Email               string   `json:"email,omitempty"`
+	Roles               []string `json:"roles"`
+	AllAppsVisible      bool     `json:"allAppsVisible"`
+	ProvisioningAllowed bool     `json:"provisioningAllowed"`
 }
 
 // UserInvitationAttributes describes an App Store Connect user invitation.
@@ -70,8 +70,8 @@ type UserInvitationCreateRelationships struct {
 
 // UserInvitationCreateData is the data portion of a user invitation create request.
 type UserInvitationCreateData struct {
-	Type          ResourceType                     `json:"type"`
-	Attributes    UserInvitationCreateAttributes   `json:"attributes"`
+	Type          ResourceType                       `json:"type"`
+	Attributes    UserInvitationCreateAttributes     `json:"attributes"`
 	Relationships *UserInvitationCreateRelationships `json:"relationships,omitempty"`
 }
 

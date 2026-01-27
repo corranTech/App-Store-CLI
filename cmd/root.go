@@ -50,6 +50,7 @@ func RootCommand(version string) *ffcli.Command {
 			DevicesCommand(),
 			TestFlightCommand(),
 			BuildsCommand(),
+			BuildBundlesCommand(),
 			PublishCommand(),
 			VersionsCommand(),
 			RoutingCoverageCommand(),
