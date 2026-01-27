@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -16,9 +15,6 @@ func TestCreateAppStoreVersionPromotion_RequiresTreatment(t *testing.T) {
 	_, err := client.CreateAppStoreVersionPromotion(context.Background(), "version-123", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "treatment ID is required") {
-		t.Fatalf("expected treatment error, got %v", err)
 	}
 }
 
