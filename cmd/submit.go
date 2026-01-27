@@ -121,11 +121,16 @@ Examples:
 				return fmt.Errorf("submit create: failed to submit for review: %w", err)
 			}
 
+			submittedDate := submitResp.Data.Attributes.SubmittedDate
+			var createdDatePtr *string
+			if submittedDate != "" {
+				createdDatePtr = &submittedDate
+			}
 			result := &asc.AppStoreVersionSubmissionCreateResult{
 				SubmissionID: submitResp.Data.ID,
 				VersionID:    resolvedVersionID,
 				BuildID:      strings.TrimSpace(*buildID),
-				CreatedDate:  submitResp.Data.Attributes.SubmittedDate,
+				CreatedDate:  createdDatePtr,
 			}
 
 			return printOutput(result, *output, *pretty)

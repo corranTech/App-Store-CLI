@@ -3,6 +3,7 @@ package asc
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -51,6 +52,16 @@ type appsQuery struct {
 	skus      []string
 }
 
+type appTagsQuery struct {
+	listQuery
+	visibleInAppStore []string
+	sort              string
+	fields            []string
+	include           []string
+	territoryFields   []string
+	territoryLimit    int
+}
+
 type buildsQuery struct {
 	listQuery
 	sort                string
@@ -66,6 +77,16 @@ type appStoreVersionsQuery struct {
 	platforms      []string
 	versionStrings []string
 	states         []string
+}
+
+type reviewSubmissionsQuery struct {
+	listQuery
+	platforms []string
+	states    []string
+}
+
+type reviewSubmissionItemsQuery struct {
+	listQuery
 }
 
 type preReleaseVersionsQuery struct {
@@ -108,6 +129,26 @@ type betaTestersQuery struct {
 	filterBuilds string
 }
 
+type bundleIDsQuery struct {
+	listQuery
+	identifier string
+}
+
+type bundleIDCapabilitiesQuery struct {
+	listQuery
+}
+
+type certificatesQuery struct {
+	listQuery
+	certificateTypes []string
+}
+
+type profilesQuery struct {
+	listQuery
+	bundleID     string
+	profileTypes []string
+}
+
 type usersQuery struct {
 	listQuery
 	email string
@@ -116,13 +157,13 @@ type usersQuery struct {
 
 type devicesQuery struct {
 	listQuery
-	names    []string
-	platform string
-	status   string
-	udids    []string
-	ids      []string
-	sort     string
-	fields   []string
+	names     []string
+	platforms []string
+	status    string
+	udids     []string
+	ids       []string
+	sort      string
+	fields    []string
 }
 
 type userInvitationsQuery struct {
@@ -131,11 +172,30 @@ type userInvitationsQuery struct {
 
 type territoriesQuery struct {
 	listQuery
+	fields []string
+}
+
+type linkagesQuery struct {
+	listQuery
 }
 
 type pricePointsQuery struct {
 	listQuery
 	territory string
+}
+
+type accessibilityDeclarationsQuery struct {
+	listQuery
+	deviceFamilies []string
+	states         []string
+	fields         []string
+}
+
+type appStoreReviewAttachmentsQuery struct {
+	listQuery
+	fieldsAttachments    []string
+	fieldsReviewDetails  []string
+	include              []string
 }
 
 type betaAppReviewDetailsQuery struct {
@@ -186,6 +246,22 @@ func buildAppsQuery(query *appsQuery) string {
 		values.Set("sort", query.sort)
 	}
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppTagsQuery(query *appTagsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[visibleInAppStore]", query.visibleInAppStore)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
+	addCSV(values, "fields[appTags]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.territoryLimit > 0 {
+		values.Set("limit[territories]", strconv.Itoa(query.territoryLimit))
+	}
 	return values.Encode()
 }
 
@@ -267,6 +343,37 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
 	return values.Encode()
 }
 
+func buildBundleIDsQuery(query *bundleIDsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.identifier) != "" {
+		values.Set("filter[identifier]", strings.TrimSpace(query.identifier))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBundleIDCapabilitiesQuery(_ *bundleIDCapabilitiesQuery) string {
+	// Bundle ID capabilities endpoint does not support limit/pagination params.
+	return ""
+}
+
+func buildCertificatesQuery(query *certificatesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[certificateType]", query.certificateTypes)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildProfilesQuery(query *profilesQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.bundleID) != "" {
+		values.Set("filter[bundleId]", strings.TrimSpace(query.bundleID))
+	}
+	addCSV(values, "filter[profileType]", query.profileTypes)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildUsersQuery(query *usersQuery) string {
 	values := url.Values{}
 	if strings.TrimSpace(query.email) != "" {
@@ -280,9 +387,7 @@ func buildUsersQuery(query *usersQuery) string {
 func buildDevicesQuery(query *devicesQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[name]", query.names)
-	if strings.TrimSpace(query.platform) != "" {
-		values.Set("filter[platform]", strings.TrimSpace(query.platform))
-	}
+	addCSV(values, "filter[platform]", query.platforms)
 	if strings.TrimSpace(query.status) != "" {
 		values.Set("filter[status]", strings.TrimSpace(query.status))
 	}
@@ -299,6 +404,30 @@ func buildDevicesQuery(query *devicesQuery) string {
 func buildDevicesFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[devices]", fields)
+	return values.Encode()
+}
+
+func buildAccessibilityDeclarationsQuery(query *accessibilityDeclarationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[deviceFamily]", query.deviceFamilies)
+	addCSV(values, "filter[state]", query.states)
+	addCSV(values, "fields[accessibilityDeclarations]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAccessibilityDeclarationsFieldsQuery(fields []string) string {
+	values := url.Values{}
+	addCSV(values, "fields[accessibilityDeclarations]", fields)
+	return values.Encode()
+}
+
+func buildAppStoreReviewAttachmentsQuery(query *appStoreReviewAttachmentsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[appStoreReviewAttachments]", query.fieldsAttachments)
+	addCSV(values, "fields[appStoreReviewDetails]", query.fieldsReviewDetails)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -352,6 +481,20 @@ func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
 	return values.Encode()
 }
 
+func buildReviewSubmissionsQuery(query *reviewSubmissionsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[state]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildPreReleaseVersionsQuery(appID string, query *preReleaseVersionsQuery) string {
 	values := url.Values{}
 	if strings.TrimSpace(appID) != "" {
@@ -389,6 +532,13 @@ func buildAppInfoLocalizationsQuery(query *appInfoLocalizationsQuery) string {
 }
 
 func buildTerritoriesQuery(query *territoriesQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[territories]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildLinkagesQuery(query *linkagesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
