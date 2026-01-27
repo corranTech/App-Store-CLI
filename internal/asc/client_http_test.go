@@ -3039,6 +3039,120 @@ func TestGetCiProducts_WithAppFilterAndLimit(t *testing.T) {
 	}
 }
 
+func TestGetCiProduct(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciProducts","id":"prod-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciProducts/prod-1" {
+			t.Fatalf("expected path /v1/ciProducts/prod-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiProduct(context.Background(), "prod-1"); err != nil {
+		t.Fatalf("GetCiProduct() error: %v", err)
+	}
+}
+
+func TestGetCiProductApp(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciProducts/prod-1/app" {
+			t.Fatalf("expected path /v1/ciProducts/prod-1/app, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiProductApp(context.Background(), "prod-1"); err != nil {
+		t.Fatalf("GetCiProductApp() error: %v", err)
+	}
+}
+
+func TestGetCiProductBuildRuns_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciBuildRuns","id":"run-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciProducts/prod-1/buildRuns" {
+			t.Fatalf("expected path /v1/ciProducts/prod-1/buildRuns, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "50" {
+			t.Fatalf("expected limit=50, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiProductBuildRuns(context.Background(), "prod-1", WithCiBuildRunsLimit(50)); err != nil {
+		t.Fatalf("GetCiProductBuildRuns() error: %v", err)
+	}
+}
+
+func TestGetCiProductPrimaryRepositories_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciProducts/prod-1/primaryRepositories" {
+			t.Fatalf("expected path /v1/ciProducts/prod-1/primaryRepositories, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiProductPrimaryRepositories(context.Background(), "prod-1", WithCiProductRepositoriesLimit(10)); err != nil {
+		t.Fatalf("GetCiProductPrimaryRepositories() error: %v", err)
+	}
+}
+
+func TestGetCiProductAdditionalRepositories_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"scmRepositories","id":"repo-2"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciProducts/prod-1/additionalRepositories" {
+			t.Fatalf("expected path /v1/ciProducts/prod-1/additionalRepositories, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiProductAdditionalRepositories(context.Background(), "prod-1", WithCiProductRepositoriesLimit(5)); err != nil {
+		t.Fatalf("GetCiProductAdditionalRepositories() error: %v", err)
+	}
+}
+
+func TestDeleteCiProduct(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciProducts/prod-1" {
+			t.Fatalf("expected path /v1/ciProducts/prod-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteCiProduct(context.Background(), "prod-1"); err != nil {
+		t.Fatalf("DeleteCiProduct() error: %v", err)
+	}
+}
+
 func TestGetCiWorkflows_UsesNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/workflows?cursor=abc"
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
@@ -3051,6 +3165,92 @@ func TestGetCiWorkflows_UsesNextURL(t *testing.T) {
 
 	if _, err := client.GetCiWorkflows(context.Background(), "prod-1", WithCiWorkflowsNextURL(next)); err != nil {
 		t.Fatalf("GetCiWorkflows() error: %v", err)
+	}
+}
+
+func TestGetCiWorkflow(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciWorkflows","id":"wf-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciWorkflows/wf-1" {
+			t.Fatalf("expected path /v1/ciWorkflows/wf-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiWorkflow(context.Background(), "wf-1"); err != nil {
+		t.Fatalf("GetCiWorkflow() error: %v", err)
+	}
+}
+
+func TestCreateCiWorkflow(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"ciWorkflows","id":"wf-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciWorkflows" {
+			t.Fatalf("expected path /v1/ciWorkflows, got %s", req.URL.Path)
+		}
+		var payload map[string]interface{}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		data, ok := payload["data"].(map[string]interface{})
+		if !ok || data["type"] != "ciWorkflows" {
+			t.Fatalf("expected data.type=ciWorkflows")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	body := json.RawMessage(`{"data":{"type":"ciWorkflows"}}`)
+	if _, err := client.CreateCiWorkflow(context.Background(), body); err != nil {
+		t.Fatalf("CreateCiWorkflow() error: %v", err)
+	}
+}
+
+func TestUpdateCiWorkflow(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciWorkflows","id":"wf-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciWorkflows/wf-1" {
+			t.Fatalf("expected path /v1/ciWorkflows/wf-1, got %s", req.URL.Path)
+		}
+		var payload map[string]interface{}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		data, ok := payload["data"].(map[string]interface{})
+		if !ok || data["type"] != "ciWorkflows" {
+			t.Fatalf("expected data.type=ciWorkflows")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	body := json.RawMessage(`{"data":{"type":"ciWorkflows","id":"wf-1"}}`)
+	if _, err := client.UpdateCiWorkflow(context.Background(), "wf-1", body); err != nil {
+		t.Fatalf("UpdateCiWorkflow() error: %v", err)
+	}
+}
+
+func TestDeleteCiWorkflow(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciWorkflows/wf-1" {
+			t.Fatalf("expected path /v1/ciWorkflows/wf-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteCiWorkflow(context.Background(), "wf-1"); err != nil {
+		t.Fatalf("DeleteCiWorkflow() error: %v", err)
 	}
 }
 
@@ -3113,6 +3313,27 @@ func TestGetCiBuildRun(t *testing.T) {
 	}
 }
 
+func TestGetCiBuildRunBuilds_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildRuns/run-1/builds" {
+			t.Fatalf("expected path /v1/ciBuildRuns/run-1/builds, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildRunBuilds(context.Background(), "run-1", WithCiBuildRunBuildsLimit(10)); err != nil {
+		t.Fatalf("GetCiBuildRunBuilds() error: %v", err)
+	}
+}
+
 func TestCreateCiBuildRun(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"number":1}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -3150,6 +3371,40 @@ func TestCreateCiBuildRun(t *testing.T) {
 	}
 	if _, err := client.CreateCiBuildRun(context.Background(), req); err != nil {
 		t.Fatalf("CreateCiBuildRun() error: %v", err)
+	}
+}
+
+func TestGetCiBuildAction(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciBuildActions","id":"action-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildAction(context.Background(), "action-1"); err != nil {
+		t.Fatalf("GetCiBuildAction() error: %v", err)
+	}
+}
+
+func TestGetCiBuildActionBuildRun(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1/buildRun" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1/buildRun, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildActionBuildRun(context.Background(), "action-1"); err != nil {
+		t.Fatalf("GetCiBuildActionBuildRun() error: %v", err)
 	}
 }
 
@@ -3264,6 +3519,124 @@ func TestGetCiIssue(t *testing.T) {
 
 	if _, err := client.GetCiIssue(context.Background(), "issue-1"); err != nil {
 		t.Fatalf("GetCiIssue() error: %v", err)
+	}
+}
+
+func TestGetCiMacOsVersions_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciMacOsVersions","id":"macos-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciMacOsVersions" {
+			t.Fatalf("expected path /v1/ciMacOsVersions, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiMacOsVersions(context.Background(), WithCiMacOsVersionsLimit(5)); err != nil {
+		t.Fatalf("GetCiMacOsVersions() error: %v", err)
+	}
+}
+
+func TestGetCiMacOsVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciMacOsVersions","id":"macos-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciMacOsVersions/macos-1" {
+			t.Fatalf("expected path /v1/ciMacOsVersions/macos-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiMacOsVersion(context.Background(), "macos-1"); err != nil {
+		t.Fatalf("GetCiMacOsVersion() error: %v", err)
+	}
+}
+
+func TestGetCiMacOsVersionXcodeVersions_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciMacOsVersions/macos-1/xcodeVersions" {
+			t.Fatalf("expected path /v1/ciMacOsVersions/macos-1/xcodeVersions, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "20" {
+			t.Fatalf("expected limit=20, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiMacOsVersionXcodeVersions(context.Background(), "macos-1", WithCiXcodeVersionsLimit(20)); err != nil {
+		t.Fatalf("GetCiMacOsVersionXcodeVersions() error: %v", err)
+	}
+}
+
+func TestGetCiXcodeVersions_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciXcodeVersions" {
+			t.Fatalf("expected path /v1/ciXcodeVersions, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiXcodeVersions(context.Background(), WithCiXcodeVersionsLimit(10)); err != nil {
+		t.Fatalf("GetCiXcodeVersions() error: %v", err)
+	}
+}
+
+func TestGetCiXcodeVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciXcodeVersions","id":"xcode-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciXcodeVersions/xcode-1" {
+			t.Fatalf("expected path /v1/ciXcodeVersions/xcode-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiXcodeVersion(context.Background(), "xcode-1"); err != nil {
+		t.Fatalf("GetCiXcodeVersion() error: %v", err)
+	}
+}
+
+func TestGetCiXcodeVersionMacOsVersions_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciMacOsVersions","id":"macos-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciXcodeVersions/xcode-1/macOsVersions" {
+			t.Fatalf("expected path /v1/ciXcodeVersions/xcode-1/macOsVersions, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "15" {
+			t.Fatalf("expected limit=15, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiXcodeVersionMacOsVersions(context.Background(), "xcode-1", WithCiMacOsVersionsLimit(15)); err != nil {
+		t.Fatalf("GetCiXcodeVersionMacOsVersions() error: %v", err)
 	}
 }
 

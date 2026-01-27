@@ -132,6 +132,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &CiWorkflowsResponse{Links: Links{}}
 	case *ScmGitReferencesResponse:
 		result = &ScmGitReferencesResponse{Links: Links{}}
+	case *ScmRepositoriesResponse:
+		result = &ScmRepositoriesResponse{Links: Links{}}
 	case *CiBuildRunsResponse:
 		result = &CiBuildRunsResponse{Links: Links{}}
 	case *CiBuildActionsResponse:
@@ -142,6 +144,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &CiTestResultsResponse{Links: Links{}}
 	case *CiIssuesResponse:
 		result = &CiIssuesResponse{Links: Links{}}
+	case *CiMacOsVersionsResponse:
+		result = &CiMacOsVersionsResponse{Links: Links{}}
+	case *CiXcodeVersionsResponse:
+		result = &CiXcodeVersionsResponse{Links: Links{}}
 	default:
 		return nil, fmt.Errorf("unsupported response type for pagination")
 	}
@@ -295,8 +301,22 @@ func typeOf(p PaginatedResponse) string {
 		return "CiWorkflowsResponse"
 	case *ScmGitReferencesResponse:
 		return "ScmGitReferencesResponse"
+	case *ScmRepositoriesResponse:
+		return "ScmRepositoriesResponse"
 	case *CiBuildRunsResponse:
 		return "CiBuildRunsResponse"
+	case *CiBuildActionsResponse:
+		return "CiBuildActionsResponse"
+	case *CiArtifactsResponse:
+		return "CiArtifactsResponse"
+	case *CiTestResultsResponse:
+		return "CiTestResultsResponse"
+	case *CiIssuesResponse:
+		return "CiIssuesResponse"
+	case *CiMacOsVersionsResponse:
+		return "CiMacOsVersionsResponse"
+	case *CiXcodeVersionsResponse:
+		return "CiXcodeVersionsResponse"
 	default:
 		return "unknown"
 	}

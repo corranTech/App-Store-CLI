@@ -16,6 +16,18 @@ type CiArtifactDownloadResult struct {
 	BytesWritten int64  `json:"bytesWritten,omitempty"`
 }
 
+// CiWorkflowDeleteResult represents CLI output for workflow deletions.
+type CiWorkflowDeleteResult struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
+// CiProductDeleteResult represents CLI output for product deletions.
+type CiProductDeleteResult struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
 func printXcodeCloudRunResultTable(result *XcodeCloudRunResult) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "Build Run ID\tBuild #\tWorkflow ID\tWorkflow Name\tGit Ref ID\tGit Ref Name\tProgress\tStatus\tStart Reason\tCreated")
@@ -141,6 +153,90 @@ func printCiWorkflowsMarkdown(resp *CiWorkflowsResponse) error {
 			escapeMarkdown(item.Attributes.Name),
 			item.Attributes.IsEnabled,
 			escapeMarkdown(item.Attributes.LastModifiedDate),
+		)
+	}
+	return nil
+}
+
+func printScmRepositoriesTable(resp *ScmRepositoriesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tOwner\tRepository\tHTTP URL\tSSH URL\tLast Accessed")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			item.ID,
+			item.Attributes.OwnerName,
+			item.Attributes.RepositoryName,
+			item.Attributes.HTTPCloneURL,
+			item.Attributes.SSHCloneURL,
+			item.Attributes.LastAccessedDate,
+		)
+	}
+	return w.Flush()
+}
+
+func printScmRepositoriesMarkdown(resp *ScmRepositoriesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Owner | Repository | HTTP URL | SSH URL | Last Accessed |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.OwnerName),
+			escapeMarkdown(item.Attributes.RepositoryName),
+			escapeMarkdown(item.Attributes.HTTPCloneURL),
+			escapeMarkdown(item.Attributes.SSHCloneURL),
+			escapeMarkdown(item.Attributes.LastAccessedDate),
+		)
+	}
+	return nil
+}
+
+func printCiMacOsVersionsTable(resp *CiMacOsVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tName")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\n",
+			item.ID,
+			item.Attributes.Version,
+			item.Attributes.Name,
+		)
+	}
+	return w.Flush()
+}
+
+func printCiMacOsVersionsMarkdown(resp *CiMacOsVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | Name |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.Version),
+			escapeMarkdown(item.Attributes.Name),
+		)
+	}
+	return nil
+}
+
+func printCiXcodeVersionsTable(resp *CiXcodeVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tName")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\n",
+			item.ID,
+			item.Attributes.Version,
+			item.Attributes.Name,
+		)
+	}
+	return w.Flush()
+}
+
+func printCiXcodeVersionsMarkdown(resp *CiXcodeVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | Name |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.Version),
+			escapeMarkdown(item.Attributes.Name),
 		)
 	}
 	return nil
@@ -371,6 +467,34 @@ func printCiArtifactDownloadResultMarkdown(result *CiArtifactDownloadResult) err
 		result.BytesWritten,
 		escapeMarkdown(result.OutputPath),
 	)
+	return nil
+}
+
+func printCiWorkflowDeleteResultTable(result *CiWorkflowDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
+	return w.Flush()
+}
+
+func printCiWorkflowDeleteResultMarkdown(result *CiWorkflowDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	return nil
+}
+
+func printCiProductDeleteResultTable(result *CiProductDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
+	return w.Flush()
+}
+
+func printCiProductDeleteResultMarkdown(result *CiProductDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
 	return nil
 }
 

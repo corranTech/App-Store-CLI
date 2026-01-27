@@ -309,12 +309,30 @@ func PrintMarkdown(data interface{}) error {
 		return printXcodeCloudStatusResultMarkdown(v)
 	case *CiProductsResponse:
 		return printCiProductsMarkdown(v)
+	case *CiProductResponse:
+		return printCiProductsMarkdown(&CiProductsResponse{Data: []CiProductResource{v.Data}})
 	case *CiWorkflowsResponse:
 		return printCiWorkflowsMarkdown(v)
+	case *CiWorkflowResponse:
+		return printCiWorkflowsMarkdown(&CiWorkflowsResponse{Data: []CiWorkflowResource{v.Data}})
+	case *ScmRepositoriesResponse:
+		return printScmRepositoriesMarkdown(v)
 	case *CiBuildRunsResponse:
 		return printCiBuildRunsMarkdown(v)
+	case *CiBuildRunResponse:
+		return printCiBuildRunsMarkdown(&CiBuildRunsResponse{Data: []CiBuildRunResource{v.Data}})
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsMarkdown(v)
+	case *CiBuildActionResponse:
+		return printCiBuildActionsMarkdown(&CiBuildActionsResponse{Data: []CiBuildActionResource{v.Data}})
+	case *CiMacOsVersionsResponse:
+		return printCiMacOsVersionsMarkdown(v)
+	case *CiMacOsVersionResponse:
+		return printCiMacOsVersionsMarkdown(&CiMacOsVersionsResponse{Data: []CiMacOsVersionResource{v.Data}})
+	case *CiXcodeVersionsResponse:
+		return printCiXcodeVersionsMarkdown(v)
+	case *CiXcodeVersionResponse:
+		return printCiXcodeVersionsMarkdown(&CiXcodeVersionsResponse{Data: []CiXcodeVersionResource{v.Data}})
 	case *CiArtifactsResponse:
 		return printCiArtifactsMarkdown(v)
 	case *CiArtifactResponse:
@@ -329,6 +347,10 @@ func PrintMarkdown(data interface{}) error {
 		return printCiIssueMarkdown(v)
 	case *CiArtifactDownloadResult:
 		return printCiArtifactDownloadResultMarkdown(v)
+	case *CiWorkflowDeleteResult:
+		return printCiWorkflowDeleteResultMarkdown(v)
+	case *CiProductDeleteResult:
+		return printCiProductDeleteResultMarkdown(v)
 	case *EndUserLicenseAgreementResponse:
 		return printEndUserLicenseAgreementMarkdown(v)
 	case *EndUserLicenseAgreementDeleteResult:
@@ -645,12 +667,30 @@ func PrintTable(data interface{}) error {
 		return printXcodeCloudStatusResultTable(v)
 	case *CiProductsResponse:
 		return printCiProductsTable(v)
+	case *CiProductResponse:
+		return printCiProductsTable(&CiProductsResponse{Data: []CiProductResource{v.Data}})
 	case *CiWorkflowsResponse:
 		return printCiWorkflowsTable(v)
+	case *CiWorkflowResponse:
+		return printCiWorkflowsTable(&CiWorkflowsResponse{Data: []CiWorkflowResource{v.Data}})
+	case *ScmRepositoriesResponse:
+		return printScmRepositoriesTable(v)
 	case *CiBuildRunsResponse:
 		return printCiBuildRunsTable(v)
+	case *CiBuildRunResponse:
+		return printCiBuildRunsTable(&CiBuildRunsResponse{Data: []CiBuildRunResource{v.Data}})
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsTable(v)
+	case *CiBuildActionResponse:
+		return printCiBuildActionsTable(&CiBuildActionsResponse{Data: []CiBuildActionResource{v.Data}})
+	case *CiMacOsVersionsResponse:
+		return printCiMacOsVersionsTable(v)
+	case *CiMacOsVersionResponse:
+		return printCiMacOsVersionsTable(&CiMacOsVersionsResponse{Data: []CiMacOsVersionResource{v.Data}})
+	case *CiXcodeVersionsResponse:
+		return printCiXcodeVersionsTable(v)
+	case *CiXcodeVersionResponse:
+		return printCiXcodeVersionsTable(&CiXcodeVersionsResponse{Data: []CiXcodeVersionResource{v.Data}})
 	case *CiArtifactsResponse:
 		return printCiArtifactsTable(v)
 	case *CiArtifactResponse:
@@ -665,6 +705,10 @@ func PrintTable(data interface{}) error {
 		return printCiIssueTable(v)
 	case *CiArtifactDownloadResult:
 		return printCiArtifactDownloadResultTable(v)
+	case *CiWorkflowDeleteResult:
+		return printCiWorkflowDeleteResultTable(v)
+	case *CiProductDeleteResult:
+		return printCiProductDeleteResultTable(v)
 	case *CustomerReviewResponseResponse:
 		return printCustomerReviewResponseTable(v)
 	case *CustomerReviewResponseDeleteResult:

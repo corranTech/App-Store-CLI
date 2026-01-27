@@ -544,6 +544,216 @@ func TestIsBuildRunSuccessful(t *testing.T) {
 	}
 }
 
+func TestPrintTable_ScmRepositories(t *testing.T) {
+	resp := &ScmRepositoriesResponse{
+		Data: []ScmRepositoryResource{
+			{
+				ID: "repo-1",
+				Attributes: ScmRepositoryAttributes{
+					OwnerName:      "example",
+					RepositoryName: "demo",
+				},
+			},
+		},
+	}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Repository") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "demo") {
+		t.Fatalf("expected repository name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_ScmRepositories(t *testing.T) {
+	resp := &ScmRepositoriesResponse{
+		Data: []ScmRepositoryResource{
+			{
+				ID: "repo-2",
+				Attributes: ScmRepositoryAttributes{
+					OwnerName:      "example",
+					RepositoryName: "demo",
+				},
+			},
+		},
+	}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Owner | Repository |") {
+		t.Fatalf("expected markdown header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "example") {
+		t.Fatalf("expected owner name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_CiMacOsVersions(t *testing.T) {
+	resp := &CiMacOsVersionsResponse{
+		Data: []CiMacOsVersionResource{
+			{
+				ID: "macos-1",
+				Attributes: CiMacOsVersionAttributes{
+					Version: "14.0",
+					Name:    "Sonoma",
+				},
+			},
+		},
+	}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Version") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Sonoma") {
+		t.Fatalf("expected name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_CiMacOsVersions(t *testing.T) {
+	resp := &CiMacOsVersionsResponse{
+		Data: []CiMacOsVersionResource{
+			{
+				ID: "macos-2",
+				Attributes: CiMacOsVersionAttributes{
+					Version: "13.0",
+					Name:    "Ventura",
+				},
+			},
+		},
+	}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Version | Name |") {
+		t.Fatalf("expected markdown header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Ventura") {
+		t.Fatalf("expected name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_CiXcodeVersions(t *testing.T) {
+	resp := &CiXcodeVersionsResponse{
+		Data: []CiXcodeVersionResource{
+			{
+				ID: "xcode-1",
+				Attributes: CiXcodeVersionAttributes{
+					Version: "15.0",
+					Name:    "Xcode 15",
+				},
+			},
+		},
+	}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Version") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Xcode 15") {
+		t.Fatalf("expected name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_CiXcodeVersions(t *testing.T) {
+	resp := &CiXcodeVersionsResponse{
+		Data: []CiXcodeVersionResource{
+			{
+				ID: "xcode-2",
+				Attributes: CiXcodeVersionAttributes{
+					Version: "14.3",
+					Name:    "Xcode 14.3",
+				},
+			},
+		},
+	}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Version | Name |") {
+		t.Fatalf("expected markdown header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Xcode 14.3") {
+		t.Fatalf("expected name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_CiWorkflowDeleteResult(t *testing.T) {
+	result := &CiWorkflowDeleteResult{ID: "wf-1", Deleted: true}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "wf-1") {
+		t.Fatalf("expected ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_CiWorkflowDeleteResult(t *testing.T) {
+	result := &CiWorkflowDeleteResult{ID: "wf-2", Deleted: true}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| ID | Deleted |") {
+		t.Fatalf("expected markdown header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "wf-2") {
+		t.Fatalf("expected ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_CiProductDeleteResult(t *testing.T) {
+	result := &CiProductDeleteResult{ID: "prod-1", Deleted: true}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "prod-1") {
+		t.Fatalf("expected ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_CiProductDeleteResult(t *testing.T) {
+	result := &CiProductDeleteResult{ID: "prod-2", Deleted: true}
+
+	output := captureXcodeCloudStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| ID | Deleted |") {
+		t.Fatalf("expected markdown header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "prod-2") {
+		t.Fatalf("expected ID in output, got: %s", output)
+	}
+}
+
 func TestBuildCiProductsQuery(t *testing.T) {
 	query := &ciProductsQuery{}
 	WithCiProductsAppID("app-1")(query)
@@ -636,5 +846,57 @@ func TestBuildCiIssuesQuery(t *testing.T) {
 	}
 	if got := values.Get("limit"); got != "35" {
 		t.Fatalf("expected limit=35, got %q", got)
+	}
+}
+
+func TestBuildCiMacOsVersionsQuery(t *testing.T) {
+	query := &ciMacOsVersionsQuery{}
+	WithCiMacOsVersionsLimit(15)(query)
+
+	values, err := url.ParseQuery(buildCiMacOsVersionsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "15" {
+		t.Fatalf("expected limit=15, got %q", got)
+	}
+}
+
+func TestBuildCiXcodeVersionsQuery(t *testing.T) {
+	query := &ciXcodeVersionsQuery{}
+	WithCiXcodeVersionsLimit(20)(query)
+
+	values, err := url.ParseQuery(buildCiXcodeVersionsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "20" {
+		t.Fatalf("expected limit=20, got %q", got)
+	}
+}
+
+func TestBuildCiProductRepositoriesQuery(t *testing.T) {
+	query := &ciProductRepositoriesQuery{}
+	WithCiProductRepositoriesLimit(12)(query)
+
+	values, err := url.ParseQuery(buildCiProductRepositoriesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "12" {
+		t.Fatalf("expected limit=12, got %q", got)
+	}
+}
+
+func TestBuildCiBuildRunBuildsQuery(t *testing.T) {
+	query := &ciBuildRunBuildsQuery{}
+	WithCiBuildRunBuildsLimit(8)(query)
+
+	values, err := url.ParseQuery(buildCiBuildRunBuildsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "8" {
+		t.Fatalf("expected limit=8, got %q", got)
 	}
 }
