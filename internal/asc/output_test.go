@@ -709,6 +709,56 @@ func TestPrintMarkdown_LocalizationUploadResult(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppTags(t *testing.T) {
+	resp := &AppTagsResponse{
+		Data: []Resource[AppTagAttributes]{
+			{
+				ID: "tag-1",
+				Attributes: AppTagAttributes{
+					Name:             "Strategy",
+					VisibleInAppStore: true,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Visible In App Store") {
+		t.Fatalf("expected visibility header, got: %s", output)
+	}
+	if !strings.Contains(output, "Strategy") {
+		t.Fatalf("expected tag name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppTags(t *testing.T) {
+	resp := &AppTagsResponse{
+		Data: []Resource[AppTagAttributes]{
+			{
+				ID: "tag-1",
+				Attributes: AppTagAttributes{
+					Name:             "Strategy",
+					VisibleInAppStore: false,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Name | Visible In App Store |") {
+		t.Fatalf("expected app tags header, got: %s", output)
+	}
+	if !strings.Contains(output, "Strategy") {
+		t.Fatalf("expected tag name in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_BetaGroups(t *testing.T) {
 	resp := &BetaGroupsResponse{
 		Data: []Resource[BetaGroupAttributes]{

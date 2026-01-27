@@ -5,6 +5,7 @@ type ResourceType string
 
 const (
 	ResourceTypeApps                                 ResourceType = "apps"
+	ResourceTypeAppTags                              ResourceType = "appTags"
 	ResourceTypeBundleIds                            ResourceType = "bundleIds"
 	ResourceTypeBundleIdCapabilities                 ResourceType = "bundleIdCapabilities"
 	ResourceTypeAppCategories                        ResourceType = "appCategories"

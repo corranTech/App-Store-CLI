@@ -51,6 +51,12 @@ type appsQuery struct {
 	skus      []string
 }
 
+type appTagsQuery struct {
+	listQuery
+	visibleInAppStore []string
+	sort              string
+}
+
 type buildsQuery struct {
 	listQuery
 	sort                string
@@ -202,6 +208,16 @@ func buildAppsQuery(query *appsQuery) string {
 	addCSV(values, "filter[bundleId]", query.bundleIDs)
 	addCSV(values, "filter[name]", query.names)
 	addCSV(values, "filter[sku]", query.skus)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppTagsQuery(query *appTagsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[visibleInAppStore]", query.visibleInAppStore)
 	if query.sort != "" {
 		values.Set("sort", query.sort)
 	}

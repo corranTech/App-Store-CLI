@@ -14,6 +14,9 @@ type ReviewOption func(*reviewQuery)
 // AppsOption is a functional option for GetApps.
 type AppsOption func(*appsQuery)
 
+// AppTagsOption is a functional option for GetAppTags.
+type AppTagsOption func(*appTagsQuery)
+
 // BuildsOption is a functional option for GetBuilds.
 type BuildsOption func(*buildsQuery)
 
@@ -353,6 +356,40 @@ func WithAppsNames(names []string) AppsOption {
 func WithAppsSKUs(skus []string) AppsOption {
 	return func(q *appsQuery) {
 		q.skus = normalizeList(skus)
+	}
+}
+
+// WithAppTagsLimit sets the max number of app tags to return.
+func WithAppTagsLimit(limit int) AppTagsOption {
+	return func(q *appTagsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppTagsNextURL uses a next page URL directly.
+func WithAppTagsNextURL(next string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppTagsVisibleInAppStore filters app tags by visibility.
+func WithAppTagsVisibleInAppStore(values []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.visibleInAppStore = normalizeList(values)
+	}
+}
+
+// WithAppTagsSort sets the sort order for app tags.
+func WithAppTagsSort(sort string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
 	}
 }
 

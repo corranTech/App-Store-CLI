@@ -33,6 +33,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAppCategoriesMarkdown(v)
 	case *AppResponse:
 		return printAppsMarkdown(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *AppTagsResponse:
+		return printAppTagsMarkdown(v)
+	case *AppTagResponse:
+		return printAppTagsMarkdown(&AppTagsResponse{Data: []Resource[AppTagAttributes]{v.Data}})
 	case *BundleIDsResponse:
 		return printBundleIDsMarkdown(v)
 	case *BundleIDResponse:
@@ -267,6 +271,10 @@ func PrintTable(data interface{}) error {
 		return printAppCategoriesTable(v)
 	case *AppResponse:
 		return printAppsTable(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *AppTagsResponse:
+		return printAppTagsTable(v)
+	case *AppTagResponse:
+		return printAppTagsTable(&AppTagsResponse{Data: []Resource[AppTagAttributes]{v.Data}})
 	case *BundleIDsResponse:
 		return printBundleIDsTable(v)
 	case *BundleIDResponse:
