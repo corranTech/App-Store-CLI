@@ -130,6 +130,14 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &ScmGitReferencesResponse{Links: Links{}}
 	case *CiBuildRunsResponse:
 		result = &CiBuildRunsResponse{Links: Links{}}
+	case *CiBuildActionsResponse:
+		result = &CiBuildActionsResponse{Links: Links{}}
+	case *CiArtifactsResponse:
+		result = &CiArtifactsResponse{Links: Links{}}
+	case *CiTestResultsResponse:
+		result = &CiTestResultsResponse{Links: Links{}}
+	case *CiIssuesResponse:
+		result = &CiIssuesResponse{Links: Links{}}
 	default:
 		return nil, fmt.Errorf("unsupported response type for pagination")
 	}

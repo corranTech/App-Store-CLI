@@ -1407,8 +1407,25 @@ func validateCiArtifactDownloadURL(downloadURL string) error {
 	if parsedURL.Scheme != "https" {
 		return fmt.Errorf("rejected download URL with insecure scheme %q (expected https)", parsedURL.Scheme)
 	}
-	if parsedURL.Host == "" {
-		return fmt.Errorf("rejected download URL with empty host")
+	host := strings.ToLower(parsedURL.Hostname())
+	if isAllowedCiArtifactHost(host) {
+		return nil
 	}
-	return nil
+	if isAllowedAnalyticsCDNHost(host) {
+		if !hasSignedAnalyticsQuery(parsedURL.Query()) {
+			return fmt.Errorf("rejected ci artifact download URL from CDN host %q without signed query", parsedURL.Host)
+		}
+		return nil
+	}
+	if host == "" {
+		return fmt.Errorf("rejected ci artifact download URL with empty host")
+	}
+	return fmt.Errorf("rejected ci artifact download URL from untrusted host %q", parsedURL.Host)
+}
+
+func isAllowedCiArtifactHost(host string) bool {
+	if isAllowedAnalyticsHost(host) {
+		return true
+	}
+	return host == "icloud-content.com" || strings.HasSuffix(host, ".icloud-content.com")
 }

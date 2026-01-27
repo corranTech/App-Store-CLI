@@ -3268,7 +3268,7 @@ func TestGetCiIssue(t *testing.T) {
 }
 
 func TestDownloadCiArtifact_NoAuthHeader(t *testing.T) {
-	downloadURL := "https://downloads.example.com/artifact.zip"
+	downloadURL := "https://appstoreconnect.apple.com/artifacts/artifact.zip"
 	response := rawResponse(http.StatusOK, "artifact-data")
 	client := newTestClient(t, func(req *http.Request) {
 		if req.URL.String() != downloadURL {
@@ -3286,6 +3286,34 @@ func TestDownloadCiArtifact_NoAuthHeader(t *testing.T) {
 	_ = download.Body.Close()
 }
 
+func TestDownloadCiArtifact_ICloudContentHostAllowed(t *testing.T) {
+	downloadURL := "https://cvws.icloud-content.com/artifact.zip"
+	response := rawResponse(http.StatusOK, "artifact-data")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != downloadURL {
+			t.Fatalf("expected URL %q, got %q", downloadURL, req.URL.String())
+		}
+		if req.Header.Get("Authorization") != "" {
+			t.Fatalf("expected no Authorization header")
+		}
+	}, response)
+
+	download, err := client.DownloadCiArtifact(context.Background(), downloadURL)
+	if err != nil {
+		t.Fatalf("DownloadCiArtifact() error: %v", err)
+	}
+	_ = download.Body.Close()
+}
+
+func TestDownloadCiArtifact_UntrustedHost(t *testing.T) {
+	downloadURL := "https://downloads.example.com/artifact.zip"
+	client := newTestClient(t, nil, nil)
+
+	if _, err := client.DownloadCiArtifact(context.Background(), downloadURL); err == nil {
+		t.Fatal("expected error for untrusted host")
+	}
+}
+
 func TestDownloadCiArtifact_InvalidScheme(t *testing.T) {
 	client := newTestClient(t, nil, nil)
 	if _, err := client.DownloadCiArtifact(context.Background(), "http://downloads.example.com/artifact.zip"); err == nil {
@@ -3298,6 +3326,34 @@ func TestDownloadCiArtifact_EmptyHost(t *testing.T) {
 	if _, err := client.DownloadCiArtifact(context.Background(), "https:///artifact.zip"); err == nil {
 		t.Fatal("expected error for empty host")
 	}
+}
+
+func TestDownloadCiArtifact_CDNHostRequiresSignature(t *testing.T) {
+	downloadURL := "https://example.cloudfront.net/artifact.zip"
+	client := newTestClient(t, nil, nil)
+
+	if _, err := client.DownloadCiArtifact(context.Background(), downloadURL); err == nil {
+		t.Fatal("expected error for unsigned CDN host")
+	}
+}
+
+func TestDownloadCiArtifact_CDNHostWithSignature(t *testing.T) {
+	downloadURL := "https://example.cloudfront.net/artifact.zip?Signature=abc&Key-Pair-Id=key"
+	response := rawResponse(http.StatusOK, "artifact-data")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != downloadURL {
+			t.Fatalf("expected URL %q, got %q", downloadURL, req.URL.String())
+		}
+		if req.Header.Get("Authorization") != "" {
+			t.Fatalf("expected no Authorization header")
+		}
+	}, response)
+
+	download, err := client.DownloadCiArtifact(context.Background(), downloadURL)
+	if err != nil {
+		t.Fatalf("DownloadCiArtifact() error: %v", err)
+	}
+	_ = download.Body.Close()
 }
 
 func TestResolveCiWorkflowByName_CaseInsensitive(t *testing.T) {
