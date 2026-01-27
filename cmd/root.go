@@ -51,6 +51,7 @@ func RootCommand(version string) *ffcli.Command {
 			PublishCommand(),
 			VersionsCommand(),
 			AppInfoCommand(),
+			EULACommand(),
 			PricingCommand(),
 			PreReleaseVersionsCommand(),
 			LocalizationsCommand(),
