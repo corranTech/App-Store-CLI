@@ -101,6 +101,9 @@ type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
 
+// TerritoryAvailabilitiesOption is a functional option for GetTerritoryAvailabilities.
+type TerritoryAvailabilitiesOption func(*territoryAvailabilitiesQuery)
+
 // LinkagesOption is a functional option for linkages endpoints.
 type LinkagesOption func(*linkagesQuery)
 
@@ -1293,6 +1296,24 @@ func WithTerritoriesNextURL(next string) TerritoriesOption {
 func WithTerritoriesFields(fields []string) TerritoriesOption {
 	return func(q *territoriesQuery) {
 		q.fields = normalizeList(fields)
+	}
+}
+
+// WithTerritoryAvailabilitiesLimit sets the max number of territory availabilities to return.
+func WithTerritoryAvailabilitiesLimit(limit int) TerritoryAvailabilitiesOption {
+	return func(q *territoryAvailabilitiesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithTerritoryAvailabilitiesNextURL uses a next page URL directly.
+func WithTerritoryAvailabilitiesNextURL(next string) TerritoryAvailabilitiesOption {
+	return func(q *territoryAvailabilitiesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 

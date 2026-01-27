@@ -205,15 +205,30 @@ Examples:
 				return fmt.Errorf("pre-orders enable: app availability ID missing from response")
 			}
 			availableInNew := availableInNewTerritories.value
-			if _, err := client.CreateAppAvailabilityV2(requestCtx, resolvedAppID, asc.AppAvailabilityV2CreateAttributes{
+			createResp, err := client.CreateAppAvailabilityV2(requestCtx, resolvedAppID, asc.AppAvailabilityV2CreateAttributes{
 				AvailableInNewTerritories: &availableInNew,
-			}); err != nil {
-				return fmt.Errorf("pre-orders enable: %w", err)
-			}
-
-			territoryResp, err := client.GetTerritoryAvailabilities(requestCtx, availabilityID)
+			})
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)
+			}
+			availabilityID = strings.TrimSpace(createResp.Data.ID)
+			if availabilityID == "" {
+				return fmt.Errorf("pre-orders enable: app availability ID missing from response")
+			}
+
+			firstPage, err := client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
+			if err != nil {
+				return fmt.Errorf("pre-orders enable: %w", err)
+			}
+			paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
+			})
+			if err != nil {
+				return fmt.Errorf("pre-orders enable: %w", err)
+			}
+			territoryResp, ok := paginated.(*asc.TerritoryAvailabilitiesResponse)
+			if !ok {
+				return fmt.Errorf("pre-orders enable: unexpected territory availabilities response")
 			}
 
 			territoryMap, err := mapTerritoryAvailabilityIDs(territoryResp)
@@ -403,10 +418,6 @@ func normalizePreOrderReleaseDate(value string) (string, error) {
 	return normalizeDate(value, "--release-date")
 }
 
-type territoryAvailabilityRelationships struct {
-	Territory asc.Relationship `json:"territory"`
-}
-
 type territoryAvailabilityIDPayload struct {
 	Territory string `json:"t"`
 }
@@ -419,7 +430,7 @@ func mapTerritoryAvailabilityIDs(resp *asc.TerritoryAvailabilitiesResponse) (map
 	for _, item := range resp.Data {
 		territoryID := ""
 		if len(item.Relationships) > 0 {
-			var relationships territoryAvailabilityRelationships
+			var relationships asc.TerritoryAvailabilityRelationships
 			if err := json.Unmarshal(item.Relationships, &relationships); err != nil {
 				return nil, fmt.Errorf("decode territory availability relationships for %q: %w", item.ID, err)
 			}
@@ -431,9 +442,6 @@ func mapTerritoryAvailabilityIDs(resp *asc.TerritoryAvailabilitiesResponse) (map
 			if !ok {
 				return nil, fmt.Errorf("territory availability %q missing territory id", item.ID)
 			}
-		}
-		if territoryID == "" {
-			return nil, fmt.Errorf("territory availability %q missing territory id", item.ID)
 		}
 		ids[territoryID] = item.ID
 	}

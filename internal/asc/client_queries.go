@@ -187,6 +187,10 @@ type territoriesQuery struct {
 	fields []string
 }
 
+type territoryAvailabilitiesQuery struct {
+	listQuery
+}
+
 type linkagesQuery struct {
 	listQuery
 }
