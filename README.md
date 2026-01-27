@@ -35,6 +35,7 @@ A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect
   - [Sandbox Testers](#sandbox-testers)
   - [Xcode Cloud](#xcode-cloud)
   - [Apps & Builds](#apps--builds)
+- [App Setup](#app-setup)
   - [Categories](#categories)
   - [Versions](#versions)
   - [App Info](#app-info)
@@ -565,6 +566,28 @@ Notes:
 # Add/remove beta groups from a build
 asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
 asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
+```
+
+### App Setup
+
+```bash
+# Set bundle ID and primary locale
+asc app-setup info set --app "APP_ID" --primary-locale "en-US" --bundle-id "com.example.app"
+
+# Set localized app info
+asc app-setup info set --app "APP_ID" --locale "en-US" --name "My App" --subtitle "Great app"
+
+# Set categories
+asc app-setup categories set --app "APP_ID" --primary GAMES --secondary ENTERTAINMENT
+
+# Set availability
+asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
+
+# Set pricing
+asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
+
+# Upload localizations
+asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"
 ```
 
 ### Offer Codes (Subscriptions)

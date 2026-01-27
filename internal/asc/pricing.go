@@ -38,6 +38,7 @@ type TerritoryAvailabilityAttributes struct {
 // Response types
 type (
 	TerritoriesResponse             = Response[TerritoryAttributes]
+	TerritoryResponse               = SingleResponse[TerritoryAttributes]
 	AppPricePointsV3Response        = Response[AppPricePointV3Attributes]
 	AppPriceScheduleResponse        = SingleResponse[AppPriceScheduleAttributes]
 	AppPricesResponse               = Response[AppPriceAttributes]
@@ -48,8 +49,9 @@ type (
 
 // AppPriceScheduleCreateAttributes defines inputs for creating a price schedule.
 type AppPriceScheduleCreateAttributes struct {
-	PricePointID string `json:"-"`
-	StartDate    string `json:"-"`
+	PricePointID    string `json:"-"`
+	StartDate       string `json:"-"`
+	BaseTerritoryID string `json:"-"`
 }
 
 // AppPriceScheduleCreateRequest is a request to create a price schedule.
@@ -66,8 +68,9 @@ type AppPriceScheduleCreateData struct {
 
 // AppPriceScheduleCreateRelationships describes schedule relationships.
 type AppPriceScheduleCreateRelationships struct {
-	App          Relationship     `json:"app"`
-	ManualPrices RelationshipList `json:"manualPrices,omitempty"`
+	App           Relationship     `json:"app"`
+	BaseTerritory Relationship     `json:"baseTerritory"`
+	ManualPrices  RelationshipList `json:"manualPrices,omitempty"`
 }
 
 // AppPriceCreateResource represents an app price resource for schedule creation.
