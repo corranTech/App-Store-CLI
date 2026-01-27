@@ -79,6 +79,12 @@ func PrintMarkdown(data interface{}) error {
 		return printAppPricesMarkdown(v)
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
+	case *BuildBundlesResponse:
+		return printBuildBundlesMarkdown(v)
+	case *BuildBundleFileSizesResponse:
+		return printBuildBundleFileSizesMarkdown(v)
+	case *BetaAppClipInvocationsResponse:
+		return printBetaAppClipInvocationsMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesMarkdown(v)
 	case *AppStoreVersionsResponse:
@@ -87,6 +93,8 @@ func PrintMarkdown(data interface{}) error {
 		return printPreReleaseVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *AppClipDomainStatusResult:
+		return printAppClipDomainStatusResultMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesMarkdown(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:
@@ -377,6 +385,12 @@ func PrintTable(data interface{}) error {
 		return printAppPricesTable(v)
 	case *BuildsResponse:
 		return printBuildsTable(v)
+	case *BuildBundlesResponse:
+		return printBuildBundlesTable(v)
+	case *BuildBundleFileSizesResponse:
+		return printBuildBundleFileSizesTable(v)
+	case *BetaAppClipInvocationsResponse:
+		return printBetaAppClipInvocationsTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesTable(v)
 	case *AppStoreVersionsResponse:
@@ -385,6 +399,8 @@ func PrintTable(data interface{}) error {
 		return printPreReleaseVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *AppClipDomainStatusResult:
+		return printAppClipDomainStatusResultTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesTable(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:

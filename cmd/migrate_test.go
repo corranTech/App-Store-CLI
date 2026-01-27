@@ -10,7 +10,7 @@ func TestReadFileIfExists_FileExists(t *testing.T) {
 	// Create a temp file
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.txt")
-	if err := os.WriteFile(path, []byte("hello world\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("hello world\n"), 0o644); err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
@@ -30,7 +30,7 @@ func TestReadFileIfExists_FileDoesNotExist(t *testing.T) {
 func TestReadFileIfExists_TrimsWhitespace(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.txt")
-	if err := os.WriteFile(path, []byte("  trimmed  \n\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("  trimmed  \n\n"), 0o644); err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 
@@ -117,19 +117,19 @@ func TestReadFastlaneMetadata_ValidStructure(t *testing.T) {
 
 	// Create en-US locale
 	enDir := filepath.Join(dir, "en-US")
-	if err := os.MkdirAll(enDir, 0755); err != nil {
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	os.WriteFile(filepath.Join(enDir, "description.txt"), []byte("English description"), 0644)
-	os.WriteFile(filepath.Join(enDir, "keywords.txt"), []byte("app, mobile, utility"), 0644)
-	os.WriteFile(filepath.Join(enDir, "release_notes.txt"), []byte("Bug fixes"), 0644)
+	os.WriteFile(filepath.Join(enDir, "description.txt"), []byte("English description"), 0o644)
+	os.WriteFile(filepath.Join(enDir, "keywords.txt"), []byte("app, mobile, utility"), 0o644)
+	os.WriteFile(filepath.Join(enDir, "release_notes.txt"), []byte("Bug fixes"), 0o644)
 
 	// Create de-DE locale
 	deDir := filepath.Join(dir, "de-DE")
-	if err := os.MkdirAll(deDir, 0755); err != nil {
+	if err := os.MkdirAll(deDir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	os.WriteFile(filepath.Join(deDir, "description.txt"), []byte("German description"), 0644)
+	os.WriteFile(filepath.Join(deDir, "description.txt"), []byte("German description"), 0o644)
 
 	locs, err := readFastlaneMetadata(dir)
 	if err != nil {
@@ -168,23 +168,23 @@ func TestReadFastlaneMetadata_SkipsSpecialDirectories(t *testing.T) {
 
 	// Create review_information directory (should be skipped)
 	reviewDir := filepath.Join(dir, "review_information")
-	if err := os.MkdirAll(reviewDir, 0755); err != nil {
+	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	os.WriteFile(filepath.Join(reviewDir, "description.txt"), []byte("Should be skipped"), 0644)
+	os.WriteFile(filepath.Join(reviewDir, "description.txt"), []byte("Should be skipped"), 0o644)
 
 	// Create default directory (should be skipped)
 	defaultDir := filepath.Join(dir, "default")
-	if err := os.MkdirAll(defaultDir, 0755); err != nil {
+	if err := os.MkdirAll(defaultDir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
 
 	// Create en-US locale (should be included)
 	enDir := filepath.Join(dir, "en-US")
-	if err := os.MkdirAll(enDir, 0755); err != nil {
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	os.WriteFile(filepath.Join(enDir, "description.txt"), []byte("English description"), 0644)
+	os.WriteFile(filepath.Join(enDir, "description.txt"), []byte("English description"), 0o644)
 
 	locs, err := readFastlaneMetadata(dir)
 	if err != nil {
@@ -204,14 +204,14 @@ func TestReadFastlaneMetadata_SkipsFiles(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create a file (should be skipped)
-	os.WriteFile(filepath.Join(dir, "README.md"), []byte("This is a file"), 0644)
+	os.WriteFile(filepath.Join(dir, "README.md"), []byte("This is a file"), 0o644)
 
 	// Create en-US locale
 	enDir := filepath.Join(dir, "en-US")
-	if err := os.MkdirAll(enDir, 0755); err != nil {
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	os.WriteFile(filepath.Join(enDir, "description.txt"), []byte("English description"), 0644)
+	os.WriteFile(filepath.Join(enDir, "description.txt"), []byte("English description"), 0o644)
 
 	locs, err := readFastlaneMetadata(dir)
 	if err != nil {
