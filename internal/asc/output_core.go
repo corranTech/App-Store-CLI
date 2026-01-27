@@ -145,6 +145,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildBetaDetailMarkdown(v)
 	case *AgeRatingDeclarationResponse:
 		return printAgeRatingDeclarationMarkdown(v)
+	case *AccessibilityDeclarationsResponse:
+		return printAccessibilityDeclarationsMarkdown(v)
+	case *AccessibilityDeclarationResponse:
+		return printAccessibilityDeclarationMarkdown(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsMarkdown(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -249,10 +253,16 @@ func PrintMarkdown(data interface{}) error {
 		return printCiBuildRunsMarkdown(v)
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsMarkdown(v)
+	case *EndUserLicenseAgreementResponse:
+		return printEndUserLicenseAgreementMarkdown(v)
+	case *EndUserLicenseAgreementDeleteResult:
+		return printEndUserLicenseAgreementDeleteResultMarkdown(v)
 	case *CustomerReviewResponseResponse:
 		return printCustomerReviewResponseMarkdown(v)
 	case *CustomerReviewResponseDeleteResult:
 		return printCustomerReviewResponseDeleteResultMarkdown(v)
+	case *AccessibilityDeclarationDeleteResult:
+		return printAccessibilityDeclarationDeleteResultMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -385,6 +395,10 @@ func PrintTable(data interface{}) error {
 		return printBuildBetaDetailTable(v)
 	case *AgeRatingDeclarationResponse:
 		return printAgeRatingDeclarationTable(v)
+	case *AccessibilityDeclarationsResponse:
+		return printAccessibilityDeclarationsTable(v)
+	case *AccessibilityDeclarationResponse:
+		return printAccessibilityDeclarationTable(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsTable(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -473,6 +487,10 @@ func PrintTable(data interface{}) error {
 		return printCertificateRevokeResultTable(v)
 	case *ProfileDeleteResult:
 		return printProfileDeleteResultTable(v)
+	case *EndUserLicenseAgreementResponse:
+		return printEndUserLicenseAgreementTable(v)
+	case *EndUserLicenseAgreementDeleteResult:
+		return printEndUserLicenseAgreementDeleteResultTable(v)
 	case *ProfileDownloadResult:
 		return printProfileDownloadResultTable(v)
 	case *SigningFetchResult:
@@ -493,6 +511,8 @@ func PrintTable(data interface{}) error {
 		return printCustomerReviewResponseTable(v)
 	case *CustomerReviewResponseDeleteResult:
 		return printCustomerReviewResponseDeleteResultTable(v)
+	case *AccessibilityDeclarationDeleteResult:
+		return printAccessibilityDeclarationDeleteResultTable(v)
 	default:
 		return PrintJSON(data)
 	}
