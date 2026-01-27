@@ -27,10 +27,7 @@ Examples:
   asc review-details attachments list --review-detail "REVIEW_DETAIL_ID"
   asc review-details attachments get --id "ATTACHMENT_ID"
   asc review-details attachments upload --review-detail "REVIEW_DETAIL_ID" --file ./attachment.pdf
-  asc review-details attachments delete --id "ATTACHMENT_ID" --confirm
-
-Alias:
-  asc review attachments-list --review-detail "REVIEW_DETAIL_ID"`,
+  asc review-details attachments delete --id "ATTACHMENT_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{

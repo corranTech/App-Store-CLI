@@ -25,10 +25,7 @@ Items can be app versions, custom product pages, in-app events, or experiments.
 Examples:
   asc review-items list --submission "SUBMISSION_ID"
   asc review-items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
-  asc review-items remove --id "ITEM_ID" --confirm
-
-Alias:
-  asc review items-list --submission "SUBMISSION_ID"`,
+  asc review-items remove --id "ITEM_ID" --confirm`,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ReviewItemsListCommand(),

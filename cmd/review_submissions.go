@@ -26,10 +26,7 @@ in-app events, and experiments.
 Examples:
   asc review-submissions list --app "123456789"
   asc review-submissions create --app "123456789" --platform IOS
-  asc review-submissions submit --id "SUBMISSION_ID" --confirm
-
-Alias:
-  asc review submissions-list --app "123456789"`,
+  asc review-submissions submit --id "SUBMISSION_ID" --confirm`,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ReviewSubmissionsListCommand(),

@@ -27,10 +27,7 @@ Examples:
   asc review-details for-version --version-id "VERSION_ID"
   asc review-details create --version-id "VERSION_ID" --contact-email "dev@example.com"
   asc review-details update --id "DETAIL_ID" --notes "Updated review notes"
-  asc review-details attachments list --review-detail "DETAIL_ID"
-
-Alias:
-  asc review details-get --id "DETAIL_ID"`,
+  asc review-details attachments list --review-detail "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
