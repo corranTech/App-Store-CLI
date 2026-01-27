@@ -3664,6 +3664,7 @@ func TestCreateSubscriptionAvailability(t *testing.T) {
 		t.Fatalf("CreateSubscriptionAvailability() error: %v", err)
 	}
 }
+
 // User management tests
 func TestGetUsers_WithFiltersAndLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"users","id":"user-1","attributes":{"username":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["ADMIN"],"allAppsVisible":true,"provisioningAllowed":false}}]}`)
@@ -4445,5 +4446,149 @@ func TestUpdateDevice_SendsRequest(t *testing.T) {
 		Status: &status,
 	}); err != nil {
 		t.Fatalf("UpdateDevice() error: %v", err)
+	}
+}
+
+func TestGetAccessibilityDeclarations_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"accessibilityDeclarations","id":"decl-1","attributes":{"deviceFamily":"IPHONE","state":"DRAFT"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/accessibilityDeclarations" {
+			t.Fatalf("expected path /v1/apps/app-1/accessibilityDeclarations, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[deviceFamily]") != "IPHONE,IPAD" {
+			t.Fatalf("expected filter[deviceFamily]=IPHONE,IPAD, got %q", values.Get("filter[deviceFamily]"))
+		}
+		if values.Get("filter[state]") != "DRAFT" {
+			t.Fatalf("expected filter[state]=DRAFT, got %q", values.Get("filter[state]"))
+		}
+		if values.Get("fields[accessibilityDeclarations]") != "deviceFamily,state" {
+			t.Fatalf("expected fields[accessibilityDeclarations]=deviceFamily,state, got %q", values.Get("fields[accessibilityDeclarations]"))
+		}
+		if values.Get("limit") != "2" {
+			t.Fatalf("expected limit=2, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAccessibilityDeclarations(
+		context.Background(),
+		"app-1",
+		WithAccessibilityDeclarationsDeviceFamilies([]string{"iphone", "ipad"}),
+		WithAccessibilityDeclarationsStates([]string{"draft"}),
+		WithAccessibilityDeclarationsFields([]string{"deviceFamily", "state"}),
+		WithAccessibilityDeclarationsLimit(2),
+	); err != nil {
+		t.Fatalf("GetAccessibilityDeclarations() error: %v", err)
+	}
+}
+
+func TestGetAccessibilityDeclaration_WithFields(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"accessibilityDeclarations","id":"decl-1","attributes":{"deviceFamily":"IPHONE"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/accessibilityDeclarations/decl-1" {
+			t.Fatalf("expected path /v1/accessibilityDeclarations/decl-1, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("fields[accessibilityDeclarations]") != "deviceFamily,state" {
+			t.Fatalf("expected fields[accessibilityDeclarations]=deviceFamily,state, got %q", req.URL.Query().Get("fields[accessibilityDeclarations]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAccessibilityDeclaration(context.Background(), "decl-1", []string{"deviceFamily", "state"}); err != nil {
+		t.Fatalf("GetAccessibilityDeclaration() error: %v", err)
+	}
+}
+
+func TestCreateAccessibilityDeclaration(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"accessibilityDeclarations","id":"decl-1","attributes":{"deviceFamily":"IPHONE"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/accessibilityDeclarations" {
+			t.Fatalf("expected path /v1/accessibilityDeclarations, got %s", req.URL.Path)
+		}
+		var payload AccessibilityDeclarationCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAccessibilityDeclarations {
+			t.Fatalf("expected type accessibilityDeclarations, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.DeviceFamily != DeviceFamilyIPhone {
+			t.Fatalf("expected device family IPHONE, got %q", payload.Data.Attributes.DeviceFamily)
+		}
+		if payload.Data.Attributes.SupportsVoiceover == nil || !*payload.Data.Attributes.SupportsVoiceover {
+			t.Fatalf("expected supportsVoiceover true, got %+v", payload.Data.Attributes.SupportsVoiceover)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.App == nil {
+			t.Fatalf("expected app relationship")
+		}
+		if payload.Data.Relationships.App.Data.Type != ResourceTypeApps || payload.Data.Relationships.App.Data.ID != "app-1" {
+			t.Fatalf("unexpected relationship: %+v", payload.Data.Relationships.App.Data)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	supportsVoiceover := true
+	attrs := AccessibilityDeclarationCreateAttributes{
+		DeviceFamily:      DeviceFamilyIPhone,
+		SupportsVoiceover: &supportsVoiceover,
+	}
+	if _, err := client.CreateAccessibilityDeclaration(context.Background(), "app-1", attrs); err != nil {
+		t.Fatalf("CreateAccessibilityDeclaration() error: %v", err)
+	}
+}
+
+func TestUpdateAccessibilityDeclaration(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"accessibilityDeclarations","id":"decl-1","attributes":{"deviceFamily":"IPHONE"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/accessibilityDeclarations/decl-1" {
+			t.Fatalf("expected path /v1/accessibilityDeclarations/decl-1, got %s", req.URL.Path)
+		}
+		var payload AccessibilityDeclarationUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAccessibilityDeclarations || payload.Data.ID != "decl-1" {
+			t.Fatalf("unexpected payload: %+v", payload.Data)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.Publish == nil || !*payload.Data.Attributes.Publish {
+			t.Fatalf("expected publish true, got %+v", payload.Data.Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	publish := true
+	attrs := AccessibilityDeclarationUpdateAttributes{Publish: &publish}
+	if _, err := client.UpdateAccessibilityDeclaration(context.Background(), "decl-1", attrs); err != nil {
+		t.Fatalf("UpdateAccessibilityDeclaration() error: %v", err)
+	}
+}
+
+func TestDeleteAccessibilityDeclaration(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/accessibilityDeclarations/decl-1" {
+			t.Fatalf("expected path /v1/accessibilityDeclarations/decl-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteAccessibilityDeclaration(context.Background(), "decl-1"); err != nil {
+		t.Fatalf("DeleteAccessibilityDeclaration() error: %v", err)
 	}
 }

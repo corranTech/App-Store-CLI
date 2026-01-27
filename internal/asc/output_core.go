@@ -139,6 +139,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildBetaDetailMarkdown(v)
 	case *AgeRatingDeclarationResponse:
 		return printAgeRatingDeclarationMarkdown(v)
+	case *AccessibilityDeclarationsResponse:
+		return printAccessibilityDeclarationsMarkdown(v)
+	case *AccessibilityDeclarationResponse:
+		return printAccessibilityDeclarationMarkdown(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsMarkdown(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -247,6 +251,8 @@ func PrintMarkdown(data interface{}) error {
 		return printCustomerReviewResponseMarkdown(v)
 	case *CustomerReviewResponseDeleteResult:
 		return printCustomerReviewResponseDeleteResultMarkdown(v)
+	case *AccessibilityDeclarationDeleteResult:
+		return printAccessibilityDeclarationDeleteResultMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -373,6 +379,10 @@ func PrintTable(data interface{}) error {
 		return printBuildBetaDetailTable(v)
 	case *AgeRatingDeclarationResponse:
 		return printAgeRatingDeclarationTable(v)
+	case *AccessibilityDeclarationsResponse:
+		return printAccessibilityDeclarationsTable(v)
+	case *AccessibilityDeclarationResponse:
+		return printAccessibilityDeclarationTable(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsTable(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -481,6 +491,8 @@ func PrintTable(data interface{}) error {
 		return printCustomerReviewResponseTable(v)
 	case *CustomerReviewResponseDeleteResult:
 		return printCustomerReviewResponseDeleteResultTable(v)
+	case *AccessibilityDeclarationDeleteResult:
+		return printAccessibilityDeclarationDeleteResultTable(v)
 	default:
 		return PrintJSON(data)
 	}

@@ -158,6 +158,13 @@ type pricePointsQuery struct {
 	territory string
 }
 
+type accessibilityDeclarationsQuery struct {
+	listQuery
+	deviceFamilies []string
+	states         []string
+	fields         []string
+}
+
 type betaAppReviewDetailsQuery struct {
 	listQuery
 }
@@ -348,6 +355,21 @@ func buildDevicesQuery(query *devicesQuery) string {
 func buildDevicesFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[devices]", fields)
+	return values.Encode()
+}
+
+func buildAccessibilityDeclarationsQuery(query *accessibilityDeclarationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[deviceFamily]", query.deviceFamilies)
+	addCSV(values, "filter[state]", query.states)
+	addCSV(values, "fields[accessibilityDeclarations]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAccessibilityDeclarationsFieldsQuery(fields []string) string {
+	values := url.Values{}
+	addCSV(values, "fields[accessibilityDeclarations]", fields)
 	return values.Encode()
 }
 

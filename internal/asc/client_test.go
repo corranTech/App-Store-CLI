@@ -187,6 +187,37 @@ func TestBuildBetaGroupsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildAccessibilityDeclarationsQuery(t *testing.T) {
+	query := &accessibilityDeclarationsQuery{}
+	opts := []AccessibilityDeclarationsOption{
+		WithAccessibilityDeclarationsDeviceFamilies([]string{"iphone", " ipad "}),
+		WithAccessibilityDeclarationsStates([]string{"draft", "published"}),
+		WithAccessibilityDeclarationsFields([]string{"deviceFamily", "state"}),
+		WithAccessibilityDeclarationsLimit(5),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildAccessibilityDeclarationsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+
+	if got := values.Get("filter[deviceFamily]"); got != "IPHONE,IPAD" {
+		t.Fatalf("expected filter[deviceFamily]=IPHONE,IPAD, got %q", got)
+	}
+	if got := values.Get("filter[state]"); got != "DRAFT,PUBLISHED" {
+		t.Fatalf("expected filter[state]=DRAFT,PUBLISHED, got %q", got)
+	}
+	if got := values.Get("fields[accessibilityDeclarations]"); got != "deviceFamily,state" {
+		t.Fatalf("expected fields[accessibilityDeclarations]=deviceFamily,state, got %q", got)
+	}
+	if got := values.Get("limit"); got != "5" {
+		t.Fatalf("expected limit=5, got %q", got)
+	}
+}
+
 func TestBuildBetaTestersQuery(t *testing.T) {
 	query := &betaTestersQuery{}
 	opts := []BetaTestersOption{
