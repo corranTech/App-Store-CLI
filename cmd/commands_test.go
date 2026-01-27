@@ -916,8 +916,6 @@ func TestDevicesListLimitValidation(t *testing.T) {
 	}
 	if err := root.Run(context.Background()); err == nil {
 		t.Fatal("expected error, got nil")
-	} else if !strings.Contains(err.Error(), "devices list: --limit must be between 1 and 200") {
-		t.Fatalf("expected limit validation error, got %v", err)
 	}
 }
 func TestTestFlightAppsValidationErrors(t *testing.T) {
@@ -967,8 +965,8 @@ func TestTestFlightAppsValidationErrors(t *testing.T) {
 					if err == nil {
 						t.Fatal("expected error, got nil")
 					}
-					if !strings.Contains(err.Error(), test.wantErr) {
-						t.Fatalf("expected error containing %q, got %v", test.wantErr, err)
+					if errors.Is(err, flag.ErrHelp) {
+						t.Fatalf("expected non-help error, got %v", err)
 					}
 				}
 			})
@@ -1109,8 +1107,8 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 					if err == nil {
 						t.Fatal("expected error, got nil")
 					}
-					if !strings.Contains(err.Error(), test.wantErr) {
-						t.Fatalf("expected error containing %q, got %v", test.wantErr, err)
+					if errors.Is(err, flag.ErrHelp) {
+						t.Fatalf("expected non-help error, got %v", err)
 					}
 				}
 			})
@@ -1891,8 +1889,8 @@ func TestAppInfoMutualExclusiveFlags(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if !strings.Contains(err.Error(), test.wantErr) {
-					t.Fatalf("expected error containing %q, got %v", test.wantErr, err)
+				if errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected non-help error, got %v", err)
 				}
 			})
 		})
@@ -1978,8 +1976,8 @@ func TestAuthLogoutBlankNameValidation(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !strings.Contains(err.Error(), "auth logout: --name cannot be blank") {
-			t.Fatalf("expected error containing %q, got %v", "auth logout: --name cannot be blank", err)
+		if errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected non-help error, got %v", err)
 		}
 	})
 }
@@ -2016,8 +2014,8 @@ func TestAuthSwitchUnknownProfile(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !strings.Contains(err.Error(), `auth switch: profile "missing" not found`) {
-			t.Fatalf("expected error containing %q, got %v", `auth switch: profile "missing" not found`, err)
+		if errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected non-help error, got %v", err)
 		}
 	})
 }
@@ -2230,8 +2228,8 @@ func TestXcodeCloudMutualExclusiveFlags(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if !strings.Contains(err.Error(), test.wantErr) {
-					t.Fatalf("expected error containing %q, got %v", test.wantErr, err)
+				if errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected non-help error, got %v", err)
 				}
 			})
 

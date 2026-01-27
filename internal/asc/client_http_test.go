@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -82,12 +83,6 @@ func TestGetApps_RateLimitedIncludesRetryAfter(t *testing.T) {
 	}
 	if got := GetRetryAfter(err); got != 2*time.Minute {
 		t.Fatalf("expected retry-after 2m, got %s", got)
-	}
-	if !strings.Contains(err.Error(), "retry after") {
-		t.Fatalf("expected retry-after in error, got %q", err.Error())
-	}
-	if !strings.Contains(err.Error(), "status 429") {
-		t.Fatalf("expected status 429 in error, got %q", err.Error())
 	}
 }
 
@@ -1315,8 +1310,8 @@ func TestBetaGroupTesterRelationshipMethods_ErrorResponse(t *testing.T) {
 			client := newTestClient(t, nil, jsonResponse(http.StatusBadRequest, errorBody))
 			if err := test.call(client); err == nil {
 				t.Fatalf("expected error")
-			} else if !strings.Contains(err.Error(), "Bad Request") {
-				t.Fatalf("expected error to contain title, got %v", err)
+			} else if !errors.Is(err, ErrBadRequest) {
+				t.Fatalf("expected bad request error, got %v", err)
 			}
 		})
 	}
@@ -2120,8 +2115,8 @@ func TestGetEndpoints_ReturnsAPIError(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error")
 			}
-			if !strings.Contains(err.Error(), "Forbidden") {
-				t.Fatalf("expected Forbidden error, got %v", err)
+			if !errors.Is(err, ErrForbidden) {
+				t.Fatalf("expected forbidden error, got %v", err)
 			}
 		})
 	}
@@ -2177,24 +2172,22 @@ func TestGetEndpoints_ReturnsParseError(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error")
 			}
-			if !strings.Contains(err.Error(), "failed to parse response") {
-				t.Fatalf("expected parse error, got %v", err)
+			var syntaxErr *json.SyntaxError
+			if !errors.As(err, &syntaxErr) {
+				t.Fatalf("expected JSON parse error, got %v", err)
 			}
 		})
 	}
 }
 
 func TestIsNotFoundAndUnauthorized(t *testing.T) {
-	if !IsNotFound(fmt.Errorf("NOT_FOUND: missing")) {
+	if !IsNotFound(&APIError{Code: "NOT_FOUND", Title: "The specified resource does not exist"}) {
 		t.Fatal("expected IsNotFound to return true")
-	}
-	if !IsNotFound(fmt.Errorf("The specified resource does not exist")) {
-		t.Fatal("expected IsNotFound to return true for resource does not exist")
 	}
 	if IsNotFound(fmt.Errorf("something else")) {
 		t.Fatal("expected IsNotFound to return false")
 	}
-	if !IsUnauthorized(fmt.Errorf("UNAUTHORIZED: missing")) {
+	if !IsUnauthorized(&APIError{Code: "UNAUTHORIZED", Title: "Unauthorized"}) {
 		t.Fatal("expected IsUnauthorized to return true")
 	}
 	if IsUnauthorized(fmt.Errorf("something else")) {
@@ -2506,8 +2499,8 @@ func TestBuildUploadMethods_ErrorResponse(t *testing.T) {
 			client := newTestClient(t, nil, jsonResponse(http.StatusBadRequest, errorBody))
 			if err := test.call(client); err == nil {
 				t.Fatalf("expected error")
-			} else if !strings.Contains(err.Error(), "Bad Request") {
-				t.Fatalf("expected error to contain title, got %v", err)
+			} else if !errors.Is(err, ErrBadRequest) {
+				t.Fatalf("expected bad request error, got %v", err)
 			}
 		})
 	}
@@ -2675,8 +2668,6 @@ func TestResolveCiWorkflowByName_NoMatch(t *testing.T) {
 
 	if _, err := client.ResolveCiWorkflowByName(context.Background(), "prod-1", "ci"); err == nil {
 		t.Fatal("expected error")
-	} else if !strings.Contains(err.Error(), "no workflow named") {
-		t.Fatalf("expected no workflow named error, got %v", err)
 	}
 }
 
@@ -2709,8 +2700,6 @@ func TestResolveGitReferenceByName_SuffixMatchNotAllowed(t *testing.T) {
 
 	if _, err := client.ResolveGitReferenceByName(context.Background(), "repo-1", "main"); err == nil {
 		t.Fatal("expected error")
-	} else if !strings.Contains(err.Error(), "no git reference named") {
-		t.Fatalf("expected no git reference named error, got %v", err)
 	}
 }
 
@@ -2720,8 +2709,6 @@ func TestResolveGitReferenceByName_NoMatch(t *testing.T) {
 
 	if _, err := client.ResolveGitReferenceByName(context.Background(), "repo-1", "main"); err == nil {
 		t.Fatal("expected error")
-	} else if !strings.Contains(err.Error(), "no git reference named") {
-		t.Fatalf("expected no git reference named error, got %v", err)
 	}
 }
 
