@@ -48,6 +48,7 @@ const (
 	ResourceTypeDevices                              ResourceType = "devices"
 	ResourceTypeProfiles                             ResourceType = "profiles"
 	ResourceTypeTerritories                          ResourceType = "territories"
+	ResourceTypeEndUserLicenseAgreements             ResourceType = "endUserLicenseAgreements"
 	ResourceTypeTerritoryAvailabilities              ResourceType = "territoryAvailabilities"
 	ResourceTypeReviewSubmissions                    ResourceType = "reviewSubmissions"
 	ResourceTypeReviewSubmissionItems                ResourceType = "reviewSubmissionItems"

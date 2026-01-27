@@ -243,6 +243,10 @@ func PrintMarkdown(data interface{}) error {
 		return printCiBuildRunsMarkdown(v)
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsMarkdown(v)
+	case *EndUserLicenseAgreementResponse:
+		return printEndUserLicenseAgreementMarkdown(v)
+	case *EndUserLicenseAgreementDeleteResult:
+		return printEndUserLicenseAgreementDeleteResultMarkdown(v)
 	case *CustomerReviewResponseResponse:
 		return printCustomerReviewResponseMarkdown(v)
 	case *CustomerReviewResponseDeleteResult:
@@ -461,6 +465,10 @@ func PrintTable(data interface{}) error {
 		return printCertificateRevokeResultTable(v)
 	case *ProfileDeleteResult:
 		return printProfileDeleteResultTable(v)
+	case *EndUserLicenseAgreementResponse:
+		return printEndUserLicenseAgreementTable(v)
+	case *EndUserLicenseAgreementDeleteResult:
+		return printEndUserLicenseAgreementDeleteResultTable(v)
 	case *ProfileDownloadResult:
 		return printProfileDownloadResultTable(v)
 	case *SigningFetchResult:
