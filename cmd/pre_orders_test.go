@@ -219,7 +219,7 @@ func TestPreOrdersCommand_DefaultOutputJSON(t *testing.T) {
 }
 
 func TestMapTerritoryAvailabilityIDs(t *testing.T) {
-	relationships := territoryAvailabilityRelationships{
+	relationships := asc.TerritoryAvailabilityRelationships{
 		Territory: asc.Relationship{
 			Data: asc.ResourceData{
 				Type: asc.ResourceTypeTerritories,
