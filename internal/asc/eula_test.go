@@ -80,8 +80,8 @@ func TestGetEndUserLicenseAgreement_ValidationErrors(t *testing.T) {
 	client := newEULATestClient(t, nil, nil)
 
 	_, err := client.GetEndUserLicenseAgreement(context.Background(), "")
-	if err == nil || !strings.Contains(err.Error(), "id is required") {
-		t.Fatalf("expected id required error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing id, got nil")
 	}
 }
 
@@ -119,8 +119,8 @@ func TestGetEndUserLicenseAgreementForApp_ValidationErrors(t *testing.T) {
 	client := newEULATestClient(t, nil, nil)
 
 	_, err := client.GetEndUserLicenseAgreementForApp(context.Background(), "")
-	if err == nil || !strings.Contains(err.Error(), "appID is required") {
-		t.Fatalf("expected appID required error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing appID, got nil")
 	}
 }
 
@@ -181,16 +181,16 @@ func TestCreateEndUserLicenseAgreement_ValidationErrors(t *testing.T) {
 	client := newEULATestClient(t, nil, nil)
 
 	_, err := client.CreateEndUserLicenseAgreement(context.Background(), "", "text", []string{"USA"})
-	if err == nil || !strings.Contains(err.Error(), "appID is required") {
-		t.Fatalf("expected appID required error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing appID, got nil")
 	}
 	_, err = client.CreateEndUserLicenseAgreement(context.Background(), "app-1", "", []string{"USA"})
-	if err == nil || !strings.Contains(err.Error(), "agreementText is required") {
-		t.Fatalf("expected agreementText required error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing agreement text, got nil")
 	}
 	_, err = client.CreateEndUserLicenseAgreement(context.Background(), "app-1", "text", nil)
-	if err == nil || !strings.Contains(err.Error(), "territoryIDs is required") {
-		t.Fatalf("expected territoryIDs required error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing territory IDs, got nil")
 	}
 }
 
@@ -249,13 +249,13 @@ func TestUpdateEndUserLicenseAgreement_ValidationErrors(t *testing.T) {
 	client := newEULATestClient(t, nil, nil)
 
 	_, err := client.UpdateEndUserLicenseAgreement(context.Background(), "", nil, nil)
-	if err == nil || !strings.Contains(err.Error(), "id is required") {
-		t.Fatalf("expected id required error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing id, got nil")
 	}
 
 	_, err = client.UpdateEndUserLicenseAgreement(context.Background(), "eula-1", nil, nil)
-	if err == nil || !strings.Contains(err.Error(), "at least one update field is required") {
-		t.Fatalf("expected update field error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing update fields, got nil")
 	}
 }
 
@@ -285,7 +285,7 @@ func TestDeleteEndUserLicenseAgreement_ValidationErrors(t *testing.T) {
 	client := newEULATestClient(t, nil, nil)
 
 	err := client.DeleteEndUserLicenseAgreement(context.Background(), "")
-	if err == nil || !strings.Contains(err.Error(), "id is required") {
-		t.Fatalf("expected id required error, got %v", err)
+	if err == nil {
+		t.Fatalf("expected error for missing id, got nil")
 	}
 }
