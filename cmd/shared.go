@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -288,6 +289,7 @@ func writeTempPrivateKey(data []byte) (string, error) {
 	privateKeyTempPath = file.Name()
 	return privateKeyTempPath, nil
 }
+
 func resolveProfileName() string {
 	if strings.TrimSpace(selectedProfile) != "" {
 		return strings.TrimSpace(selectedProfile)
@@ -297,6 +299,7 @@ func resolveProfileName() string {
 	}
 	return ""
 }
+
 func printOutput(data interface{}, format string, pretty bool) error {
 	format = strings.ToLower(format)
 	switch format {
@@ -318,6 +321,39 @@ func printOutput(data interface{}, format string, pretty bool) error {
 	default:
 		return fmt.Errorf("unsupported format: %s", format)
 	}
+}
+
+func isAppAvailabilityMissing(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, asc.ErrNotFound) {
+		return true
+	}
+	var apiErr *asc.APIError
+	if errors.As(err, &apiErr) {
+		title := strings.ToLower(strings.TrimSpace(apiErr.Title))
+		detail := strings.ToLower(strings.TrimSpace(apiErr.Detail))
+		if strings.Contains(title, "resource does not exist") && strings.Contains(detail, "appavailabilities") {
+			return true
+		}
+		if strings.Contains(detail, "appavailabilities") && strings.Contains(detail, "does not exist") {
+			return true
+		}
+	}
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	if strings.Contains(message, "appavailabilities") {
+		if strings.Contains(message, "resource does not exist") ||
+			strings.Contains(message, "does not exist") ||
+			strings.Contains(message, "no resource") ||
+			strings.Contains(message, "not found") {
+			return true
+		}
+		if strings.Contains(message, "resource") {
+			return true
+		}
+	}
+	return false
 }
 
 func resolveAppID(appID string) string {

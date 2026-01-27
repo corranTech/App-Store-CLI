@@ -93,6 +93,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppAvailabilityMarkdown(v)
 	case *TerritoryAvailabilitiesResponse:
 		return printTerritoryAvailabilitiesMarkdown(v)
+	case *EndAppAvailabilityPreOrderResponse:
+		return printEndAppAvailabilityPreOrderMarkdown(v)
 	case *PreReleaseVersionResponse:
 		return printPreReleaseVersionsMarkdown(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
@@ -391,6 +393,8 @@ func PrintTable(data interface{}) error {
 		return printAppAvailabilityTable(v)
 	case *TerritoryAvailabilitiesResponse:
 		return printTerritoryAvailabilitiesTable(v)
+	case *EndAppAvailabilityPreOrderResponse:
+		return printEndAppAvailabilityPreOrderTable(v)
 	case *PreReleaseVersionResponse:
 		return printPreReleaseVersionsTable(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:

@@ -284,6 +284,13 @@ func TestGetTerritoryAvailabilities(t *testing.T) {
 		if req.URL.Path != "/v2/appAvailabilities/availability-1/territoryAvailabilities" {
 			t.Fatalf("expected path /v2/appAvailabilities/availability-1/territoryAvailabilities, got %s", req.URL.Path)
 		}
+		query := req.URL.Query()
+		if query.Get("include") != "territory" {
+			t.Fatalf("expected include=territory, got %q", query.Get("include"))
+		}
+		if query.Get("fields[territoryAvailabilities]") != "available,releaseDate,preOrderEnabled,territory" {
+			t.Fatalf("expected territory availability fields, got %q", query.Get("fields[territoryAvailabilities]"))
+		}
 	}, jsonResponse(http.StatusOK, string(body)))
 
 	if _, err := client.GetTerritoryAvailabilities(context.Background(), "availability-1"); err != nil {
@@ -338,6 +345,99 @@ func TestCreateAppAvailabilityV2(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("CreateAppAvailabilityV2() error: %v", err)
+	}
+}
+
+func TestUpdateTerritoryAvailability(t *testing.T) {
+	resp := TerritoryAvailabilityResponse{
+		Data: Resource[TerritoryAvailabilityAttributes]{
+			Type: ResourceTypeTerritoryAvailabilities,
+			ID:   "ta-1",
+		},
+	}
+	body, _ := json.Marshal(resp)
+
+	available := true
+	releaseDate := "2026-01-20"
+	preOrderEnabled := true
+
+	client := newTestClient(t, func(req *http.Request) {
+		assertAuthorized(t, req)
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/territoryAvailabilities/ta-1" {
+			t.Fatalf("expected path /v1/territoryAvailabilities/ta-1, got %s", req.URL.Path)
+		}
+
+		var updateReq TerritoryAvailabilityUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&updateReq); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if updateReq.Data.ID != "ta-1" {
+			t.Fatalf("expected id ta-1, got %q", updateReq.Data.ID)
+		}
+		if updateReq.Data.Type != ResourceTypeTerritoryAvailabilities {
+			t.Fatalf("expected type territoryAvailabilities, got %q", updateReq.Data.Type)
+		}
+		if updateReq.Data.Attributes == nil {
+			t.Fatal("expected attributes to be set")
+		}
+		if updateReq.Data.Attributes.ReleaseDate == nil || *updateReq.Data.Attributes.ReleaseDate != releaseDate {
+			t.Fatalf("expected release date %q, got %v", releaseDate, updateReq.Data.Attributes.ReleaseDate)
+		}
+		if updateReq.Data.Attributes.Available == nil || *updateReq.Data.Attributes.Available != available {
+			t.Fatalf("expected available %t, got %v", available, updateReq.Data.Attributes.Available)
+		}
+		if updateReq.Data.Attributes.PreOrderEnabled == nil || *updateReq.Data.Attributes.PreOrderEnabled != preOrderEnabled {
+			t.Fatalf("expected preorder enabled %t, got %v", preOrderEnabled, updateReq.Data.Attributes.PreOrderEnabled)
+		}
+	}, jsonResponse(http.StatusOK, string(body)))
+
+	if _, err := client.UpdateTerritoryAvailability(context.Background(), "ta-1", TerritoryAvailabilityUpdateAttributes{
+		Available:       &available,
+		ReleaseDate:     &releaseDate,
+		PreOrderEnabled: &preOrderEnabled,
+	}); err != nil {
+		t.Fatalf("UpdateTerritoryAvailability() error: %v", err)
+	}
+}
+
+func TestEndAppAvailabilityPreOrders(t *testing.T) {
+	resp := EndAppAvailabilityPreOrderResponse{
+		Data: Resource[EndAppAvailabilityPreOrderAttributes]{
+			Type: ResourceTypeEndAppAvailabilityPreOrders,
+			ID:   "end-1",
+		},
+	}
+	body, _ := json.Marshal(resp)
+
+	client := newTestClient(t, func(req *http.Request) {
+		assertAuthorized(t, req)
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/endAppAvailabilityPreOrders" {
+			t.Fatalf("expected path /v1/endAppAvailabilityPreOrders, got %s", req.URL.Path)
+		}
+
+		var createReq EndAppAvailabilityPreOrderCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&createReq); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if createReq.Data.Type != ResourceTypeEndAppAvailabilityPreOrders {
+			t.Fatalf("expected type endAppAvailabilityPreOrders, got %q", createReq.Data.Type)
+		}
+		if len(createReq.Data.Relationships.TerritoryAvailabilities.Data) != 2 {
+			t.Fatalf("expected 2 territory availabilities, got %d", len(createReq.Data.Relationships.TerritoryAvailabilities.Data))
+		}
+		if createReq.Data.Relationships.TerritoryAvailabilities.Data[0].Type != ResourceTypeTerritoryAvailabilities {
+			t.Fatalf("expected territory availability type, got %q", createReq.Data.Relationships.TerritoryAvailabilities.Data[0].Type)
+		}
+	}, jsonResponse(http.StatusCreated, string(body)))
+
+	if _, err := client.EndAppAvailabilityPreOrders(context.Background(), []string{"ta-1", "ta-2"}); err != nil {
+		t.Fatalf("EndAppAvailabilityPreOrders() error: %v", err)
 	}
 }
 

@@ -64,6 +64,7 @@ const (
 	ResourceTypeProfiles                             ResourceType = "profiles"
 	ResourceTypeTerritories                          ResourceType = "territories"
 	ResourceTypeEndUserLicenseAgreements             ResourceType = "endUserLicenseAgreements"
+	ResourceTypeEndAppAvailabilityPreOrders          ResourceType = "endAppAvailabilityPreOrders"
 	ResourceTypeTerritoryAvailabilities              ResourceType = "territoryAvailabilities"
 	ResourceTypeAppStoreReviewDetails                ResourceType = "appStoreReviewDetails"
 	ResourceTypeAppStoreReviewAttachments            ResourceType = "appStoreReviewAttachments"

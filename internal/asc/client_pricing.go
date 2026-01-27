@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -259,6 +260,10 @@ func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAv
 func (c *Client) GetTerritoryAvailabilities(ctx context.Context, availabilityID string) (*TerritoryAvailabilitiesResponse, error) {
 	availabilityID = strings.TrimSpace(availabilityID)
 	path := fmt.Sprintf("/v2/appAvailabilities/%s/territoryAvailabilities", availabilityID)
+	query := url.Values{}
+	query.Set("fields[territoryAvailabilities]", "available,releaseDate,preOrderEnabled,territory")
+	query.Set("include", "territory")
+	path += "?" + query.Encode()
 
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
@@ -310,7 +315,7 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 			if territoryID == "" {
 				return nil, fmt.Errorf("territory ID is required")
 			}
-			resourceID := fmt.Sprintf("territory-%s", territoryID)
+			resourceID := fmt.Sprintf("${%s}", strings.ToLower(territoryID))
 			relationshipData = append(relationshipData, ResourceData{
 				Type: ResourceTypeTerritoryAvailabilities,
 				ID:   resourceID,
@@ -351,6 +356,103 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 	var response AppAvailabilityV2Response
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse app availability response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateTerritoryAvailability updates a territory availability.
+func (c *Client) UpdateTerritoryAvailability(ctx context.Context, territoryAvailabilityID string, attrs TerritoryAvailabilityUpdateAttributes) (*TerritoryAvailabilityResponse, error) {
+	territoryAvailabilityID = strings.TrimSpace(territoryAvailabilityID)
+	if territoryAvailabilityID == "" {
+		return nil, fmt.Errorf("territory availability ID is required")
+	}
+
+	attributes := TerritoryAvailabilityUpdateAttributes{
+		Available:       attrs.Available,
+		PreOrderEnabled: attrs.PreOrderEnabled,
+	}
+	if attrs.ReleaseDate != nil {
+		trimmed := strings.TrimSpace(*attrs.ReleaseDate)
+		if trimmed == "" {
+			return nil, fmt.Errorf("release date is required")
+		}
+		attributes.ReleaseDate = &trimmed
+	}
+
+	if attributes.Available == nil && attributes.ReleaseDate == nil && attributes.PreOrderEnabled == nil {
+		return nil, fmt.Errorf("at least one attribute is required")
+	}
+
+	payload := TerritoryAvailabilityUpdateRequest{
+		Data: TerritoryAvailabilityUpdateData{
+			Type:       ResourceTypeTerritoryAvailabilities,
+			ID:         territoryAvailabilityID,
+			Attributes: &attributes,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/territoryAvailabilities/%s", territoryAvailabilityID)
+	data, err := c.do(ctx, "PATCH", path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response TerritoryAvailabilityResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse territory availability response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// EndAppAvailabilityPreOrders ends pre-orders for territory availabilities.
+func (c *Client) EndAppAvailabilityPreOrders(ctx context.Context, territoryAvailabilityIDs []string) (*EndAppAvailabilityPreOrderResponse, error) {
+	if len(territoryAvailabilityIDs) == 0 {
+		return nil, fmt.Errorf("territory availability IDs are required")
+	}
+
+	relationshipData := make([]ResourceData, 0, len(territoryAvailabilityIDs))
+	for _, id := range territoryAvailabilityIDs {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			return nil, fmt.Errorf("territory availability ID is required")
+		}
+		relationshipData = append(relationshipData, ResourceData{
+			Type: ResourceTypeTerritoryAvailabilities,
+			ID:   trimmed,
+		})
+	}
+
+	payload := EndAppAvailabilityPreOrderCreateRequest{
+		Data: EndAppAvailabilityPreOrderCreateData{
+			Type: ResourceTypeEndAppAvailabilityPreOrders,
+			Relationships: EndAppAvailabilityPreOrderRelationships{
+				TerritoryAvailabilities: RelationshipList{
+					Data: relationshipData,
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/endAppAvailabilityPreOrders", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response EndAppAvailabilityPreOrderResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse end app availability pre-order response: %w", err)
 	}
 
 	return &response, nil

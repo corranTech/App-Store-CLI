@@ -2239,3 +2239,43 @@ func TestPrintTable_AppStoreReviewAttachmentDeleteResult(t *testing.T) {
 		t.Fatalf("expected id in output, got: %s", output)
 	}
 }
+
+func TestPrintTable_EndAppAvailabilityPreOrder(t *testing.T) {
+	resp := &EndAppAvailabilityPreOrderResponse{
+		Data: Resource[EndAppAvailabilityPreOrderAttributes]{
+			Type: ResourceTypeEndAppAvailabilityPreOrders,
+			ID:   "end-1",
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "ID") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "end-1") {
+		t.Fatalf("expected id in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_EndAppAvailabilityPreOrder(t *testing.T) {
+	resp := &EndAppAvailabilityPreOrderResponse{
+		Data: Resource[EndAppAvailabilityPreOrderAttributes]{
+			Type: ResourceTypeEndAppAvailabilityPreOrders,
+			ID:   "end-1",
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "end-1") {
+		t.Fatalf("expected id in output, got: %s", output)
+	}
+}

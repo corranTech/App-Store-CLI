@@ -582,6 +582,9 @@ Examples:
 
 			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
 			if err != nil {
+				if isAppAvailabilityMissing(err) || strings.Contains(strings.ToLower(err.Error()), "appavailabilities") {
+					return fmt.Errorf("pricing availability get: app availability not found for app %q", resolvedAppID)
+				}
 				return fmt.Errorf("pricing availability get: %w", err)
 			}
 
