@@ -19,7 +19,7 @@ func TestExecuteUploadOperations_UploadsSlices(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "app.ipa")
 	content := []byte("abcdefghijklmnopqrstuvwxyz")
-	if err := os.WriteFile(filePath, content, 0600); err != nil {
+	if err := os.WriteFile(filePath, content, 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
@@ -94,7 +94,7 @@ func TestExecuteUploadOperations_UploadsSlices(t *testing.T) {
 func TestExecuteUploadOperations_FailsOnHTTPError(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "app.ipa")
-	if err := os.WriteFile(filePath, []byte("abcdefghij"), 0600); err != nil {
+	if err := os.WriteFile(filePath, []byte("abcdefghij"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
@@ -132,7 +132,7 @@ func TestExecuteUploadOperations_FailsOnHTTPError(t *testing.T) {
 func TestExecuteUploadOperations_FailsOnInvalidRange(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "app.ipa")
-	if err := os.WriteFile(filePath, []byte("abc"), 0600); err != nil {
+	if err := os.WriteFile(filePath, []byte("abc"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
@@ -154,7 +154,7 @@ func TestExecuteUploadOperations_FailsOnInvalidRange(t *testing.T) {
 func TestExecuteUploadOperations_CancelsDuringDispatch(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "app.ipa")
-	if err := os.WriteFile(filePath, []byte("abcdefghij"), 0600); err != nil {
+	if err := os.WriteFile(filePath, []byte("abcdefghij"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
@@ -243,7 +243,7 @@ func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) 
 func TestComputeFileChecksum_MD5(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "checksum.txt")
-	if err := os.WriteFile(filePath, []byte("hello"), 0600); err != nil {
+	if err := os.WriteFile(filePath, []byte("hello"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
@@ -259,7 +259,7 @@ func TestComputeFileChecksum_MD5(t *testing.T) {
 func TestVerifySourceFileChecksums(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "checksum.txt")
-	if err := os.WriteFile(filePath, []byte("hello"), 0600); err != nil {
+	if err := os.WriteFile(filePath, []byte("hello"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 

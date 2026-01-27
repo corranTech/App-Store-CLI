@@ -55,14 +55,16 @@ type AppPreviewAttributes struct {
 }
 
 // Response types
-type AppScreenshotSetsResponse = Response[AppScreenshotSetAttributes]
-type AppScreenshotSetResponse = SingleResponse[AppScreenshotSetAttributes]
-type AppScreenshotsResponse = Response[AppScreenshotAttributes]
-type AppScreenshotResponse = SingleResponse[AppScreenshotAttributes]
-type AppPreviewSetsResponse = Response[AppPreviewSetAttributes]
-type AppPreviewSetResponse = SingleResponse[AppPreviewSetAttributes]
-type AppPreviewsResponse = Response[AppPreviewAttributes]
-type AppPreviewResponse = SingleResponse[AppPreviewAttributes]
+type (
+	AppScreenshotSetsResponse = Response[AppScreenshotSetAttributes]
+	AppScreenshotSetResponse  = SingleResponse[AppScreenshotSetAttributes]
+	AppScreenshotsResponse    = Response[AppScreenshotAttributes]
+	AppScreenshotResponse     = SingleResponse[AppScreenshotAttributes]
+	AppPreviewSetsResponse    = Response[AppPreviewSetAttributes]
+	AppPreviewSetResponse     = SingleResponse[AppPreviewSetAttributes]
+	AppPreviewsResponse       = Response[AppPreviewAttributes]
+	AppPreviewResponse        = SingleResponse[AppPreviewAttributes]
+)
 
 // Valid screenshot display types for validation.
 var ValidScreenshotDisplayTypes = []string{

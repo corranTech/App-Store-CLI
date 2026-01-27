@@ -305,7 +305,7 @@ Examples:
 
 			// Create output directory structure
 			metadataDir := filepath.Join(*outputDir, "metadata")
-			if err := os.MkdirAll(metadataDir, 0755); err != nil {
+			if err := os.MkdirAll(metadataDir, 0o755); err != nil {
 				return fmt.Errorf("migrate export: failed to create directory: %w", err)
 			}
 
@@ -315,7 +315,7 @@ Examples:
 			for _, loc := range resp.Data {
 				locale := loc.Attributes.Locale
 				localeDir := filepath.Join(metadataDir, locale)
-				if err := os.MkdirAll(localeDir, 0755); err != nil {
+				if err := os.MkdirAll(localeDir, 0o755); err != nil {
 					return fmt.Errorf("migrate export: failed to create locale directory: %w", err)
 				}
 
@@ -340,7 +340,7 @@ Examples:
 						locale := loc.Attributes.Locale
 						localeDir := filepath.Join(metadataDir, locale)
 						// Create locale dir if it doesn't exist (may have App Info but no version localizations)
-						if err := os.MkdirAll(localeDir, 0755); err == nil {
+						if err := os.MkdirAll(localeDir, 0o755); err == nil {
 							totalFiles += writeAndCount(filepath.Join(localeDir, "name.txt"), loc.Attributes.Name)
 							totalFiles += writeAndCount(filepath.Join(localeDir, "subtitle.txt"), loc.Attributes.Subtitle)
 						}
@@ -386,12 +386,12 @@ type LocalizationUploadItem struct {
 
 // MigrateImportResult is the result of a migrate import operation.
 type MigrateImportResult struct {
-	DryRun              bool                          `json:"dryRun"`
-	VersionID           string                        `json:"versionId"`
-	Localizations       []FastlaneLocalization        `json:"localizations"`
+	DryRun               bool                          `json:"dryRun"`
+	VersionID            string                        `json:"versionId"`
+	Localizations        []FastlaneLocalization        `json:"localizations"`
 	AppInfoLocalizations []AppInfoFastlaneLocalization `json:"appInfoLocalizations,omitempty"`
-	Uploaded            []LocalizationUploadItem      `json:"uploaded,omitempty"`
-	AppInfoUploaded     []LocalizationUploadItem      `json:"appInfoUploaded,omitempty"`
+	Uploaded             []LocalizationUploadItem      `json:"uploaded,omitempty"`
+	AppInfoUploaded      []LocalizationUploadItem      `json:"appInfoUploaded,omitempty"`
 }
 
 // MigrateExportResult is the result of a migrate export operation.
@@ -486,7 +486,7 @@ func writeAndCount(path, content string) int {
 	if content == "" {
 		return 0
 	}
-	if err := os.WriteFile(path, []byte(content+"\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content+"\n"), 0o644); err != nil {
 		return 0
 	}
 	return 1
