@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -367,8 +368,12 @@ func TestParseError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if !strings.Contains(err.Error(), "Forbidden") {
-		t.Fatalf("unexpected error message: %v", err)
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if !errors.Is(apiErr, ErrForbidden) {
+		t.Fatalf("expected forbidden error, got %v", err)
 	}
 }
 
