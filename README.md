@@ -610,6 +610,9 @@ asc versions get --version-id "VERSION_ID"
 # Attach a build to a version
 asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
 
+# Release a pending developer release version
+asc versions release --version-id "VERSION_ID" --confirm
+
 # Manage phased release
 asc versions phased-release get --version-id "VERSION_ID"
 asc versions phased-release create --version-id "VERSION_ID"

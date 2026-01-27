@@ -56,6 +56,7 @@ func VersionsCommand() *ffcli.Command {
 			VersionsUpdateCommand(),
 			VersionsDeleteCommand(),
 			VersionsAttachBuildCommand(),
+			VersionsReleaseCommand(),
 			PhasedReleaseCommand(),
 			VersionsPromotionsCommand(),
 		},

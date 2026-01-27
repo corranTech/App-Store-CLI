@@ -1564,6 +1564,42 @@ func TestPrintMarkdown_AppStoreVersionAttachBuildResult(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppStoreVersionReleaseRequestResult(t *testing.T) {
+	resp := &AppStoreVersionReleaseRequestResult{
+		ReleaseRequestID: "RELEASE_123",
+		VersionID:        "VERSION_123",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Release Request ID") {
+		t.Fatalf("expected release request header, got: %s", output)
+	}
+	if !strings.Contains(output, "RELEASE_123") {
+		t.Fatalf("expected release request ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionReleaseRequestResult(t *testing.T) {
+	resp := &AppStoreVersionReleaseRequestResult{
+		ReleaseRequestID: "RELEASE_123",
+		VersionID:        "VERSION_123",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Release Request ID | Version ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "VERSION_123") {
+		t.Fatalf("expected version ID in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_BuildBetaGroupsUpdateResult(t *testing.T) {
 	resp := &BuildBetaGroupsUpdateResult{
 		BuildID:  "BUILD_123",

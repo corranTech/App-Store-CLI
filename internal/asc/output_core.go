@@ -209,6 +209,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionDetailMarkdown(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildMarkdown(v)
+	case *AppStoreVersionReleaseRequestResult:
+		return printAppStoreVersionReleaseRequestMarkdown(v)
 	case *AppStoreVersionPromotionCreateResult:
 		return printAppStoreVersionPromotionCreateMarkdown(v)
 	case *AppStoreVersionPhasedReleaseResponse:
@@ -469,6 +471,8 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionDetailTable(v)
 	case *AppStoreVersionAttachBuildResult:
 		return printAppStoreVersionAttachBuildTable(v)
+	case *AppStoreVersionReleaseRequestResult:
+		return printAppStoreVersionReleaseRequestTable(v)
 	case *AppStoreVersionPromotionCreateResult:
 		return printAppStoreVersionPromotionCreateTable(v)
 	case *AppStoreVersionPhasedReleaseResponse:

@@ -2028,6 +2028,16 @@ func TestVersionsValidationErrors(t *testing.T) {
 			args:    []string{"versions", "attach-build", "--version-id", "VERSION_123"},
 			wantErr: "Error: --build is required",
 		},
+		{
+			name:    "release missing version id",
+			args:    []string{"versions", "release", "--confirm"},
+			wantErr: "Error: --version-id is required",
+		},
+		{
+			name:    "release missing confirm",
+			args:    []string{"versions", "release", "--version-id", "VERSION_123"},
+			wantErr: "Error: --confirm is required to release a version",
+		},
 	}
 
 	for _, test := range tests {
