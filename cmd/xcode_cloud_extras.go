@@ -13,16 +13,21 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+func xcodeCloudProductsListFlags(fs *flag.FlagSet) (appID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
+	appID = fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next = fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output = fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
+	return
+}
+
 // XcodeCloudProductsCommand returns the xcode-cloud products command with subcommands.
 func XcodeCloudProductsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("products", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	appID, limit, next, paginate, output, pretty := xcodeCloudProductsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "products",
@@ -56,12 +61,7 @@ Examples:
 func XcodeCloudProductsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	appID, limit, next, paginate, output, pretty := xcodeCloudProductsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -569,15 +569,20 @@ func xcodeCloudProductsList(ctx context.Context, appID string, limit int, next s
 	return printOutput(resp, output, pretty)
 }
 
+func xcodeCloudVersionListFlags(fs *flag.FlagSet) (limit *int, next *string, paginate *bool, output *string, pretty *bool) {
+	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next = fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output = fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
+	return
+}
+
 // XcodeCloudMacOSVersionsCommand returns the xcode-cloud macos-versions command.
 func XcodeCloudMacOSVersionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("macos-versions", flag.ExitOnError)
 
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "macos-versions",
@@ -606,11 +611,7 @@ Examples:
 func XcodeCloudMacOSVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -799,11 +800,7 @@ func xcodeCloudMacOSVersionsList(ctx context.Context, limit int, next string, pa
 func XcodeCloudXcodeVersionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("xcode-versions", flag.ExitOnError)
 
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "xcode-versions",
@@ -832,11 +829,7 @@ Examples:
 func XcodeCloudXcodeVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
