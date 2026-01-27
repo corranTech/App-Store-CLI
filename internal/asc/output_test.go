@@ -1857,3 +1857,53 @@ func TestPrintMarkdown_Devices(t *testing.T) {
 		t.Fatalf("expected UDID in output, got: %s", output)
 	}
 }
+
+func TestPrintTable_AccessibilityDeclarations(t *testing.T) {
+	resp := &AccessibilityDeclarationsResponse{
+		Data: []Resource[AccessibilityDeclarationAttributes]{
+			{
+				ID: "decl-1",
+				Attributes: AccessibilityDeclarationAttributes{
+					DeviceFamily: DeviceFamilyIPhone,
+					State:        AccessibilityDeclarationStateDraft,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Device Family") {
+		t.Fatalf("expected device family header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "IPHONE") {
+		t.Fatalf("expected device family in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AccessibilityDeclaration(t *testing.T) {
+	supportsVoiceover := true
+	resp := &AccessibilityDeclarationResponse{
+		Data: Resource[AccessibilityDeclarationAttributes]{
+			ID:   "decl-1",
+			Type: ResourceTypeAccessibilityDeclarations,
+			Attributes: AccessibilityDeclarationAttributes{
+				DeviceFamily:      DeviceFamilyIPhone,
+				SupportsVoiceover: &supportsVoiceover,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Field | Value |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "Supports Voiceover") {
+		t.Fatalf("expected voiceover field in output, got: %s", output)
+	}
+}

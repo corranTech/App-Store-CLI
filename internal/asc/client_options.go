@@ -86,6 +86,9 @@ type TerritoriesOption func(*territoriesQuery)
 // PricePointsOption is a functional option for GetAppPricePoints.
 type PricePointsOption func(*pricePointsQuery)
 
+// AccessibilityDeclarationsOption is a functional option for accessibility declarations.
+type AccessibilityDeclarationsOption func(*accessibilityDeclarationsQuery)
+
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
 	return func(q *feedbackQuery) {
@@ -241,6 +244,45 @@ func WithCrashLimit(limit int) CrashOption {
 	return func(q *crashQuery) {
 		if limit > 0 {
 			q.limit = limit
+		}
+	}
+}
+
+// WithAccessibilityDeclarationsDeviceFamilies filters declarations by device family.
+func WithAccessibilityDeclarationsDeviceFamilies(families []string) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		q.deviceFamilies = normalizeUpperList(families)
+	}
+}
+
+// WithAccessibilityDeclarationsStates filters declarations by state.
+func WithAccessibilityDeclarationsStates(states []string) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithAccessibilityDeclarationsFields includes specific fields.
+func WithAccessibilityDeclarationsFields(fields []string) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAccessibilityDeclarationsLimit sets the max number of declarations to return.
+func WithAccessibilityDeclarationsLimit(limit int) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAccessibilityDeclarationsNextURL uses a next page URL directly.
+func WithAccessibilityDeclarationsNextURL(next string) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
