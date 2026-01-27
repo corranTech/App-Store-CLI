@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
