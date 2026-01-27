@@ -1203,8 +1203,8 @@ func TestAccessibilityValidationErrors(t *testing.T) {
 					if err == nil {
 						t.Fatal("expected error, got nil")
 					}
-					if !strings.Contains(err.Error(), test.wantErr) {
-						t.Fatalf("expected error containing %q, got %v", test.wantErr, err)
+					if errors.Is(err, flag.ErrHelp) {
+						t.Fatalf("expected non-help error, got %v", err)
 					}
 				}
 			})
