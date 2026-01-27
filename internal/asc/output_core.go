@@ -45,6 +45,24 @@ func PrintMarkdown(data interface{}) error {
 		return printProfilesMarkdown(v)
 	case *ProfileResponse:
 		return printProfilesMarkdown(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
+	case *InAppPurchasesV2Response:
+		return printInAppPurchasesMarkdown(v)
+	case *InAppPurchaseV2Response:
+		return printInAppPurchasesMarkdown(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
+	case *InAppPurchaseLocalizationsResponse:
+		return printInAppPurchaseLocalizationsMarkdown(v)
+	case *SubscriptionGroupsResponse:
+		return printSubscriptionGroupsMarkdown(v)
+	case *SubscriptionGroupResponse:
+		return printSubscriptionGroupsMarkdown(&SubscriptionGroupsResponse{Data: []Resource[SubscriptionGroupAttributes]{v.Data}})
+	case *SubscriptionsResponse:
+		return printSubscriptionsMarkdown(v)
+	case *SubscriptionResponse:
+		return printSubscriptionsMarkdown(&SubscriptionsResponse{Data: []Resource[SubscriptionAttributes]{v.Data}})
+	case *SubscriptionPriceResponse:
+		return printSubscriptionPriceMarkdown(v)
+	case *SubscriptionAvailabilityResponse:
+		return printSubscriptionAvailabilityMarkdown(v)
 	case *TerritoriesResponse:
 		return printTerritoriesMarkdown(v)
 	case *AppPricePointsV3Response:
@@ -183,6 +201,12 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionPhasedReleaseDeleteResultMarkdown(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateMarkdown(v)
+	case *InAppPurchaseDeleteResult:
+		return printInAppPurchaseDeleteResultMarkdown(v)
+	case *SubscriptionGroupDeleteResult:
+		return printSubscriptionGroupDeleteResultMarkdown(v)
+	case *SubscriptionDeleteResult:
+		return printSubscriptionDeleteResultMarkdown(v)
 	case *BetaTesterDeleteResult:
 		return printBetaTesterDeleteResultMarkdown(v)
 	case *BetaTesterGroupsUpdateResult:
@@ -257,6 +281,24 @@ func PrintTable(data interface{}) error {
 		return printProfilesTable(v)
 	case *ProfileResponse:
 		return printProfilesTable(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
+	case *InAppPurchasesV2Response:
+		return printInAppPurchasesTable(v)
+	case *InAppPurchaseV2Response:
+		return printInAppPurchasesTable(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
+	case *InAppPurchaseLocalizationsResponse:
+		return printInAppPurchaseLocalizationsTable(v)
+	case *SubscriptionGroupsResponse:
+		return printSubscriptionGroupsTable(v)
+	case *SubscriptionGroupResponse:
+		return printSubscriptionGroupsTable(&SubscriptionGroupsResponse{Data: []Resource[SubscriptionGroupAttributes]{v.Data}})
+	case *SubscriptionsResponse:
+		return printSubscriptionsTable(v)
+	case *SubscriptionResponse:
+		return printSubscriptionsTable(&SubscriptionsResponse{Data: []Resource[SubscriptionAttributes]{v.Data}})
+	case *SubscriptionPriceResponse:
+		return printSubscriptionPriceTable(v)
+	case *SubscriptionAvailabilityResponse:
+		return printSubscriptionAvailabilityTable(v)
 	case *TerritoriesResponse:
 		return printTerritoriesTable(v)
 	case *AppPricePointsV3Response:
@@ -395,6 +437,12 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionPhasedReleaseDeleteResultTable(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateTable(v)
+	case *InAppPurchaseDeleteResult:
+		return printInAppPurchaseDeleteResultTable(v)
+	case *SubscriptionGroupDeleteResult:
+		return printSubscriptionGroupDeleteResultTable(v)
+	case *SubscriptionDeleteResult:
+		return printSubscriptionDeleteResultTable(v)
 	case *BetaTesterDeleteResult:
 		return printBetaTesterDeleteResultTable(v)
 	case *BetaTesterGroupsUpdateResult:
