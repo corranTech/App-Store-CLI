@@ -1907,3 +1907,132 @@ func TestPrintMarkdown_AccessibilityDeclaration(t *testing.T) {
 		t.Fatalf("expected voiceover field in output, got: %s", output)
 	}
 }
+
+func TestPrintTable_AppStoreReviewDetail(t *testing.T) {
+	resp := &AppStoreReviewDetailResponse{
+		Data: Resource[AppStoreReviewDetailAttributes]{
+			ID: "detail-1",
+			Attributes: AppStoreReviewDetailAttributes{
+				ContactFirstName:    "Dev",
+				ContactLastName:     "Example",
+				ContactEmail:        "dev@example.com",
+				ContactPhone:        "123-456-7890",
+				DemoAccountName:     "demo",
+				DemoAccountRequired: true,
+				Notes:               "Review notes",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Contact") {
+		t.Fatalf("expected Contact header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "dev@example.com") {
+		t.Fatalf("expected contact email in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreReviewDetail(t *testing.T) {
+	resp := &AppStoreReviewDetailResponse{
+		Data: Resource[AppStoreReviewDetailAttributes]{
+			ID: "detail-1",
+			Attributes: AppStoreReviewDetailAttributes{
+				ContactFirstName:    "Dev",
+				ContactLastName:     "Example",
+				ContactEmail:        "dev@example.com",
+				ContactPhone:        "123-456-7890",
+				DemoAccountName:     "demo",
+				DemoAccountRequired: true,
+				Notes:               "Review notes",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Contact | Email |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "Dev Example") {
+		t.Fatalf("expected contact name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppStoreReviewAttachments(t *testing.T) {
+	state := "UPLOADED"
+	resp := &AppStoreReviewAttachmentsResponse{
+		Data: []Resource[AppStoreReviewAttachmentAttributes]{
+			{
+				ID: "attach-1",
+				Attributes: AppStoreReviewAttachmentAttributes{
+					FileName:           "review.pdf",
+					FileSize:           1024,
+					SourceFileChecksum: "abcd1234",
+					AssetDeliveryState: &AppMediaAssetState{State: &state},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "File Name") {
+		t.Fatalf("expected file name header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "review.pdf") {
+		t.Fatalf("expected file name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppStoreReviewAttachment(t *testing.T) {
+	state := "UPLOADED"
+	resp := &AppStoreReviewAttachmentResponse{
+		Data: Resource[AppStoreReviewAttachmentAttributes]{
+			ID:   "attach-1",
+			Type: ResourceTypeAppStoreReviewAttachments,
+			Attributes: AppStoreReviewAttachmentAttributes{
+				FileName:           "review.pdf",
+				FileSize:           2048,
+				SourceFileChecksum: "abcd1234",
+				AssetDeliveryState: &AppMediaAssetState{State: &state},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Field | Value |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "File Name") {
+		t.Fatalf("expected file name field in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppStoreReviewAttachmentDeleteResult(t *testing.T) {
+	result := &AppStoreReviewAttachmentDeleteResult{
+		ID:      "attach-1",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected Deleted header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "attach-1") {
+		t.Fatalf("expected id in output, got: %s", output)
+	}
+}

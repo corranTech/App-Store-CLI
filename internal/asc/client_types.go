@@ -53,6 +53,8 @@ const (
 	ResourceTypeTerritoryAvailabilities              ResourceType = "territoryAvailabilities"
 	ResourceTypeReviewSubmissions                    ResourceType = "reviewSubmissions"
 	ResourceTypeReviewSubmissionItems                ResourceType = "reviewSubmissionItems"
+	ResourceTypeAppStoreReviewDetails                ResourceType = "appStoreReviewDetails"
+	ResourceTypeAppStoreReviewAttachments            ResourceType = "appStoreReviewAttachments"
 	ResourceTypeUsers                                ResourceType = "users"
 	ResourceTypeUserInvitations                      ResourceType = "userInvitations"
 	ResourceTypeSubscriptionOfferCodes               ResourceType = "subscriptionOfferCodes"

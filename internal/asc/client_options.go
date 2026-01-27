@@ -89,6 +89,9 @@ type PricePointsOption func(*pricePointsQuery)
 // AccessibilityDeclarationsOption is a functional option for accessibility declarations.
 type AccessibilityDeclarationsOption func(*accessibilityDeclarationsQuery)
 
+// AppStoreReviewAttachmentsOption is a functional option for review attachments.
+type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
+
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
 	return func(q *feedbackQuery) {
@@ -281,6 +284,45 @@ func WithAccessibilityDeclarationsLimit(limit int) AccessibilityDeclarationsOpti
 // WithAccessibilityDeclarationsNextURL uses a next page URL directly.
 func WithAccessibilityDeclarationsNextURL(next string) AccessibilityDeclarationsOption {
 	return func(q *accessibilityDeclarationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreReviewAttachmentsFields includes specific attachment fields.
+func WithAppStoreReviewAttachmentsFields(fields []string) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
+		q.fieldsAttachments = normalizeList(fields)
+	}
+}
+
+// WithAppStoreReviewAttachmentReviewDetailFields includes fields for review detail when included.
+func WithAppStoreReviewAttachmentReviewDetailFields(fields []string) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
+		q.fieldsReviewDetails = normalizeList(fields)
+	}
+}
+
+// WithAppStoreReviewAttachmentsInclude includes related resources.
+func WithAppStoreReviewAttachmentsInclude(include []string) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppStoreReviewAttachmentsLimit sets the max number of attachments to return.
+func WithAppStoreReviewAttachmentsLimit(limit int) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreReviewAttachmentsNextURL uses a next page URL directly.
+func WithAppStoreReviewAttachmentsNextURL(next string) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}

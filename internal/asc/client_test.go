@@ -219,6 +219,37 @@ func TestBuildAccessibilityDeclarationsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildAppStoreReviewAttachmentsQuery(t *testing.T) {
+	query := &appStoreReviewAttachmentsQuery{}
+	opts := []AppStoreReviewAttachmentsOption{
+		WithAppStoreReviewAttachmentsFields([]string{"fileName", "fileSize"}),
+		WithAppStoreReviewAttachmentReviewDetailFields([]string{"contactEmail", "notes"}),
+		WithAppStoreReviewAttachmentsInclude([]string{"appStoreReviewDetail"}),
+		WithAppStoreReviewAttachmentsLimit(10),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildAppStoreReviewAttachmentsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+
+	if got := values.Get("fields[appStoreReviewAttachments]"); got != "fileName,fileSize" {
+		t.Fatalf("expected fields[appStoreReviewAttachments]=fileName,fileSize, got %q", got)
+	}
+	if got := values.Get("fields[appStoreReviewDetails]"); got != "contactEmail,notes" {
+		t.Fatalf("expected fields[appStoreReviewDetails]=contactEmail,notes, got %q", got)
+	}
+	if got := values.Get("include"); got != "appStoreReviewDetail" {
+		t.Fatalf("expected include=appStoreReviewDetail, got %q", got)
+	}
+	if got := values.Get("limit"); got != "10" {
+		t.Fatalf("expected limit=10, got %q", got)
+	}
+}
+
 func TestBuildBetaTestersQuery(t *testing.T) {
 	query := &betaTestersQuery{}
 	opts := []BetaTestersOption{
