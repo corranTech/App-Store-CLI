@@ -1219,7 +1219,7 @@ func TestAccessibilityValidationErrors(t *testing.T) {
 	}
 }
 
-func TestReviewDetailsValidationErrors(t *testing.T) {
+func TestReviewCommandDetailsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
 	t.Setenv("ASC_ISSUER_ID", "")
@@ -1233,32 +1233,32 @@ func TestReviewDetailsValidationErrors(t *testing.T) {
 		wantHelp bool
 	}{
 		{
-			name:     "review-details get missing id",
-			args:     []string{"review-details", "get"},
+			name:     "review details-get missing id",
+			args:     []string{"review", "details-get"},
 			wantErr:  "--id is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details for-version missing version id",
-			args:     []string{"review-details", "for-version"},
+			name:     "review details-for-version missing version id",
+			args:     []string{"review", "details-for-version"},
 			wantErr:  "--version-id is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details create missing version id",
-			args:     []string{"review-details", "create"},
+			name:     "review details-create missing version id",
+			args:     []string{"review", "details-create"},
 			wantErr:  "--version-id is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details update missing id",
-			args:     []string{"review-details", "update", "--notes", "hi"},
+			name:     "review details-update missing id",
+			args:     []string{"review", "details-update", "--notes", "hi"},
 			wantErr:  "--id is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details update missing fields",
-			args:     []string{"review-details", "update", "--id", "DETAIL_ID"},
+			name:     "review details-update missing fields",
+			args:     []string{"review", "details-update", "--id", "DETAIL_ID"},
 			wantErr:  "at least one update flag is required",
 			wantHelp: true,
 		},
@@ -1300,7 +1300,7 @@ func TestReviewDetailsValidationErrors(t *testing.T) {
 	}
 }
 
-func TestReviewDetailsAttachmentsValidationErrors(t *testing.T) {
+func TestReviewCommandAttachmentsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
 	t.Setenv("ASC_ISSUER_ID", "")
@@ -1314,38 +1314,38 @@ func TestReviewDetailsAttachmentsValidationErrors(t *testing.T) {
 		wantHelp bool
 	}{
 		{
-			name:     "review-details attachments list missing review detail",
-			args:     []string{"review-details", "attachments", "list"},
+			name:     "review attachments-list missing review detail",
+			args:     []string{"review", "attachments-list"},
 			wantErr:  "--review-detail is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details attachments get missing id",
-			args:     []string{"review-details", "attachments", "get"},
+			name:     "review attachments-get missing id",
+			args:     []string{"review", "attachments-get"},
 			wantErr:  "--id is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details attachments upload missing review detail",
-			args:     []string{"review-details", "attachments", "upload", "--file", "file.txt"},
+			name:     "review attachments-upload missing review detail",
+			args:     []string{"review", "attachments-upload", "--file", "file.txt"},
 			wantErr:  "--review-detail is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details attachments upload missing file",
-			args:     []string{"review-details", "attachments", "upload", "--review-detail", "DETAIL_ID"},
+			name:     "review attachments-upload missing file",
+			args:     []string{"review", "attachments-upload", "--review-detail", "DETAIL_ID"},
 			wantErr:  "--file is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details attachments delete missing id",
-			args:     []string{"review-details", "attachments", "delete", "--confirm"},
+			name:     "review attachments-delete missing id",
+			args:     []string{"review", "attachments-delete", "--confirm"},
 			wantErr:  "--id is required",
 			wantHelp: true,
 		},
 		{
-			name:     "review-details attachments delete missing confirm",
-			args:     []string{"review-details", "attachments", "delete", "--id", "ATTACHMENT_ID"},
+			name:     "review attachments-delete missing confirm",
+			args:     []string{"review", "attachments-delete", "--id", "ATTACHMENT_ID"},
 			wantErr:  "--confirm is required",
 			wantHelp: true,
 		},

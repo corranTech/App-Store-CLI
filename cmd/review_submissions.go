@@ -12,37 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-// ReviewSubmissionsCommand returns the review-submissions parent command.
-func ReviewSubmissionsCommand() *ffcli.Command {
-	return &ffcli.Command{
-		Name:       "review-submissions",
-		ShortUsage: "asc review-submissions <subcommand> [flags]",
-		ShortHelp:  "Manage App Store review submissions.",
-		LongHelp: `Manage App Store review submissions.
-
-Review submissions can include multiple items: app versions, custom product pages,
-in-app events, and experiments.
-
-Examples:
-  asc review-submissions list --app "123456789"
-  asc review-submissions create --app "123456789" --platform IOS
-  asc review-submissions submit --id "SUBMISSION_ID" --confirm`,
-		UsageFunc: DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			ReviewSubmissionsListCommand(),
-			ReviewSubmissionsGetCommand(),
-			ReviewSubmissionsCreateCommand(),
-			ReviewSubmissionsSubmitCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
-// ReviewSubmissionsListCommand returns the review-submissions list subcommand.
+// ReviewSubmissionsListCommand returns the review submissions list subcommand.
 func ReviewSubmissionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-submissions list", flag.ExitOnError)
+	fs := flag.NewFlagSet("submissions-list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
@@ -54,28 +26,28 @@ func ReviewSubmissionsListCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc review-submissions list [flags]",
+		Name:       "submissions-list",
+		ShortUsage: "asc review submissions-list [flags]",
 		ShortHelp:  "List review submissions for an app.",
 		LongHelp: `List review submissions for an app.
 
 Examples:
-  asc review-submissions list --app "123456789"
-  asc review-submissions list --app "123456789" --platform IOS --state READY_FOR_REVIEW
-  asc review-submissions list --app "123456789" --paginate`,
+  asc review submissions-list --app "123456789"
+  asc review submissions-list --app "123456789" --platform IOS --state READY_FOR_REVIEW
+  asc review submissions-list --app "123456789" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("review-submissions list: --limit must be between 1 and 200")
+				return fmt.Errorf("review submissions-list: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return fmt.Errorf("review-submissions list: %w", err)
+				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
 			platforms, err := normalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("review-submissions list: %w", err)
+				return fmt.Errorf("review submissions-list: %w", err)
 			}
 			states := splitCSVUpper(*state)
 
@@ -87,7 +59,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-submissions list: %w", err)
+				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -104,14 +76,14 @@ Examples:
 				paginateOpts := append(opts, asc.WithReviewSubmissionsLimit(200))
 				firstPage, err := client.GetReviewSubmissions(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("review-submissions list: failed to fetch: %w", err)
+					return fmt.Errorf("review submissions-list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetReviewSubmissions(ctx, resolvedAppID, asc.WithReviewSubmissionsNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("review-submissions list: %w", err)
+					return fmt.Errorf("review submissions-list: %w", err)
 				}
 
 				return printOutput(resp, *output, *pretty)
@@ -119,7 +91,7 @@ Examples:
 
 			resp, err := client.GetReviewSubmissions(requestCtx, resolvedAppID, opts...)
 			if err != nil {
-				return fmt.Errorf("review-submissions list: %w", err)
+				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -127,22 +99,22 @@ Examples:
 	}
 }
 
-// ReviewSubmissionsGetCommand returns the review-submissions get subcommand.
+// ReviewSubmissionsGetCommand returns the review submissions get subcommand.
 func ReviewSubmissionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-submissions get", flag.ExitOnError)
+	fs := flag.NewFlagSet("submissions-get", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc review-submissions get [flags]",
+		Name:       "submissions-get",
+		ShortUsage: "asc review submissions-get [flags]",
 		ShortHelp:  "Get a review submission by ID.",
 		LongHelp: `Get a review submission by ID.
 
 Examples:
-  asc review-submissions get --id "SUBMISSION_ID"`,
+  asc review submissions-get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -153,7 +125,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-submissions get: %w", err)
+				return fmt.Errorf("review submissions-get: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -161,7 +133,7 @@ Examples:
 
 			resp, err := client.GetReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
 			if err != nil {
-				return fmt.Errorf("review-submissions get: %w", err)
+				return fmt.Errorf("review submissions-get: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -169,9 +141,9 @@ Examples:
 	}
 }
 
-// ReviewSubmissionsCreateCommand returns the review-submissions create subcommand.
+// ReviewSubmissionsCreateCommand returns the review submissions create subcommand.
 func ReviewSubmissionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-submissions create", flag.ExitOnError)
+	fs := flag.NewFlagSet("submissions-create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
@@ -179,13 +151,13 @@ func ReviewSubmissionsCreateCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "create",
-		ShortUsage: "asc review-submissions create [flags]",
+		Name:       "submissions-create",
+		ShortUsage: "asc review submissions-create [flags]",
 		ShortHelp:  "Create a review submission.",
 		LongHelp: `Create a review submission for an app.
 
 Examples:
-  asc review-submissions create --app "123456789" --platform IOS`,
+  asc review submissions-create --app "123456789" --platform IOS`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -197,12 +169,12 @@ Examples:
 
 			normalizedPlatform, err := normalizeSubmitPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("review-submissions create: %w", err)
+				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-submissions create: %w", err)
+				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -210,7 +182,7 @@ Examples:
 
 			resp, err := client.CreateReviewSubmission(requestCtx, resolvedAppID, asc.Platform(normalizedPlatform))
 			if err != nil {
-				return fmt.Errorf("review-submissions create: %w", err)
+				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -218,9 +190,9 @@ Examples:
 	}
 }
 
-// ReviewSubmissionsSubmitCommand returns the review-submissions submit subcommand.
+// ReviewSubmissionsSubmitCommand returns the review submissions submit subcommand.
 func ReviewSubmissionsSubmitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-submissions submit", flag.ExitOnError)
+	fs := flag.NewFlagSet("submissions-submit", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
@@ -228,13 +200,13 @@ func ReviewSubmissionsSubmitCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "submit",
-		ShortUsage: "asc review-submissions submit [flags]",
+		Name:       "submissions-submit",
+		ShortUsage: "asc review submissions-submit [flags]",
 		ShortHelp:  "Submit a review submission.",
 		LongHelp: `Submit a review submission for review.
 
 Examples:
-  asc review-submissions submit --id "SUBMISSION_ID" --confirm`,
+  asc review submissions-submit --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -249,7 +221,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-submissions submit: %w", err)
+				return fmt.Errorf("review submissions-submit: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -257,7 +229,7 @@ Examples:
 
 			resp, err := client.SubmitReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
 			if err != nil {
-				return fmt.Errorf("review-submissions submit: %w", err)
+				return fmt.Errorf("review submissions-submit: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)

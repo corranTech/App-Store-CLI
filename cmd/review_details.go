@@ -12,53 +12,22 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-// ReviewDetailsCommand returns the review details command with subcommands.
-func ReviewDetailsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-details", flag.ExitOnError)
-
-	return &ffcli.Command{
-		Name:       "review-details",
-		ShortUsage: "asc review-details <subcommand> [flags]",
-		ShortHelp:  "Manage App Store review details.",
-		LongHelp: `Manage App Store review details, including contact info and attachments.
-
-Examples:
-  asc review-details get --id "DETAIL_ID"
-  asc review-details for-version --version-id "VERSION_ID"
-  asc review-details create --version-id "VERSION_ID" --contact-email "dev@example.com"
-  asc review-details update --id "DETAIL_ID" --notes "Updated review notes"
-  asc review-details attachments list --review-detail "DETAIL_ID"`,
-		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			ReviewDetailsGetCommand(),
-			ReviewDetailsForVersionCommand(),
-			ReviewDetailsCreateCommand(),
-			ReviewDetailsUpdateCommand(),
-			ReviewDetailsAttachmentsCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
 // ReviewDetailsGetCommand returns the review details get subcommand.
 func ReviewDetailsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("details-get", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "App Store review detail ID (required)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc review-details get --id \"DETAIL_ID\"",
+		Name:       "details-get",
+		ShortUsage: "asc review details-get --id \"DETAIL_ID\"",
 		ShortHelp:  "Get an App Store review detail by ID.",
 		LongHelp: `Get an App Store review detail by ID.
 
 Examples:
-  asc review-details get --id "DETAIL_ID"`,
+  asc review details-get --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -70,7 +39,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details get: %w", err)
+				return fmt.Errorf("review details-get: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -78,7 +47,7 @@ Examples:
 
 			resp, err := client.GetAppStoreReviewDetail(requestCtx, detailValue)
 			if err != nil {
-				return fmt.Errorf("review-details get: failed to fetch: %w", err)
+				return fmt.Errorf("review details-get: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -88,20 +57,20 @@ Examples:
 
 // ReviewDetailsForVersionCommand returns the review details for-version subcommand.
 func ReviewDetailsForVersionCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("for-version", flag.ExitOnError)
+	fs := flag.NewFlagSet("details-for-version", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "for-version",
-		ShortUsage: "asc review-details for-version --version-id \"VERSION_ID\"",
+		Name:       "details-for-version",
+		ShortUsage: "asc review details-for-version --version-id \"VERSION_ID\"",
 		ShortHelp:  "Get the review detail for a version.",
 		LongHelp: `Get the review detail for a specific App Store version.
 
 Examples:
-  asc review-details for-version --version-id "VERSION_ID"`,
+  asc review details-for-version --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -113,7 +82,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details for-version: %w", err)
+				return fmt.Errorf("review details-for-version: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -121,7 +90,7 @@ Examples:
 
 			resp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, versionValue)
 			if err != nil {
-				return fmt.Errorf("review-details for-version: failed to fetch: %w", err)
+				return fmt.Errorf("review details-for-version: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -131,7 +100,7 @@ Examples:
 
 // ReviewDetailsCreateCommand returns the review details create subcommand.
 func ReviewDetailsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+	fs := flag.NewFlagSet("details-create", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	contactFirstName := fs.String("contact-first-name", "", "Contact first name")
@@ -146,14 +115,14 @@ func ReviewDetailsCreateCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "create",
-		ShortUsage: "asc review-details create --version-id \"VERSION_ID\" [flags]",
+		Name:       "details-create",
+		ShortUsage: "asc review details-create --version-id \"VERSION_ID\" [flags]",
 		ShortHelp:  "Create App Store review details for a version.",
 		LongHelp: `Create App Store review details for a version.
 
 Examples:
-  asc review-details create --version-id "VERSION_ID" --contact-email "dev@example.com"
-  asc review-details create --version-id "VERSION_ID" --notes "Review notes"`,
+  asc review details-create --version-id "VERSION_ID" --contact-email "dev@example.com"
+  asc review details-create --version-id "VERSION_ID" --notes "Review notes"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -208,7 +177,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details create: %w", err)
+				return fmt.Errorf("review details-create: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -216,7 +185,7 @@ Examples:
 
 			resp, err := client.CreateAppStoreReviewDetail(requestCtx, versionValue, attrsPtr)
 			if err != nil {
-				return fmt.Errorf("review-details create: failed to create: %w", err)
+				return fmt.Errorf("review details-create: failed to create: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -226,7 +195,7 @@ Examples:
 
 // ReviewDetailsUpdateCommand returns the review details update subcommand.
 func ReviewDetailsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+	fs := flag.NewFlagSet("details-update", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "App Store review detail ID (required)")
 	contactFirstName := fs.String("contact-first-name", "", "Contact first name")
@@ -241,14 +210,14 @@ func ReviewDetailsUpdateCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "update",
-		ShortUsage: "asc review-details update --id \"DETAIL_ID\" [flags]",
+		Name:       "details-update",
+		ShortUsage: "asc review details-update --id \"DETAIL_ID\" [flags]",
 		ShortHelp:  "Update App Store review details.",
 		LongHelp: `Update App Store review details.
 
 Examples:
-  asc review-details update --id "DETAIL_ID" --contact-email "dev@example.com"
-  asc review-details update --id "DETAIL_ID" --notes "Updated review notes"`,
+  asc review details-update --id "DETAIL_ID" --contact-email "dev@example.com"
+  asc review details-update --id "DETAIL_ID" --notes "Updated review notes"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -304,7 +273,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details update: %w", err)
+				return fmt.Errorf("review details-update: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -312,7 +281,7 @@ Examples:
 
 			resp, err := client.UpdateAppStoreReviewDetail(requestCtx, detailValue, attrs)
 			if err != nil {
-				return fmt.Errorf("review-details update: failed to update: %w", err)
+				return fmt.Errorf("review details-update: failed to update: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)

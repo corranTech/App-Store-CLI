@@ -13,38 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-// ReviewDetailsAttachmentsCommand returns the review details attachments command with subcommands.
-func ReviewDetailsAttachmentsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("attachments", flag.ExitOnError)
-
-	return &ffcli.Command{
-		Name:       "attachments",
-		ShortUsage: "asc review-details attachments <subcommand> [flags]",
-		ShortHelp:  "Manage App Store review attachments.",
-		LongHelp: `Manage App Store review attachments for a review detail.
-
-Examples:
-  asc review-details attachments list --review-detail "REVIEW_DETAIL_ID"
-  asc review-details attachments get --id "ATTACHMENT_ID"
-  asc review-details attachments upload --review-detail "REVIEW_DETAIL_ID" --file ./attachment.pdf
-  asc review-details attachments delete --id "ATTACHMENT_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			ReviewDetailsAttachmentsListCommand(),
-			ReviewDetailsAttachmentsGetCommand(),
-			ReviewDetailsAttachmentsUploadCommand(),
-			ReviewDetailsAttachmentsDeleteCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
 // ReviewDetailsAttachmentsListCommand returns the review attachments list subcommand.
 func ReviewDetailsAttachmentsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	fs := flag.NewFlagSet("attachments-list", flag.ExitOnError)
 
 	reviewDetailID := fs.String("review-detail", "", "App Store review detail ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(reviewAttachmentFieldList(), ", "))
@@ -57,36 +28,36 @@ func ReviewDetailsAttachmentsListCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc review-details attachments list --review-detail \"REVIEW_DETAIL_ID\"",
+		Name:       "attachments-list",
+		ShortUsage: "asc review attachments-list --review-detail \"REVIEW_DETAIL_ID\"",
 		ShortHelp:  "List review attachments for a review detail.",
 		LongHelp: `List review attachments for a review detail.
 
 Examples:
-  asc review-details attachments list --review-detail "REVIEW_DETAIL_ID"
-  asc review-details attachments list --review-detail "REVIEW_DETAIL_ID" --fields "fileName,fileSize" --limit 50
-  asc review-details attachments list --review-detail "REVIEW_DETAIL_ID" --paginate`,
+  asc review attachments-list --review-detail "REVIEW_DETAIL_ID"
+  asc review attachments-list --review-detail "REVIEW_DETAIL_ID" --fields "fileName,fileSize" --limit 50
+  asc review attachments-list --review-detail "REVIEW_DETAIL_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("review-details attachments list: --limit must be between 1 and 200")
+				return fmt.Errorf("review attachments-list: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return fmt.Errorf("review-details attachments list: %w", err)
+				return fmt.Errorf("review attachments-list: %w", err)
 			}
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {
-				return fmt.Errorf("review-details attachments list: %w", err)
+				return fmt.Errorf("review attachments-list: %w", err)
 			}
 			detailFieldsValue, err := normalizeReviewDetailFields(*detailFields)
 			if err != nil {
-				return fmt.Errorf("review-details attachments list: %w", err)
+				return fmt.Errorf("review attachments-list: %w", err)
 			}
 			includeValue, err := normalizeReviewAttachmentInclude(*include)
 			if err != nil {
-				return fmt.Errorf("review-details attachments list: %w", err)
+				return fmt.Errorf("review attachments-list: %w", err)
 			}
 
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
@@ -97,7 +68,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details attachments list: %w", err)
+				return fmt.Errorf("review attachments-list: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -115,14 +86,14 @@ Examples:
 				paginateOpts := append(opts, asc.WithAppStoreReviewAttachmentsLimit(200))
 				firstPage, err := client.GetAppStoreReviewAttachmentsForReviewDetail(requestCtx, reviewDetailValue, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("review-details attachments list: failed to fetch: %w", err)
+					return fmt.Errorf("review attachments-list: failed to fetch: %w", err)
 				}
 
 				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("review-details attachments list: %w", err)
+					return fmt.Errorf("review attachments-list: %w", err)
 				}
 
 				return printOutput(pages, *output, *pretty)
@@ -130,7 +101,7 @@ Examples:
 
 			resp, err := client.GetAppStoreReviewAttachmentsForReviewDetail(requestCtx, reviewDetailValue, opts...)
 			if err != nil {
-				return fmt.Errorf("review-details attachments list: failed to fetch: %w", err)
+				return fmt.Errorf("review attachments-list: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -140,7 +111,7 @@ Examples:
 
 // ReviewDetailsAttachmentsGetCommand returns the review attachments get subcommand.
 func ReviewDetailsAttachmentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("attachments-get", flag.ExitOnError)
 
 	attachmentID := fs.String("id", "", "Review attachment ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(reviewAttachmentFieldList(), ", "))
@@ -150,14 +121,14 @@ func ReviewDetailsAttachmentsGetCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc review-details attachments get --id \"ATTACHMENT_ID\"",
+		Name:       "attachments-get",
+		ShortUsage: "asc review attachments-get --id \"ATTACHMENT_ID\"",
 		ShortHelp:  "Get a review attachment by ID.",
 		LongHelp: `Get a review attachment by ID.
 
 Examples:
-  asc review-details attachments get --id "ATTACHMENT_ID"
-  asc review-details attachments get --id "ATTACHMENT_ID" --fields "fileName,fileSize"`,
+  asc review attachments-get --id "ATTACHMENT_ID"
+  asc review attachments-get --id "ATTACHMENT_ID" --fields "fileName,fileSize"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -169,20 +140,20 @@ Examples:
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {
-				return fmt.Errorf("review-details attachments get: %w", err)
+				return fmt.Errorf("review attachments-get: %w", err)
 			}
 			detailFieldsValue, err := normalizeReviewDetailFields(*detailFields)
 			if err != nil {
-				return fmt.Errorf("review-details attachments get: %w", err)
+				return fmt.Errorf("review attachments-get: %w", err)
 			}
 			includeValue, err := normalizeReviewAttachmentInclude(*include)
 			if err != nil {
-				return fmt.Errorf("review-details attachments get: %w", err)
+				return fmt.Errorf("review attachments-get: %w", err)
 			}
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details attachments get: %w", err)
+				return fmt.Errorf("review attachments-get: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -194,7 +165,7 @@ Examples:
 				asc.WithAppStoreReviewAttachmentsInclude(includeValue),
 			)
 			if err != nil {
-				return fmt.Errorf("review-details attachments get: failed to fetch: %w", err)
+				return fmt.Errorf("review attachments-get: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -204,7 +175,7 @@ Examples:
 
 // ReviewDetailsAttachmentsUploadCommand returns the review attachments upload subcommand.
 func ReviewDetailsAttachmentsUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("upload", flag.ExitOnError)
+	fs := flag.NewFlagSet("attachments-upload", flag.ExitOnError)
 
 	reviewDetailID := fs.String("review-detail", "", "App Store review detail ID (required)")
 	filePath := fs.String("file", "", "Path to attachment file (required)")
@@ -212,13 +183,13 @@ func ReviewDetailsAttachmentsUploadCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "upload",
-		ShortUsage: "asc review-details attachments upload --review-detail \"REVIEW_DETAIL_ID\" --file ./attachment.pdf",
+		Name:       "attachments-upload",
+		ShortUsage: "asc review attachments-upload --review-detail \"REVIEW_DETAIL_ID\" --file ./attachment.pdf",
 		ShortHelp:  "Upload a review attachment.",
 		LongHelp: `Upload a review attachment.
 
 Examples:
-  asc review-details attachments upload --review-detail "REVIEW_DETAIL_ID" --file ./review-doc.pdf`,
+  asc review attachments-upload --review-detail "REVIEW_DETAIL_ID" --file ./review-doc.pdf`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -236,21 +207,21 @@ Examples:
 
 			info, err := os.Lstat(pathValue)
 			if err != nil {
-				return fmt.Errorf("review-details attachments upload: %w", err)
+				return fmt.Errorf("review attachments-upload: %w", err)
 			}
 			if info.Mode()&os.ModeSymlink != 0 {
-				return fmt.Errorf("review-details attachments upload: refusing to read symlink %q", pathValue)
+				return fmt.Errorf("review attachments-upload: refusing to read symlink %q", pathValue)
 			}
 			if info.IsDir() {
-				return fmt.Errorf("review-details attachments upload: %q is a directory", pathValue)
+				return fmt.Errorf("review attachments-upload: %q is a directory", pathValue)
 			}
 			if info.Size() <= 0 {
-				return fmt.Errorf("review-details attachments upload: file size must be greater than 0")
+				return fmt.Errorf("review attachments-upload: file size must be greater than 0")
 			}
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details attachments upload: %w", err)
+				return fmt.Errorf("review attachments-upload: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -258,22 +229,22 @@ Examples:
 
 			resp, err := client.CreateAppStoreReviewAttachment(requestCtx, reviewDetailValue, filepath.Base(pathValue), info.Size())
 			if err != nil {
-				return fmt.Errorf("review-details attachments upload: failed to create: %w", err)
+				return fmt.Errorf("review attachments-upload: failed to create: %w", err)
 			}
 			if resp == nil || len(resp.Data.Attributes.UploadOperations) == 0 {
-				return fmt.Errorf("review-details attachments upload: no upload operations returned")
+				return fmt.Errorf("review attachments-upload: no upload operations returned")
 			}
 
 			uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
 			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
 			uploadCancel()
 			if err != nil {
-				return fmt.Errorf("review-details attachments upload: upload failed: %w", err)
+				return fmt.Errorf("review attachments-upload: upload failed: %w", err)
 			}
 
 			checksum, err := asc.ComputeFileChecksum(pathValue, asc.ChecksumAlgorithmMD5)
 			if err != nil {
-				return fmt.Errorf("review-details attachments upload: checksum failed: %w", err)
+				return fmt.Errorf("review attachments-upload: checksum failed: %w", err)
 			}
 
 			uploaded := true
@@ -286,7 +257,7 @@ Examples:
 			commitResp, err := client.UpdateAppStoreReviewAttachment(commitCtx, resp.Data.ID, updateAttrs)
 			commitCancel()
 			if err != nil {
-				return fmt.Errorf("review-details attachments upload: failed to commit upload: %w", err)
+				return fmt.Errorf("review attachments-upload: failed to commit upload: %w", err)
 			}
 
 			return printOutput(commitResp, *output, *pretty)
@@ -296,7 +267,7 @@ Examples:
 
 // ReviewDetailsAttachmentsDeleteCommand returns the review attachments delete subcommand.
 func ReviewDetailsAttachmentsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+	fs := flag.NewFlagSet("attachments-delete", flag.ExitOnError)
 
 	attachmentID := fs.String("id", "", "Review attachment ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
@@ -304,13 +275,13 @@ func ReviewDetailsAttachmentsDeleteCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc review-details attachments delete --id \"ATTACHMENT_ID\" --confirm",
+		Name:       "attachments-delete",
+		ShortUsage: "asc review attachments-delete --id \"ATTACHMENT_ID\" --confirm",
 		ShortHelp:  "Delete a review attachment.",
 		LongHelp: `Delete a review attachment.
 
 Examples:
-  asc review-details attachments delete --id "ATTACHMENT_ID" --confirm`,
+  asc review attachments-delete --id "ATTACHMENT_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -326,14 +297,14 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("review-details attachments delete: %w", err)
+				return fmt.Errorf("review attachments-delete: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppStoreReviewAttachment(requestCtx, attachmentValue); err != nil {
-				return fmt.Errorf("review-details attachments delete: failed to delete: %w", err)
+				return fmt.Errorf("review attachments-delete: failed to delete: %w", err)
 			}
 
 			result := &asc.AppStoreReviewAttachmentDeleteResult{
