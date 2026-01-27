@@ -81,6 +81,12 @@ func PrintMarkdown(data interface{}) error {
 		return printAppPricesMarkdown(v)
 	case *BuildsResponse:
 		return printBuildsMarkdown(v)
+	case *BuildBundlesResponse:
+		return printBuildBundlesMarkdown(v)
+	case *BuildBundleFileSizesResponse:
+		return printBuildBundleFileSizesMarkdown(v)
+	case *BetaAppClipInvocationsResponse:
+		return printBetaAppClipInvocationsMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesMarkdown(v)
 	case *AppStoreVersionsResponse:
@@ -89,12 +95,16 @@ func PrintMarkdown(data interface{}) error {
 		return printPreReleaseVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *AppClipDomainStatusResult:
+		return printAppClipDomainStatusResultMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesMarkdown(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityMarkdown(v)
 	case *TerritoryAvailabilitiesResponse:
 		return printTerritoryAvailabilitiesMarkdown(v)
+	case *EndAppAvailabilityPreOrderResponse:
+		return printEndAppAvailabilityPreOrderMarkdown(v)
 	case *PreReleaseVersionResponse:
 		return printPreReleaseVersionsMarkdown(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
@@ -173,6 +183,14 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreReviewAttachmentsMarkdown(v)
 	case *AppStoreReviewAttachmentResponse:
 		return printAppStoreReviewAttachmentMarkdown(v)
+	case *RoutingAppCoverageResponse:
+		return printRoutingAppCoverageMarkdown(v)
+	case *AppEncryptionDeclarationsResponse:
+		return printAppEncryptionDeclarationsMarkdown(v)
+	case *AppEncryptionDeclarationResponse:
+		return printAppEncryptionDeclarationMarkdown(v)
+	case *AppEncryptionDeclarationDocumentResponse:
+		return printAppEncryptionDeclarationDocumentMarkdown(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsMarkdown(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -301,6 +319,20 @@ func PrintMarkdown(data interface{}) error {
 		return printCiBuildRunsMarkdown(v)
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsMarkdown(v)
+	case *CiArtifactsResponse:
+		return printCiArtifactsMarkdown(v)
+	case *CiArtifactResponse:
+		return printCiArtifactMarkdown(v)
+	case *CiTestResultsResponse:
+		return printCiTestResultsMarkdown(v)
+	case *CiTestResultResponse:
+		return printCiTestResultMarkdown(v)
+	case *CiIssuesResponse:
+		return printCiIssuesMarkdown(v)
+	case *CiIssueResponse:
+		return printCiIssueMarkdown(v)
+	case *CiArtifactDownloadResult:
+		return printCiArtifactDownloadResultMarkdown(v)
 	case *EndUserLicenseAgreementResponse:
 		return printEndUserLicenseAgreementMarkdown(v)
 	case *EndUserLicenseAgreementDeleteResult:
@@ -313,6 +345,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAccessibilityDeclarationDeleteResultMarkdown(v)
 	case *AppStoreReviewAttachmentDeleteResult:
 		return printAppStoreReviewAttachmentDeleteResultMarkdown(v)
+	case *RoutingAppCoverageDeleteResult:
+		return printRoutingAppCoverageDeleteResultMarkdown(v)
+	case *AppEncryptionDeclarationBuildsUpdateResult:
+		return printAppEncryptionDeclarationBuildsUpdateResultMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -381,6 +417,12 @@ func PrintTable(data interface{}) error {
 		return printAppPricesTable(v)
 	case *BuildsResponse:
 		return printBuildsTable(v)
+	case *BuildBundlesResponse:
+		return printBuildBundlesTable(v)
+	case *BuildBundleFileSizesResponse:
+		return printBuildBundleFileSizesTable(v)
+	case *BetaAppClipInvocationsResponse:
+		return printBetaAppClipInvocationsTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesTable(v)
 	case *AppStoreVersionsResponse:
@@ -389,12 +431,16 @@ func PrintTable(data interface{}) error {
 		return printPreReleaseVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *AppClipDomainStatusResult:
+		return printAppClipDomainStatusResultTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesTable(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityTable(v)
 	case *TerritoryAvailabilitiesResponse:
 		return printTerritoryAvailabilitiesTable(v)
+	case *EndAppAvailabilityPreOrderResponse:
+		return printEndAppAvailabilityPreOrderTable(v)
 	case *PreReleaseVersionResponse:
 		return printPreReleaseVersionsTable(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
 	case *AppStoreVersionLocalizationsResponse:
@@ -473,6 +519,14 @@ func PrintTable(data interface{}) error {
 		return printAppStoreReviewAttachmentsTable(v)
 	case *AppStoreReviewAttachmentResponse:
 		return printAppStoreReviewAttachmentTable(v)
+	case *RoutingAppCoverageResponse:
+		return printRoutingAppCoverageTable(v)
+	case *AppEncryptionDeclarationsResponse:
+		return printAppEncryptionDeclarationsTable(v)
+	case *AppEncryptionDeclarationResponse:
+		return printAppEncryptionDeclarationTable(v)
+	case *AppEncryptionDeclarationDocumentResponse:
+		return printAppEncryptionDeclarationDocumentTable(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsTable(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -605,6 +659,20 @@ func PrintTable(data interface{}) error {
 		return printCiBuildRunsTable(v)
 	case *CiBuildActionsResponse:
 		return printCiBuildActionsTable(v)
+	case *CiArtifactsResponse:
+		return printCiArtifactsTable(v)
+	case *CiArtifactResponse:
+		return printCiArtifactTable(v)
+	case *CiTestResultsResponse:
+		return printCiTestResultsTable(v)
+	case *CiTestResultResponse:
+		return printCiTestResultTable(v)
+	case *CiIssuesResponse:
+		return printCiIssuesTable(v)
+	case *CiIssueResponse:
+		return printCiIssueTable(v)
+	case *CiArtifactDownloadResult:
+		return printCiArtifactDownloadResultTable(v)
 	case *CustomerReviewResponseResponse:
 		return printCustomerReviewResponseTable(v)
 	case *CustomerReviewResponseDeleteResult:
@@ -613,6 +681,10 @@ func PrintTable(data interface{}) error {
 		return printAccessibilityDeclarationDeleteResultTable(v)
 	case *AppStoreReviewAttachmentDeleteResult:
 		return printAppStoreReviewAttachmentDeleteResultTable(v)
+	case *RoutingAppCoverageDeleteResult:
+		return printRoutingAppCoverageDeleteResultTable(v)
+	case *AppEncryptionDeclarationBuildsUpdateResult:
+		return printAppEncryptionDeclarationBuildsUpdateResultTable(v)
 	default:
 		return PrintJSON(data)
 	}

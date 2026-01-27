@@ -3193,6 +3193,209 @@ func TestCreateCiBuildRun(t *testing.T) {
 	}
 }
 
+func TestGetCiBuildActionArtifacts_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciArtifacts","id":"art-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1/artifacts" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1/artifacts, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "20" {
+			t.Fatalf("expected limit=20, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildActionArtifacts(context.Background(), "action-1", WithCiArtifactsLimit(20)); err != nil {
+		t.Fatalf("GetCiBuildActionArtifacts() error: %v", err)
+	}
+}
+
+func TestGetCiArtifact(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciArtifacts","id":"art-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciArtifacts/art-1" {
+			t.Fatalf("expected path /v1/ciArtifacts/art-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiArtifact(context.Background(), "art-1"); err != nil {
+		t.Fatalf("GetCiArtifact() error: %v", err)
+	}
+}
+
+func TestGetCiBuildActionTestResults_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciTestResults","id":"test-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1/testResults" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1/testResults, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "30" {
+			t.Fatalf("expected limit=30, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildActionTestResults(context.Background(), "action-1", WithCiTestResultsLimit(30)); err != nil {
+		t.Fatalf("GetCiBuildActionTestResults() error: %v", err)
+	}
+}
+
+func TestGetCiTestResult(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciTestResults","id":"test-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciTestResults/test-1" {
+			t.Fatalf("expected path /v1/ciTestResults/test-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiTestResult(context.Background(), "test-1"); err != nil {
+		t.Fatalf("GetCiTestResult() error: %v", err)
+	}
+}
+
+func TestGetCiBuildActionIssues_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciIssues","id":"issue-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciBuildActions/action-1/issues" {
+			t.Fatalf("expected path /v1/ciBuildActions/action-1/issues, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "40" {
+			t.Fatalf("expected limit=40, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiBuildActionIssues(context.Background(), "action-1", WithCiIssuesLimit(40)); err != nil {
+		t.Fatalf("GetCiBuildActionIssues() error: %v", err)
+	}
+}
+
+func TestGetCiIssue(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciIssues","id":"issue-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/ciIssues/issue-1" {
+			t.Fatalf("expected path /v1/ciIssues/issue-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCiIssue(context.Background(), "issue-1"); err != nil {
+		t.Fatalf("GetCiIssue() error: %v", err)
+	}
+}
+
+func TestDownloadCiArtifact_NoAuthHeader(t *testing.T) {
+	downloadURL := "https://appstoreconnect.apple.com/artifacts/artifact.zip"
+	response := rawResponse(http.StatusOK, "artifact-data")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != downloadURL {
+			t.Fatalf("expected URL %q, got %q", downloadURL, req.URL.String())
+		}
+		if req.Header.Get("Authorization") != "" {
+			t.Fatalf("expected no Authorization header")
+		}
+	}, response)
+
+	download, err := client.DownloadCiArtifact(context.Background(), downloadURL)
+	if err != nil {
+		t.Fatalf("DownloadCiArtifact() error: %v", err)
+	}
+	_ = download.Body.Close()
+}
+
+func TestDownloadCiArtifact_ICloudContentHostAllowed(t *testing.T) {
+	downloadURL := "https://cvws.icloud-content.com/artifact.zip"
+	response := rawResponse(http.StatusOK, "artifact-data")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != downloadURL {
+			t.Fatalf("expected URL %q, got %q", downloadURL, req.URL.String())
+		}
+		if req.Header.Get("Authorization") != "" {
+			t.Fatalf("expected no Authorization header")
+		}
+	}, response)
+
+	download, err := client.DownloadCiArtifact(context.Background(), downloadURL)
+	if err != nil {
+		t.Fatalf("DownloadCiArtifact() error: %v", err)
+	}
+	_ = download.Body.Close()
+}
+
+func TestDownloadCiArtifact_UntrustedHost(t *testing.T) {
+	downloadURL := "https://downloads.example.com/artifact.zip"
+	client := newTestClient(t, nil, nil)
+
+	if _, err := client.DownloadCiArtifact(context.Background(), downloadURL); err == nil {
+		t.Fatal("expected error for untrusted host")
+	}
+}
+
+func TestDownloadCiArtifact_InvalidScheme(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+	if _, err := client.DownloadCiArtifact(context.Background(), "http://downloads.example.com/artifact.zip"); err == nil {
+		t.Fatal("expected error for insecure scheme")
+	}
+}
+
+func TestDownloadCiArtifact_EmptyHost(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+	if _, err := client.DownloadCiArtifact(context.Background(), "https:///artifact.zip"); err == nil {
+		t.Fatal("expected error for empty host")
+	}
+}
+
+func TestDownloadCiArtifact_CDNHostRequiresSignature(t *testing.T) {
+	downloadURL := "https://example.cloudfront.net/artifact.zip"
+	client := newTestClient(t, nil, nil)
+
+	if _, err := client.DownloadCiArtifact(context.Background(), downloadURL); err == nil {
+		t.Fatal("expected error for unsigned CDN host")
+	}
+}
+
+func TestDownloadCiArtifact_CDNHostWithSignature(t *testing.T) {
+	downloadURL := "https://example.cloudfront.net/artifact.zip?Signature=abc&Key-Pair-Id=key"
+	response := rawResponse(http.StatusOK, "artifact-data")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != downloadURL {
+			t.Fatalf("expected URL %q, got %q", downloadURL, req.URL.String())
+		}
+		if req.Header.Get("Authorization") != "" {
+			t.Fatalf("expected no Authorization header")
+		}
+	}, response)
+
+	download, err := client.DownloadCiArtifact(context.Background(), downloadURL)
+	if err != nil {
+		t.Fatalf("DownloadCiArtifact() error: %v", err)
+	}
+	_ = download.Body.Close()
+}
+
 func TestResolveCiWorkflowByName_CaseInsensitive(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"ciWorkflows","id":"wf-1","attributes":{"name":"CI Build"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -5280,6 +5483,371 @@ func TestDeleteAppStoreReviewAttachment(t *testing.T) {
 
 	if err := client.DeleteAppStoreReviewAttachment(context.Background(), "att-1"); err != nil {
 		t.Fatalf("DeleteAppStoreReviewAttachment() error: %v", err)
+	}
+}
+
+func TestGetRoutingAppCoverage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"cover-1","attributes":{"fileName":"coverage.geojson"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/routingAppCoverages/cover-1" {
+			t.Fatalf("expected path /v1/routingAppCoverages/cover-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetRoutingAppCoverage(context.Background(), "cover-1"); err != nil {
+		t.Fatalf("GetRoutingAppCoverage() error: %v", err)
+	}
+}
+
+func TestGetRoutingAppCoverageForVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"cover-1","attributes":{"fileName":"coverage.geojson"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/version-1/routingAppCoverage" {
+			t.Fatalf("expected path /v1/appStoreVersions/version-1/routingAppCoverage, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetRoutingAppCoverageForVersion(context.Background(), "version-1"); err != nil {
+		t.Fatalf("GetRoutingAppCoverageForVersion() error: %v", err)
+	}
+}
+
+func TestCreateRoutingAppCoverage(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"routingAppCoverages","id":"cover-1","attributes":{"fileName":"coverage.geojson","fileSize":123}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/routingAppCoverages" {
+			t.Fatalf("expected path /v1/routingAppCoverages, got %s", req.URL.Path)
+		}
+		var payload RoutingAppCoverageCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeRoutingAppCoverages {
+			t.Fatalf("expected type routingAppCoverages, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.FileName != "coverage.geojson" || payload.Data.Attributes.FileSize != 123 {
+			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.AppStoreVersion == nil {
+			t.Fatalf("expected app store version relationship")
+		}
+		if payload.Data.Relationships.AppStoreVersion.Data.Type != ResourceTypeAppStoreVersions {
+			t.Fatalf("expected relationship type appStoreVersions, got %q", payload.Data.Relationships.AppStoreVersion.Data.Type)
+		}
+		if payload.Data.Relationships.AppStoreVersion.Data.ID != "version-1" {
+			t.Fatalf("expected relationship id version-1, got %q", payload.Data.Relationships.AppStoreVersion.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateRoutingAppCoverage(context.Background(), "version-1", "coverage.geojson", 123); err != nil {
+		t.Fatalf("CreateRoutingAppCoverage() error: %v", err)
+	}
+}
+
+func TestUpdateRoutingAppCoverage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"cover-1","attributes":{"uploaded":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/routingAppCoverages/cover-1" {
+			t.Fatalf("expected path /v1/routingAppCoverages/cover-1, got %s", req.URL.Path)
+		}
+		var payload RoutingAppCoverageUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeRoutingAppCoverages || payload.Data.ID != "cover-1" {
+			t.Fatalf("unexpected payload: %+v", payload.Data)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.Uploaded == nil || !*payload.Data.Attributes.Uploaded {
+			t.Fatalf("expected uploaded true, got %+v", payload.Data.Attributes)
+		}
+		if payload.Data.Attributes.SourceFileChecksum == nil || *payload.Data.Attributes.SourceFileChecksum != "abcd1234" {
+			t.Fatalf("expected checksum abcd1234, got %+v", payload.Data.Attributes.SourceFileChecksum)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	uploaded := true
+	checksum := "abcd1234"
+	attrs := RoutingAppCoverageUpdateAttributes{
+		SourceFileChecksum: &checksum,
+		Uploaded:           &uploaded,
+	}
+	if _, err := client.UpdateRoutingAppCoverage(context.Background(), "cover-1", attrs); err != nil {
+		t.Fatalf("UpdateRoutingAppCoverage() error: %v", err)
+	}
+}
+
+func TestDeleteRoutingAppCoverage(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/routingAppCoverages/cover-1" {
+			t.Fatalf("expected path /v1/routingAppCoverages/cover-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteRoutingAppCoverage(context.Background(), "cover-1"); err != nil {
+		t.Fatalf("DeleteRoutingAppCoverage() error: %v", err)
+	}
+}
+
+func TestGetAppEncryptionDeclarationsForApp(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appDescription":"Uses TLS"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarations" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarations, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[app]") != "app-1" {
+			t.Fatalf("expected filter[app]=app-1, got %q", values.Get("filter[app]"))
+		}
+		if values.Get("filter[builds]") != "build-1,build-2" {
+			t.Fatalf("expected filter[builds]=build-1,build-2, got %q", values.Get("filter[builds]"))
+		}
+		if values.Get("fields[appEncryptionDeclarations]") != "appDescription,exempt" {
+			t.Fatalf("expected fields[appEncryptionDeclarations]=appDescription,exempt, got %q", values.Get("fields[appEncryptionDeclarations]"))
+		}
+		if values.Get("fields[appEncryptionDeclarationDocuments]") != "fileName,fileSize" {
+			t.Fatalf("expected fields[appEncryptionDeclarationDocuments]=fileName,fileSize, got %q", values.Get("fields[appEncryptionDeclarationDocuments]"))
+		}
+		if values.Get("include") != "app,builds" {
+			t.Fatalf("expected include=app,builds, got %q", values.Get("include"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		if values.Get("limit[builds]") != "10" {
+			t.Fatalf("expected limit[builds]=10, got %q", values.Get("limit[builds]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEncryptionDeclarations(context.Background(), "app-1",
+		WithAppEncryptionDeclarationsBuildIDs([]string{"build-1", "build-2"}),
+		WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
+		WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
+		WithAppEncryptionDeclarationsInclude([]string{"app", "builds"}),
+		WithAppEncryptionDeclarationsLimit(5),
+		WithAppEncryptionDeclarationsBuildLimit(10),
+	); err != nil {
+		t.Fatalf("GetAppEncryptionDeclarations() error: %v", err)
+	}
+}
+
+func TestGetAppEncryptionDeclaration(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appDescription":"Uses TLS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarations/decl-1" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarations/decl-1, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("fields[appEncryptionDeclarations]") != "appDescription,exempt" {
+			t.Fatalf("expected fields[appEncryptionDeclarations]=appDescription,exempt, got %q", values.Get("fields[appEncryptionDeclarations]"))
+		}
+		if values.Get("fields[appEncryptionDeclarationDocuments]") != "fileName,fileSize" {
+			t.Fatalf("expected fields[appEncryptionDeclarationDocuments]=fileName,fileSize, got %q", values.Get("fields[appEncryptionDeclarationDocuments]"))
+		}
+		if values.Get("include") != "appEncryptionDeclarationDocument" {
+			t.Fatalf("expected include=appEncryptionDeclarationDocument, got %q", values.Get("include"))
+		}
+		if values.Get("limit[builds]") != "20" {
+			t.Fatalf("expected limit[builds]=20, got %q", values.Get("limit[builds]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEncryptionDeclaration(context.Background(), "decl-1",
+		WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
+		WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
+		WithAppEncryptionDeclarationsInclude([]string{"appEncryptionDeclarationDocument"}),
+		WithAppEncryptionDeclarationsBuildLimit(20),
+	); err != nil {
+		t.Fatalf("GetAppEncryptionDeclaration() error: %v", err)
+	}
+}
+
+func TestCreateAppEncryptionDeclaration(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appDescription":"Uses TLS"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarations" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarations, got %s", req.URL.Path)
+		}
+		var payload AppEncryptionDeclarationCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppEncryptionDeclarations {
+			t.Fatalf("expected type appEncryptionDeclarations, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.AppDescription != "Uses TLS" {
+			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.App == nil {
+			t.Fatalf("expected app relationship")
+		}
+		if payload.Data.Relationships.App.Data.Type != ResourceTypeApps {
+			t.Fatalf("expected relationship type apps, got %q", payload.Data.Relationships.App.Data.Type)
+		}
+		if payload.Data.Relationships.App.Data.ID != "app-1" {
+			t.Fatalf("expected relationship id app-1, got %q", payload.Data.Relationships.App.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := AppEncryptionDeclarationCreateAttributes{
+		AppDescription:                  "Uses TLS",
+		ContainsProprietaryCryptography: false,
+		ContainsThirdPartyCryptography:  true,
+		AvailableOnFrenchStore:          true,
+	}
+	if _, err := client.CreateAppEncryptionDeclaration(context.Background(), "app-1", attrs); err != nil {
+		t.Fatalf("CreateAppEncryptionDeclaration() error: %v", err)
+	}
+}
+
+func TestAddBuildsToAppEncryptionDeclaration(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarations/decl-1/relationships/builds" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarations/decl-1/relationships/builds, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 relationship items, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeBuilds || payload.Data[0].ID != "build-1" {
+			t.Fatalf("unexpected relationship data: %+v", payload.Data[0])
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.AddBuildsToAppEncryptionDeclaration(context.Background(), "decl-1", []string{"build-1", "build-2"}); err != nil {
+		t.Fatalf("AddBuildsToAppEncryptionDeclaration() error: %v", err)
+	}
+}
+
+func TestGetAppEncryptionDeclarationDocument(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1","attributes":{"fileName":"export.pdf"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarationDocuments/doc-1" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarationDocuments/doc-1, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("fields[appEncryptionDeclarationDocuments]") != "fileName,fileSize" {
+			t.Fatalf("expected fields[appEncryptionDeclarationDocuments]=fileName,fileSize, got %q", req.URL.Query().Get("fields[appEncryptionDeclarationDocuments]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEncryptionDeclarationDocument(context.Background(), "doc-1", []string{"fileName", "fileSize"}); err != nil {
+		t.Fatalf("GetAppEncryptionDeclarationDocument() error: %v", err)
+	}
+}
+
+func TestCreateAppEncryptionDeclarationDocument(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1","attributes":{"fileName":"export.pdf","fileSize":123}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarationDocuments" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarationDocuments, got %s", req.URL.Path)
+		}
+		var payload AppEncryptionDeclarationDocumentCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppEncryptionDeclarationDocuments {
+			t.Fatalf("expected type appEncryptionDeclarationDocuments, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.FileName != "export.pdf" || payload.Data.Attributes.FileSize != 123 {
+			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.AppEncryptionDeclaration == nil {
+			t.Fatalf("expected declaration relationship")
+		}
+		if payload.Data.Relationships.AppEncryptionDeclaration.Data.Type != ResourceTypeAppEncryptionDeclarations {
+			t.Fatalf("expected relationship type appEncryptionDeclarations, got %q", payload.Data.Relationships.AppEncryptionDeclaration.Data.Type)
+		}
+		if payload.Data.Relationships.AppEncryptionDeclaration.Data.ID != "decl-1" {
+			t.Fatalf("expected relationship id decl-1, got %q", payload.Data.Relationships.AppEncryptionDeclaration.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateAppEncryptionDeclarationDocument(context.Background(), "decl-1", "export.pdf", 123); err != nil {
+		t.Fatalf("CreateAppEncryptionDeclarationDocument() error: %v", err)
+	}
+}
+
+func TestUpdateAppEncryptionDeclarationDocument(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1","attributes":{"uploaded":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarationDocuments/doc-1" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarationDocuments/doc-1, got %s", req.URL.Path)
+		}
+		var payload AppEncryptionDeclarationDocumentUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppEncryptionDeclarationDocuments || payload.Data.ID != "doc-1" {
+			t.Fatalf("unexpected payload: %+v", payload.Data)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.Uploaded == nil || !*payload.Data.Attributes.Uploaded {
+			t.Fatalf("expected uploaded true, got %+v", payload.Data.Attributes)
+		}
+		if payload.Data.Attributes.SourceFileChecksum == nil || *payload.Data.Attributes.SourceFileChecksum != "abcd1234" {
+			t.Fatalf("expected checksum abcd1234, got %+v", payload.Data.Attributes.SourceFileChecksum)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	uploaded := true
+	checksum := "abcd1234"
+	attrs := AppEncryptionDeclarationDocumentUpdateAttributes{
+		SourceFileChecksum: &checksum,
+		Uploaded:           &uploaded,
+	}
+	if _, err := client.UpdateAppEncryptionDeclarationDocument(context.Background(), "doc-1", attrs); err != nil {
+		t.Fatalf("UpdateAppEncryptionDeclarationDocument() error: %v", err)
 	}
 }
 

@@ -68,6 +68,18 @@ type buildsQuery struct {
 	preReleaseVersionID string
 }
 
+type buildBundlesQuery struct {
+	limit int
+}
+
+type buildBundleFileSizesQuery struct {
+	listQuery
+}
+
+type betaAppClipInvocationsQuery struct {
+	listQuery
+}
+
 type subscriptionOfferCodeOneTimeUseCodesQuery struct {
 	listQuery
 }
@@ -175,6 +187,10 @@ type territoriesQuery struct {
 	fields []string
 }
 
+type territoryAvailabilitiesQuery struct {
+	listQuery
+}
+
 type linkagesQuery struct {
 	listQuery
 }
@@ -196,6 +212,16 @@ type appStoreReviewAttachmentsQuery struct {
 	fieldsAttachments   []string
 	fieldsReviewDetails []string
 	include             []string
+}
+
+type appEncryptionDeclarationsQuery struct {
+	listQuery
+	appID          string
+	buildIDs       []string
+	fields         []string
+	documentFields []string
+	include        []string
+	buildLimit     int
 }
 
 type betaAppReviewDetailsQuery struct {
@@ -431,6 +457,28 @@ func buildAppStoreReviewAttachmentsQuery(query *appStoreReviewAttachmentsQuery) 
 	return values.Encode()
 }
 
+func buildAppEncryptionDeclarationsQuery(query *appEncryptionDeclarationsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[app]", strings.TrimSpace(query.appID))
+	}
+	addCSV(values, "filter[builds]", query.buildIDs)
+	addCSV(values, "fields[appEncryptionDeclarations]", query.fields)
+	addCSV(values, "fields[appEncryptionDeclarationDocuments]", query.documentFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.buildLimit > 0 {
+		values.Set("limit[builds]", strconv.Itoa(query.buildLimit))
+	}
+	return values.Encode()
+}
+
+func buildAppEncryptionDeclarationDocumentFieldsQuery(fields []string) string {
+	values := url.Values{}
+	addCSV(values, "fields[appEncryptionDeclarationDocuments]", fields)
+	return values.Encode()
+}
+
 func buildUserInvitationsQuery(query *userInvitationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -456,6 +504,27 @@ func buildBetaAppReviewSubmissionsQuery(query *betaAppReviewSubmissionsQuery) st
 func buildBuildBetaDetailsQuery(query *buildBetaDetailsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[build]", query.buildIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBuildBundlesQuery(query *buildBundlesQuery) string {
+	values := url.Values{}
+	values.Set("include", "buildBundles")
+	if query.limit > 0 {
+		values.Set("limit[buildBundles]", strconv.Itoa(query.limit))
+	}
+	return values.Encode()
+}
+
+func buildBuildBundleFileSizesQuery(query *buildBundleFileSizesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBetaAppClipInvocationsQuery(query *betaAppClipInvocationsQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

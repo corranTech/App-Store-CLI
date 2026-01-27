@@ -20,6 +20,15 @@ type AppTagsOption func(*appTagsQuery)
 // BuildsOption is a functional option for GetBuilds.
 type BuildsOption func(*buildsQuery)
 
+// BuildBundlesOption is a functional option for GetBuildBundlesForBuild.
+type BuildBundlesOption func(*buildBundlesQuery)
+
+// BuildBundleFileSizesOption is a functional option for GetBuildBundleFileSizes.
+type BuildBundleFileSizesOption func(*buildBundleFileSizesQuery)
+
+// BetaAppClipInvocationsOption is a functional option for GetBuildBundleBetaAppClipInvocations.
+type BetaAppClipInvocationsOption func(*betaAppClipInvocationsQuery)
+
 // SubscriptionOfferCodeOneTimeUseCodesOption is a functional option for GetSubscriptionOfferCodeOneTimeUseCodes.
 type SubscriptionOfferCodeOneTimeUseCodesOption func(*subscriptionOfferCodeOneTimeUseCodesQuery)
 
@@ -92,6 +101,9 @@ type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
 
+// TerritoryAvailabilitiesOption is a functional option for GetTerritoryAvailabilities.
+type TerritoryAvailabilitiesOption func(*territoryAvailabilitiesQuery)
+
 // LinkagesOption is a functional option for linkages endpoints.
 type LinkagesOption func(*linkagesQuery)
 
@@ -103,6 +115,9 @@ type AccessibilityDeclarationsOption func(*accessibilityDeclarationsQuery)
 
 // AppStoreReviewAttachmentsOption is a functional option for review attachments.
 type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
+
+// AppEncryptionDeclarationsOption is a functional option for encryption declarations.
+type AppEncryptionDeclarationsOption func(*appEncryptionDeclarationsQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -341,6 +356,61 @@ func WithAppStoreReviewAttachmentsNextURL(next string) AppStoreReviewAttachments
 	}
 }
 
+// WithAppEncryptionDeclarationsBuildIDs filters declarations by build IDs.
+func WithAppEncryptionDeclarationsBuildIDs(ids []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.buildIDs = normalizeList(ids)
+	}
+}
+
+// WithAppEncryptionDeclarationsFields includes specific declaration fields.
+func WithAppEncryptionDeclarationsFields(fields []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAppEncryptionDeclarationsDocumentFields includes document fields when included.
+func WithAppEncryptionDeclarationsDocumentFields(fields []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.documentFields = normalizeList(fields)
+	}
+}
+
+// WithAppEncryptionDeclarationsInclude includes related resources.
+func WithAppEncryptionDeclarationsInclude(include []string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppEncryptionDeclarationsLimit sets the max number of declarations to return.
+func WithAppEncryptionDeclarationsLimit(limit int) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppEncryptionDeclarationsBuildLimit sets the max number of related builds when included.
+func WithAppEncryptionDeclarationsBuildLimit(limit int) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		if limit > 0 {
+			q.buildLimit = limit
+		}
+	}
+}
+
+// WithAppEncryptionDeclarationsNextURL uses a next page URL directly.
+func WithAppEncryptionDeclarationsNextURL(next string) AppEncryptionDeclarationsOption {
+	return func(q *appEncryptionDeclarationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithCrashNextURL uses a next page URL directly.
 func WithCrashNextURL(next string) CrashOption {
 	return func(q *crashQuery) {
@@ -548,6 +618,51 @@ func WithBuildsPreReleaseVersion(preReleaseVersionID string) BuildsOption {
 	return func(q *buildsQuery) {
 		if strings.TrimSpace(preReleaseVersionID) != "" {
 			q.preReleaseVersionID = strings.TrimSpace(preReleaseVersionID)
+		}
+	}
+}
+
+// WithBuildBundlesLimit sets the max number of included build bundles to return.
+func WithBuildBundlesLimit(limit int) BuildBundlesOption {
+	return func(q *buildBundlesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBuildBundleFileSizesLimit sets the max number of file size items to return.
+func WithBuildBundleFileSizesLimit(limit int) BuildBundleFileSizesOption {
+	return func(q *buildBundleFileSizesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBuildBundleFileSizesNextURL uses a next page URL directly.
+func WithBuildBundleFileSizesNextURL(next string) BuildBundleFileSizesOption {
+	return func(q *buildBundleFileSizesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaAppClipInvocationsLimit sets the max number of App Clip invocations to return.
+func WithBetaAppClipInvocationsLimit(limit int) BetaAppClipInvocationsOption {
+	return func(q *betaAppClipInvocationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaAppClipInvocationsNextURL uses a next page URL directly.
+func WithBetaAppClipInvocationsNextURL(next string) BetaAppClipInvocationsOption {
+	return func(q *betaAppClipInvocationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -1239,6 +1354,24 @@ func WithTerritoriesNextURL(next string) TerritoriesOption {
 func WithTerritoriesFields(fields []string) TerritoriesOption {
 	return func(q *territoriesQuery) {
 		q.fields = normalizeList(fields)
+	}
+}
+
+// WithTerritoryAvailabilitiesLimit sets the max number of territory availabilities to return.
+func WithTerritoryAvailabilitiesLimit(limit int) TerritoryAvailabilitiesOption {
+	return func(q *territoryAvailabilitiesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithTerritoryAvailabilitiesNextURL uses a next page URL directly.
+func WithTerritoryAvailabilitiesNextURL(next string) TerritoryAvailabilitiesOption {
+	return func(q *territoryAvailabilitiesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 

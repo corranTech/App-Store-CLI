@@ -72,10 +72,16 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &InAppPurchasesV2Response{Links: Links{}}
 	case *TerritoriesResponse:
 		result = &TerritoriesResponse{Links: Links{}}
+	case *TerritoryAvailabilitiesResponse:
+		result = &TerritoryAvailabilitiesResponse{Links: Links{}}
 	case *AppPricePointsV3Response:
 		result = &AppPricePointsV3Response{Links: Links{}}
 	case *BuildsResponse:
 		result = &BuildsResponse{Links: Links{}}
+	case *BuildBundleFileSizesResponse:
+		result = &BuildBundleFileSizesResponse{Links: Links{}}
+	case *BetaAppClipInvocationsResponse:
+		result = &BetaAppClipInvocationsResponse{Links: Links{}}
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		result = &SubscriptionOfferCodeOneTimeUseCodesResponse{Links: Links{}}
 	case *AppStoreVersionsResponse:
@@ -88,6 +94,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &PreReleaseVersionsResponse{Links: Links{}}
 	case *AccessibilityDeclarationsResponse:
 		result = &AccessibilityDeclarationsResponse{Links: Links{}}
+	case *AppEncryptionDeclarationsResponse:
+		result = &AppEncryptionDeclarationsResponse{Links: Links{}}
 	case *AppStoreReviewAttachmentsResponse:
 		result = &AppStoreReviewAttachmentsResponse{Links: Links{}}
 	case *AppStoreVersionLocalizationsResponse:
@@ -130,6 +138,14 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &ScmGitReferencesResponse{Links: Links{}}
 	case *CiBuildRunsResponse:
 		result = &CiBuildRunsResponse{Links: Links{}}
+	case *CiBuildActionsResponse:
+		result = &CiBuildActionsResponse{Links: Links{}}
+	case *CiArtifactsResponse:
+		result = &CiArtifactsResponse{Links: Links{}}
+	case *CiTestResultsResponse:
+		result = &CiTestResultsResponse{Links: Links{}}
+	case *CiIssuesResponse:
+		result = &CiIssuesResponse{Links: Links{}}
 	default:
 		return nil, fmt.Errorf("unsupported response type for pagination")
 	}
@@ -223,10 +239,16 @@ func typeOf(p PaginatedResponse) string {
 		return "InAppPurchasesV2Response"
 	case *TerritoriesResponse:
 		return "TerritoriesResponse"
+	case *TerritoryAvailabilitiesResponse:
+		return "TerritoryAvailabilitiesResponse"
 	case *AppPricePointsV3Response:
 		return "AppPricePointsV3Response"
 	case *BuildsResponse:
 		return "BuildsResponse"
+	case *BuildBundleFileSizesResponse:
+		return "BuildBundleFileSizesResponse"
+	case *BetaAppClipInvocationsResponse:
+		return "BetaAppClipInvocationsResponse"
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return "SubscriptionOfferCodeOneTimeUseCodesResponse"
 	case *AppStoreVersionsResponse:
@@ -239,6 +261,8 @@ func typeOf(p PaginatedResponse) string {
 		return "PreReleaseVersionsResponse"
 	case *AccessibilityDeclarationsResponse:
 		return "AccessibilityDeclarationsResponse"
+	case *AppEncryptionDeclarationsResponse:
+		return "AppEncryptionDeclarationsResponse"
 	case *AppStoreReviewAttachmentsResponse:
 		return "AppStoreReviewAttachmentsResponse"
 	case *AppStoreVersionLocalizationsResponse:
