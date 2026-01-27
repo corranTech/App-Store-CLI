@@ -275,16 +275,21 @@ Examples:
 	}
 }
 
+func xcodeCloudWorkflowsListFlags(fs *flag.FlagSet) (appID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
+	appID = fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next = fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output = fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
+	return
+}
+
 // XcodeCloudWorkflowsCommand returns the xcode-cloud workflows subcommand.
 func XcodeCloudWorkflowsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("workflows", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	appID, limit, next, paginate, output, pretty := xcodeCloudWorkflowsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "workflows",
@@ -318,12 +323,7 @@ Examples:
 func XcodeCloudWorkflowsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	appID, limit, next, paginate, output, pretty := xcodeCloudWorkflowsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -639,16 +639,21 @@ func xcodeCloudWorkflowsList(ctx context.Context, appID string, limit int, next 
 	return printOutput(resp, output, pretty)
 }
 
+func xcodeCloudBuildRunsListFlags(fs *flag.FlagSet) (workflowID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
+	workflowID = fs.String("workflow-id", "", "Workflow ID to list build runs for")
+	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next = fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output = fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
+	return
+}
+
 // XcodeCloudBuildRunsCommand returns the xcode-cloud build-runs subcommand.
 func XcodeCloudBuildRunsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("build-runs", flag.ExitOnError)
 
-	workflowID := fs.String("workflow-id", "", "Workflow ID to list build runs for")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	workflowID, limit, next, paginate, output, pretty := xcodeCloudBuildRunsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "build-runs",
@@ -677,12 +682,7 @@ Examples:
 func XcodeCloudBuildRunsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	workflowID := fs.String("workflow-id", "", "Workflow ID to list build runs for")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	workflowID, limit, next, paginate, output, pretty := xcodeCloudBuildRunsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -831,16 +831,21 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, 
 	return printOutput(resp, output, pretty)
 }
 
+func xcodeCloudActionsListFlags(fs *flag.FlagSet) (runID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
+	runID = fs.String("run-id", "", "Build run ID to get actions for (required)")
+	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next = fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output = fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
+	return
+}
+
 // XcodeCloudActionsCommand returns the xcode-cloud actions subcommand.
 func XcodeCloudActionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("actions", flag.ExitOnError)
 
-	runID := fs.String("run-id", "", "Build run ID to get actions for (required)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	runID, limit, next, paginate, output, pretty := xcodeCloudActionsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "actions",
@@ -875,12 +880,7 @@ Examples:
 func XcodeCloudActionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	runID := fs.String("run-id", "", "Build run ID to get actions for (required)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	runID, limit, next, paginate, output, pretty := xcodeCloudActionsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
