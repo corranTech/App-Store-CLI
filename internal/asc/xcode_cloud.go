@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,8 @@ const (
 	ResourceTypeCiArtifacts      ResourceType = "ciArtifacts"
 	ResourceTypeCiTestResults    ResourceType = "ciTestResults"
 	ResourceTypeCiIssues         ResourceType = "ciIssues"
+	ResourceTypeCiMacOsVersions  ResourceType = "ciMacOsVersions"
+	ResourceTypeCiXcodeVersions  ResourceType = "ciXcodeVersions"
 	ResourceTypeScmRepositories  ResourceType = "scmRepositories"
 	ResourceTypeScmGitReferences ResourceType = "scmGitReferences"
 )
@@ -236,6 +239,16 @@ type ScmRepositoriesResponse struct {
 	Links Links                   `json:"links,omitempty"`
 }
 
+// GetLinks returns the links field for pagination.
+func (r *ScmRepositoriesResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *ScmRepositoriesResponse) GetData() interface{} {
+	return r.Data
+}
+
 // ScmGitReferenceAttributes describes an SCM git reference resource.
 type ScmGitReferenceAttributes struct {
 	Name          string `json:"name,omitempty"`
@@ -327,6 +340,14 @@ const (
 	CiTestStatusMixed           CiTestStatus = "MIXED"
 	CiTestStatusSkipped         CiTestStatus = "SKIPPED"
 	CiTestStatusExpectedFailure CiTestStatus = "EXPECTED_FAILURE"
+)
+
+// CiTestDestinationKind represents the kind of test destination.
+type CiTestDestinationKind string
+
+const (
+	CiTestDestinationKindSimulator CiTestDestinationKind = "SIMULATOR"
+	CiTestDestinationKindMac       CiTestDestinationKind = "MAC"
 )
 
 // CiBuildRunRelationships describes relationships for a CI build run.
@@ -571,6 +592,120 @@ func (c *Client) GetCiProduct(ctx context.Context, productID string) (*CiProduct
 	return &response, nil
 }
 
+// GetCiProductApp retrieves the app for a CI product.
+func (c *Client) GetCiProductApp(ctx context.Context, productID string) (*AppResponse, error) {
+	path := fmt.Sprintf("/v1/ciProducts/%s/app", productID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiProductBuildRuns retrieves build runs for a CI product.
+func (c *Client) GetCiProductBuildRuns(ctx context.Context, productID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
+	query := &ciBuildRunsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/ciProducts/%s/buildRuns", productID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciProductBuildRuns: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiBuildRunsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiBuildRunsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiProductPrimaryRepositories retrieves primary repositories for a CI product.
+func (c *Client) GetCiProductPrimaryRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
+	query := &ciProductRepositoriesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/ciProducts/%s/primaryRepositories", productID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciProductPrimaryRepositories: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiProductRepositoriesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response ScmRepositoriesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiProductAdditionalRepositories retrieves additional repositories for a CI product.
+func (c *Client) GetCiProductAdditionalRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
+	query := &ciProductRepositoriesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/ciProducts/%s/additionalRepositories", productID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciProductAdditionalRepositories: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiProductRepositoriesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response ScmRepositoriesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteCiProduct deletes a CI product by ID.
+func (c *Client) DeleteCiProduct(ctx context.Context, productID string) error {
+	productID = strings.TrimSpace(productID)
+	path := fmt.Sprintf("/v1/ciProducts/%s", productID)
+	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
+}
+
 // GetCiWorkflows retrieves CI workflows for a product.
 func (c *Client) GetCiWorkflows(ctx context.Context, productID string, opts ...CiWorkflowsOption) (*CiWorkflowsResponse, error) {
 	query := &ciWorkflowsQuery{}
@@ -615,6 +750,51 @@ func (c *Client) GetCiWorkflow(ctx context.Context, workflowID string) (*CiWorkf
 	}
 
 	return &response, nil
+}
+
+// CreateCiWorkflow creates a CI workflow from a JSON payload.
+func (c *Client) CreateCiWorkflow(ctx context.Context, payload json.RawMessage) (*CiWorkflowResponse, error) {
+	if len(bytes.TrimSpace(payload)) == 0 {
+		return nil, fmt.Errorf("empty workflow payload")
+	}
+	data, err := c.do(ctx, "POST", "/v1/ciWorkflows", bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiWorkflowResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateCiWorkflow updates a CI workflow using a JSON payload.
+func (c *Client) UpdateCiWorkflow(ctx context.Context, workflowID string, payload json.RawMessage) (*CiWorkflowResponse, error) {
+	if len(bytes.TrimSpace(payload)) == 0 {
+		return nil, fmt.Errorf("empty workflow payload")
+	}
+	path := fmt.Sprintf("/v1/ciWorkflows/%s", workflowID)
+	data, err := c.do(ctx, "PATCH", path, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiWorkflowResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteCiWorkflow deletes a CI workflow by ID.
+func (c *Client) DeleteCiWorkflow(ctx context.Context, workflowID string) error {
+	workflowID = strings.TrimSpace(workflowID)
+	path := fmt.Sprintf("/v1/ciWorkflows/%s", workflowID)
+	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
 }
 
 // GetCiWorkflowRepository retrieves the repository for a CI workflow.
@@ -683,6 +863,158 @@ func (c *Client) GetScmGitReferences(ctx context.Context, repositoryID string, o
 	return &response, nil
 }
 
+// GetCiMacOsVersions retrieves the list of CI macOS versions.
+func (c *Client) GetCiMacOsVersions(ctx context.Context, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
+	query := &ciMacOsVersionsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := "/v1/ciMacOsVersions"
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciMacOsVersions: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiMacOsVersionsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiMacOsVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiMacOsVersion retrieves a CI macOS version by ID.
+func (c *Client) GetCiMacOsVersion(ctx context.Context, macOsVersionID string) (*CiMacOsVersionResponse, error) {
+	path := fmt.Sprintf("/v1/ciMacOsVersions/%s", macOsVersionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiMacOsVersionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiMacOsVersionXcodeVersions retrieves Xcode versions for a macOS version.
+func (c *Client) GetCiMacOsVersionXcodeVersions(ctx context.Context, macOsVersionID string, opts ...CiXcodeVersionsOption) (*CiXcodeVersionsResponse, error) {
+	query := &ciXcodeVersionsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/ciMacOsVersions/%s/xcodeVersions", macOsVersionID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciMacOsVersionXcodeVersions: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiXcodeVersionsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiXcodeVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiXcodeVersions retrieves the list of CI Xcode versions.
+func (c *Client) GetCiXcodeVersions(ctx context.Context, opts ...CiXcodeVersionsOption) (*CiXcodeVersionsResponse, error) {
+	query := &ciXcodeVersionsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := "/v1/ciXcodeVersions"
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciXcodeVersions: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiXcodeVersionsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiXcodeVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiXcodeVersion retrieves a CI Xcode version by ID.
+func (c *Client) GetCiXcodeVersion(ctx context.Context, xcodeVersionID string) (*CiXcodeVersionResponse, error) {
+	path := fmt.Sprintf("/v1/ciXcodeVersions/%s", xcodeVersionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiXcodeVersionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiXcodeVersionMacOsVersions retrieves macOS versions for an Xcode version.
+func (c *Client) GetCiXcodeVersionMacOsVersions(ctx context.Context, xcodeVersionID string, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
+	query := &ciMacOsVersionsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/ciXcodeVersions/%s/macOsVersions", xcodeVersionID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciXcodeVersionMacOsVersions: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiMacOsVersionsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiMacOsVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetCiBuildRuns retrieves build runs for a workflow.
 func (c *Client) GetCiBuildRuns(ctx context.Context, workflowID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
 	query := &ciBuildRunsQuery{}
@@ -722,6 +1054,36 @@ func (c *Client) GetCiBuildRun(ctx context.Context, buildRunID string) (*CiBuild
 	}
 
 	var response CiBuildRunResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiBuildRunBuilds retrieves builds for a CI build run.
+func (c *Client) GetCiBuildRunBuilds(ctx context.Context, buildRunID string, opts ...CiBuildRunBuildsOption) (*BuildsResponse, error) {
+	query := &ciBuildRunBuildsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/ciBuildRuns/%s/builds", buildRunID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("ciBuildRunBuilds: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildCiBuildRunBuildsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildsResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -968,6 +1330,12 @@ func (r *CiBuildActionsResponse) GetData() interface{} {
 	return r.Data
 }
 
+// CiBuildActionResponse is the response from CI build action detail endpoints.
+type CiBuildActionResponse struct {
+	Data  CiBuildActionResource `json:"data"`
+	Links Links                 `json:"links,omitempty"`
+}
+
 // CiArtifactAttributes describes a CI artifact resource.
 type CiArtifactAttributes struct {
 	FileType    string `json:"fileType,omitempty"`
@@ -1088,6 +1456,231 @@ func (r *CiIssuesResponse) GetData() interface{} {
 type CiIssueResponse struct {
 	Data  CiIssueResource `json:"data"`
 	Links Links           `json:"links,omitempty"`
+}
+
+// CiMacOsVersionAttributes describes a CI macOS version resource.
+type CiMacOsVersionAttributes struct {
+	Version string `json:"version,omitempty"`
+	Name    string `json:"name,omitempty"`
+}
+
+// CiMacOsVersionRelationships describes relationships for a CI macOS version.
+type CiMacOsVersionRelationships struct {
+	XcodeVersions *RelationshipList `json:"xcodeVersions,omitempty"`
+}
+
+// CiMacOsVersionResource represents a CI macOS version resource.
+type CiMacOsVersionResource struct {
+	Type          ResourceType                 `json:"type"`
+	ID            string                       `json:"id"`
+	Attributes    CiMacOsVersionAttributes     `json:"attributes,omitempty"`
+	Relationships *CiMacOsVersionRelationships `json:"relationships,omitempty"`
+}
+
+// CiMacOsVersionsResponse is the response from CI macOS versions endpoints.
+type CiMacOsVersionsResponse struct {
+	Data     []CiMacOsVersionResource `json:"data"`
+	Included []CiXcodeVersionResource `json:"included,omitempty"`
+	Links    Links                    `json:"links,omitempty"`
+}
+
+// GetLinks returns the links field for pagination.
+func (r *CiMacOsVersionsResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *CiMacOsVersionsResponse) GetData() interface{} {
+	return r.Data
+}
+
+// CiMacOsVersionResponse is the response from CI macOS version detail endpoints.
+type CiMacOsVersionResponse struct {
+	Data     CiMacOsVersionResource   `json:"data"`
+	Included []CiXcodeVersionResource `json:"included,omitempty"`
+	Links    Links                    `json:"links,omitempty"`
+}
+
+// CiTestDestinationRuntime describes an available runtime for a test destination.
+type CiTestDestinationRuntime struct {
+	RuntimeName       string `json:"runtimeName,omitempty"`
+	RuntimeIdentifier string `json:"runtimeIdentifier,omitempty"`
+}
+
+// CiTestDestination describes a test destination for an Xcode version.
+type CiTestDestination struct {
+	DeviceTypeName       string                     `json:"deviceTypeName,omitempty"`
+	DeviceTypeIdentifier string                     `json:"deviceTypeIdentifier,omitempty"`
+	AvailableRuntimes    []CiTestDestinationRuntime `json:"availableRuntimes,omitempty"`
+	Kind                 CiTestDestinationKind      `json:"kind,omitempty"`
+}
+
+// CiXcodeVersionAttributes describes a CI Xcode version resource.
+type CiXcodeVersionAttributes struct {
+	Version          string              `json:"version,omitempty"`
+	Name             string              `json:"name,omitempty"`
+	TestDestinations []CiTestDestination `json:"testDestinations,omitempty"`
+}
+
+// CiXcodeVersionRelationships describes relationships for a CI Xcode version.
+type CiXcodeVersionRelationships struct {
+	MacOsVersions *RelationshipList `json:"macOsVersions,omitempty"`
+}
+
+// CiXcodeVersionResource represents a CI Xcode version resource.
+type CiXcodeVersionResource struct {
+	Type          ResourceType                 `json:"type"`
+	ID            string                       `json:"id"`
+	Attributes    CiXcodeVersionAttributes     `json:"attributes,omitempty"`
+	Relationships *CiXcodeVersionRelationships `json:"relationships,omitempty"`
+}
+
+// CiXcodeVersionsResponse is the response from CI Xcode versions endpoints.
+type CiXcodeVersionsResponse struct {
+	Data     []CiXcodeVersionResource `json:"data"`
+	Included []CiMacOsVersionResource `json:"included,omitempty"`
+	Links    Links                    `json:"links,omitempty"`
+}
+
+// GetLinks returns the links field for pagination.
+func (r *CiXcodeVersionsResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *CiXcodeVersionsResponse) GetData() interface{} {
+	return r.Data
+}
+
+// CiXcodeVersionResponse is the response from CI Xcode version detail endpoints.
+type CiXcodeVersionResponse struct {
+	Data     CiXcodeVersionResource   `json:"data"`
+	Included []CiMacOsVersionResource `json:"included,omitempty"`
+	Links    Links                    `json:"links,omitempty"`
+}
+
+type ciMacOsVersionsQuery struct {
+	listQuery
+}
+
+// CiMacOsVersionsOption is a functional option for GetCiMacOsVersions.
+type CiMacOsVersionsOption func(*ciMacOsVersionsQuery)
+
+// WithCiMacOsVersionsLimit sets the max number of macOS versions to return.
+func WithCiMacOsVersionsLimit(limit int) CiMacOsVersionsOption {
+	return func(q *ciMacOsVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithCiMacOsVersionsNextURL uses a next page URL directly.
+func WithCiMacOsVersionsNextURL(next string) CiMacOsVersionsOption {
+	return func(q *ciMacOsVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+func buildCiMacOsVersionsQuery(query *ciMacOsVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+type ciXcodeVersionsQuery struct {
+	listQuery
+}
+
+// CiXcodeVersionsOption is a functional option for GetCiXcodeVersions.
+type CiXcodeVersionsOption func(*ciXcodeVersionsQuery)
+
+// WithCiXcodeVersionsLimit sets the max number of Xcode versions to return.
+func WithCiXcodeVersionsLimit(limit int) CiXcodeVersionsOption {
+	return func(q *ciXcodeVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithCiXcodeVersionsNextURL uses a next page URL directly.
+func WithCiXcodeVersionsNextURL(next string) CiXcodeVersionsOption {
+	return func(q *ciXcodeVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+type ciProductRepositoriesQuery struct {
+	listQuery
+}
+
+// CiProductRepositoriesOption is a functional option for CI product repository lists.
+type CiProductRepositoriesOption func(*ciProductRepositoriesQuery)
+
+// WithCiProductRepositoriesLimit sets the max number of repositories to return.
+func WithCiProductRepositoriesLimit(limit int) CiProductRepositoriesOption {
+	return func(q *ciProductRepositoriesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithCiProductRepositoriesNextURL uses a next page URL directly.
+func WithCiProductRepositoriesNextURL(next string) CiProductRepositoriesOption {
+	return func(q *ciProductRepositoriesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+type ciBuildRunBuildsQuery struct {
+	listQuery
+}
+
+// CiBuildRunBuildsOption is a functional option for GetCiBuildRunBuilds.
+type CiBuildRunBuildsOption func(*ciBuildRunBuildsQuery)
+
+// WithCiBuildRunBuildsLimit sets the max number of builds to return.
+func WithCiBuildRunBuildsLimit(limit int) CiBuildRunBuildsOption {
+	return func(q *ciBuildRunBuildsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithCiBuildRunBuildsNextURL uses a next page URL directly.
+func WithCiBuildRunBuildsNextURL(next string) CiBuildRunBuildsOption {
+	return func(q *ciBuildRunBuildsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+func buildCiBuildRunBuildsQuery(query *ciBuildRunBuildsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }
 
 type ciBuildActionsQuery struct {
@@ -1237,6 +1830,38 @@ func (c *Client) GetCiBuildActions(ctx context.Context, buildRunID string, opts 
 	}
 
 	var response CiBuildActionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiBuildAction retrieves a build action by ID.
+func (c *Client) GetCiBuildAction(ctx context.Context, buildActionID string) (*CiBuildActionResponse, error) {
+	path := fmt.Sprintf("/v1/ciBuildActions/%s", buildActionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiBuildActionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCiBuildActionBuildRun retrieves the build run for a build action.
+func (c *Client) GetCiBuildActionBuildRun(ctx context.Context, buildActionID string) (*CiBuildRunResponse, error) {
+	path := fmt.Sprintf("/v1/ciBuildActions/%s/buildRun", buildActionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiBuildRunResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

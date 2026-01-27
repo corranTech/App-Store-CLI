@@ -1591,3 +1591,147 @@ func TestPaginateAll_CiIssues_ManyPages(t *testing.T) {
 		t.Fatalf("expected next link to be cleared, got %q", issues.Links.Next)
 	}
 }
+
+func TestPaginateAll_ScmRepositories_ManyPages(t *testing.T) {
+	const totalPages = 3
+	const perPage = 2
+
+	makePage := func(page int) *ScmRepositoriesResponse {
+		data := make([]ScmRepositoryResource, 0, perPage)
+		for i := 0; i < perPage; i++ {
+			data = append(data, ScmRepositoryResource{
+				Type: ResourceTypeScmRepositories,
+				ID:   fmt.Sprintf("repo-%d-%d", page, i),
+			})
+		}
+		links := Links{}
+		if page < totalPages {
+			links.Next = fmt.Sprintf("page=%d", page+1)
+		}
+		return &ScmRepositoriesResponse{
+			Data:  data,
+			Links: links,
+		}
+	}
+
+	firstPage := makePage(1)
+	response, err := PaginateAll(context.Background(), firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
+		pageStr := strings.TrimPrefix(nextURL, "page=")
+		page, err := strconv.Atoi(pageStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid next URL %q", nextURL)
+		}
+		return makePage(page), nil
+	})
+	if err != nil {
+		t.Fatalf("PaginateAll() error: %v", err)
+	}
+
+	repos, ok := response.(*ScmRepositoriesResponse)
+	if !ok {
+		t.Fatalf("expected ScmRepositoriesResponse, got %T", response)
+	}
+	expected := totalPages * perPage
+	if len(repos.Data) != expected {
+		t.Fatalf("expected %d repositories, got %d", expected, len(repos.Data))
+	}
+	if repos.Links.Next != "" {
+		t.Fatalf("expected next link to be cleared, got %q", repos.Links.Next)
+	}
+}
+
+func TestPaginateAll_CiMacOsVersions_ManyPages(t *testing.T) {
+	const totalPages = 4
+	const perPage = 2
+
+	makePage := func(page int) *CiMacOsVersionsResponse {
+		data := make([]CiMacOsVersionResource, 0, perPage)
+		for i := 0; i < perPage; i++ {
+			data = append(data, CiMacOsVersionResource{
+				Type: ResourceTypeCiMacOsVersions,
+				ID:   fmt.Sprintf("macos-%d-%d", page, i),
+			})
+		}
+		links := Links{}
+		if page < totalPages {
+			links.Next = fmt.Sprintf("page=%d", page+1)
+		}
+		return &CiMacOsVersionsResponse{
+			Data:  data,
+			Links: links,
+		}
+	}
+
+	firstPage := makePage(1)
+	response, err := PaginateAll(context.Background(), firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
+		pageStr := strings.TrimPrefix(nextURL, "page=")
+		page, err := strconv.Atoi(pageStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid next URL %q", nextURL)
+		}
+		return makePage(page), nil
+	})
+	if err != nil {
+		t.Fatalf("PaginateAll() error: %v", err)
+	}
+
+	versions, ok := response.(*CiMacOsVersionsResponse)
+	if !ok {
+		t.Fatalf("expected CiMacOsVersionsResponse, got %T", response)
+	}
+	expected := totalPages * perPage
+	if len(versions.Data) != expected {
+		t.Fatalf("expected %d macOS versions, got %d", expected, len(versions.Data))
+	}
+	if versions.Links.Next != "" {
+		t.Fatalf("expected next link to be cleared, got %q", versions.Links.Next)
+	}
+}
+
+func TestPaginateAll_CiXcodeVersions_ManyPages(t *testing.T) {
+	const totalPages = 3
+	const perPage = 3
+
+	makePage := func(page int) *CiXcodeVersionsResponse {
+		data := make([]CiXcodeVersionResource, 0, perPage)
+		for i := 0; i < perPage; i++ {
+			data = append(data, CiXcodeVersionResource{
+				Type: ResourceTypeCiXcodeVersions,
+				ID:   fmt.Sprintf("xcode-%d-%d", page, i),
+			})
+		}
+		links := Links{}
+		if page < totalPages {
+			links.Next = fmt.Sprintf("page=%d", page+1)
+		}
+		return &CiXcodeVersionsResponse{
+			Data:  data,
+			Links: links,
+		}
+	}
+
+	firstPage := makePage(1)
+	response, err := PaginateAll(context.Background(), firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
+		pageStr := strings.TrimPrefix(nextURL, "page=")
+		page, err := strconv.Atoi(pageStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid next URL %q", nextURL)
+		}
+		return makePage(page), nil
+	})
+	if err != nil {
+		t.Fatalf("PaginateAll() error: %v", err)
+	}
+
+	versions, ok := response.(*CiXcodeVersionsResponse)
+	if !ok {
+		t.Fatalf("expected CiXcodeVersionsResponse, got %T", response)
+	}
+	expected := totalPages * perPage
+	if len(versions.Data) != expected {
+		t.Fatalf("expected %d Xcode versions, got %d", expected, len(versions.Data))
+	}
+	if versions.Links.Next != "" {
+		t.Fatalf("expected next link to be cleared, got %q", versions.Links.Next)
+	}
+}

@@ -42,12 +42,15 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			XcodeCloudRunCommand(),
 			XcodeCloudStatusCommand(),
+			XcodeCloudProductsCommand(),
 			XcodeCloudWorkflowsCommand(),
 			XcodeCloudBuildRunsCommand(),
 			XcodeCloudActionsCommand(),
 			XcodeCloudArtifactsCommand(),
 			XcodeCloudTestResultsCommand(),
 			XcodeCloudIssuesCommand(),
+			XcodeCloudMacOSVersionsCommand(),
+			XcodeCloudXcodeVersionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -286,77 +289,354 @@ func XcodeCloudWorkflowsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "workflows",
 		ShortUsage: "asc xcode-cloud workflows [flags]",
-		ShortHelp:  "List Xcode Cloud workflows for an app.",
-		LongHelp: `List Xcode Cloud workflows for an app.
+		ShortHelp:  "Manage Xcode Cloud workflows.",
+		LongHelp: `Manage Xcode Cloud workflows.
 
 Examples:
   asc xcode-cloud workflows --app "APP_ID"
+  asc xcode-cloud workflows list --app "APP_ID"
+  asc xcode-cloud workflows get --id "WORKFLOW_ID"
+  asc xcode-cloud workflows repository --id "WORKFLOW_ID"
   asc xcode-cloud workflows --app "APP_ID" --limit 50
   asc xcode-cloud workflows --app "APP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			XcodeCloudWorkflowsListCommand(),
+			XcodeCloudWorkflowsGetCommand(),
+			XcodeCloudWorkflowsRepositoryCommand(),
+			XcodeCloudWorkflowsCreateCommand(),
+			XcodeCloudWorkflowsUpdateCommand(),
+			XcodeCloudWorkflowsDeleteCommand(),
+		},
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("xcode-cloud workflows: --limit must be between 1 and 200")
-			}
-			nextURL := strings.TrimSpace(*next)
-			if err := validateNextURL(nextURL); err != nil {
-				return fmt.Errorf("xcode-cloud workflows: %w", err)
-			}
+			return xcodeCloudWorkflowsList(ctx, *appID, *limit, *next, *paginate, *output, *pretty)
+		},
+	}
+}
 
-			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+func XcodeCloudWorkflowsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc xcode-cloud workflows list [flags]",
+		ShortHelp:  "List Xcode Cloud workflows for an app.",
+		LongHelp: `List Xcode Cloud workflows for an app.
+
+Examples:
+  asc xcode-cloud workflows list --app "APP_ID"
+  asc xcode-cloud workflows list --app "APP_ID" --limit 50
+  asc xcode-cloud workflows list --app "APP_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			return xcodeCloudWorkflowsList(ctx, *appID, *limit, *next, *paginate, *output, *pretty)
+		},
+	}
+}
+
+func XcodeCloudWorkflowsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Workflow ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc xcode-cloud workflows get --id \"WORKFLOW_ID\"",
+		ShortHelp:  "Get details for a workflow.",
+		LongHelp: `Get details for a workflow.
+
+Examples:
+  asc xcode-cloud workflows get --id "WORKFLOW_ID"
+  asc xcode-cloud workflows get --id "WORKFLOW_ID" --output table`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
 			}
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("xcode-cloud workflows: %w", err)
+				return fmt.Errorf("xcode-cloud workflows get: %w", err)
 			}
 
 			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
 			defer cancel()
 
-			productID := ""
-			if nextURL == "" && resolvedAppID != "" {
-				product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud workflows: %w", err)
-				}
-				productID = product.ID
-			}
-
-			opts := []asc.CiWorkflowsOption{
-				asc.WithCiWorkflowsLimit(*limit),
-				asc.WithCiWorkflowsNextURL(nextURL),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithCiWorkflowsLimit(200))
-				firstPage, err := client.GetCiWorkflows(requestCtx, productID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud workflows: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetCiWorkflows(ctx, productID, asc.WithCiWorkflowsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("xcode-cloud workflows: %w", err)
-				}
-
-				return printOutput(resp, *output, *pretty)
-			}
-
-			resp, err := client.GetCiWorkflows(requestCtx, productID, opts...)
+			resp, err := client.GetCiWorkflow(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("xcode-cloud workflows: %w", err)
+				return fmt.Errorf("xcode-cloud workflows get: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
 		},
 	}
+}
+
+func XcodeCloudWorkflowsRepositoryCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("repository", flag.ExitOnError)
+
+	id := fs.String("id", "", "Workflow ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "repository",
+		ShortUsage: "asc xcode-cloud workflows repository --id \"WORKFLOW_ID\"",
+		ShortHelp:  "Get the repository for a workflow.",
+		LongHelp: `Get the repository for a workflow.
+
+Examples:
+  asc xcode-cloud workflows repository --id "WORKFLOW_ID"
+  asc xcode-cloud workflows repository --id "WORKFLOW_ID" --output table`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows repository: %w", err)
+			}
+
+			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			defer cancel()
+
+			repo, err := client.GetCiWorkflowRepository(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows repository: %w", err)
+			}
+
+			resp := &asc.ScmRepositoriesResponse{Data: []asc.ScmRepositoryResource{*repo}}
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+func XcodeCloudWorkflowsCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("create", flag.ExitOnError)
+
+	file := fs.String("file", "", "Path to workflow JSON payload")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc xcode-cloud workflows create --file ./workflow.json",
+		ShortHelp:  "Create a workflow.",
+		LongHelp: `Create a workflow.
+
+Examples:
+  asc xcode-cloud workflows create --file ./workflow.json`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			fileValue := strings.TrimSpace(*file)
+			if fileValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --file is required")
+				return flag.ErrHelp
+			}
+
+			payload, err := readJSONFilePayload(fileValue)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows create: %w", err)
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows create: %w", err)
+			}
+
+			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			defer cancel()
+
+			resp, err := client.CreateCiWorkflow(requestCtx, payload)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows create: failed to create: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+func XcodeCloudWorkflowsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+
+	id := fs.String("id", "", "Workflow ID")
+	file := fs.String("file", "", "Path to workflow JSON payload")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "update",
+		ShortUsage: "asc xcode-cloud workflows update --id \"WORKFLOW_ID\" --file ./workflow.json",
+		ShortHelp:  "Update a workflow.",
+		LongHelp: `Update a workflow.
+
+Examples:
+  asc xcode-cloud workflows update --id "WORKFLOW_ID" --file ./workflow.json`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			fileValue := strings.TrimSpace(*file)
+			if fileValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --file is required")
+				return flag.ErrHelp
+			}
+
+			payload, err := readJSONFilePayload(fileValue)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows update: %w", err)
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows update: %w", err)
+			}
+
+			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			defer cancel()
+
+			resp, err := client.UpdateCiWorkflow(requestCtx, idValue, payload)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows update: failed to update: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+func XcodeCloudWorkflowsDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+
+	id := fs.String("id", "", "Workflow ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc xcode-cloud workflows delete --id \"WORKFLOW_ID\" --confirm",
+		ShortHelp:  "Delete a workflow.",
+		LongHelp: `Delete a workflow.
+
+Examples:
+  asc xcode-cloud workflows delete --id "WORKFLOW_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows delete: %w", err)
+			}
+
+			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			defer cancel()
+
+			if err := client.DeleteCiWorkflow(requestCtx, idValue); err != nil {
+				return fmt.Errorf("xcode-cloud workflows delete: failed to delete: %w", err)
+			}
+
+			result := &asc.CiWorkflowDeleteResult{ID: idValue, Deleted: true}
+			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+func xcodeCloudWorkflowsList(ctx context.Context, appID string, limit int, next string, paginate bool, output string, pretty bool) error {
+	if limit != 0 && (limit < 1 || limit > 200) {
+		return fmt.Errorf("xcode-cloud workflows: --limit must be between 1 and 200")
+	}
+	nextURL := strings.TrimSpace(next)
+	if err := validateNextURL(nextURL); err != nil {
+		return fmt.Errorf("xcode-cloud workflows: %w", err)
+	}
+
+	resolvedAppID := resolveAppID(appID)
+	if resolvedAppID == "" && nextURL == "" {
+		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+		return flag.ErrHelp
+	}
+
+	client, err := getASCClient()
+	if err != nil {
+		return fmt.Errorf("xcode-cloud workflows: %w", err)
+	}
+
+	requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+	defer cancel()
+
+	productID := ""
+	if nextURL == "" && resolvedAppID != "" {
+		product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
+		if err != nil {
+			return fmt.Errorf("xcode-cloud workflows: %w", err)
+		}
+		productID = product.ID
+	}
+
+	opts := []asc.CiWorkflowsOption{
+		asc.WithCiWorkflowsLimit(limit),
+		asc.WithCiWorkflowsNextURL(nextURL),
+	}
+
+	if paginate {
+		paginateOpts := append(opts, asc.WithCiWorkflowsLimit(200))
+		firstPage, err := client.GetCiWorkflows(requestCtx, productID, paginateOpts...)
+		if err != nil {
+			return fmt.Errorf("xcode-cloud workflows: failed to fetch: %w", err)
+		}
+
+		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetCiWorkflows(ctx, productID, asc.WithCiWorkflowsNextURL(nextURL))
+		})
+		if err != nil {
+			return fmt.Errorf("xcode-cloud workflows: %w", err)
+		}
+
+		return printOutput(resp, output, pretty)
+	}
+
+	resp, err := client.GetCiWorkflows(requestCtx, productID, opts...)
+	if err != nil {
+		return fmt.Errorf("xcode-cloud workflows: %w", err)
+	}
+
+	return printOutput(resp, output, pretty)
 }
 
 // XcodeCloudBuildRunsCommand returns the xcode-cloud build-runs subcommand.
@@ -373,67 +653,182 @@ func XcodeCloudBuildRunsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "build-runs",
 		ShortUsage: "asc xcode-cloud build-runs [flags]",
-		ShortHelp:  "List Xcode Cloud build runs for a workflow.",
-		LongHelp: `List Xcode Cloud build runs for a workflow.
+		ShortHelp:  "Manage Xcode Cloud build runs.",
+		LongHelp: `Manage Xcode Cloud build runs.
 
 Examples:
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID"
+  asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID"
+  asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID"
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --limit 50
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			XcodeCloudBuildRunsListCommand(),
+			XcodeCloudBuildRunsBuildsCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return xcodeCloudBuildRunsList(ctx, *workflowID, *limit, *next, *paginate, *output, *pretty)
+		},
+	}
+}
+
+func XcodeCloudBuildRunsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	workflowID := fs.String("workflow-id", "", "Workflow ID to list build runs for")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc xcode-cloud build-runs list [flags]",
+		ShortHelp:  "List Xcode Cloud build runs for a workflow.",
+		LongHelp: `List Xcode Cloud build runs for a workflow.
+
+Examples:
+  asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID"
+  asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID" --limit 50
+  asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			return xcodeCloudBuildRunsList(ctx, *workflowID, *limit, *next, *paginate, *output, *pretty)
+		},
+	}
+}
+
+func XcodeCloudBuildRunsBuildsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("builds", flag.ExitOnError)
+
+	runID := fs.String("run-id", "", "Build run ID to list builds for")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "builds",
+		ShortUsage: "asc xcode-cloud build-runs builds [flags]",
+		ShortHelp:  "List builds for a build run.",
+		LongHelp: `List builds for a build run.
+
+Examples:
+  asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID"
+  asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --output table
+  asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --limit 50
+  asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("xcode-cloud build-runs: --limit must be between 1 and 200")
+				return fmt.Errorf("xcode-cloud build-runs builds: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return fmt.Errorf("xcode-cloud build-runs: %w", err)
+				return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 			}
 
-			resolvedWorkflowID := strings.TrimSpace(*workflowID)
-			if resolvedWorkflowID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
+			runIDValue := strings.TrimSpace(*runID)
+			if runIDValue == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --run-id is required")
 				return flag.ErrHelp
 			}
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("xcode-cloud build-runs: %w", err)
+				return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 			}
 
 			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
 			defer cancel()
 
-			opts := []asc.CiBuildRunsOption{
-				asc.WithCiBuildRunsLimit(*limit),
-				asc.WithCiBuildRunsNextURL(*next),
+			opts := []asc.CiBuildRunBuildsOption{
+				asc.WithCiBuildRunBuildsLimit(*limit),
+				asc.WithCiBuildRunBuildsNextURL(*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithCiBuildRunsLimit(200))
-				firstPage, err := client.GetCiBuildRuns(requestCtx, resolvedWorkflowID, paginateOpts...)
+				paginateOpts := append(opts, asc.WithCiBuildRunBuildsLimit(200))
+				firstPage, err := client.GetCiBuildRunBuilds(requestCtx, runIDValue, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("xcode-cloud build-runs: failed to fetch: %w", err)
+					return fmt.Errorf("xcode-cloud build-runs builds: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetCiBuildRuns(ctx, resolvedWorkflowID, asc.WithCiBuildRunsNextURL(nextURL))
+					return client.GetCiBuildRunBuilds(ctx, runIDValue, asc.WithCiBuildRunBuildsNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("xcode-cloud build-runs: %w", err)
+					return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 				}
 
 				return printOutput(resp, *output, *pretty)
 			}
 
-			resp, err := client.GetCiBuildRuns(requestCtx, resolvedWorkflowID, opts...)
+			resp, err := client.GetCiBuildRunBuilds(requestCtx, runIDValue, opts...)
 			if err != nil {
-				return fmt.Errorf("xcode-cloud build-runs: %w", err)
+				return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
 		},
 	}
+}
+
+func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, next string, paginate bool, output string, pretty bool) error {
+	if limit != 0 && (limit < 1 || limit > 200) {
+		return fmt.Errorf("xcode-cloud build-runs: --limit must be between 1 and 200")
+	}
+	if err := validateNextURL(next); err != nil {
+		return fmt.Errorf("xcode-cloud build-runs: %w", err)
+	}
+
+	resolvedWorkflowID := strings.TrimSpace(workflowID)
+	if resolvedWorkflowID == "" && strings.TrimSpace(next) == "" {
+		fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
+		return flag.ErrHelp
+	}
+
+	client, err := getASCClient()
+	if err != nil {
+		return fmt.Errorf("xcode-cloud build-runs: %w", err)
+	}
+
+	requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+	defer cancel()
+
+	opts := []asc.CiBuildRunsOption{
+		asc.WithCiBuildRunsLimit(limit),
+		asc.WithCiBuildRunsNextURL(next),
+	}
+
+	if paginate {
+		paginateOpts := append(opts, asc.WithCiBuildRunsLimit(200))
+		firstPage, err := client.GetCiBuildRuns(requestCtx, resolvedWorkflowID, paginateOpts...)
+		if err != nil {
+			return fmt.Errorf("xcode-cloud build-runs: failed to fetch: %w", err)
+		}
+
+		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetCiBuildRuns(ctx, resolvedWorkflowID, asc.WithCiBuildRunsNextURL(nextURL))
+		})
+		if err != nil {
+			return fmt.Errorf("xcode-cloud build-runs: %w", err)
+		}
+
+		return printOutput(resp, output, pretty)
+	}
+
+	resp, err := client.GetCiBuildRuns(requestCtx, resolvedWorkflowID, opts...)
+	if err != nil {
+		return fmt.Errorf("xcode-cloud build-runs: %w", err)
+	}
+
+	return printOutput(resp, output, pretty)
 }
 
 // XcodeCloudActionsCommand returns the xcode-cloud actions subcommand.
@@ -450,71 +845,198 @@ func XcodeCloudActionsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "actions",
 		ShortUsage: "asc xcode-cloud actions [flags]",
-		ShortHelp:  "List build actions for an Xcode Cloud build run.",
-		LongHelp: `List build actions for an Xcode Cloud build run.
+		ShortHelp:  "Manage build actions for an Xcode Cloud build run.",
+		LongHelp: `Manage build actions for an Xcode Cloud build run.
 
 Build actions show the individual steps of a build run (e.g., "Resolve Dependencies",
 "Archive", "Upload") and their status, which helps diagnose why builds failed.
 
 Examples:
   asc xcode-cloud actions --run-id "BUILD_RUN_ID"
+  asc xcode-cloud actions list --run-id "BUILD_RUN_ID"
+  asc xcode-cloud actions get --id "ACTION_ID"
+  asc xcode-cloud actions build-run --id "ACTION_ID"
   asc xcode-cloud actions --run-id "BUILD_RUN_ID" --output table
   asc xcode-cloud actions --run-id "BUILD_RUN_ID" --limit 50
   asc xcode-cloud actions --run-id "BUILD_RUN_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			XcodeCloudActionsListCommand(),
+			XcodeCloudActionsGetCommand(),
+			XcodeCloudActionsBuildRunCommand(),
+		},
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("xcode-cloud actions: --limit must be between 1 and 200")
-			}
-			if err := validateNextURL(*next); err != nil {
-				return fmt.Errorf("xcode-cloud actions: %w", err)
-			}
+			return xcodeCloudActionsList(ctx, *runID, *limit, *next, *paginate, *output, *pretty)
+		},
+	}
+}
 
-			resolvedRunID := strings.TrimSpace(*runID)
-			if resolvedRunID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --run-id is required")
+func XcodeCloudActionsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	runID := fs.String("run-id", "", "Build run ID to get actions for (required)")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc xcode-cloud actions list [flags]",
+		ShortHelp:  "List build actions for an Xcode Cloud build run.",
+		LongHelp: `List build actions for an Xcode Cloud build run.
+
+Examples:
+  asc xcode-cloud actions list --run-id "BUILD_RUN_ID"
+  asc xcode-cloud actions list --run-id "BUILD_RUN_ID" --output table
+  asc xcode-cloud actions list --run-id "BUILD_RUN_ID" --limit 50
+  asc xcode-cloud actions list --run-id "BUILD_RUN_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			return xcodeCloudActionsList(ctx, *runID, *limit, *next, *paginate, *output, *pretty)
+		},
+	}
+}
+
+func XcodeCloudActionsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Build action ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc xcode-cloud actions get --id \"ACTION_ID\"",
+		ShortHelp:  "Get details for a build action.",
+		LongHelp: `Get details for a build action.
+
+Examples:
+  asc xcode-cloud actions get --id "ACTION_ID"
+  asc xcode-cloud actions get --id "ACTION_ID" --output table`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
 			}
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("xcode-cloud actions: %w", err)
+				return fmt.Errorf("xcode-cloud actions get: %w", err)
 			}
 
 			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
 			defer cancel()
 
-			opts := []asc.CiBuildActionsOption{
-				asc.WithCiBuildActionsLimit(*limit),
-				asc.WithCiBuildActionsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithCiBuildActionsLimit(200))
-				firstPage, err := client.GetCiBuildActions(requestCtx, resolvedRunID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("xcode-cloud actions: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetCiBuildActions(ctx, resolvedRunID, asc.WithCiBuildActionsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("xcode-cloud actions: %w", err)
-				}
-
-				return printOutput(resp, *output, *pretty)
-			}
-
-			resp, err := client.GetCiBuildActions(requestCtx, resolvedRunID, opts...)
+			resp, err := client.GetCiBuildAction(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("xcode-cloud actions: %w", err)
+				return fmt.Errorf("xcode-cloud actions get: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
 		},
 	}
+}
+
+func XcodeCloudActionsBuildRunCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("build-run", flag.ExitOnError)
+
+	id := fs.String("id", "", "Build action ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "build-run",
+		ShortUsage: "asc xcode-cloud actions build-run --id \"ACTION_ID\"",
+		ShortHelp:  "Get the build run for a build action.",
+		LongHelp: `Get the build run for a build action.
+
+Examples:
+  asc xcode-cloud actions build-run --id "ACTION_ID"
+  asc xcode-cloud actions build-run --id "ACTION_ID" --output table`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("xcode-cloud actions build-run: %w", err)
+			}
+
+			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			defer cancel()
+
+			resp, err := client.GetCiBuildActionBuildRun(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud actions build-run: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+func xcodeCloudActionsList(ctx context.Context, runID string, limit int, next string, paginate bool, output string, pretty bool) error {
+	if limit != 0 && (limit < 1 || limit > 200) {
+		return fmt.Errorf("xcode-cloud actions: --limit must be between 1 and 200")
+	}
+	if err := validateNextURL(next); err != nil {
+		return fmt.Errorf("xcode-cloud actions: %w", err)
+	}
+
+	resolvedRunID := strings.TrimSpace(runID)
+	if resolvedRunID == "" && strings.TrimSpace(next) == "" {
+		fmt.Fprintln(os.Stderr, "Error: --run-id is required")
+		return flag.ErrHelp
+	}
+
+	client, err := getASCClient()
+	if err != nil {
+		return fmt.Errorf("xcode-cloud actions: %w", err)
+	}
+
+	requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+	defer cancel()
+
+	opts := []asc.CiBuildActionsOption{
+		asc.WithCiBuildActionsLimit(limit),
+		asc.WithCiBuildActionsNextURL(next),
+	}
+
+	if paginate {
+		paginateOpts := append(opts, asc.WithCiBuildActionsLimit(200))
+		firstPage, err := client.GetCiBuildActions(requestCtx, resolvedRunID, paginateOpts...)
+		if err != nil {
+			return fmt.Errorf("xcode-cloud actions: failed to fetch: %w", err)
+		}
+
+		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetCiBuildActions(ctx, resolvedRunID, asc.WithCiBuildActionsNextURL(nextURL))
+		})
+		if err != nil {
+			return fmt.Errorf("xcode-cloud actions: %w", err)
+		}
+
+		return printOutput(resp, output, pretty)
+	}
+
+	resp, err := client.GetCiBuildActions(requestCtx, resolvedRunID, opts...)
+	if err != nil {
+		return fmt.Errorf("xcode-cloud actions: %w", err)
+	}
+
+	return printOutput(resp, output, pretty)
 }
 
 // XcodeCloudArtifactsCommand returns the xcode-cloud artifacts command with subcommands.

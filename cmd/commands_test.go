@@ -2877,9 +2877,69 @@ func TestXcodeCloudValidationErrors(t *testing.T) {
 			wantErr: "--app is required",
 		},
 		{
+			name:    "xcode-cloud workflows list missing app",
+			args:    []string{"xcode-cloud", "workflows", "list"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "xcode-cloud workflows get missing id",
+			args:    []string{"xcode-cloud", "workflows", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud workflows repository missing id",
+			args:    []string{"xcode-cloud", "workflows", "repository"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud workflows create missing file",
+			args:    []string{"xcode-cloud", "workflows", "create"},
+			wantErr: "--file is required",
+		},
+		{
+			name:    "xcode-cloud workflows update missing id",
+			args:    []string{"xcode-cloud", "workflows", "update", "--file", "./workflow.json"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud workflows update missing file",
+			args:    []string{"xcode-cloud", "workflows", "update", "--id", "WF_ID"},
+			wantErr: "--file is required",
+		},
+		{
+			name:    "xcode-cloud workflows delete missing id",
+			args:    []string{"xcode-cloud", "workflows", "delete", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud workflows delete missing confirm",
+			args:    []string{"xcode-cloud", "workflows", "delete", "--id", "WF_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
 			name:    "xcode-cloud build-runs missing workflow-id",
 			args:    []string{"xcode-cloud", "build-runs"},
 			wantErr: "--workflow-id is required",
+		},
+		{
+			name:    "xcode-cloud build-runs builds missing run-id",
+			args:    []string{"xcode-cloud", "build-runs", "builds"},
+			wantErr: "--run-id is required",
+		},
+		{
+			name:    "xcode-cloud actions missing run-id",
+			args:    []string{"xcode-cloud", "actions"},
+			wantErr: "--run-id is required",
+		},
+		{
+			name:    "xcode-cloud actions get missing id",
+			args:    []string{"xcode-cloud", "actions", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud actions build-run missing id",
+			args:    []string{"xcode-cloud", "actions", "build-run"},
+			wantErr: "--id is required",
 		},
 		{
 			name:    "xcode-cloud artifacts list missing action-id",
@@ -2919,6 +2979,66 @@ func TestXcodeCloudValidationErrors(t *testing.T) {
 		{
 			name:    "xcode-cloud issues get missing id",
 			args:    []string{"xcode-cloud", "issues", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products get missing id",
+			args:    []string{"xcode-cloud", "products", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products app missing id",
+			args:    []string{"xcode-cloud", "products", "app"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products build-runs missing id",
+			args:    []string{"xcode-cloud", "products", "build-runs"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products workflows missing id",
+			args:    []string{"xcode-cloud", "products", "workflows"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products primary-repositories missing id",
+			args:    []string{"xcode-cloud", "products", "primary-repositories"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products additional-repositories missing id",
+			args:    []string{"xcode-cloud", "products", "additional-repositories"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products delete missing id",
+			args:    []string{"xcode-cloud", "products", "delete", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud products delete missing confirm",
+			args:    []string{"xcode-cloud", "products", "delete", "--id", "PROD_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "xcode-cloud macos-versions get missing id",
+			args:    []string{"xcode-cloud", "macos-versions", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud macos-versions xcode-versions missing id",
+			args:    []string{"xcode-cloud", "macos-versions", "xcode-versions"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud xcode-versions get missing id",
+			args:    []string{"xcode-cloud", "xcode-versions", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "xcode-cloud xcode-versions macos-versions missing id",
+			args:    []string{"xcode-cloud", "xcode-versions", "macos-versions"},
 			wantErr: "--id is required",
 		},
 	}
