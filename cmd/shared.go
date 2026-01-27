@@ -288,6 +288,7 @@ func writeTempPrivateKey(data []byte) (string, error) {
 	privateKeyTempPath = file.Name()
 	return privateKeyTempPath, nil
 }
+
 func resolveProfileName() string {
 	if strings.TrimSpace(selectedProfile) != "" {
 		return strings.TrimSpace(selectedProfile)
@@ -297,6 +298,7 @@ func resolveProfileName() string {
 	}
 	return ""
 }
+
 func printOutput(data interface{}, format string, pretty bool) error {
 	format = strings.ToLower(format)
 	switch format {

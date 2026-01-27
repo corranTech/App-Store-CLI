@@ -16,8 +16,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-const assetUploadDefaultTimeout = 10 * time.Minute
-const assetPollInterval = 2 * time.Second
+const (
+	assetUploadDefaultTimeout = 10 * time.Minute
+	assetPollInterval         = 2 * time.Second
+)
 
 // AssetsCommand returns the assets command with subcommands.
 func AssetsCommand() *ffcli.Command {
