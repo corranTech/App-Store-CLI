@@ -715,7 +715,7 @@ func TestPrintTable_AppTags(t *testing.T) {
 			{
 				ID: "tag-1",
 				Attributes: AppTagAttributes{
-					Name:             "Strategy",
+					Name:              "Strategy",
 					VisibleInAppStore: true,
 				},
 			},
@@ -740,7 +740,7 @@ func TestPrintMarkdown_AppTags(t *testing.T) {
 			{
 				ID: "tag-1",
 				Attributes: AppTagAttributes{
-					Name:             "Strategy",
+					Name:              "Strategy",
 					VisibleInAppStore: false,
 				},
 			},
@@ -756,6 +756,44 @@ func TestPrintMarkdown_AppTags(t *testing.T) {
 	}
 	if !strings.Contains(output, "Strategy") {
 		t.Fatalf("expected tag name in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_Linkages(t *testing.T) {
+	resp := &LinkagesResponse{
+		Data: []ResourceData{
+			{Type: ResourceTypeTerritories, ID: "USA"},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Type") || !strings.Contains(output, "ID") {
+		t.Fatalf("expected linkages headers, got: %s", output)
+	}
+	if !strings.Contains(output, "territories") || !strings.Contains(output, "USA") {
+		t.Fatalf("expected linkage values, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Linkages(t *testing.T) {
+	resp := &LinkagesResponse{
+		Data: []ResourceData{
+			{Type: ResourceTypeTerritories, ID: "USA"},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Type | ID |") {
+		t.Fatalf("expected linkages header, got: %s", output)
+	}
+	if !strings.Contains(output, "territories") || !strings.Contains(output, "USA") {
+		t.Fatalf("expected linkage values, got: %s", output)
 	}
 }
 

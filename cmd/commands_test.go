@@ -1937,6 +1937,21 @@ func TestAppTagsValidationErrors(t *testing.T) {
 			args:    []string{"app-tags", "update", "--id", "TAG_ID", "--visible-in-app-store"},
 			wantErr: "Error: --confirm is required",
 		},
+		{
+			name:    "app-tags territories missing id",
+			args:    []string{"app-tags", "territories"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "app-tags territories-relationships missing id",
+			args:    []string{"app-tags", "territories-relationships"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "app-tags relationships missing app",
+			args:    []string{"app-tags", "relationships"},
+			wantErr: "Error: --app is required",
+		},
 	}
 
 	for _, test := range tests {

@@ -86,6 +86,9 @@ type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
 
+// LinkagesOption is a functional option for linkages endpoints.
+type LinkagesOption func(*linkagesQuery)
+
 // PricePointsOption is a functional option for GetAppPricePoints.
 type PricePointsOption func(*pricePointsQuery)
 
@@ -389,6 +392,36 @@ func WithAppTagsSort(sort string) AppTagsOption {
 	return func(q *appTagsQuery) {
 		if strings.TrimSpace(sort) != "" {
 			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithAppTagsFields sets fields[appTags] for app tag responses.
+func WithAppTagsFields(fields []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAppTagsInclude sets include for app tag responses.
+func WithAppTagsInclude(include []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppTagsTerritoryFields sets fields[territories] for included territory responses.
+func WithAppTagsTerritoryFields(fields []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithAppTagsTerritoryLimit sets limit[territories] for included territories.
+func WithAppTagsTerritoryLimit(limit int) AppTagsOption {
+	return func(q *appTagsQuery) {
+		if limit > 0 {
+			q.territoryLimit = limit
 		}
 	}
 }
@@ -1056,6 +1089,31 @@ func WithTerritoriesLimit(limit int) TerritoriesOption {
 // WithTerritoriesNextURL uses a next page URL directly.
 func WithTerritoriesNextURL(next string) TerritoriesOption {
 	return func(q *territoriesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithTerritoriesFields sets fields[territories] for territory responses.
+func WithTerritoriesFields(fields []string) TerritoriesOption {
+	return func(q *territoriesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithLinkagesLimit sets the max number of linkages to return.
+func WithLinkagesLimit(limit int) LinkagesOption {
+	return func(q *linkagesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithLinkagesNextURL uses a next page URL directly.
+func WithLinkagesNextURL(next string) LinkagesOption {
+	return func(q *linkagesQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}

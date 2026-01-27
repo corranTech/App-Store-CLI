@@ -198,6 +198,18 @@ func TestGetAppTags_WithFiltersAndSort(t *testing.T) {
 		if values.Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
 		}
+		if values.Get("fields[appTags]") != "name,visibleInAppStore" {
+			t.Fatalf("expected fields[appTags]=name,visibleInAppStore, got %q", values.Get("fields[appTags]"))
+		}
+		if values.Get("include") != "territories" {
+			t.Fatalf("expected include=territories, got %q", values.Get("include"))
+		}
+		if values.Get("fields[territories]") != "currency" {
+			t.Fatalf("expected fields[territories]=currency, got %q", values.Get("fields[territories]"))
+		}
+		if values.Get("limit[territories]") != "25" {
+			t.Fatalf("expected limit[territories]=25, got %q", values.Get("limit[territories]"))
+		}
 		assertAuthorized(t, req)
 	}, response)
 
@@ -207,6 +219,10 @@ func TestGetAppTags_WithFiltersAndSort(t *testing.T) {
 		WithAppTagsVisibleInAppStore([]string{"true"}),
 		WithAppTagsSort("name"),
 		WithAppTagsLimit(5),
+		WithAppTagsFields([]string{"name", "visibleInAppStore"}),
+		WithAppTagsInclude([]string{"territories"}),
+		WithAppTagsTerritoryFields([]string{"currency"}),
+		WithAppTagsTerritoryLimit(25),
 	); err != nil {
 		t.Fatalf("GetAppTags() error: %v", err)
 	}
@@ -224,6 +240,90 @@ func TestGetAppTags_UsesNextURL(t *testing.T) {
 
 	if _, err := client.GetAppTags(context.Background(), "123", WithAppTagsLimit(5), WithAppTagsNextURL(next)); err != nil {
 		t.Fatalf("GetAppTags() error: %v", err)
+	}
+}
+
+func TestGetAppTagTerritories_WithFieldsAndLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appTags/tag-1/territories" {
+			t.Fatalf("expected path /v1/appTags/tag-1/territories, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("fields[territories]") != "currency" {
+			t.Fatalf("expected fields[territories]=currency, got %q", values.Get("fields[territories]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagTerritories(
+		context.Background(),
+		"tag-1",
+		WithTerritoriesFields([]string{"currency"}),
+		WithTerritoriesLimit(5),
+	); err != nil {
+		t.Fatalf("GetAppTagTerritories() error: %v", err)
+	}
+}
+
+func TestGetAppTagTerritories_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagTerritories(context.Background(), "tag-1", WithTerritoriesNextURL(next)); err != nil {
+		t.Fatalf("GetAppTagTerritories() error: %v", err)
+	}
+}
+
+func TestGetAppTagTerritoriesRelationships_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appTags/tag-1/relationships/territories" {
+			t.Fatalf("expected path /v1/appTags/tag-1/relationships/territories, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagTerritoriesRelationships(context.Background(), "tag-1", WithLinkagesLimit(5)); err != nil {
+		t.Fatalf("GetAppTagTerritoriesRelationships() error: %v", err)
+	}
+}
+
+func TestGetAppTagsRelationshipsForApp_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appTags","id":"tag-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/relationships/appTags" {
+			t.Fatalf("expected path /v1/apps/app-1/relationships/appTags, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppTagsRelationshipsForApp(context.Background(), "app-1", WithLinkagesLimit(5)); err != nil {
+		t.Fatalf("GetAppTagsRelationshipsForApp() error: %v", err)
 	}
 }
 
@@ -3751,6 +3851,7 @@ func TestCreateSubscriptionAvailability(t *testing.T) {
 		t.Fatalf("CreateSubscriptionAvailability() error: %v", err)
 	}
 }
+
 // User management tests
 func TestGetUsers_WithFiltersAndLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"users","id":"user-1","attributes":{"username":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["ADMIN"],"allAppsVisible":true,"provisioningAllowed":false}}]}`)

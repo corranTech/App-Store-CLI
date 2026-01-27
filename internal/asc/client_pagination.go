@@ -23,6 +23,16 @@ func (r *Response[T]) GetData() interface{} {
 }
 
 // GetLinks returns the links field for pagination.
+func (r *LinkagesResponse) GetLinks() *Links {
+	return &r.Links
+}
+
+// GetData returns the data field for aggregation.
+func (r *LinkagesResponse) GetData() interface{} {
+	return r.Data
+}
+
+// GetLinks returns the links field for pagination.
 func (r *PreReleaseVersionsResponse) GetLinks() *Links {
 	return &r.Links
 }
@@ -54,6 +64,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &AppsResponse{Links: Links{}}
 	case *AppTagsResponse:
 		result = &AppTagsResponse{Links: Links{}}
+	case *LinkagesResponse:
+		result = &LinkagesResponse{Links: Links{}}
 	case *BundleIDsResponse:
 		result = &BundleIDsResponse{Links: Links{}}
 	case *InAppPurchasesV2Response:
@@ -195,6 +207,8 @@ func typeOf(p PaginatedResponse) string {
 		return "AppsResponse"
 	case *AppTagsResponse:
 		return "AppTagsResponse"
+	case *LinkagesResponse:
+		return "LinkagesResponse"
 	case *BundleIDsResponse:
 		return "BundleIDsResponse"
 	case *InAppPurchasesV2Response:

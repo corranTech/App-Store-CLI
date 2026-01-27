@@ -193,6 +193,10 @@ func TestBuildAppTagsQuery(t *testing.T) {
 		WithAppTagsLimit(25),
 		WithAppTagsVisibleInAppStore([]string{"true", " false "}),
 		WithAppTagsSort("-name"),
+		WithAppTagsFields([]string{"name", "visibleInAppStore"}),
+		WithAppTagsInclude([]string{"territories"}),
+		WithAppTagsTerritoryFields([]string{"currency"}),
+		WithAppTagsTerritoryLimit(50),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -210,6 +214,18 @@ func TestBuildAppTagsQuery(t *testing.T) {
 	}
 	if got := values.Get("limit"); got != "25" {
 		t.Fatalf("expected limit=25, got %q", got)
+	}
+	if got := values.Get("fields[appTags]"); got != "name,visibleInAppStore" {
+		t.Fatalf("expected fields[appTags]=name,visibleInAppStore, got %q", got)
+	}
+	if got := values.Get("include"); got != "territories" {
+		t.Fatalf("expected include=territories, got %q", got)
+	}
+	if got := values.Get("fields[territories]"); got != "currency" {
+		t.Fatalf("expected fields[territories]=currency, got %q", got)
+	}
+	if got := values.Get("limit[territories]"); got != "50" {
+		t.Fatalf("expected limit[territories]=50, got %q", got)
 	}
 }
 
