@@ -143,6 +143,12 @@ func PrintMarkdown(data interface{}) error {
 		return printAccessibilityDeclarationsMarkdown(v)
 	case *AccessibilityDeclarationResponse:
 		return printAccessibilityDeclarationMarkdown(v)
+	case *AppStoreReviewDetailResponse:
+		return printAppStoreReviewDetailMarkdown(v)
+	case *AppStoreReviewAttachmentsResponse:
+		return printAppStoreReviewAttachmentsMarkdown(v)
+	case *AppStoreReviewAttachmentResponse:
+		return printAppStoreReviewAttachmentMarkdown(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsMarkdown(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -257,6 +263,8 @@ func PrintMarkdown(data interface{}) error {
 		return printCustomerReviewResponseDeleteResultMarkdown(v)
 	case *AccessibilityDeclarationDeleteResult:
 		return printAccessibilityDeclarationDeleteResultMarkdown(v)
+	case *AppStoreReviewAttachmentDeleteResult:
+		return printAppStoreReviewAttachmentDeleteResultMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -387,6 +395,12 @@ func PrintTable(data interface{}) error {
 		return printAccessibilityDeclarationsTable(v)
 	case *AccessibilityDeclarationResponse:
 		return printAccessibilityDeclarationTable(v)
+	case *AppStoreReviewDetailResponse:
+		return printAppStoreReviewDetailTable(v)
+	case *AppStoreReviewAttachmentsResponse:
+		return printAppStoreReviewAttachmentsTable(v)
+	case *AppStoreReviewAttachmentResponse:
+		return printAppStoreReviewAttachmentTable(v)
 	case *BetaRecruitmentCriterionOptionsResponse:
 		return printBetaRecruitmentCriterionOptionsTable(v)
 	case *BetaRecruitmentCriteriaResponse:
@@ -501,6 +515,8 @@ func PrintTable(data interface{}) error {
 		return printCustomerReviewResponseDeleteResultTable(v)
 	case *AccessibilityDeclarationDeleteResult:
 		return printAccessibilityDeclarationDeleteResultTable(v)
+	case *AppStoreReviewAttachmentDeleteResult:
+		return printAppStoreReviewAttachmentDeleteResultTable(v)
 	default:
 		return PrintJSON(data)
 	}

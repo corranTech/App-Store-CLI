@@ -4579,3 +4579,260 @@ func TestDeleteAccessibilityDeclaration(t *testing.T) {
 		t.Fatalf("DeleteAccessibilityDeclaration() error: %v", err)
 	}
 }
+
+func TestGetAppStoreReviewAttachmentsForReviewDetail_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreReviewAttachments","id":"att-1","attributes":{"fileName":"review.pdf","fileSize":123}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments" {
+			t.Fatalf("expected path /v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("fields[appStoreReviewAttachments]") != "fileName,fileSize" {
+			t.Fatalf("expected fields[appStoreReviewAttachments]=fileName,fileSize, got %q", values.Get("fields[appStoreReviewAttachments]"))
+		}
+		if values.Get("fields[appStoreReviewDetails]") != "contactEmail,notes" {
+			t.Fatalf("expected fields[appStoreReviewDetails]=contactEmail,notes, got %q", values.Get("fields[appStoreReviewDetails]"))
+		}
+		if values.Get("include") != "appStoreReviewDetail" {
+			t.Fatalf("expected include=appStoreReviewDetail, got %q", values.Get("include"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreReviewAttachmentsForReviewDetail(
+		context.Background(),
+		"detail-1",
+		WithAppStoreReviewAttachmentsFields([]string{"fileName", "fileSize"}),
+		WithAppStoreReviewAttachmentReviewDetailFields([]string{"contactEmail", "notes"}),
+		WithAppStoreReviewAttachmentsInclude([]string{"appStoreReviewDetail"}),
+		WithAppStoreReviewAttachmentsLimit(5),
+	); err != nil {
+		t.Fatalf("GetAppStoreReviewAttachmentsForReviewDetail() error: %v", err)
+	}
+}
+
+func TestGetAppStoreReviewAttachment_WithFields(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreReviewAttachments","id":"att-1","attributes":{"fileName":"review.pdf"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewAttachments/att-1" {
+			t.Fatalf("expected path /v1/appStoreReviewAttachments/att-1, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("fields[appStoreReviewAttachments]") != "fileName,fileSize" {
+			t.Fatalf("expected fields[appStoreReviewAttachments]=fileName,fileSize, got %q", req.URL.Query().Get("fields[appStoreReviewAttachments]"))
+		}
+		if req.URL.Query().Get("include") != "appStoreReviewDetail" {
+			t.Fatalf("expected include=appStoreReviewDetail, got %q", req.URL.Query().Get("include"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreReviewAttachment(
+		context.Background(),
+		"att-1",
+		WithAppStoreReviewAttachmentsFields([]string{"fileName", "fileSize"}),
+		WithAppStoreReviewAttachmentsInclude([]string{"appStoreReviewDetail"}),
+	); err != nil {
+		t.Fatalf("GetAppStoreReviewAttachment() error: %v", err)
+	}
+}
+
+func TestCreateAppStoreReviewAttachment(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreReviewAttachments","id":"att-1","attributes":{"fileName":"review.pdf","fileSize":123}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewAttachments" {
+			t.Fatalf("expected path /v1/appStoreReviewAttachments, got %s", req.URL.Path)
+		}
+		var payload AppStoreReviewAttachmentCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppStoreReviewAttachments {
+			t.Fatalf("expected type appStoreReviewAttachments, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.FileName != "review.pdf" || payload.Data.Attributes.FileSize != 123 {
+			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.AppStoreReviewDetail == nil {
+			t.Fatalf("expected review detail relationship")
+		}
+		if payload.Data.Relationships.AppStoreReviewDetail.Data.Type != ResourceTypeAppStoreReviewDetails {
+			t.Fatalf("expected relationship type appStoreReviewDetails, got %q", payload.Data.Relationships.AppStoreReviewDetail.Data.Type)
+		}
+		if payload.Data.Relationships.AppStoreReviewDetail.Data.ID != "detail-1" {
+			t.Fatalf("expected relationship id detail-1, got %q", payload.Data.Relationships.AppStoreReviewDetail.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateAppStoreReviewAttachment(context.Background(), "detail-1", "review.pdf", 123); err != nil {
+		t.Fatalf("CreateAppStoreReviewAttachment() error: %v", err)
+	}
+}
+
+func TestUpdateAppStoreReviewAttachment(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreReviewAttachments","id":"att-1","attributes":{"uploaded":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewAttachments/att-1" {
+			t.Fatalf("expected path /v1/appStoreReviewAttachments/att-1, got %s", req.URL.Path)
+		}
+		var payload AppStoreReviewAttachmentUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppStoreReviewAttachments || payload.Data.ID != "att-1" {
+			t.Fatalf("unexpected payload: %+v", payload.Data)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.Uploaded == nil || !*payload.Data.Attributes.Uploaded {
+			t.Fatalf("expected uploaded true, got %+v", payload.Data.Attributes)
+		}
+		if payload.Data.Attributes.SourceFileChecksum == nil || *payload.Data.Attributes.SourceFileChecksum != "abcd1234" {
+			t.Fatalf("expected checksum abcd1234, got %+v", payload.Data.Attributes.SourceFileChecksum)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	uploaded := true
+	checksum := "abcd1234"
+	attrs := AppStoreReviewAttachmentUpdateAttributes{
+		SourceFileChecksum: &checksum,
+		Uploaded:           &uploaded,
+	}
+	if _, err := client.UpdateAppStoreReviewAttachment(context.Background(), "att-1", attrs); err != nil {
+		t.Fatalf("UpdateAppStoreReviewAttachment() error: %v", err)
+	}
+}
+
+func TestDeleteAppStoreReviewAttachment(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewAttachments/att-1" {
+			t.Fatalf("expected path /v1/appStoreReviewAttachments/att-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteAppStoreReviewAttachment(context.Background(), "att-1"); err != nil {
+		t.Fatalf("DeleteAppStoreReviewAttachment() error: %v", err)
+	}
+}
+
+func TestGetAppStoreReviewDetail(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewDetails/detail-1" {
+			t.Fatalf("expected path /v1/appStoreReviewDetails/detail-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreReviewDetail(context.Background(), "detail-1"); err != nil {
+		t.Fatalf("GetAppStoreReviewDetail() error: %v", err)
+	}
+}
+
+func TestGetAppStoreReviewDetailForVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/version-1/appStoreReviewDetail" {
+			t.Fatalf("expected path /v1/appStoreVersions/version-1/appStoreReviewDetail, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreReviewDetailForVersion(context.Background(), "version-1"); err != nil {
+		t.Fatalf("GetAppStoreReviewDetailForVersion() error: %v", err)
+	}
+}
+
+func TestCreateAppStoreReviewDetail(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewDetails" {
+			t.Fatalf("expected path /v1/appStoreReviewDetails, got %s", req.URL.Path)
+		}
+		var payload AppStoreReviewDetailCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppStoreReviewDetails {
+			t.Fatalf("expected type appStoreReviewDetails, got %q", payload.Data.Type)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.AppStoreVersion == nil {
+			t.Fatalf("expected app store version relationship")
+		}
+		if payload.Data.Relationships.AppStoreVersion.Data.Type != ResourceTypeAppStoreVersions {
+			t.Fatalf("expected relationship type appStoreVersions, got %q", payload.Data.Relationships.AppStoreVersion.Data.Type)
+		}
+		if payload.Data.Relationships.AppStoreVersion.Data.ID != "version-1" {
+			t.Fatalf("expected relationship id version-1, got %q", payload.Data.Relationships.AppStoreVersion.Data.ID)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.ContactEmail == nil || *payload.Data.Attributes.ContactEmail != "dev@example.com" {
+			t.Fatalf("expected contactEmail dev@example.com, got %+v", payload.Data.Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	contactEmail := "dev@example.com"
+	attrs := &AppStoreReviewDetailCreateAttributes{
+		ContactEmail: &contactEmail,
+	}
+	if _, err := client.CreateAppStoreReviewDetail(context.Background(), "version-1", attrs); err != nil {
+		t.Fatalf("CreateAppStoreReviewDetail() error: %v", err)
+	}
+}
+
+func TestUpdateAppStoreReviewDetail(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactPhone":"123"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreReviewDetails/detail-1" {
+			t.Fatalf("expected path /v1/appStoreReviewDetails/detail-1, got %s", req.URL.Path)
+		}
+		var payload AppStoreReviewDetailUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeAppStoreReviewDetails || payload.Data.ID != "detail-1" {
+			t.Fatalf("unexpected payload: %+v", payload.Data)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.ContactPhone == nil || *payload.Data.Attributes.ContactPhone != "123" {
+			t.Fatalf("expected contactPhone 123, got %+v", payload.Data.Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	contactPhone := "123"
+	attrs := AppStoreReviewDetailUpdateAttributes{ContactPhone: &contactPhone}
+	if _, err := client.UpdateAppStoreReviewDetail(context.Background(), "detail-1", attrs); err != nil {
+		t.Fatalf("UpdateAppStoreReviewDetail() error: %v", err)
+	}
+}
