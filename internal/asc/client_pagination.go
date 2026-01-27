@@ -52,6 +52,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &ReviewsResponse{Links: Links{}}
 	case *AppsResponse:
 		result = &AppsResponse{Links: Links{}}
+	case *BundleIDsResponse:
+		result = &BundleIDsResponse{Links: Links{}}
 	case *InAppPurchasesV2Response:
 		result = &InAppPurchasesV2Response{Links: Links{}}
 	case *TerritoriesResponse:
@@ -82,10 +84,16 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaGroupsResponse{Links: Links{}}
 	case *BetaTestersResponse:
 		result = &BetaTestersResponse{Links: Links{}}
-	case *UsersResponse:
-		result = &UsersResponse{Links: Links{}}
+	case *BundleIDCapabilitiesResponse:
+		result = &BundleIDCapabilitiesResponse{Links: Links{}}
+	case *CertificatesResponse:
+		result = &CertificatesResponse{Links: Links{}}
 	case *DevicesResponse:
 		result = &DevicesResponse{Links: Links{}}
+	case *ProfilesResponse:
+		result = &ProfilesResponse{Links: Links{}}
+	case *UsersResponse:
+		result = &UsersResponse{Links: Links{}}
 	case *UserInvitationsResponse:
 		result = &UserInvitationsResponse{Links: Links{}}
 	case *SandboxTestersResponse:
@@ -183,6 +191,8 @@ func typeOf(p PaginatedResponse) string {
 		return "ReviewsResponse"
 	case *AppsResponse:
 		return "AppsResponse"
+	case *BundleIDsResponse:
+		return "BundleIDsResponse"
 	case *InAppPurchasesV2Response:
 		return "InAppPurchasesV2Response"
 	case *TerritoriesResponse:
@@ -213,10 +223,16 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaGroupsResponse"
 	case *BetaTestersResponse:
 		return "BetaTestersResponse"
-	case *UsersResponse:
-		return "UsersResponse"
+	case *BundleIDCapabilitiesResponse:
+		return "BundleIDCapabilitiesResponse"
+	case *CertificatesResponse:
+		return "CertificatesResponse"
 	case *DevicesResponse:
 		return "DevicesResponse"
+	case *ProfilesResponse:
+		return "ProfilesResponse"
+	case *UsersResponse:
+		return "UsersResponse"
 	case *UserInvitationsResponse:
 		return "UserInvitationsResponse"
 	case *SandboxTestersResponse:
