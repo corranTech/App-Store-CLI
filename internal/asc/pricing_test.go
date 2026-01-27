@@ -192,6 +192,27 @@ func TestGetAppPriceScheduleAutomaticPrices(t *testing.T) {
 	}
 }
 
+func TestGetAppPriceScheduleBaseTerritory(t *testing.T) {
+	resp := TerritoryResponse{
+		Data: Resource[TerritoryAttributes]{
+			Type: ResourceTypeTerritories,
+			ID:   "USA",
+		},
+	}
+	body, _ := json.Marshal(resp)
+
+	client := newTestClient(t, func(req *http.Request) {
+		assertAuthorized(t, req)
+		if req.URL.Path != "/v1/appPriceSchedules/schedule-1/baseTerritory" {
+			t.Fatalf("expected path /v1/appPriceSchedules/schedule-1/baseTerritory, got %s", req.URL.Path)
+		}
+	}, jsonResponse(http.StatusOK, string(body)))
+
+	if _, err := client.GetAppPriceScheduleBaseTerritory(context.Background(), "schedule-1"); err != nil {
+		t.Fatalf("GetAppPriceScheduleBaseTerritory() error: %v", err)
+	}
+}
+
 func TestCreateAppPriceSchedule(t *testing.T) {
 	resp := AppPriceScheduleResponse{
 		Data: Resource[AppPriceScheduleAttributes]{
@@ -221,6 +242,9 @@ func TestCreateAppPriceSchedule(t *testing.T) {
 		if createReq.Data.Relationships.App.Data.ID != "app-1" {
 			t.Fatalf("expected app ID app-1, got %q", createReq.Data.Relationships.App.Data.ID)
 		}
+		if createReq.Data.Relationships.BaseTerritory.Data.ID != "USA" {
+			t.Fatalf("expected base territory USA, got %q", createReq.Data.Relationships.BaseTerritory.Data.ID)
+		}
 		if len(createReq.Data.Relationships.ManualPrices.Data) != 1 {
 			t.Fatalf("expected 1 manual price, got %d", len(createReq.Data.Relationships.ManualPrices.Data))
 		}
@@ -239,8 +263,9 @@ func TestCreateAppPriceSchedule(t *testing.T) {
 	}, jsonResponse(http.StatusCreated, string(body)))
 
 	_, err := client.CreateAppPriceSchedule(context.Background(), "app-1", AppPriceScheduleCreateAttributes{
-		PricePointID: "pp-1",
-		StartDate:    "2024-03-01",
+		PricePointID:    "pp-1",
+		StartDate:       "2024-03-01",
+		BaseTerritoryID: "USA",
 	})
 	if err != nil {
 		t.Fatalf("CreateAppPriceSchedule() error: %v", err)
@@ -318,6 +343,9 @@ func TestCreateAppAvailabilityV2(t *testing.T) {
 		}
 		if len(createReq.Data.Relationships.TerritoryAvailabilities.Data) != 2 {
 			t.Fatalf("expected 2 territory availabilities, got %d", len(createReq.Data.Relationships.TerritoryAvailabilities.Data))
+		}
+		if createReq.Data.Relationships.TerritoryAvailabilities.Data[0].ID != "${local-usa}" {
+			t.Fatalf("expected first local id ${local-usa}, got %q", createReq.Data.Relationships.TerritoryAvailabilities.Data[0].ID)
 		}
 		if len(createReq.Included) != 2 {
 			t.Fatalf("expected 2 included items, got %d", len(createReq.Included))

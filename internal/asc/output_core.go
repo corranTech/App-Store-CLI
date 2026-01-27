@@ -33,6 +33,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppCategoriesMarkdown(v)
 	case *AppResponse:
 		return printAppsMarkdown(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *AppSetupInfoResult:
+		return printAppSetupInfoResultMarkdown(v)
 	case *AppTagsResponse:
 		return printAppTagsMarkdown(v)
 	case *AppTagResponse:
@@ -331,6 +333,8 @@ func PrintTable(data interface{}) error {
 		return printAppCategoriesTable(v)
 	case *AppResponse:
 		return printAppsTable(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *AppSetupInfoResult:
+		return printAppSetupInfoResultTable(v)
 	case *AppTagsResponse:
 		return printAppTagsTable(v)
 	case *AppTagResponse:

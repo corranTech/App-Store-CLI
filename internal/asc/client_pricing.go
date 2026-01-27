@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const appPriceScheduleManualPriceID = "manual-price-1"
+const appPriceScheduleManualPriceID = "${local-manual-price-1}"
 
 // GetTerritories retrieves available territories.
 func (c *Client) GetTerritories(ctx context.Context, opts ...TerritoriesOption) (*TerritoriesResponse, error) {
@@ -136,6 +136,7 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 	appID = strings.TrimSpace(appID)
 	pricePointID := strings.TrimSpace(attrs.PricePointID)
 	startDate := strings.TrimSpace(attrs.StartDate)
+	baseTerritoryID := strings.ToUpper(strings.TrimSpace(attrs.BaseTerritoryID))
 	if appID == "" {
 		return nil, fmt.Errorf("app ID is required")
 	}
@@ -144,6 +145,9 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 	}
 	if startDate == "" {
 		return nil, fmt.Errorf("start date is required")
+	}
+	if baseTerritoryID == "" {
+		return nil, fmt.Errorf("base territory ID is required")
 	}
 
 	payload := AppPriceScheduleCreateRequest{
@@ -154,6 +158,12 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 					Data: ResourceData{
 						Type: ResourceTypeApps,
 						ID:   appID,
+					},
+				},
+				BaseTerritory: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeTerritories,
+						ID:   baseTerritoryID,
 					},
 				},
 				ManualPrices: RelationshipList{
@@ -196,6 +206,24 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 	var response AppPriceScheduleResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse app price schedule response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppPriceScheduleBaseTerritory retrieves the base territory for a schedule.
+func (c *Client) GetAppPriceScheduleBaseTerritory(ctx context.Context, scheduleID string) (*TerritoryResponse, error) {
+	scheduleID = strings.TrimSpace(scheduleID)
+	path := fmt.Sprintf("/v1/appPriceSchedules/%s/baseTerritory", scheduleID)
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response TerritoryResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse base territory response: %w", err)
 	}
 
 	return &response, nil
@@ -310,7 +338,7 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 			if territoryID == "" {
 				return nil, fmt.Errorf("territory ID is required")
 			}
-			resourceID := fmt.Sprintf("territory-%s", territoryID)
+			resourceID := fmt.Sprintf("${local-%s}", strings.ToLower(territoryID))
 			relationshipData = append(relationshipData, ResourceData{
 				Type: ResourceTypeTerritoryAvailabilities,
 				ID:   resourceID,

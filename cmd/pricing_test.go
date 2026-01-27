@@ -89,9 +89,10 @@ func TestPricingScheduleCreateCommand_MissingFlags(t *testing.T) {
 		name string
 		args []string
 	}{
-		{name: "missing app", args: []string{"--price-point", "PP", "--start-date", "2024-03-01"}},
-		{name: "missing price point", args: []string{"--app", "APP", "--start-date", "2024-03-01"}},
-		{name: "missing start date", args: []string{"--app", "APP", "--price-point", "PP"}},
+		{name: "missing app", args: []string{"--price-point", "PP", "--base-territory", "USA", "--start-date", "2024-03-01"}},
+		{name: "missing price point", args: []string{"--app", "APP", "--base-territory", "USA", "--start-date", "2024-03-01"}},
+		{name: "missing base territory", args: []string{"--app", "APP", "--price-point", "PP", "--start-date", "2024-03-01"}},
+		{name: "missing start date", args: []string{"--app", "APP", "--price-point", "PP", "--base-territory", "USA"}},
 	}
 
 	for _, test := range tests {
@@ -111,7 +112,7 @@ func TestPricingScheduleCreateCommand_MissingFlags(t *testing.T) {
 func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
 	cmd := PricingScheduleCreateCommand()
 
-	if err := cmd.FlagSet.Parse([]string{"--app", "APP", "--price-point", "PP", "--start-date", "invalid"}); err != nil {
+	if err := cmd.FlagSet.Parse([]string{"--app", "APP", "--price-point", "PP", "--base-territory", "USA", "--start-date", "invalid"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 

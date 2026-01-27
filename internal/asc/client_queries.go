@@ -193,9 +193,9 @@ type accessibilityDeclarationsQuery struct {
 
 type appStoreReviewAttachmentsQuery struct {
 	listQuery
-	fieldsAttachments    []string
-	fieldsReviewDetails  []string
-	include              []string
+	fieldsAttachments   []string
+	fieldsReviewDetails []string
+	include             []string
 }
 
 type betaAppReviewDetailsQuery struct {

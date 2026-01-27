@@ -15,7 +15,7 @@ import (
 func TestValidateImageFileRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.png")
-	if err := os.WriteFile(target, []byte("data"), 0600); err != nil {
+	if err := os.WriteFile(target, []byte("data"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	link := filepath.Join(dir, "link.png")
@@ -49,7 +49,7 @@ func TestValidateImageFileRejectsOversize(t *testing.T) {
 func TestUploadAssetFromFileUploadsChunks(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "asset.bin")
-	if err := os.WriteFile(path, []byte("abcdef"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("abcdef"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 

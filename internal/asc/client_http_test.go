@@ -361,6 +361,46 @@ func TestUpdateAppTag_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestUpdateApp_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Example","bundleId":"com.example.app","sku":"SKU-1","primaryLocale":"en-US"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1" {
+			t.Fatalf("expected path /v1/apps/app-1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload AppUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeApps {
+			t.Fatalf("expected type apps, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "app-1" {
+			t.Fatalf("expected id app-1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.BundleID == nil || payload.Data.Attributes.PrimaryLocale == nil {
+			t.Fatalf("expected bundleId and primaryLocale attributes to be set")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	bundleID := "com.example.app"
+	primaryLocale := "en-US"
+	attrs := AppUpdateAttributes{
+		BundleID:      &bundleID,
+		PrimaryLocale: &primaryLocale,
+	}
+	if _, err := client.UpdateApp(context.Background(), "app-1", attrs); err != nil {
+		t.Fatalf("UpdateApp() error: %v", err)
+	}
+}
+
 func TestGetSubscriptionOfferCodeOneTimeUseCodes_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"1","attributes":{"numberOfCodes":5}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

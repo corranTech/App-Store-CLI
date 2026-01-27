@@ -28,7 +28,7 @@ Examples:
   asc pricing price-points get --price-point "PRICE_POINT_ID"
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"
   asc pricing schedule get --app "123456789"
-  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --start-date "2024-03-01"
+  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"
   asc pricing availability get --app "123456789"
@@ -382,6 +382,7 @@ func PricingScheduleCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	pricePointID := fs.String("price-point", "", "App price point ID")
+	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
@@ -393,7 +394,7 @@ func PricingScheduleCreateCommand() *ffcli.Command {
 		LongHelp: `Create an app price schedule.
 
 Examples:
-  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --start-date "2024-03-01"`,
+  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -404,6 +405,10 @@ Examples:
 			}
 			if strings.TrimSpace(*pricePointID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --price-point is required")
+				return flag.ErrHelp
+			}
+			if strings.TrimSpace(*baseTerritory) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
 				return flag.ErrHelp
 			}
 			if strings.TrimSpace(*startDate) == "" {
@@ -425,8 +430,9 @@ Examples:
 			defer cancel()
 
 			resp, err := client.CreateAppPriceSchedule(requestCtx, resolvedAppID, asc.AppPriceScheduleCreateAttributes{
-				PricePointID: strings.TrimSpace(*pricePointID),
-				StartDate:    normalizedStartDate,
+				PricePointID:    strings.TrimSpace(*pricePointID),
+				StartDate:       normalizedStartDate,
+				BaseTerritoryID: strings.TrimSpace(*baseTerritory),
 			})
 			if err != nil {
 				return fmt.Errorf("pricing schedule create: %w", err)
@@ -713,4 +719,36 @@ func normalizePricingStartDate(value string) (string, error) {
 		return "", fmt.Errorf("--start-date must be in YYYY-MM-DD format")
 	}
 	return parsed.Format("2006-01-02"), nil
+}
+
+func resolveBaseTerritoryID(ctx context.Context, client *asc.Client, appID string, baseTerritory string) (string, error) {
+	trimmed := strings.ToUpper(strings.TrimSpace(baseTerritory))
+	if trimmed != "" {
+		return trimmed, nil
+	}
+
+	schedule, err := client.GetAppPriceSchedule(ctx, appID)
+	if err != nil {
+		if asc.IsNotFound(err) {
+			return "", fmt.Errorf("--base-territory is required when app price schedule is missing")
+		}
+		return "", fmt.Errorf("get app price schedule: %w", err)
+	}
+
+	scheduleID := strings.TrimSpace(schedule.Data.ID)
+	if scheduleID == "" {
+		return "", fmt.Errorf("app price schedule ID missing")
+	}
+
+	territoryResp, err := client.GetAppPriceScheduleBaseTerritory(ctx, scheduleID)
+	if err != nil {
+		return "", fmt.Errorf("get base territory: %w", err)
+	}
+
+	territoryID := strings.ToUpper(strings.TrimSpace(territoryResp.Data.ID))
+	if territoryID == "" {
+		return "", fmt.Errorf("base territory ID missing from response")
+	}
+
+	return territoryID, nil
 }

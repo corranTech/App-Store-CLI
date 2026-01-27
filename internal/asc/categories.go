@@ -66,12 +66,12 @@ func WithAppCategoriesLimit(limit int) AppCategoriesOption {
 
 // AppInfoUpdateCategoriesRelationships describes relationships for updating categories.
 type AppInfoUpdateCategoriesRelationships struct {
-	PrimaryCategory             *Relationship `json:"primaryCategory,omitempty"`
-	SecondaryCategory           *Relationship `json:"secondaryCategory,omitempty"`
-	PrimarySubcategoryOne       *Relationship `json:"primarySubcategoryOne,omitempty"`
-	PrimarySubcategoryTwo       *Relationship `json:"primarySubcategoryTwo,omitempty"`
-	SecondarySubcategoryOne     *Relationship `json:"secondarySubcategoryOne,omitempty"`
-	SecondarySubcategoryTwo     *Relationship `json:"secondarySubcategoryTwo,omitempty"`
+	PrimaryCategory         *Relationship `json:"primaryCategory,omitempty"`
+	SecondaryCategory       *Relationship `json:"secondaryCategory,omitempty"`
+	PrimarySubcategoryOne   *Relationship `json:"primarySubcategoryOne,omitempty"`
+	PrimarySubcategoryTwo   *Relationship `json:"primarySubcategoryTwo,omitempty"`
+	SecondarySubcategoryOne *Relationship `json:"secondarySubcategoryOne,omitempty"`
+	SecondarySubcategoryTwo *Relationship `json:"secondarySubcategoryTwo,omitempty"`
 }
 
 // AppInfoUpdateCategoriesData is the data for updating app info categories.
@@ -89,9 +89,9 @@ type AppInfoUpdateCategoriesRequest struct {
 // AppInfoResponse is the response from updating app info.
 type AppInfoResponse struct {
 	Data struct {
-		Type       ResourceType       `json:"type"`
-		ID         string             `json:"id"`
-		Attributes AppInfoAttributes  `json:"attributes,omitempty"`
+		Type       ResourceType      `json:"type"`
+		ID         string            `json:"id"`
+		Attributes AppInfoAttributes `json:"attributes,omitempty"`
 	} `json:"data"`
 }
 

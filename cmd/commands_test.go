@@ -918,6 +918,7 @@ func TestDevicesListLimitValidation(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
 func TestTestFlightAppsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")

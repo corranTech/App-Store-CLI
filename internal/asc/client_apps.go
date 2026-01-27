@@ -15,6 +15,24 @@ type AppAttributes struct {
 	PrimaryLocale string `json:"primaryLocale,omitempty"`
 }
 
+// AppUpdateAttributes describes fields for updating an app.
+type AppUpdateAttributes struct {
+	BundleID      *string `json:"bundleId,omitempty"`
+	PrimaryLocale *string `json:"primaryLocale,omitempty"`
+}
+
+// AppUpdateData is the data portion of an app update request.
+type AppUpdateData struct {
+	Type       ResourceType         `json:"type"`
+	ID         string               `json:"id"`
+	Attributes *AppUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// AppUpdateRequest is a request to update an app.
+type AppUpdateRequest struct {
+	Data AppUpdateData `json:"data"`
+}
+
 // AppsResponse is the response from apps endpoint.
 type AppsResponse = Response[AppAttributes]
 
@@ -57,6 +75,41 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*AppResponse, error)
 	appID = strings.TrimSpace(appID)
 	path := fmt.Sprintf("/v1/apps/%s", appID)
 	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateApp updates an app by ID.
+func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAttributes) (*AppResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+
+	payload := AppUpdateRequest{
+		Data: AppUpdateData{
+			Type: ResourceTypeApps,
+			ID:   appID,
+		},
+	}
+	if attrs.BundleID != nil || attrs.PrimaryLocale != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/apps/%s", appID), body)
 	if err != nil {
 		return nil, err
 	}
