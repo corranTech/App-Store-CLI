@@ -20,6 +20,8 @@ const (
 	ResourceTypeBuildUploadFiles                     ResourceType = "buildUploadFiles"
 	ResourceTypeCertificates                         ResourceType = "certificates"
 	ResourceTypeAppStoreVersions                     ResourceType = "appStoreVersions"
+	ResourceTypeAppStoreVersionPromotions            ResourceType = "appStoreVersionPromotions"
+	ResourceTypeAppStoreVersionExperimentTreatments  ResourceType = "appStoreVersionExperimentTreatments"
 	ResourceTypePreReleaseVersions                   ResourceType = "preReleaseVersions"
 	ResourceTypeAppStoreVersionSubmissions           ResourceType = "appStoreVersionSubmissions"
 	ResourceTypeBetaGroups                           ResourceType = "betaGroups"
