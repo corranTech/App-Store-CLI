@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -30,20 +32,21 @@ const (
 	privateKeyEnvVar       = "ASC_PRIVATE_KEY"
 	privateKeyBase64EnvVar = "ASC_PRIVATE_KEY_B64"
 	profileEnvVar          = "ASC_PROFILE"
+	strictAuthEnvVar       = "ASC_STRICT_AUTH"
 )
 
 var (
-	privateKeyTempPath string
-	selectedProfile    string
+	privateKeyTempMu    sync.Mutex
+	privateKeyTempPath  string
+	privateKeyTempPaths []string
+	selectedProfile     string
+	strictAuth          bool
 )
 
 // CleanupTempPrivateKey removes any temporary private key created from env values.
+// Deprecated: use CleanupTempPrivateKeys to remove all tracked temp keys.
 func CleanupTempPrivateKey() {
-	if privateKeyTempPath == "" {
-		return
-	}
-	_ = os.Remove(privateKeyTempPath)
-	privateKeyTempPath = ""
+	CleanupTempPrivateKeys()
 }
 
 // Bold returns the string wrapped in ANSI bold codes
@@ -153,6 +156,18 @@ type envCredentials struct {
 	complete bool
 }
 
+type resolvedCredentials struct {
+	keyID    string
+	issuerID string
+	keyPath  string
+}
+
+type credentialSource struct {
+	keyID    string
+	issuerID string
+	keyPath  string
+}
+
 func resolveEnvCredentials() (envCredentials, error) {
 	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
@@ -178,34 +193,45 @@ func resolveEnvCredentials() (envCredentials, error) {
 	return creds, nil
 }
 
-func getASCClient() (*asc.Client, error) {
+func resolveCredentials() (resolvedCredentials, error) {
 	var actualKeyID, actualIssuerID, actualKeyPath string
 	profile := resolveProfileName()
 	var envCreds envCredentials
 	envResolved := false
+	sources := credentialSource{}
 
 	if profile == "" && auth.ShouldBypassKeychain() {
 		resolved, err := resolveEnvCredentials()
 		if err != nil {
-			return nil, fmt.Errorf("invalid private key environment: %w", err)
+			return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
 		}
 		envCreds = resolved
 		envResolved = true
 		if envCreds.complete {
-			return asc.NewClient(envCreds.keyID, envCreds.issuerID, envCreds.keyPath)
+			sources.keyID = "env"
+			sources.issuerID = "env"
+			sources.keyPath = "env"
+			return resolvedCredentials{
+				keyID:    envCreds.keyID,
+				issuerID: envCreds.issuerID,
+				keyPath:  envCreds.keyPath,
+			}, nil
 		}
 	}
 
 	// Priority 1: Stored credentials (keychain/config)
-	cfg, err := auth.GetCredentials(profile)
+	cfg, storedSource, err := auth.GetCredentialsWithSource(profile)
 	if err != nil {
 		if profile != "" {
-			return nil, err
+			return resolvedCredentials{}, err
 		}
 	} else if cfg != nil {
 		actualKeyID = cfg.KeyID
 		actualIssuerID = cfg.IssuerID
 		actualKeyPath = cfg.PrivateKeyPath
+		sources.keyID = storedSource
+		sources.issuerID = storedSource
+		sources.keyPath = storedSource
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
@@ -213,29 +239,71 @@ func getASCClient() (*asc.Client, error) {
 		if !envResolved {
 			resolved, err := resolveEnvCredentials()
 			if err != nil {
-				return nil, fmt.Errorf("invalid private key environment: %w", err)
+				return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
 			}
 			envCreds = resolved
 		}
-		if actualKeyID == "" {
+		if actualKeyID == "" && envCreds.keyID != "" {
 			actualKeyID = envCreds.keyID
+			sources.keyID = "env"
 		}
-		if actualIssuerID == "" {
+		if actualIssuerID == "" && envCreds.issuerID != "" {
 			actualIssuerID = envCreds.issuerID
+			sources.issuerID = "env"
 		}
-		if actualKeyPath == "" {
+		if actualKeyPath == "" && envCreds.keyPath != "" {
 			actualKeyPath = envCreds.keyPath
+			sources.keyPath = "env"
 		}
 	}
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
 		if path, err := config.Path(); err == nil {
-			return nil, fmt.Errorf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)
+			return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)
 		}
-		return nil, fmt.Errorf("missing authentication. Run 'asc auth login' or 'asc auth init'")
+		return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or 'asc auth init'")
+	}
+	if err := checkMixedCredentialSources(sources); err != nil {
+		return resolvedCredentials{}, err
 	}
 
-	return asc.NewClient(actualKeyID, actualIssuerID, actualKeyPath)
+	return resolvedCredentials{
+		keyID:    actualKeyID,
+		issuerID: actualIssuerID,
+		keyPath:  actualKeyPath,
+	}, nil
+}
+
+func getASCClient() (*asc.Client, error) {
+	resolved, err := resolveCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
+}
+
+func checkMixedCredentialSources(sources credentialSource) error {
+	keyIDSource := strings.TrimSpace(sources.keyID)
+	issuerSource := strings.TrimSpace(sources.issuerID)
+	keyPathSource := strings.TrimSpace(sources.keyPath)
+	if keyIDSource == "" || issuerSource == "" || keyPathSource == "" {
+		return nil
+	}
+	if keyIDSource == issuerSource && issuerSource == keyPathSource {
+		return nil
+	}
+
+	message := fmt.Sprintf(
+		"Warning: credentials loaded from multiple sources:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s\n",
+		keyIDSource,
+		issuerSource,
+		keyPathSource,
+	)
+	if strictAuthEnabled() {
+		return fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s", keyIDSource, issuerSource, keyPathSource)
+	}
+	fmt.Fprint(os.Stderr, message)
+	return nil
 }
 
 func resolvePrivateKeyPath() (string, error) {
@@ -296,8 +364,28 @@ func writeTempPrivateKey(data []byte) (string, error) {
 	if err := file.Close(); err != nil {
 		return "", err
 	}
-	privateKeyTempPath = file.Name()
-	return privateKeyTempPath, nil
+	registerTempPrivateKey(file.Name())
+	return file.Name(), nil
+}
+
+func registerTempPrivateKey(path string) {
+	privateKeyTempMu.Lock()
+	defer privateKeyTempMu.Unlock()
+	privateKeyTempPath = path
+	privateKeyTempPaths = append(privateKeyTempPaths, path)
+}
+
+// CleanupTempPrivateKeys removes any temporary private key files created during this run.
+func CleanupTempPrivateKeys() {
+	privateKeyTempMu.Lock()
+	paths := privateKeyTempPaths
+	privateKeyTempPaths = nil
+	privateKeyTempPath = ""
+	privateKeyTempMu.Unlock()
+
+	for _, path := range paths {
+		_ = os.Remove(path)
+	}
 }
 
 func resolveProfileName() string {
@@ -308,6 +396,21 @@ func resolveProfileName() string {
 		return value
 	}
 	return ""
+}
+
+func strictAuthEnabled() bool {
+	if strictAuth {
+		return true
+	}
+	value := strings.TrimSpace(os.Getenv(strictAuthEnvVar))
+	if value == "" {
+		return false
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false
+	}
+	return parsed
 }
 
 func printOutput(data interface{}, format string, pretty bool) error {

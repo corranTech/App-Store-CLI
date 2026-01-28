@@ -24,7 +24,7 @@ func main() {
 func run() int {
 	versionInfo := fmt.Sprintf("%s (commit: %s, date: %s)", version, commit, date)
 	root := cmd.RootCommand(versionInfo)
-	defer cmd.CleanupTempPrivateKey()
+	defer cmd.CleanupTempPrivateKeys()
 
 	if err := root.Parse(os.Args[1:]); err != nil {
 		if err == flag.ErrHelp {
@@ -35,6 +35,10 @@ func run() int {
 	}
 
 	if err := root.Run(context.Background()); err != nil {
+		var reported cmd.ReportedError
+		if errors.As(err, &reported) {
+			return 1
+		}
 		if errors.Is(err, flag.ErrHelp) {
 			return 1
 		}
