@@ -7,30 +7,33 @@ import (
 
 // GameCenterAchievementAttributes represents a Game Center achievement resource.
 type GameCenterAchievementAttributes struct {
-	ReferenceName    string `json:"referenceName"`
-	VendorIdentifier string `json:"vendorIdentifier"`
-	Points           int    `json:"points"`
-	ShowBeforeEarned bool   `json:"showBeforeEarned"`
-	Repeatable       bool   `json:"repeatable"`
-	Archived         bool   `json:"archived,omitempty"`
+	ReferenceName      string            `json:"referenceName"`
+	VendorIdentifier   string            `json:"vendorIdentifier"`
+	Points             int               `json:"points"`
+	ShowBeforeEarned   bool              `json:"showBeforeEarned"`
+	Repeatable         bool              `json:"repeatable"`
+	Archived           bool              `json:"archived,omitempty"`
+	ActivityProperties map[string]string `json:"activityProperties,omitempty"`
 }
 
 // GameCenterAchievementCreateAttributes describes attributes for creating an achievement.
 type GameCenterAchievementCreateAttributes struct {
-	ReferenceName    string `json:"referenceName"`
-	VendorIdentifier string `json:"vendorIdentifier"`
-	Points           int    `json:"points"`
-	ShowBeforeEarned bool   `json:"showBeforeEarned"`
-	Repeatable       bool   `json:"repeatable"`
+	ReferenceName      string            `json:"referenceName"`
+	VendorIdentifier   string            `json:"vendorIdentifier"`
+	Points             int               `json:"points"`
+	ShowBeforeEarned   bool              `json:"showBeforeEarned"`
+	Repeatable         bool              `json:"repeatable"`
+	ActivityProperties map[string]string `json:"activityProperties,omitempty"`
 }
 
 // GameCenterAchievementUpdateAttributes describes attributes for updating an achievement.
 type GameCenterAchievementUpdateAttributes struct {
-	ReferenceName    *string `json:"referenceName,omitempty"`
-	Points           *int    `json:"points,omitempty"`
-	ShowBeforeEarned *bool   `json:"showBeforeEarned,omitempty"`
-	Repeatable       *bool   `json:"repeatable,omitempty"`
-	Archived         *bool   `json:"archived,omitempty"`
+	ReferenceName      *string           `json:"referenceName,omitempty"`
+	Points             *int              `json:"points,omitempty"`
+	ShowBeforeEarned   *bool             `json:"showBeforeEarned,omitempty"`
+	Repeatable         *bool             `json:"repeatable,omitempty"`
+	Archived           *bool             `json:"archived,omitempty"`
+	ActivityProperties map[string]string `json:"activityProperties,omitempty"`
 }
 
 // GameCenterAchievementRelationships describes relationships for achievements.
@@ -116,9 +119,9 @@ type GameCenterAchievementLocalizationAttributes struct {
 // GameCenterAchievementLocalizationCreateAttributes describes attributes for creating a localization.
 type GameCenterAchievementLocalizationCreateAttributes struct {
 	Locale                  string `json:"locale"`
-	Name                    string `json:"name,omitempty"`
-	BeforeEarnedDescription string `json:"beforeEarnedDescription,omitempty"`
-	AfterEarnedDescription  string `json:"afterEarnedDescription,omitempty"`
+	Name                    string `json:"name"`
+	BeforeEarnedDescription string `json:"beforeEarnedDescription"`
+	AfterEarnedDescription  string `json:"afterEarnedDescription"`
 }
 
 // GameCenterAchievementLocalizationUpdateAttributes describes attributes for updating a localization.

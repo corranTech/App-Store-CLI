@@ -97,13 +97,13 @@ func buildGCLeaderboardSetsQuery(query *gcLeaderboardSetsQuery) string {
 // GameCenterLeaderboardSetLocalizationAttributes represents a Game Center leaderboard set localization resource.
 type GameCenterLeaderboardSetLocalizationAttributes struct {
 	Locale string `json:"locale"`
-	Name   string `json:"name,omitempty"`
+	Name   string `json:"name"`
 }
 
 // GameCenterLeaderboardSetLocalizationCreateAttributes describes attributes for creating a leaderboard set localization.
 type GameCenterLeaderboardSetLocalizationCreateAttributes struct {
 	Locale string `json:"locale"`
-	Name   string `json:"name,omitempty"`
+	Name   string `json:"name"`
 }
 
 // GameCenterLeaderboardSetLocalizationUpdateAttributes describes attributes for updating a leaderboard set localization.

@@ -173,6 +173,7 @@ func GameCenterLeaderboardLocalizationsCreateCommand() *ffcli.Command {
 	formatterOverride := fs.String("formatter-override", "", "Override the default formatter (optional)")
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score (optional)")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix (optional)")
+	description := fs.String("description", "", "Description for the leaderboard in this locale (optional)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -214,12 +215,33 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
+			var formatterOverrideVal *string
+			if trimmed := strings.TrimSpace(*formatterOverride); trimmed != "" {
+				formatterOverrideVal = &trimmed
+			}
+
+			var formatterSuffixVal *string
+			if trimmed := strings.TrimSpace(*formatterSuffix); trimmed != "" {
+				formatterSuffixVal = &trimmed
+			}
+
+			var formatterSuffixSingularVal *string
+			if trimmed := strings.TrimSpace(*formatterSuffixSingular); trimmed != "" {
+				formatterSuffixSingularVal = &trimmed
+			}
+
+			var descriptionVal *string
+			if trimmed := strings.TrimSpace(*description); trimmed != "" {
+				descriptionVal = &trimmed
+			}
+
 			attrs := asc.GameCenterLeaderboardLocalizationCreateAttributes{
 				Locale:                  localeVal,
 				Name:                    nameVal,
-				FormatterOverride:       strings.TrimSpace(*formatterOverride),
-				FormatterSuffix:         *formatterSuffix,
-				FormatterSuffixSingular: *formatterSuffixSingular,
+				FormatterOverride:       formatterOverrideVal,
+				FormatterSuffix:         formatterSuffixVal,
+				FormatterSuffixSingular: formatterSuffixSingularVal,
+				Description:             descriptionVal,
 			}
 
 			resp, err := client.CreateGameCenterLeaderboardLocalization(requestCtx, lbID, attrs)
@@ -241,6 +263,7 @@ func GameCenterLeaderboardLocalizationsUpdateCommand() *ffcli.Command {
 	formatterOverride := fs.String("formatter-override", "", "Override the default formatter")
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix")
+	description := fs.String("description", "", "Description for the leaderboard in this locale")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -271,21 +294,27 @@ Examples:
 				hasUpdate = true
 			}
 
-			if *formatterOverride != "" {
-				val := *formatterOverride
+			if strings.TrimSpace(*formatterOverride) != "" {
+				val := strings.TrimSpace(*formatterOverride)
 				attrs.FormatterOverride = &val
 				hasUpdate = true
 			}
 
-			if *formatterSuffix != "" {
-				val := *formatterSuffix
+			if strings.TrimSpace(*formatterSuffix) != "" {
+				val := strings.TrimSpace(*formatterSuffix)
 				attrs.FormatterSuffix = &val
 				hasUpdate = true
 			}
 
-			if *formatterSuffixSingular != "" {
-				val := *formatterSuffixSingular
+			if strings.TrimSpace(*formatterSuffixSingular) != "" {
+				val := strings.TrimSpace(*formatterSuffixSingular)
 				attrs.FormatterSuffixSingular = &val
+				hasUpdate = true
+			}
+
+			if strings.TrimSpace(*description) != "" {
+				val := strings.TrimSpace(*description)
+				attrs.Description = &val
 				hasUpdate = true
 			}
 
