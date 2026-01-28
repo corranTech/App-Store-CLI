@@ -377,6 +377,14 @@ func PrintMarkdown(data interface{}) error {
 		return printNominationDeleteResultMarkdown(v)
 	case *AppEncryptionDeclarationBuildsUpdateResult:
 		return printAppEncryptionDeclarationBuildsUpdateResultMarkdown(v)
+	case *PerfPowerMetricsResponse:
+		return printPerfPowerMetricsMarkdown(v)
+	case *DiagnosticSignaturesResponse:
+		return printDiagnosticSignaturesMarkdown(v)
+	case *DiagnosticLogsResponse:
+		return printDiagnosticLogsMarkdown(v)
+	case *PerformanceDownloadResult:
+		return printPerformanceDownloadResultMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -741,6 +749,14 @@ func PrintTable(data interface{}) error {
 		return printNominationDeleteResultTable(v)
 	case *AppEncryptionDeclarationBuildsUpdateResult:
 		return printAppEncryptionDeclarationBuildsUpdateResultTable(v)
+	case *PerfPowerMetricsResponse:
+		return printPerfPowerMetricsTable(v)
+	case *DiagnosticSignaturesResponse:
+		return printDiagnosticSignaturesTable(v)
+	case *DiagnosticLogsResponse:
+		return printDiagnosticLogsTable(v)
+	case *PerformanceDownloadResult:
+		return printPerformanceDownloadResultTable(v)
 	default:
 		return PrintJSON(data)
 	}
