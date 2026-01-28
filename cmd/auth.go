@@ -17,8 +17,9 @@ import (
 const authKeysURL = "https://appstoreconnect.apple.com/access/integrations/api"
 
 var (
-	loginJWTGenerator    = asc.GenerateJWT
-	loginNetworkValidate = validateLoginNetwork
+	loginJWTGenerator        = asc.GenerateJWT
+	loginNetworkValidate     = validateLoginNetwork
+	statusValidateCredential = validateStoredCredential
 )
 
 // Auth command factory
@@ -49,7 +50,6 @@ Use --strict-auth or ASC_STRICT_AUTH=1 to fail when sources are mixed.`,
 			AuthLoginCommand(),
 			AuthSwitchCommand(),
 			AuthLogoutCommand(),
-			AuthValidateCommand(),
 			AuthDoctorCommand(),
 			AuthStatusCommand(),
 		},
@@ -128,122 +128,6 @@ Examples:
 				Config:     template,
 			}
 			return asc.PrintJSON(result)
-		},
-	}
-}
-
-type authValidateResult struct {
-	Profile          string   `json:"profile,omitempty"`
-	KeyID            string   `json:"key_id,omitempty"`
-	IssuerID         string   `json:"issuer_id,omitempty"`
-	PrivateKeyPath   string   `json:"private_key_path,omitempty"`
-	Valid            bool     `json:"valid"`
-	NetworkRequested bool     `json:"network_requested"`
-	NetworkValid     *bool    `json:"network_valid,omitempty"`
-	Errors           []string `json:"errors,omitempty"`
-}
-
-// AuthValidate command factory
-func AuthValidateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("auth validate", flag.ExitOnError)
-
-	output := fs.String("output", "json", "Output format: json (default)")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
-	network := fs.Bool("network", false, "Validate credentials with a lightweight API request")
-
-	return &ffcli.Command{
-		Name:       "validate",
-		ShortUsage: "asc auth validate [flags]",
-		ShortHelp:  "Validate stored authentication credentials.",
-		LongHelp: `Validate stored authentication credentials.
-
-Checks the resolved credentials (profile/env/config) and validates the private key file.
-Add --network to verify credentials against a lightweight API request.
-
-Examples:
-  asc auth validate
-  asc --profile "Client" auth validate
-  asc auth validate --network`,
-		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			normalizedOutput := strings.ToLower(strings.TrimSpace(*output))
-			if normalizedOutput != "json" {
-				return fmt.Errorf("auth validate: unsupported format: %s (only json is supported)", *output)
-			}
-			result := authValidateResult{
-				Profile:          resolveProfileName(),
-				NetworkRequested: *network,
-			}
-
-			resolved, err := resolveCredentials()
-			if err != nil {
-				result.Valid = false
-				result.Errors = []string{err.Error()}
-				if printErr := printOutput(result, normalizedOutput, *pretty); printErr != nil {
-					return printErr
-				}
-				return NewReportedError(fmt.Errorf("auth validate: %w", err))
-			}
-
-			result.KeyID = resolved.keyID
-			result.IssuerID = resolved.issuerID
-			result.PrivateKeyPath = resolved.keyPath
-
-			if err := auth.ValidateKeyFile(resolved.keyPath); err != nil {
-				validationErr := fmt.Errorf("invalid private key: %w", err)
-				result.Valid = false
-				result.Errors = []string{validationErr.Error()}
-				if printErr := printOutput(result, normalizedOutput, *pretty); printErr != nil {
-					return printErr
-				}
-				return NewReportedError(fmt.Errorf("auth validate: %w", validationErr))
-			}
-
-			privateKey, err := auth.LoadPrivateKey(resolved.keyPath)
-			if err != nil {
-				validationErr := fmt.Errorf("failed to load private key: %w", err)
-				result.Valid = false
-				result.Errors = []string{validationErr.Error()}
-				if printErr := printOutput(result, normalizedOutput, *pretty); printErr != nil {
-					return printErr
-				}
-				return NewReportedError(fmt.Errorf("auth validate: %w", validationErr))
-			}
-			if _, err := asc.GenerateJWT(resolved.keyID, resolved.issuerID, privateKey); err != nil {
-				validationErr := fmt.Errorf("failed to generate JWT: %w", err)
-				result.Valid = false
-				result.Errors = []string{validationErr.Error()}
-				if printErr := printOutput(result, normalizedOutput, *pretty); printErr != nil {
-					return printErr
-				}
-				return NewReportedError(fmt.Errorf("auth validate: %w", validationErr))
-			}
-
-			var validationErr error
-			if *network {
-				client, err := asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
-				if err != nil {
-					validationErr = err
-				} else if _, err := client.GetApps(ctx, asc.WithAppsLimit(1)); err != nil {
-					validationErr = fmt.Errorf("network validation failed: %w", err)
-				}
-
-				networkValid := validationErr == nil
-				result.NetworkValid = &networkValid
-				if validationErr != nil {
-					result.Errors = []string{validationErr.Error()}
-				}
-			}
-
-			result.Valid = validationErr == nil
-			if err := printOutput(result, normalizedOutput, *pretty); err != nil {
-				return err
-			}
-			if validationErr != nil {
-				return NewReportedError(fmt.Errorf("auth validate: %w", validationErr))
-			}
-			return nil
 		},
 	}
 }
@@ -339,6 +223,27 @@ func doctorStatusLabel(status auth.DoctorStatus) string {
 	default:
 		return strings.ToUpper(string(status))
 	}
+}
+
+func validateStoredCredential(ctx context.Context, cred auth.Credential) error {
+	if err := auth.ValidateKeyFile(cred.PrivateKeyPath); err != nil {
+		return fmt.Errorf("invalid private key: %w", err)
+	}
+	privateKey, err := auth.LoadPrivateKey(cred.PrivateKeyPath)
+	if err != nil {
+		return fmt.Errorf("failed to load private key: %w", err)
+	}
+	if _, err := asc.GenerateJWT(cred.KeyID, cred.IssuerID, privateKey); err != nil {
+		return fmt.Errorf("failed to generate JWT: %w", err)
+	}
+	client, err := asc.NewClient(cred.KeyID, cred.IssuerID, cred.PrivateKeyPath)
+	if err != nil {
+		return err
+	}
+	if _, err := client.GetApps(ctx, asc.WithAppsLimit(1)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func validateLoginCredentials(ctx context.Context, keyID, issuerID, keyPath string, network bool) error {
@@ -601,6 +506,7 @@ Examples:
 func AuthStatusCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth status", flag.ExitOnError)
 	verbose := fs.Bool("verbose", false, "Show detailed storage information")
+	validate := fs.Bool("validate", false, "Validate stored credentials via network")
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -609,10 +515,12 @@ func AuthStatusCommand() *ffcli.Command {
 		LongHelp: `Show current authentication status.
 
 Displays information about stored API keys and which one is currently active.
+Add --validate to perform a network validation for each stored credential.
 
 Examples:
   asc auth status
-  asc auth status --verbose`,
+  asc auth status --verbose
+  asc auth status --validate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -675,6 +583,7 @@ Examples:
 			}
 			fmt.Println()
 
+			validationFailures := 0
 			if len(credentials) == 0 {
 				fmt.Println("No credentials stored. Run 'asc auth login' to get started.")
 			} else {
@@ -685,6 +594,14 @@ Examples:
 						active = " (default)"
 					}
 					fmt.Printf("  - %s (Key ID: %s)%s (stored in %s)\n", cred.Name, cred.KeyID, active, credentialStorageLabel(cred))
+					if *validate {
+						if err := statusValidateCredential(ctx, cred); err != nil {
+							validationFailures++
+							fmt.Printf("    validation: failed (%v)\n", err)
+						} else {
+							fmt.Println("    validation: ok")
+						}
+					}
 				}
 			}
 
@@ -703,6 +620,9 @@ Examples:
 				fmt.Printf("Environment credentials detected (ASC_KEY_ID: %s). With ASC_BYPASS_KEYCHAIN=1, they will be used when no profile is selected.\n", envKeyID)
 			} else if bypassKeychain && envProvided && !envComplete {
 				fmt.Println("Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64.")
+			}
+			if *validate && validationFailures > 0 {
+				return NewReportedError(fmt.Errorf("auth status: validation failed for %d credential(s)", validationFailures))
 			}
 			return nil
 		},

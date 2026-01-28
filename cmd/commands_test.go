@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -3004,17 +3004,30 @@ func TestAuthDoctorFixRequiresConfirm(t *testing.T) {
 	})
 }
 
-func TestAuthValidateSuccess(t *testing.T) {
+func TestAuthStatusValidateSuccess(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "AuthKey.p8")
 	writeECDSAPEM(t, keyPath)
 
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	cfg := &config.Config{
+		DefaultKeyName: "default",
+		Keys: []config.Credential{
+			{
+				Name:           "default",
+				KeyID:          "KEY123",
+				IssuerID:       "ISS456",
+				PrivateKeyPath: keyPath,
+			},
+		},
+	}
+	configPath := filepath.Join(tempDir, "config.json")
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	t.Setenv("ASC_CONFIG_PATH", configPath)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
-	t.Setenv("ASC_KEY_ID", "ENVKEY")
-	t.Setenv("ASC_ISSUER_ID", "ENVISS")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
 
 	previousProfile := selectedProfile
 	selectedProfile = ""
@@ -3022,11 +3035,19 @@ func TestAuthValidateSuccess(t *testing.T) {
 		selectedProfile = previousProfile
 	})
 
+	previousValidator := statusValidateCredential
+	statusValidateCredential = func(ctx context.Context, cred auth.Credential) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		statusValidateCredential = previousValidator
+	})
+
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "validate"}); err != nil {
+		if err := root.Parse([]string{"auth", "status", "--validate"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -3037,35 +3058,35 @@ func TestAuthValidateSuccess(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-
-	var result authValidateResult
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("failed to parse json output: %v", err)
-	}
-	if !result.Valid {
-		t.Fatalf("expected valid true, got false")
-	}
-	if result.NetworkRequested {
-		t.Fatalf("expected network_requested false, got true")
-	}
-	if result.KeyID != "ENVKEY" {
-		t.Fatalf("expected key_id ENVKEY, got %q", result.KeyID)
-	}
-	if result.IssuerID != "ENVISS" {
-		t.Fatalf("expected issuer_id ENVISS, got %q", result.IssuerID)
-	}
-	if filepath.Clean(result.PrivateKeyPath) != filepath.Clean(keyPath) {
-		t.Fatalf("expected private_key_path %q, got %q", keyPath, result.PrivateKeyPath)
+	if !strings.Contains(stdout, "validation: ok") {
+		t.Fatalf("expected validation ok output, got %q", stdout)
 	}
 }
 
-func TestAuthValidateMissingAuth(t *testing.T) {
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+func TestAuthStatusValidateFailureReturnsReportedError(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+
+	cfg := &config.Config{
+		DefaultKeyName: "default",
+		Keys: []config.Credential{
+			{
+				Name:           "default",
+				KeyID:          "KEY123",
+				IssuerID:       "ISS456",
+				PrivateKeyPath: keyPath,
+			},
+		},
+	}
+	configPath := filepath.Join(tempDir, "config.json")
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	t.Setenv("ASC_CONFIG_PATH", configPath)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
-	t.Setenv("ASC_KEY_ID", "")
-	t.Setenv("ASC_ISSUER_ID", "")
-	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
 
 	previousProfile := selectedProfile
 	selectedProfile = ""
@@ -3073,11 +3094,19 @@ func TestAuthValidateMissingAuth(t *testing.T) {
 		selectedProfile = previousProfile
 	})
 
+	previousValidator := statusValidateCredential
+	statusValidateCredential = func(ctx context.Context, cred auth.Credential) error {
+		return errors.New("validation failed")
+	}
+	t.Cleanup(func() {
+		statusValidateCredential = previousValidator
+	})
+
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"auth", "validate"}); err != nil {
+		if err := root.Parse([]string{"auth", "status", "--validate"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err == nil {
@@ -3093,16 +3122,8 @@ func TestAuthValidateMissingAuth(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-
-	var result authValidateResult
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("failed to parse json output: %v", err)
-	}
-	if result.Valid {
-		t.Fatalf("expected valid false, got true")
-	}
-	if len(result.Errors) == 0 {
-		t.Fatalf("expected errors to be populated, got %#v", result.Errors)
+	if !strings.Contains(stdout, "validation: failed") {
+		t.Fatalf("expected validation failed output, got %q", stdout)
 	}
 }
 
