@@ -1,4 +1,4 @@
-package cmd
+package builds
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildsTestNotesCommand returns the builds test-notes command group.
@@ -82,7 +83,7 @@ Examples:
 			}
 
 			locales := splitCSV(*locale)
-			if err := validateBuildLocalizationLocales(locales); err != nil {
+			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
 				return fmt.Errorf("builds test-notes list: %w", err)
 			}
 
@@ -202,7 +203,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
 				return flag.ErrHelp
 			}
-			if err := validateBuildLocalizationLocale(localeValue); err != nil {
+			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
 

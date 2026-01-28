@@ -1,4 +1,4 @@
-package cmd
+package shared
 
 import (
 	"archive/zip"
@@ -15,7 +15,7 @@ func TestExtractBundleInfoFromIPA(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistData,
 	})
 
-	info, err := extractBundleInfoFromIPA(ipaPath)
+	info, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err != nil {
 		t.Fatalf("extractBundleInfoFromIPA() error: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestExtractBundleInfoFromIPA_PrefersTopLevelApp(t *testing.T) {
 		"Payload/Demo.app/Frameworks/Another.framework/Info.plist": extensionPlist,
 	})
 
-	info, err := extractBundleInfoFromIPA(ipaPath)
+	info, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err != nil {
 		t.Fatalf("extractBundleInfoFromIPA() error: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestExtractBundleInfoFromIPA_MissingInfoPlist(t *testing.T) {
 		"Payload/Demo.app/README.txt": []byte("no plist"),
 	})
 
-	_, err := extractBundleInfoFromIPA(ipaPath)
+	_, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -68,7 +68,7 @@ func TestExtractBundleInfoFromIPA_NumericBuildVersion(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistData,
 	})
 
-	info, err := extractBundleInfoFromIPA(ipaPath)
+	info, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err != nil {
 		t.Fatalf("extractBundleInfoFromIPA() error: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestExtractBundleInfoFromIPA_BinaryPlist(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistData,
 	})
 
-	info, err := extractBundleInfoFromIPA(ipaPath)
+	info, err := ExtractBundleInfoFromIPA(ipaPath)
 	if err != nil {
 		t.Fatalf("extractBundleInfoFromIPA() error: %v", err)
 	}

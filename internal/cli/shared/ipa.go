@@ -1,4 +1,4 @@
-package cmd
+package shared
 
 import (
 	"archive/zip"
@@ -11,15 +11,16 @@ import (
 	"howett.net/plist"
 )
 
-type ipaBundleInfo struct {
+type IPABundleInfo struct {
 	Version     string
 	BuildNumber string
 }
 
-func extractBundleInfoFromIPA(ipaPath string) (ipaBundleInfo, error) {
+// ExtractBundleInfoFromIPA reads CFBundleVersion info from an IPA.
+func ExtractBundleInfoFromIPA(ipaPath string) (IPABundleInfo, error) {
 	reader, err := zip.OpenReader(ipaPath)
 	if err != nil {
-		return ipaBundleInfo{}, fmt.Errorf("open IPA: %w", err)
+		return IPABundleInfo{}, fmt.Errorf("open IPA: %w", err)
 	}
 	defer reader.Close()
 
@@ -33,7 +34,7 @@ func extractBundleInfoFromIPA(ipaPath string) (ipaBundleInfo, error) {
 		return readBundleInfoFromInfoPlist(file)
 	}
 
-	return ipaBundleInfo{}, fmt.Errorf("Info.plist not found in IPA")
+	return IPABundleInfo{}, fmt.Errorf("Info.plist not found in IPA")
 }
 
 func isTopLevelAppInfoPlist(name string) bool {
@@ -48,25 +49,25 @@ func isTopLevelAppInfoPlist(name string) bool {
 	return path.Dir(dir) == "Payload"
 }
 
-func readBundleInfoFromInfoPlist(file *zip.File) (ipaBundleInfo, error) {
+func readBundleInfoFromInfoPlist(file *zip.File) (IPABundleInfo, error) {
 	reader, err := file.Open()
 	if err != nil {
-		return ipaBundleInfo{}, fmt.Errorf("open Info.plist: %w", err)
+		return IPABundleInfo{}, fmt.Errorf("open Info.plist: %w", err)
 	}
 	defer reader.Close()
 
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return ipaBundleInfo{}, fmt.Errorf("read Info.plist: %w", err)
+		return IPABundleInfo{}, fmt.Errorf("read Info.plist: %w", err)
 	}
 
 	var info map[string]interface{}
 	decoder := plist.NewDecoder(bytes.NewReader(data))
 	if err := decoder.Decode(&info); err != nil {
-		return ipaBundleInfo{}, fmt.Errorf("decode Info.plist: %w", err)
+		return IPABundleInfo{}, fmt.Errorf("decode Info.plist: %w", err)
 	}
 
-	return ipaBundleInfo{
+	return IPABundleInfo{
 		Version:     coercePlistValueToString(info["CFBundleShortVersionString"]),
 		BuildNumber: coercePlistValueToString(info["CFBundleVersion"]),
 	}, nil

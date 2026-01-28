@@ -1,4 +1,4 @@
-package cmd
+package builds
 
 import (
 	"context"
@@ -31,7 +31,7 @@ func BuildsUploadCommand() *ffcli.Command {
 	testNotes := fs.String("test-notes", "", "What to Test notes (requires build processing)")
 	locale := fs.String("locale", "", "Locale for --test-notes (e.g., en-US)")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
-	pollInterval := fs.Duration("poll-interval", publishDefaultPollInterval, "Polling interval for --wait and --test-notes")
+	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and --test-notes")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -107,7 +107,7 @@ Examples:
 				if *dryRun {
 					return fmt.Errorf("builds upload: --test-notes is not supported with --dry-run")
 				}
-				if err := validateBuildLocalizationLocale(localeValue); err != nil {
+				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 					return fmt.Errorf("builds upload: %w", err)
 				}
 			}
@@ -118,7 +118,7 @@ Examples:
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			if versionValue == "" || buildNumberValue == "" {
-				info, err := extractBundleInfoFromIPA(*ipaPath)
+				info, err := shared.ExtractBundleInfoFromIPA(*ipaPath)
 				if err != nil {
 					missingFlags := make([]string, 0, 2)
 					if versionValue == "" {
@@ -159,7 +159,7 @@ Examples:
 			if *wait || testNotesValue != "" {
 				timeoutValue = asc.ResolveTimeoutWithDefault(buildWaitDefaultTimeout)
 			}
-			requestCtx, cancel := contextWithPublishTimeout(ctx, timeoutValue)
+			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 			defer cancel()
 
 			// Step 1: Create build upload record
@@ -277,7 +277,7 @@ Examples:
 				result.Operations = nil
 
 				if *wait || testNotesValue != "" {
-					buildResp, err := waitForBuildByNumber(requestCtx, client, resolvedAppID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
+					buildResp, err := shared.WaitForBuildByNumber(requestCtx, client, resolvedAppID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
 					if err != nil {
 						return fmt.Errorf("builds upload: %w", err)
 					}

@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	publishDefaultPollInterval = 30 * time.Second
-	publishDefaultTimeout      = 30 * time.Minute
+	publishDefaultTimeout = 30 * time.Minute
 )
 
 // PublishCommand returns the publish command with subcommands.
@@ -55,7 +54,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 	groupIDs := fs.String("group", "", "Beta group ID(s), comma-separated")
 	notify := fs.Bool("notify", false, "Notify testers after adding to groups")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
-	pollInterval := fs.Duration("poll-interval", publishDefaultPollInterval, "Polling interval for --wait and build discovery")
+	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and build discovery")
 	timeout := fs.Duration("timeout", 0, "Override upload + processing timeout (e.g., 30m)")
 	testNotes := fs.String("test-notes", "", "What to Test notes for the build")
 	locale := fs.String("locale", "", "Locale for --test-notes (e.g., en-US)")
@@ -108,7 +107,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if testNotesValue != "" {
-				if err := validateBuildLocalizationLocale(localeValue); err != nil {
+				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
 				}
 			}
@@ -141,7 +140,7 @@ Examples:
 			}
 
 			timeoutValue := resolvePublishTimeout(*timeout)
-			requestCtx, cancel := contextWithPublishTimeout(ctx, timeoutValue)
+			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 			defer cancel()
 
 			platformValue := asc.Platform(normalizedPlatform)
@@ -196,7 +195,7 @@ func PublishAppStoreCommand() *ffcli.Command {
 	submit := fs.Bool("submit", false, "Submit for review after attaching build")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required with --submit)")
 	wait := fs.Bool("wait", false, "Wait for build processing")
-	pollInterval := fs.Duration("poll-interval", publishDefaultPollInterval, "Polling interval for --wait and build discovery")
+	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and build discovery")
 	timeout := fs.Duration("timeout", 0, "Override upload + processing timeout (e.g., 30m)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
@@ -262,7 +261,7 @@ Examples:
 			}
 
 			timeoutValue := resolvePublishTimeout(*timeout)
-			requestCtx, cancel := contextWithPublishTimeout(ctx, timeoutValue)
+			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 			defer cancel()
 
 			platformValue := asc.Platform(normalizedPlatform)
@@ -351,7 +350,7 @@ func uploadBuildAndWaitForID(ctx context.Context, client *asc.Client, appID, ipa
 		return nil, err
 	}
 
-	buildResp, err := waitForBuildByNumber(ctx, client, appID, version, buildNumber, string(platform), pollInterval)
+	buildResp, err := shared.WaitForBuildByNumber(ctx, client, appID, version, buildNumber, string(platform), pollInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -368,13 +367,6 @@ func resolvePublishTimeout(timeout time.Duration) time.Duration {
 		return timeout
 	}
 	return asc.ResolveTimeoutWithDefault(publishDefaultTimeout)
-}
-
-func contextWithPublishTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, timeout)
 }
 
 func contextWithPublishUploadTimeout(ctx context.Context, timeout time.Duration, override bool) (context.Context, context.CancelFunc) {
@@ -402,7 +394,7 @@ func resolveBundleInfoForIPA(ipaPath, version, buildNumber string) (string, stri
 	versionValue := strings.TrimSpace(version)
 	buildNumberValue := strings.TrimSpace(buildNumber)
 	if versionValue == "" || buildNumberValue == "" {
-		info, err := extractBundleInfoFromIPA(ipaPath)
+		info, err := shared.ExtractBundleInfoFromIPA(ipaPath)
 		if err != nil {
 			missingFlags := make([]string, 0, 2)
 			if versionValue == "" {
@@ -501,66 +493,4 @@ func commitBuildUploadFile(ctx context.Context, client *asc.Client, fileID strin
 		return fmt.Errorf("commit upload file: %w", err)
 	}
 	return nil
-}
-
-func waitForBuildByNumber(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-	if pollInterval <= 0 {
-		pollInterval = publishDefaultPollInterval
-	}
-	buildNumber = strings.TrimSpace(buildNumber)
-	if buildNumber == "" {
-		return nil, fmt.Errorf("build number is required to resolve build")
-	}
-
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	for {
-		build, err := findBuildByNumber(ctx, client, appID, version, buildNumber, platform)
-		if err != nil {
-			return nil, err
-		}
-		if build != nil {
-			return build, nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-		}
-	}
-}
-
-func findBuildByNumber(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string) (*asc.BuildResponse, error) {
-	preReleaseResp, err := client.GetPreReleaseVersions(ctx, appID,
-		asc.WithPreReleaseVersionsVersion(version),
-		asc.WithPreReleaseVersionsPlatform(platform),
-		asc.WithPreReleaseVersionsLimit(10),
-	)
-	if err != nil {
-		return nil, err
-	}
-	if len(preReleaseResp.Data) == 0 {
-		return nil, nil
-	}
-	if len(preReleaseResp.Data) > 1 {
-		return nil, fmt.Errorf("multiple pre-release versions found for version %q and platform %q", version, platform)
-	}
-
-	preReleaseID := preReleaseResp.Data[0].ID
-	buildsResp, err := client.GetBuilds(ctx, appID,
-		asc.WithBuildsPreReleaseVersion(preReleaseID),
-		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(200),
-	)
-	if err != nil {
-		return nil, err
-	}
-	for _, build := range buildsResp.Data {
-		if strings.TrimSpace(build.Attributes.Version) == buildNumber {
-			return &asc.BuildResponse{Data: build}, nil
-		}
-	}
-	return nil, nil
 }

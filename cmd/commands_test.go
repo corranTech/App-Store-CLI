@@ -1570,6 +1570,7 @@ func TestRoutingCoverageValidationErrors(t *testing.T) {
 }
 
 func TestEncryptionValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
 	t.Setenv("ASC_ISSUER_ID", "")

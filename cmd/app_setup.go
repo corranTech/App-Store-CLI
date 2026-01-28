@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppSetupCommand returns the app-setup command group.
@@ -127,7 +128,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if primaryLocaleValue != "" {
-				if err := validateBuildLocalizationLocale(primaryLocaleValue); err != nil {
+				if err := shared.ValidateBuildLocalizationLocale(primaryLocaleValue); err != nil {
 					return fmt.Errorf("app-setup info set: %w", err)
 				}
 			}
@@ -136,7 +137,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if localeValue != "" {
-				if err := validateBuildLocalizationLocale(localeValue); err != nil {
+				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 					return fmt.Errorf("app-setup info set: %w", err)
 				}
 			}
