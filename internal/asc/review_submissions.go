@@ -28,8 +28,10 @@ type ReviewSubmissionAttributes struct {
 
 // ReviewSubmissionRelationships describes review submission relationships.
 type ReviewSubmissionRelationships struct {
-	App   *Relationship     `json:"app,omitempty"`
-	Items *RelationshipList `json:"items,omitempty"`
+	App                *Relationship     `json:"app,omitempty"`
+	Items              *RelationshipList `json:"items,omitempty"`
+	SubmittedByActor   *Relationship     `json:"submittedByActor,omitempty"`
+	LastUpdatedByActor *Relationship     `json:"lastUpdatedByActor,omitempty"`
 }
 
 // ReviewSubmissionResource represents a review submission resource.
@@ -42,8 +44,9 @@ type ReviewSubmissionResource struct {
 
 // ReviewSubmissionsResponse is the response from review submissions list endpoints.
 type ReviewSubmissionsResponse struct {
-	Data  []ReviewSubmissionResource `json:"data"`
-	Links Links                      `json:"links,omitempty"`
+	Data     []ReviewSubmissionResource `json:"data"`
+	Links    Links                      `json:"links,omitempty"`
+	Included json.RawMessage            `json:"included,omitempty"`
 }
 
 // GetLinks returns the links field for pagination.
@@ -58,8 +61,9 @@ func (r *ReviewSubmissionsResponse) GetData() interface{} {
 
 // ReviewSubmissionResponse is the response from review submission detail endpoints.
 type ReviewSubmissionResponse struct {
-	Data  ReviewSubmissionResource `json:"data"`
-	Links Links                    `json:"links,omitempty"`
+	Data     ReviewSubmissionResource `json:"data"`
+	Links    Links                    `json:"links,omitempty"`
+	Included json.RawMessage          `json:"included,omitempty"`
 }
 
 // ReviewSubmissionCreateAttributes describes attributes for creating a review submission.

@@ -79,6 +79,7 @@ const (
 	ResourceTypeAppStoreReviewAttachments            ResourceType = "appStoreReviewAttachments"
 	ResourceTypeUsers                                ResourceType = "users"
 	ResourceTypeUserInvitations                      ResourceType = "userInvitations"
+	ResourceTypeActors                               ResourceType = "actors"
 	ResourceTypeSubscriptionOfferCodes               ResourceType = "subscriptionOfferCodes"
 	ResourceTypeSubscriptionOfferCodeOneTimeUseCodes ResourceType = "subscriptionOfferCodeOneTimeUseCodes"
 	ResourceTypeNominations                          ResourceType = "nominations"

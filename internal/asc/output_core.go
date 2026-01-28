@@ -173,6 +173,10 @@ func PrintMarkdown(data interface{}) error {
 		return printUsersMarkdown(v)
 	case *UserResponse:
 		return printUsersMarkdown(&UsersResponse{Data: []Resource[UserAttributes]{v.Data}})
+	case *ActorsResponse:
+		return printActorsMarkdown(v)
+	case *ActorResponse:
+		return printActorsMarkdown(&ActorsResponse{Data: []Resource[ActorAttributes]{v.Data}})
 	case *DevicesResponse:
 		return printDevicesMarkdown(v)
 	case *DeviceLocalUDIDResult:
@@ -545,6 +549,10 @@ func PrintTable(data interface{}) error {
 		return printUsersTable(v)
 	case *UserResponse:
 		return printUsersTable(&UsersResponse{Data: []Resource[UserAttributes]{v.Data}})
+	case *ActorsResponse:
+		return printActorsTable(v)
+	case *ActorResponse:
+		return printActorsTable(&ActorsResponse{Data: []Resource[ActorAttributes]{v.Data}})
 	case *DevicesResponse:
 		return printDevicesTable(v)
 	case *DeviceLocalUDIDResult:
