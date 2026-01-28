@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
+	authcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -71,6 +77,26 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 	os.Stderr = oldStderr
 
 	return stdout, stderr
+}
+
+func writeECDSAPEM(t *testing.T, path string) {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal key error: %v", err)
+	}
+	data := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
+	if data == nil {
+		t.Fatal("failed to encode PEM")
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("write key file error: %v", err)
+	}
 }
 
 func TestVersionSubcommandPrintsVersion(t *testing.T) {
@@ -2839,10 +2865,10 @@ func TestAuthStatusShowsEnvPreference(t *testing.T) {
 	t.Setenv("ASC_ISSUER_ID", "ENVISS")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
 
-	previousProfile := selectedProfile
-	selectedProfile = ""
+	previousProfile := shared.SelectedProfile()
+	shared.SetSelectedProfile("")
 	t.Cleanup(func() {
-		selectedProfile = previousProfile
+		shared.SetSelectedProfile(previousProfile)
 	})
 
 	root := RootCommand("1.2.3")
@@ -2873,10 +2899,10 @@ func TestAuthStatusEnvIncomplete(t *testing.T) {
 	t.Setenv("ASC_ISSUER_ID", "")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
 
-	previousProfile := selectedProfile
-	selectedProfile = ""
+	previousProfile := shared.SelectedProfile()
+	shared.SetSelectedProfile("")
 	t.Cleanup(func() {
-		selectedProfile = previousProfile
+		shared.SetSelectedProfile(previousProfile)
 	})
 
 	root := RootCommand("1.2.3")
@@ -2907,10 +2933,10 @@ func TestAuthStatusProfileOverridesEnvNote(t *testing.T) {
 	t.Setenv("ASC_ISSUER_ID", "ENVISS")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
 
-	previousProfile := selectedProfile
-	selectedProfile = ""
+	previousProfile := shared.SelectedProfile()
+	shared.SetSelectedProfile("")
 	t.Cleanup(func() {
-		selectedProfile = previousProfile
+		shared.SetSelectedProfile(previousProfile)
 	})
 
 	root := RootCommand("1.2.3")
@@ -2958,10 +2984,10 @@ func TestAuthStatusShowsStorageLocation(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
 
-	previousProfile := selectedProfile
-	selectedProfile = ""
+	previousProfile := shared.SelectedProfile()
+	shared.SetSelectedProfile("")
 	t.Cleanup(func() {
-		selectedProfile = previousProfile
+		shared.SetSelectedProfile(previousProfile)
 	})
 
 	root := RootCommand("1.2.3")
@@ -3029,19 +3055,16 @@ func TestAuthStatusValidateSuccess(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
 
-	previousProfile := selectedProfile
-	selectedProfile = ""
+	previousProfile := shared.SelectedProfile()
+	shared.SetSelectedProfile("")
 	t.Cleanup(func() {
-		selectedProfile = previousProfile
+		shared.SetSelectedProfile(previousProfile)
 	})
 
-	previousValidator := statusValidateCredential
-	statusValidateCredential = func(ctx context.Context, cred auth.Credential) error {
+	restoreValidator := authcli.SetStatusValidateCredential(func(ctx context.Context, cred auth.Credential) error {
 		return nil
-	}
-	t.Cleanup(func() {
-		statusValidateCredential = previousValidator
 	})
+	t.Cleanup(restoreValidator)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -3088,19 +3111,16 @@ func TestAuthStatusValidateForbiddenReportsWorks(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
 
-	previousProfile := selectedProfile
-	selectedProfile = ""
+	previousProfile := shared.SelectedProfile()
+	shared.SetSelectedProfile("")
 	t.Cleanup(func() {
-		selectedProfile = previousProfile
+		shared.SetSelectedProfile(previousProfile)
 	})
 
-	previousValidator := statusValidateCredential
-	statusValidateCredential = func(ctx context.Context, cred auth.Credential) error {
-		return &permissionWarning{err: errors.New("forbidden")}
-	}
-	t.Cleanup(func() {
-		statusValidateCredential = previousValidator
+	restoreValidator := authcli.SetStatusValidateCredential(func(ctx context.Context, cred auth.Credential) error {
+		return authcli.NewPermissionWarning(errors.New("forbidden"))
 	})
+	t.Cleanup(restoreValidator)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -3147,19 +3167,16 @@ func TestAuthStatusValidateFailureReturnsReportedError(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
 
-	previousProfile := selectedProfile
-	selectedProfile = ""
+	previousProfile := shared.SelectedProfile()
+	shared.SetSelectedProfile("")
 	t.Cleanup(func() {
-		selectedProfile = previousProfile
+		shared.SetSelectedProfile(previousProfile)
 	})
 
-	previousValidator := statusValidateCredential
-	statusValidateCredential = func(ctx context.Context, cred auth.Credential) error {
+	restoreValidator := authcli.SetStatusValidateCredential(func(ctx context.Context, cred auth.Credential) error {
 		return errors.New("validation failed")
-	}
-	t.Cleanup(func() {
-		statusValidateCredential = previousValidator
 	})
+	t.Cleanup(restoreValidator)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -3203,13 +3220,10 @@ func TestAuthLoginValidationFailurePreventsStore(t *testing.T) {
 		_ = os.Chdir(previousDir)
 	})
 
-	previousGenerator := loginJWTGenerator
-	loginJWTGenerator = func(_, _ string, _ *ecdsa.PrivateKey) (string, error) {
+	restoreGenerator := authcli.SetLoginJWTGenerator(func(_, _ string, _ *ecdsa.PrivateKey) (string, error) {
 		return "", errors.New("jwt failure")
-	}
-	t.Cleanup(func() {
-		loginJWTGenerator = previousGenerator
 	})
+	t.Cleanup(restoreGenerator)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -3254,13 +3268,10 @@ func TestAuthLoginSkipValidationBypassesJWT(t *testing.T) {
 		_ = os.Chdir(previousDir)
 	})
 
-	previousGenerator := loginJWTGenerator
-	loginJWTGenerator = func(_, _ string, _ *ecdsa.PrivateKey) (string, error) {
+	restoreGenerator := authcli.SetLoginJWTGenerator(func(_, _ string, _ *ecdsa.PrivateKey) (string, error) {
 		return "", errors.New("jwt failure")
-	}
-	t.Cleanup(func() {
-		loginJWTGenerator = previousGenerator
 	})
+	t.Cleanup(restoreGenerator)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

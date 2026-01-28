@@ -1,4 +1,4 @@
-package cmd
+package gamecenter
 
 import (
 	"context"
