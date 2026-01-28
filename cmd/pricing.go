@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PricingCommand returns the pricing command group.
@@ -378,18 +378,18 @@ Examples:
 
 // PricingScheduleCreateCommand returns the schedule create subcommand.
 func PricingScheduleCreateCommand() *ffcli.Command {
-	return newPricingSetCommand(pricingSetCommandConfig{
-		flagSetName: "pricing schedule create",
-		commandName: "create",
-		shortUsage:  "asc pricing schedule create [flags]",
-		shortHelp:   "Create an app price schedule.",
-		longHelp: `Create an app price schedule.
+	return shared.NewPricingSetCommand(shared.PricingSetCommandConfig{
+		FlagSetName: "pricing schedule create",
+		CommandName: "create",
+		ShortUsage:  "asc pricing schedule create [flags]",
+		ShortHelp:   "Create an app price schedule.",
+		LongHelp: `Create an app price schedule.
 
 Examples:
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"`,
-		errorPrefix:          "pricing schedule create",
-		startDateHelp:        "Start date (YYYY-MM-DD)",
-		requireBaseTerritory: true,
+		ErrorPrefix:          "pricing schedule create",
+		StartDateHelp:        "Start date (YYYY-MM-DD)",
+		RequireBaseTerritory: true,
 	})
 }
 
@@ -592,243 +592,17 @@ Examples:
 	}
 }
 
-type availabilitySetCommandConfig struct {
-	flagSetName                      string
-	commandName                      string
-	shortUsage                       string
-	shortHelp                        string
-	longHelp                         string
-	errorPrefix                      string
-	includeAvailableInNewTerritories bool
-}
-
-func newAvailabilitySetCommand(config availabilitySetCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.flagSetName, flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	territory := fs.String("territory", "", "Territory IDs (comma-separated, e.g., USA,GBR)")
-	var available optionalBool
-	fs.Var(&available, "available", "Set availability: true or false")
-	var availableInNewTerritories optionalBool
-	if config.includeAvailableInNewTerritories {
-		fs.Var(&availableInNewTerritories, "available-in-new-territories", "Set availability for new territories: true or false")
-	}
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
-
-	return &ffcli.Command{
-		Name:       config.commandName,
-		ShortUsage: config.shortUsage,
-		ShortHelp:  config.shortHelp,
-		LongHelp:   config.longHelp,
-		FlagSet:    fs,
-		UsageFunc:  DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
-			}
-			if strings.TrimSpace(*territory) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory is required")
-				return flag.ErrHelp
-			}
-			if !available.set {
-				fmt.Fprintln(os.Stderr, "Error: --available is required (true or false)")
-				return flag.ErrHelp
-			}
-			if config.includeAvailableInNewTerritories && !availableInNewTerritories.set {
-				fmt.Fprintln(os.Stderr, "Error: --available-in-new-territories is required (true or false)")
-				return flag.ErrHelp
-			}
-
-			territories := splitCSVUpper(*territory)
-			if len(territories) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
-				return flag.ErrHelp
-			}
-
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.errorPrefix, err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
-			availabilities := make([]asc.TerritoryAvailabilityCreate, 0, len(territories))
-			for _, territoryID := range territories {
-				availabilities = append(availabilities, asc.TerritoryAvailabilityCreate{
-					TerritoryID: territoryID,
-					Available:   available.value,
-				})
-			}
-
-			attributes := asc.AppAvailabilityV2CreateAttributes{
-				TerritoryAvailabilities: availabilities,
-			}
-			if config.includeAvailableInNewTerritories {
-				attributes.AvailableInNewTerritories = &availableInNewTerritories.value
-			}
-
-			resp, err := client.CreateAppAvailabilityV2(requestCtx, resolvedAppID, attributes)
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.errorPrefix, err)
-			}
-
-			return printOutput(resp, *output, *pretty)
-		},
-	}
-}
-
 // PricingAvailabilitySetCommand returns the availability set subcommand.
 func PricingAvailabilitySetCommand() *ffcli.Command {
-	return newAvailabilitySetCommand(availabilitySetCommandConfig{
-		flagSetName: "pricing availability set",
-		commandName: "set",
-		shortUsage:  "asc pricing availability set [flags]",
-		shortHelp:   "Set app availability for territories.",
-		longHelp: `Set app availability for territories.
+	return shared.NewAvailabilitySetCommand(shared.AvailabilitySetCommandConfig{
+		FlagSetName: "pricing availability set",
+		CommandName: "set",
+		ShortUsage:  "asc pricing availability set [flags]",
+		ShortHelp:   "Set app availability for territories.",
+		LongHelp: `Set app availability for territories.
 
 Examples:
   asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true`,
-		errorPrefix: "pricing availability set",
+		ErrorPrefix: "pricing availability set",
 	})
-}
-
-type pricingSetCommandConfig struct {
-	flagSetName           string
-	commandName           string
-	shortUsage            string
-	shortHelp             string
-	longHelp              string
-	errorPrefix           string
-	startDateHelp         string
-	startDateDefaultToday bool
-	requireBaseTerritory  bool
-	resolveBaseTerritory  bool
-}
-
-func newPricingSetCommand(config pricingSetCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.flagSetName, flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	pricePointID := fs.String("price-point", "", "App price point ID")
-	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
-	startDate := fs.String("start-date", "", config.startDateHelp)
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
-
-	return &ffcli.Command{
-		Name:       config.commandName,
-		ShortUsage: config.shortUsage,
-		ShortHelp:  config.shortHelp,
-		LongHelp:   config.longHelp,
-		FlagSet:    fs,
-		UsageFunc:  DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
-			}
-			pricePointValue := strings.TrimSpace(*pricePointID)
-			if pricePointValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --price-point is required")
-				return flag.ErrHelp
-			}
-
-			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
-			if config.requireBaseTerritory && baseTerritoryValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
-				return flag.ErrHelp
-			}
-
-			startDateValue := strings.TrimSpace(*startDate)
-			if startDateValue == "" {
-				if config.startDateDefaultToday {
-					startDateValue = time.Now().Format("2006-01-02")
-				} else {
-					fmt.Fprintln(os.Stderr, "Error: --start-date is required")
-					return flag.ErrHelp
-				}
-			}
-
-			normalizedStartDate, err := normalizePricingStartDate(startDateValue)
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.errorPrefix, err)
-			}
-
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.errorPrefix, err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
-			baseTerritoryID := baseTerritoryValue
-			if config.resolveBaseTerritory {
-				baseTerritoryID, err = resolveBaseTerritoryID(requestCtx, client, resolvedAppID, baseTerritoryValue)
-				if err != nil {
-					return fmt.Errorf("%s: %w", config.errorPrefix, err)
-				}
-			}
-
-			resp, err := client.CreateAppPriceSchedule(requestCtx, resolvedAppID, asc.AppPriceScheduleCreateAttributes{
-				PricePointID:    pricePointValue,
-				StartDate:       normalizedStartDate,
-				BaseTerritoryID: baseTerritoryID,
-			})
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.errorPrefix, err)
-			}
-
-			return printOutput(resp, *output, *pretty)
-		},
-	}
-}
-
-func normalizePricingStartDate(value string) (string, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "", fmt.Errorf("--start-date is required")
-	}
-	parsed, err := time.Parse("2006-01-02", trimmed)
-	if err != nil {
-		return "", fmt.Errorf("--start-date must be in YYYY-MM-DD format")
-	}
-	return parsed.Format("2006-01-02"), nil
-}
-
-func resolveBaseTerritoryID(ctx context.Context, client *asc.Client, appID string, baseTerritory string) (string, error) {
-	trimmed := strings.ToUpper(strings.TrimSpace(baseTerritory))
-	if trimmed != "" {
-		return trimmed, nil
-	}
-
-	schedule, err := client.GetAppPriceSchedule(ctx, appID)
-	if err != nil {
-		if asc.IsNotFound(err) {
-			return "", fmt.Errorf("--base-territory is required when app price schedule is missing")
-		}
-		return "", fmt.Errorf("get app price schedule: %w", err)
-	}
-
-	scheduleID := strings.TrimSpace(schedule.Data.ID)
-	if scheduleID == "" {
-		return "", fmt.Errorf("app price schedule ID missing")
-	}
-
-	territoryResp, err := client.GetAppPriceScheduleBaseTerritory(ctx, scheduleID)
-	if err != nil {
-		return "", fmt.Errorf("get base territory: %w", err)
-	}
-
-	territoryID := strings.ToUpper(strings.TrimSpace(territoryResp.Data.ID))
-	if territoryID == "" {
-		return "", fmt.Errorf("base territory ID missing from response")
-	}
-
-	return territoryID, nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PreReleaseVersionsCommand returns the pre-release-versions command.
@@ -64,7 +65,7 @@ Examples:
 				return fmt.Errorf("pre-release-versions list: %w", err)
 			}
 
-			platforms, err := normalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("pre-release-versions list: %w", err)
 			}

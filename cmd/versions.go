@@ -10,37 +10,8 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
-
-var appStoreVersionPlatforms = map[string]struct{}{
-	"IOS":       {},
-	"MAC_OS":    {},
-	"TV_OS":     {},
-	"VISION_OS": {},
-}
-
-var appStoreVersionStates = map[string]struct{}{
-	"ACCEPTED":                      {},
-	"DEVELOPER_REMOVED_FROM_SALE":   {},
-	"DEVELOPER_REJECTED":            {},
-	"IN_REVIEW":                     {},
-	"INVALID_BINARY":                {},
-	"METADATA_REJECTED":             {},
-	"PENDING_APPLE_RELEASE":         {},
-	"PENDING_CONTRACT":              {},
-	"PENDING_DEVELOPER_RELEASE":     {},
-	"PREPARE_FOR_SUBMISSION":        {},
-	"PREORDER_READY_FOR_SALE":       {},
-	"PROCESSING_FOR_APP_STORE":      {},
-	"READY_FOR_REVIEW":              {},
-	"READY_FOR_SALE":                {},
-	"REJECTED":                      {},
-	"REMOVED_FROM_SALE":             {},
-	"WAITING_FOR_EXPORT_COMPLIANCE": {},
-	"WAITING_FOR_REVIEW":            {},
-	"REPLACED_WITH_NEW_VERSION":     {},
-	"NOT_APPLICABLE":                {},
-}
 
 func VersionsCommand() *ffcli.Command {
 	return &ffcli.Command{
@@ -100,11 +71,11 @@ Examples:
 				return fmt.Errorf("versions list: %w", err)
 			}
 
-			platforms, err := normalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("versions list: %w", err)
 			}
-			states, err := normalizeAppStoreVersionStates(splitCSVUpper(*state))
+			states, err := shared.NormalizeAppStoreVersionStates(splitCSVUpper(*state))
 			if err != nil {
 				return fmt.Errorf("versions list: %w", err)
 			}
@@ -484,59 +455,6 @@ Examples:
 
 			return printOutput(result, *output, *pretty)
 		},
-	}
-}
-
-func normalizeAppStoreVersionPlatforms(values []string) ([]string, error) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-	for _, value := range values {
-		if _, ok := appStoreVersionPlatforms[value]; !ok {
-			return nil, fmt.Errorf("--platform must be one of: %s", strings.Join(appStoreVersionPlatformList(), ", "))
-		}
-	}
-	return values, nil
-}
-
-func normalizeAppStoreVersionStates(values []string) ([]string, error) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-	for _, value := range values {
-		if _, ok := appStoreVersionStates[value]; !ok {
-			return nil, fmt.Errorf("--state must be one of: %s", strings.Join(appStoreVersionStateList(), ", "))
-		}
-	}
-	return values, nil
-}
-
-func appStoreVersionPlatformList() []string {
-	return []string{"IOS", "MAC_OS", "TV_OS", "VISION_OS"}
-}
-
-func appStoreVersionStateList() []string {
-	return []string{
-		"ACCEPTED",
-		"DEVELOPER_REMOVED_FROM_SALE",
-		"DEVELOPER_REJECTED",
-		"IN_REVIEW",
-		"INVALID_BINARY",
-		"METADATA_REJECTED",
-		"PENDING_APPLE_RELEASE",
-		"PENDING_CONTRACT",
-		"PENDING_DEVELOPER_RELEASE",
-		"PREPARE_FOR_SUBMISSION",
-		"PREORDER_READY_FOR_SALE",
-		"PROCESSING_FOR_APP_STORE",
-		"READY_FOR_REVIEW",
-		"READY_FOR_SALE",
-		"REJECTED",
-		"REMOVED_FROM_SALE",
-		"WAITING_FOR_EXPORT_COMPLIANCE",
-		"WAITING_FOR_REVIEW",
-		"REPLACED_WITH_NEW_VERSION",
-		"NOT_APPLICABLE",
 	}
 }
 

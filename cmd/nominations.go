@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // NominationsCommand returns the nominations command with subcommands.
@@ -120,15 +121,15 @@ Examples:
 				return fmt.Errorf("nominations list: %w", err)
 			}
 
-			if *inAppEventsLimit != 0 && !hasInclude(includeValues, "inAppEvents") {
+			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
 				fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
 				return flag.ErrHelp
 			}
-			if *relatedAppsLimit != 0 && !hasInclude(includeValues, "relatedApps") {
+			if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
 				fmt.Fprintf(os.Stderr, "Error: --related-apps-limit requires --include relatedApps\n\n")
 				return flag.ErrHelp
 			}
-			if *supportedTerritoriesLimit != 0 && !hasInclude(includeValues, "supportedTerritories") {
+			if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
 				fmt.Fprintf(os.Stderr, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
 				return flag.ErrHelp
 			}
@@ -244,15 +245,15 @@ Examples:
 				return fmt.Errorf("nominations get: %w", err)
 			}
 
-			if *inAppEventsLimit != 0 && !hasInclude(includeValues, "inAppEvents") {
+			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
 				fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
 				return flag.ErrHelp
 			}
-			if *relatedAppsLimit != 0 && !hasInclude(includeValues, "relatedApps") {
+			if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
 				fmt.Fprintf(os.Stderr, "Error: --related-apps-limit requires --include relatedApps\n\n")
 				return flag.ErrHelp
 			}
-			if *supportedTerritoriesLimit != 0 && !hasInclude(includeValues, "supportedTerritories") {
+			if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
 				fmt.Fprintf(os.Stderr, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
 				return flag.ErrHelp
 			}

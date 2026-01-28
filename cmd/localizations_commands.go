@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // LocalizationsCommand returns the localizations command with subcommands.
@@ -46,7 +47,7 @@ func LocalizationsListCommand() *ffcli.Command {
 	versionID := fs.String("version", "", "App Store version ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := fs.String("app-info", "", "App Info ID (optional override)")
-	locType := fs.String("type", localizationTypeVersion, "Localization type: version (default) or app-info")
+	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -75,7 +76,7 @@ Examples:
 				return fmt.Errorf("localizations list: %w", err)
 			}
 
-			normalizedType, err := normalizeLocalizationType(*locType)
+			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
 				return fmt.Errorf("localizations list: %w", err)
 			}
@@ -83,7 +84,7 @@ Examples:
 			locales := splitCSV(*locale)
 
 			switch normalizedType {
-			case localizationTypeVersion:
+			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
 					return flag.ErrHelp
@@ -128,7 +129,7 @@ Examples:
 					return fmt.Errorf("localizations list: failed to fetch: %w", err)
 				}
 				return printOutput(resp, *output, *pretty)
-			case localizationTypeAppInfo:
+			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := resolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
@@ -143,7 +144,7 @@ Examples:
 				requestCtx, cancel := contextWithTimeout(ctx)
 				defer cancel()
 
-				appInfo, err := resolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
+				appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				if err != nil {
 					return fmt.Errorf("localizations list: %w", err)
 				}
@@ -193,7 +194,7 @@ func LocalizationsDownloadCommand() *ffcli.Command {
 	versionID := fs.String("version", "", "App Store version ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := fs.String("app-info", "", "App Info ID (optional override)")
-	locType := fs.String("type", localizationTypeVersion, "Localization type: version (default) or app-info")
+	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	path := fs.String("path", "localizations", "Output path (directory or .strings file)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -223,7 +224,7 @@ Examples:
 				return fmt.Errorf("localizations download: %w", err)
 			}
 
-			normalizedType, err := normalizeLocalizationType(*locType)
+			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
 				return fmt.Errorf("localizations download: %w", err)
 			}
@@ -231,7 +232,7 @@ Examples:
 			locales := splitCSV(*locale)
 
 			switch normalizedType {
-			case localizationTypeVersion:
+			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
 					return flag.ErrHelp
@@ -272,7 +273,7 @@ Examples:
 						return fmt.Errorf("localizations download: unexpected pagination response type")
 					}
 
-					files, err := writeVersionLocalizationStrings(*path, aggregated.Data)
+					files, err := shared.WriteVersionLocalizationStrings(*path, aggregated.Data)
 					if err != nil {
 						return fmt.Errorf("localizations download: %w", err)
 					}
@@ -292,7 +293,7 @@ Examples:
 					return fmt.Errorf("localizations download: failed to fetch: %w", err)
 				}
 
-				files, err := writeVersionLocalizationStrings(*path, resp.Data)
+				files, err := shared.WriteVersionLocalizationStrings(*path, resp.Data)
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
 				}
@@ -305,7 +306,7 @@ Examples:
 				}
 
 				return printOutput(&result, *output, *pretty)
-			case localizationTypeAppInfo:
+			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := resolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
@@ -320,7 +321,7 @@ Examples:
 				requestCtx, cancel := contextWithTimeout(ctx)
 				defer cancel()
 
-				appInfo, err := resolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
+				appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
 				}
@@ -352,7 +353,7 @@ Examples:
 						return fmt.Errorf("localizations download: unexpected pagination response type")
 					}
 
-					files, err := writeAppInfoLocalizationStrings(*path, aggregated.Data)
+					files, err := shared.WriteAppInfoLocalizationStrings(*path, aggregated.Data)
 					if err != nil {
 						return fmt.Errorf("localizations download: %w", err)
 					}
@@ -373,7 +374,7 @@ Examples:
 					return fmt.Errorf("localizations download: failed to fetch: %w", err)
 				}
 
-				files, err := writeAppInfoLocalizationStrings(*path, resp.Data)
+				files, err := shared.WriteAppInfoLocalizationStrings(*path, resp.Data)
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
 				}
@@ -401,7 +402,7 @@ func LocalizationsUploadCommand() *ffcli.Command {
 	versionID := fs.String("version", "", "App Store version ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := fs.String("app-info", "", "App Info ID (optional override)")
-	locType := fs.String("type", localizationTypeVersion, "Localization type: version (default) or app-info")
+	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	path := fs.String("path", "", "Input path (directory or .strings file)")
 	dryRun := fs.Bool("dry-run", false, "Validate file without uploading")
@@ -427,7 +428,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			normalizedType, err := normalizeLocalizationType(*locType)
+			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
 				return fmt.Errorf("localizations upload: %w", err)
 			}
@@ -435,7 +436,7 @@ Examples:
 			locales := splitCSV(*locale)
 
 			switch normalizedType {
-			case localizationTypeVersion:
+			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
 					return flag.ErrHelp
@@ -449,12 +450,12 @@ Examples:
 				requestCtx, cancel := contextWithTimeout(ctx)
 				defer cancel()
 
-				valuesByLocale, err := readLocalizationStrings(*path, locales)
+				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
-				results, err := uploadVersionLocalizations(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun)
+				results, err := shared.UploadVersionLocalizations(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
@@ -467,7 +468,7 @@ Examples:
 				}
 
 				return printOutput(&result, *output, *pretty)
-			case localizationTypeAppInfo:
+			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := resolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
@@ -482,17 +483,17 @@ Examples:
 				requestCtx, cancel := contextWithTimeout(ctx)
 				defer cancel()
 
-				appInfo, err := resolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
+				appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
-				valuesByLocale, err := readLocalizationStrings(*path, locales)
+				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
-				results, err := uploadAppInfoLocalizations(requestCtx, client, appInfo, valuesByLocale, *dryRun)
+				results, err := shared.UploadAppInfoLocalizations(requestCtx, client, appInfo, valuesByLocale, *dryRun)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}

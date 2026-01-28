@@ -1,4 +1,4 @@
-package cmd
+package shared
 
 import (
 	"context"
@@ -62,7 +62,7 @@ func TestReadLocalizationStrings_FileLocale(t *testing.T) {
 		t.Fatalf("write file error: %v", err)
 	}
 
-	values, err := readLocalizationStrings(path, nil)
+	values, err := ReadLocalizationStrings(path, nil)
 	if err != nil {
 		t.Fatalf("readLocalizationStrings() error: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestReadLocalizationStrings_RejectsSymlink(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	_, err := readLocalizationStrings(dir, nil)
+	_, err := ReadLocalizationStrings(dir, nil)
 	if err == nil {
 		t.Fatal("expected error for symlinked strings file")
 	}
@@ -126,7 +126,7 @@ func TestWriteVersionLocalizationStrings_Paginated(t *testing.T) {
 		t.Fatalf("expected 2 localizations, got %d", len(aggregated.Data))
 	}
 
-	files, err := writeVersionLocalizationStrings(dir, aggregated.Data)
+	files, err := WriteVersionLocalizationStrings(dir, aggregated.Data)
 	if err != nil {
 		t.Fatalf("writeVersionLocalizationStrings() error: %v", err)
 	}

@@ -1,4 +1,4 @@
-package cmd
+package shared
 
 import (
 	"context"
@@ -14,12 +14,11 @@ import (
 	"unicode"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const (
-	localizationTypeVersion = "version"
-	localizationTypeAppInfo = "app-info"
+	LocalizationTypeVersion = "version"
+	LocalizationTypeAppInfo = "app-info"
 )
 
 var (
@@ -40,35 +39,17 @@ var (
 	}
 )
 
-func normalizeLocalizationType(value string) (string, error) {
+func NormalizeLocalizationType(value string) (string, error) {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	switch normalized {
-	case localizationTypeVersion, localizationTypeAppInfo:
+	case LocalizationTypeVersion, LocalizationTypeAppInfo:
 		return normalized, nil
 	default:
-		return "", fmt.Errorf("--type must be %q or %q", localizationTypeVersion, localizationTypeAppInfo)
+		return "", fmt.Errorf("--type must be %q or %q", LocalizationTypeVersion, LocalizationTypeAppInfo)
 	}
 }
 
-func resolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID string) (string, error) {
-	if appInfoID != "" {
-		return appInfoID, nil
-	}
-
-	resp, err := client.GetAppInfos(ctx, appID)
-	if err != nil {
-		return "", err
-	}
-	if len(resp.Data) == 0 {
-		return "", fmt.Errorf("no app info found for app %q", appID)
-	}
-	if len(resp.Data) > 1 {
-		return "", fmt.Errorf("multiple app infos found for app %q; use --app-info", appID)
-	}
-	return resp.Data[0].ID, nil
-}
-
-func writeVersionLocalizationStrings(outputPath string, items []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]asc.LocalizationFileResult, error) {
+func WriteVersionLocalizationStrings(outputPath string, items []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]asc.LocalizationFileResult, error) {
 	byLocale := make(map[string]map[string]string, len(items))
 	for _, item := range items {
 		locale := strings.TrimSpace(item.Attributes.Locale)
@@ -80,7 +61,7 @@ func writeVersionLocalizationStrings(outputPath string, items []asc.Resource[asc
 	return writeLocalizationStrings(outputPath, byLocale, versionLocalizationKeys)
 }
 
-func writeAppInfoLocalizationStrings(outputPath string, items []asc.Resource[asc.AppInfoLocalizationAttributes]) ([]asc.LocalizationFileResult, error) {
+func WriteAppInfoLocalizationStrings(outputPath string, items []asc.Resource[asc.AppInfoLocalizationAttributes]) ([]asc.LocalizationFileResult, error) {
 	byLocale := make(map[string]map[string]string, len(items))
 	for _, item := range items {
 		locale := strings.TrimSpace(item.Attributes.Locale)
@@ -199,7 +180,7 @@ func setIfNotEmpty(values map[string]string, key, value string) {
 	values[key] = value
 }
 
-func readLocalizationStrings(inputPath string, locales []string) (map[string]map[string]string, error) {
+func ReadLocalizationStrings(inputPath string, locales []string) (map[string]map[string]string, error) {
 	info, err := os.Stat(inputPath)
 	if err != nil {
 		return nil, err
@@ -268,7 +249,7 @@ func readLocalizationStrings(inputPath string, locales []string) (map[string]map
 	return values, nil
 }
 
-func uploadVersionLocalizations(ctx context.Context, client *asc.Client, versionID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
+func UploadVersionLocalizations(ctx context.Context, client *asc.Client, versionID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
 	validateKeys := buildAllowedKeys(versionLocalizationKeys)
 	for locale, values := range valuesByLocale {
 		if err := validateLocalizationKeys(locale, values, validateKeys); err != nil {
@@ -311,7 +292,7 @@ func uploadVersionLocalizations(ctx context.Context, client *asc.Client, version
 	})
 }
 
-func uploadAppInfoLocalizations(ctx context.Context, client *asc.Client, appInfoID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
+func UploadAppInfoLocalizations(ctx context.Context, client *asc.Client, appInfoID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
 	validateKeys := buildAllowedKeys(appInfoLocalizationKeys)
 	for locale, values := range valuesByLocale {
 		if err := validateLocalizationKeys(locale, values, validateKeys); err != nil {
@@ -477,7 +458,7 @@ func readStringsFile(path string) (map[string]string, error) {
 		return nil, fmt.Errorf("expected regular file: %q", path)
 	}
 
-	file, err := shared.OpenExistingNoFollow(path)
+	file, err := OpenExistingNoFollow(path)
 	if err != nil {
 		return nil, err
 	}
@@ -676,7 +657,7 @@ func writeStringsFile(path string, values map[string]string, order []string) err
 
 	// Create file securely to prevent symlink attacks and TOCTOU vulnerabilities
 	// O_EXCL ensures atomic creation, O_NOFOLLOW prevents symlink traversal
-	file, err := shared.OpenNewFileNoFollow(path, 0o644)
+	file, err := OpenNewFileNoFollow(path, 0o644)
 	if err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return fmt.Errorf("output file already exists: %w", err)

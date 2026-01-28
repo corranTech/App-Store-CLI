@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func SubmitCommand() *ffcli.Command {
@@ -91,7 +92,7 @@ Examples:
 
 			resolvedVersionID := strings.TrimSpace(*versionID)
 			if resolvedVersionID == "" {
-				resolvedVersionID, err = resolveAppStoreVersionID(requestCtx, client, resolvedAppID, strings.TrimSpace(*version), normalizedPlatform)
+				resolvedVersionID, err = shared.ResolveAppStoreVersionID(requestCtx, client, resolvedAppID, strings.TrimSpace(*version), normalizedPlatform)
 				if err != nil {
 					return fmt.Errorf("submit create: %w", err)
 				}
@@ -302,31 +303,5 @@ Examples:
 }
 
 func normalizeSubmitPlatform(value string) (string, error) {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	if normalized == "" {
-		return "", fmt.Errorf("--platform is required")
-	}
-	if _, ok := appStoreVersionPlatforms[normalized]; !ok {
-		return "", fmt.Errorf("--platform must be one of: %s", strings.Join(appStoreVersionPlatformList(), ", "))
-	}
-	return normalized, nil
-}
-
-func resolveAppStoreVersionID(ctx context.Context, client *asc.Client, appID, version, platform string) (string, error) {
-	opts := []asc.AppStoreVersionsOption{
-		asc.WithAppStoreVersionsVersionStrings([]string{version}),
-		asc.WithAppStoreVersionsPlatforms([]string{platform}),
-		asc.WithAppStoreVersionsLimit(10),
-	}
-	resp, err := client.GetAppStoreVersions(ctx, appID, opts...)
-	if err != nil {
-		return "", err
-	}
-	if resp == nil || len(resp.Data) == 0 {
-		return "", fmt.Errorf("app store version not found for version %q and platform %q", version, platform)
-	}
-	if len(resp.Data) > 1 {
-		return "", fmt.Errorf("multiple app store versions found for version %q and platform %q (use --version-id)", version, platform)
-	}
-	return resp.Data[0].ID, nil
+	return shared.NormalizeAppStoreVersionPlatform(value)
 }
