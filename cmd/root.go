@@ -79,6 +79,7 @@ func RootCommand(version string) *ffcli.Command {
 			AccessibilityCommand(),
 			EncryptionCommand(),
 			MigrateCommand(),
+			GameCenterCommand(),
 			VersionCommand(version),
 		},
 	}
