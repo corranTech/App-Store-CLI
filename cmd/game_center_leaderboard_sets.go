@@ -241,6 +241,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			nameVal := strings.TrimSpace(*name)
+			if nameVal == "" {
+				fmt.Fprintln(os.Stderr, "Error: --name is required")
+				return flag.ErrHelp
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations create: %w", err)
@@ -251,7 +257,7 @@ Examples:
 
 			attrs := asc.GameCenterLeaderboardSetLocalizationCreateAttributes{
 				Locale: localeVal,
-				Name:   strings.TrimSpace(*name),
+				Name:   nameVal,
 			}
 
 			resp, err := client.CreateGameCenterLeaderboardSetLocalization(requestCtx, id, attrs)
