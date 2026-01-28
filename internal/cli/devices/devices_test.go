@@ -1,4 +1,4 @@
-package cmd
+package devices
 
 import (
 	"context"
