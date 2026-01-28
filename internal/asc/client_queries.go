@@ -180,6 +180,12 @@ type usersQuery struct {
 	roles []string
 }
 
+type actorsQuery struct {
+	listQuery
+	ids    []string
+	fields []string
+}
+
 type devicesQuery struct {
 	listQuery
 	names     []string
@@ -459,6 +465,20 @@ func buildUsersQuery(query *usersQuery) string {
 	}
 	addCSV(values, "filter[roles]", query.roles)
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildActorsQuery(query *actorsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[id]", query.ids)
+	addCSV(values, "fields[actors]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildActorsFieldsQuery(fields []string) string {
+	values := url.Values{}
+	addCSV(values, "fields[actors]", fields)
 	return values.Encode()
 }
 

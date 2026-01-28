@@ -49,6 +49,7 @@ func RootCommand(version string) *ffcli.Command {
 			ProfilesCommand(),
 			OfferCodesCommand(),
 			UsersCommand(),
+			ActorsCommand(),
 			DevicesCommand(),
 			TestFlightCommand(),
 			BuildsCommand(),

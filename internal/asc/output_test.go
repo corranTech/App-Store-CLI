@@ -300,6 +300,60 @@ func TestPrintMarkdown_Apps(t *testing.T) {
 	}
 }
 
+func TestPrintTable_Actors(t *testing.T) {
+	resp := &ActorsResponse{
+		Data: []Resource[ActorAttributes]{
+			{
+				ID: "actor-1",
+				Attributes: ActorAttributes{
+					ActorType:     "USER",
+					UserFirstName: "Jane",
+					UserLastName:  "Doe",
+					UserEmail:     "jane@example.com",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "API Key ID") {
+		t.Fatalf("expected actors header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "jane@example.com") {
+		t.Fatalf("expected actor email in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Actors(t *testing.T) {
+	resp := &ActorsResponse{
+		Data: []Resource[ActorAttributes]{
+			{
+				ID: "actor-1",
+				Attributes: ActorAttributes{
+					ActorType:     "API_KEY",
+					UserFirstName: "",
+					UserLastName:  "",
+					APIKeyID:      "APIKEY123",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Type | Name | Email | API Key ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "APIKEY123") {
+		t.Fatalf("expected api key id in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_AppStoreVersionLocalizations(t *testing.T) {
 	resp := &AppStoreVersionLocalizationsResponse{
 		Data: []Resource[AppStoreVersionLocalizationAttributes]{

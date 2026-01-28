@@ -77,6 +77,9 @@ type ProfilesOption func(*profilesQuery)
 // UsersOption is a functional option for GetUsers.
 type UsersOption func(*usersQuery)
 
+// ActorsOption is a functional option for GetActors.
+type ActorsOption func(*actorsQuery)
+
 // UserInvitationsOption is a functional option for GetUserInvitations.
 type UserInvitationsOption func(*userInvitationsQuery)
 
@@ -1135,6 +1138,38 @@ func WithUsersEmail(email string) UsersOption {
 func WithUsersRoles(roles []string) UsersOption {
 	return func(q *usersQuery) {
 		q.roles = normalizeList(roles)
+	}
+}
+
+// WithActorsLimit sets the max number of actors to return.
+func WithActorsLimit(limit int) ActorsOption {
+	return func(q *actorsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithActorsNextURL uses a next page URL directly.
+func WithActorsNextURL(next string) ActorsOption {
+	return func(q *actorsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithActorsIDs filters actors by id(s).
+func WithActorsIDs(ids []string) ActorsOption {
+	return func(q *actorsQuery) {
+		q.ids = normalizeList(ids)
+	}
+}
+
+// WithActorsFields limits actor fields in the response.
+func WithActorsFields(fields []string) ActorsOption {
+	return func(q *actorsQuery) {
+		q.fields = normalizeList(fields)
 	}
 }
 
