@@ -130,6 +130,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &UsersResponse{Links: Links{}}
 	case *UserInvitationsResponse:
 		result = &UserInvitationsResponse{Links: Links{}}
+	case *MarketplaceWebhooksResponse:
+		result = &MarketplaceWebhooksResponse{Links: Links{}}
 	case *SandboxTestersResponse:
 		result = &SandboxTestersResponse{Links: Links{}}
 	case *AnalyticsReportRequestsResponse:
