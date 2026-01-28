@@ -87,8 +87,11 @@ func TestGetGameCenterLeaderboardLocalizations(t *testing.T) {
 	if resp.Data[0].Attributes.Name != "High Score" {
 		t.Fatalf("expected name 'High Score', got %s", resp.Data[0].Attributes.Name)
 	}
-	if resp.Data[0].Attributes.FormatterSuffix != " pts" {
-		t.Fatalf("expected formatterSuffix ' pts', got %s", resp.Data[0].Attributes.FormatterSuffix)
+	if resp.Data[0].Attributes.FormatterSuffix == nil {
+		t.Fatalf("expected formatterSuffix to be set")
+	}
+	if *resp.Data[0].Attributes.FormatterSuffix != " pts" {
+		t.Fatalf("expected formatterSuffix ' pts', got %s", *resp.Data[0].Attributes.FormatterSuffix)
 	}
 }
 
@@ -179,11 +182,13 @@ func TestCreateGameCenterLeaderboardLocalization(t *testing.T) {
 		}
 	}, response)
 
+	formatterSuffix := " points"
+	formatterSuffixSingular := " point"
 	attrs := GameCenterLeaderboardLocalizationCreateAttributes{
 		Locale:                  "fr-FR",
 		Name:                    "Meilleur Score",
-		FormatterSuffix:         " points",
-		FormatterSuffixSingular: " point",
+		FormatterSuffix:         &formatterSuffix,
+		FormatterSuffixSingular: &formatterSuffixSingular,
 	}
 
 	resp, err := client.CreateGameCenterLeaderboardLocalization(context.Background(), "lb-123", attrs)

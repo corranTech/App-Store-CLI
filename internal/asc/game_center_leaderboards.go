@@ -7,45 +7,51 @@ import (
 
 // GameCenterLeaderboardAttributes represents a Game Center leaderboard resource.
 type GameCenterLeaderboardAttributes struct {
-	ReferenceName       string `json:"referenceName"`
-	VendorIdentifier    string `json:"vendorIdentifier"`
-	DefaultFormatter    string `json:"defaultFormatter"`
-	ScoreSortType       string `json:"scoreSortType"`
-	ScoreRangeStart     string `json:"scoreRangeStart,omitempty"`
-	ScoreRangeEnd       string `json:"scoreRangeEnd,omitempty"`
-	RecurrenceStartDate string `json:"recurrenceStartDate,omitempty"`
-	RecurrenceDuration  string `json:"recurrenceDuration,omitempty"`
-	RecurrenceRule      string `json:"recurrenceRule,omitempty"`
-	SubmissionType      string `json:"submissionType"`
-	Archived            bool   `json:"archived,omitempty"`
+	ReferenceName       string            `json:"referenceName"`
+	VendorIdentifier    string            `json:"vendorIdentifier"`
+	DefaultFormatter    string            `json:"defaultFormatter"`
+	ScoreSortType       string            `json:"scoreSortType"`
+	ScoreRangeStart     string            `json:"scoreRangeStart,omitempty"`
+	ScoreRangeEnd       string            `json:"scoreRangeEnd,omitempty"`
+	RecurrenceStartDate string            `json:"recurrenceStartDate,omitempty"`
+	RecurrenceDuration  string            `json:"recurrenceDuration,omitempty"`
+	RecurrenceRule      string            `json:"recurrenceRule,omitempty"`
+	SubmissionType      string            `json:"submissionType"`
+	Archived            bool              `json:"archived,omitempty"`
+	ActivityProperties  map[string]string `json:"activityProperties,omitempty"`
+	Visibility          string            `json:"visibility,omitempty"`
 }
 
 // GameCenterLeaderboardCreateAttributes describes attributes for creating a leaderboard.
 type GameCenterLeaderboardCreateAttributes struct {
-	ReferenceName       string `json:"referenceName"`
-	VendorIdentifier    string `json:"vendorIdentifier"`
-	DefaultFormatter    string `json:"defaultFormatter"`
-	ScoreSortType       string `json:"scoreSortType"`
-	ScoreRangeStart     string `json:"scoreRangeStart,omitempty"`
-	ScoreRangeEnd       string `json:"scoreRangeEnd,omitempty"`
-	RecurrenceStartDate string `json:"recurrenceStartDate,omitempty"`
-	RecurrenceDuration  string `json:"recurrenceDuration,omitempty"`
-	RecurrenceRule      string `json:"recurrenceRule,omitempty"`
-	SubmissionType      string `json:"submissionType"`
+	ReferenceName       string            `json:"referenceName"`
+	VendorIdentifier    string            `json:"vendorIdentifier"`
+	DefaultFormatter    string            `json:"defaultFormatter"`
+	ScoreSortType       string            `json:"scoreSortType"`
+	ScoreRangeStart     string            `json:"scoreRangeStart,omitempty"`
+	ScoreRangeEnd       string            `json:"scoreRangeEnd,omitempty"`
+	RecurrenceStartDate string            `json:"recurrenceStartDate,omitempty"`
+	RecurrenceDuration  string            `json:"recurrenceDuration,omitempty"`
+	RecurrenceRule      string            `json:"recurrenceRule,omitempty"`
+	SubmissionType      string            `json:"submissionType"`
+	ActivityProperties  map[string]string `json:"activityProperties,omitempty"`
+	Visibility          string            `json:"visibility,omitempty"`
 }
 
 // GameCenterLeaderboardUpdateAttributes describes attributes for updating a leaderboard.
 type GameCenterLeaderboardUpdateAttributes struct {
-	ReferenceName       *string `json:"referenceName,omitempty"`
-	DefaultFormatter    *string `json:"defaultFormatter,omitempty"`
-	ScoreSortType       *string `json:"scoreSortType,omitempty"`
-	ScoreRangeStart     *string `json:"scoreRangeStart,omitempty"`
-	ScoreRangeEnd       *string `json:"scoreRangeEnd,omitempty"`
-	RecurrenceStartDate *string `json:"recurrenceStartDate,omitempty"`
-	RecurrenceDuration  *string `json:"recurrenceDuration,omitempty"`
-	RecurrenceRule      *string `json:"recurrenceRule,omitempty"`
-	SubmissionType      *string `json:"submissionType,omitempty"`
-	Archived            *bool   `json:"archived,omitempty"`
+	ReferenceName       *string           `json:"referenceName,omitempty"`
+	DefaultFormatter    *string           `json:"defaultFormatter,omitempty"`
+	ScoreSortType       *string           `json:"scoreSortType,omitempty"`
+	ScoreRangeStart     *string           `json:"scoreRangeStart,omitempty"`
+	ScoreRangeEnd       *string           `json:"scoreRangeEnd,omitempty"`
+	RecurrenceStartDate *string           `json:"recurrenceStartDate,omitempty"`
+	RecurrenceDuration  *string           `json:"recurrenceDuration,omitempty"`
+	RecurrenceRule      *string           `json:"recurrenceRule,omitempty"`
+	SubmissionType      *string           `json:"submissionType,omitempty"`
+	Archived            *bool             `json:"archived,omitempty"`
+	ActivityProperties  map[string]string `json:"activityProperties,omitempty"`
+	Visibility          *string           `json:"visibility,omitempty"`
 }
 
 // GameCenterLeaderboardRelationships describes relationships for leaderboards.
@@ -122,20 +128,22 @@ func buildGCLeaderboardsQuery(query *gcLeaderboardsQuery) string {
 
 // GameCenterLeaderboardLocalizationAttributes represents a Game Center leaderboard localization resource.
 type GameCenterLeaderboardLocalizationAttributes struct {
-	Locale                  string `json:"locale"`
-	Name                    string `json:"name"`
-	FormatterOverride       string `json:"formatterOverride,omitempty"`
-	FormatterSuffix         string `json:"formatterSuffix,omitempty"`
-	FormatterSuffixSingular string `json:"formatterSuffixSingular,omitempty"`
+	Locale                  string  `json:"locale"`
+	Name                    string  `json:"name"`
+	FormatterOverride       *string `json:"formatterOverride,omitempty"`
+	FormatterSuffix         *string `json:"formatterSuffix,omitempty"`
+	FormatterSuffixSingular *string `json:"formatterSuffixSingular,omitempty"`
+	Description             *string `json:"description,omitempty"`
 }
 
 // GameCenterLeaderboardLocalizationCreateAttributes describes attributes for creating a localization.
 type GameCenterLeaderboardLocalizationCreateAttributes struct {
-	Locale                  string `json:"locale"`
-	Name                    string `json:"name"`
-	FormatterOverride       string `json:"formatterOverride,omitempty"`
-	FormatterSuffix         string `json:"formatterSuffix,omitempty"`
-	FormatterSuffixSingular string `json:"formatterSuffixSingular,omitempty"`
+	Locale                  string  `json:"locale"`
+	Name                    string  `json:"name"`
+	FormatterOverride       *string `json:"formatterOverride,omitempty"`
+	FormatterSuffix         *string `json:"formatterSuffix,omitempty"`
+	FormatterSuffixSingular *string `json:"formatterSuffixSingular,omitempty"`
+	Description             *string `json:"description,omitempty"`
 }
 
 // GameCenterLeaderboardLocalizationUpdateAttributes describes attributes for updating a localization.
@@ -144,6 +152,7 @@ type GameCenterLeaderboardLocalizationUpdateAttributes struct {
 	FormatterOverride       *string `json:"formatterOverride,omitempty"`
 	FormatterSuffix         *string `json:"formatterSuffix,omitempty"`
 	FormatterSuffixSingular *string `json:"formatterSuffixSingular,omitempty"`
+	Description             *string `json:"description,omitempty"`
 }
 
 // GameCenterLeaderboardLocalizationRelationships describes relationships for leaderboard localizations.

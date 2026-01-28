@@ -153,31 +153,33 @@ func printGameCenterLeaderboardSetDeleteResultMarkdown(result *GameCenterLeaderb
 
 func printGameCenterLeaderboardLocalizationsTable(resp *GameCenterLeaderboardLocalizationsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName\tFormatter Override\tFormatter Suffix\tFormatter Suffix Singular")
+	fmt.Fprintln(w, "ID\tLocale\tName\tFormatter Override\tFormatter Suffix\tFormatter Suffix Singular\tDescription")
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
-			item.Attributes.FormatterOverride,
-			item.Attributes.FormatterSuffix,
-			item.Attributes.FormatterSuffixSingular,
+			formatOptionalString(item.Attributes.FormatterOverride),
+			formatOptionalString(item.Attributes.FormatterSuffix),
+			formatOptionalString(item.Attributes.FormatterSuffixSingular),
+			formatOptionalString(item.Attributes.Description),
 		)
 	}
 	return w.Flush()
 }
 
 func printGameCenterLeaderboardLocalizationsMarkdown(resp *GameCenterLeaderboardLocalizationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Locale | Name | Formatter Override | Formatter Suffix | Formatter Suffix Singular |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	fmt.Fprintln(os.Stdout, "| ID | Locale | Name | Formatter Override | Formatter Suffix | Formatter Suffix Singular | Description |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- |")
 	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s |\n",
 			escapeMarkdown(item.ID),
 			escapeMarkdown(item.Attributes.Locale),
 			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.FormatterOverride),
-			escapeMarkdown(item.Attributes.FormatterSuffix),
-			escapeMarkdown(item.Attributes.FormatterSuffixSingular),
+			escapeMarkdown(formatOptionalString(item.Attributes.FormatterOverride)),
+			escapeMarkdown(formatOptionalString(item.Attributes.FormatterSuffix)),
+			escapeMarkdown(formatOptionalString(item.Attributes.FormatterSuffixSingular)),
+			escapeMarkdown(formatOptionalString(item.Attributes.Description)),
 		)
 	}
 	return nil

@@ -29,7 +29,7 @@ Examples:
   asc game-center achievements update --id "ACHIEVEMENT_ID" --points 20
   asc game-center achievements delete --id "ACHIEVEMENT_ID" --confirm
   asc game-center achievements localizations list --achievement-id "ACHIEVEMENT_ID"
-  asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win"
+  asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win" --before-earned-description "Win your first game" --after-earned-description "You won!"
   asc game-center achievements localizations update --id "LOC_ID" --name "New Name"
   asc game-center achievements localizations delete --id "LOC_ID" --confirm
   asc game-center achievements images upload --localization-id "LOC_ID" --file "path/to/image.png"
@@ -84,7 +84,8 @@ Examples:
 			}
 
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+			nextURL := strings.TrimSpace(*next)
+			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
@@ -97,10 +98,14 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			// Get Game Center detail ID first
-			gcDetailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-			if err != nil {
-				return fmt.Errorf("game-center achievements list: failed to get Game Center detail: %w", err)
+			gcDetailID := ""
+			if nextURL == "" {
+				// Get Game Center detail ID first
+				var err error
+				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("game-center achievements list: failed to get Game Center detail: %w", err)
+				}
 			}
 
 			opts := []asc.GCAchievementsOption{
@@ -583,8 +588,8 @@ func GameCenterAchievementLocalizationsCreateCommand() *ffcli.Command {
 		LongHelp: `Create a new Game Center achievement localization.
 
 Examples:
-  asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win"
-  asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win" --before-earned-description "Win your first game" --after-earned-description "You won!"`,
+  asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win" --before-earned-description "Win your first game" --after-earned-description "You won!"
+  asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale de-DE --name "Erster Sieg" --before-earned-description "Gewinne dein erstes Spiel" --after-earned-description "Du hast gewonnen!"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -606,6 +611,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			beforeVal := strings.TrimSpace(*beforeEarnedDescription)
+			if beforeVal == "" {
+				fmt.Fprintln(os.Stderr, "Error: --before-earned-description is required")
+				return flag.ErrHelp
+			}
+
+			afterVal := strings.TrimSpace(*afterEarnedDescription)
+			if afterVal == "" {
+				fmt.Fprintln(os.Stderr, "Error: --after-earned-description is required")
+				return flag.ErrHelp
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements localizations create: %w", err)
@@ -617,8 +634,8 @@ Examples:
 			attrs := asc.GameCenterAchievementLocalizationCreateAttributes{
 				Locale:                  localeVal,
 				Name:                    nameVal,
-				BeforeEarnedDescription: strings.TrimSpace(*beforeEarnedDescription),
-				AfterEarnedDescription:  strings.TrimSpace(*afterEarnedDescription),
+				BeforeEarnedDescription: beforeVal,
+				AfterEarnedDescription:  afterVal,
 			}
 
 			resp, err := client.CreateGameCenterAchievementLocalization(requestCtx, achID, attrs)

@@ -214,7 +214,8 @@ Examples:
 			}
 
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+			nextURL := strings.TrimSpace(*next)
+			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
@@ -227,10 +228,14 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			// Get Game Center detail ID first
-			gcDetailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards list: failed to get Game Center detail: %w", err)
+			gcDetailID := ""
+			if nextURL == "" {
+				// Get Game Center detail ID first
+				var err error
+				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("game-center leaderboards list: failed to get Game Center detail: %w", err)
+				}
 			}
 
 			opts := []asc.GCLeaderboardsOption{
