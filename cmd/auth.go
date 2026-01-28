@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -225,6 +226,18 @@ func doctorStatusLabel(status auth.DoctorStatus) string {
 	}
 }
 
+type permissionWarning struct {
+	err error
+}
+
+func (p *permissionWarning) Error() string {
+	return p.err.Error()
+}
+
+func (p *permissionWarning) Unwrap() error {
+	return p.err
+}
+
 func validateStoredCredential(ctx context.Context, cred auth.Credential) error {
 	if err := auth.ValidateKeyFile(cred.PrivateKeyPath); err != nil {
 		return fmt.Errorf("invalid private key: %w", err)
@@ -241,6 +254,9 @@ func validateStoredCredential(ctx context.Context, cred auth.Credential) error {
 		return err
 	}
 	if _, err := client.GetApps(ctx, asc.WithAppsLimit(1)); err != nil {
+		if errors.Is(err, asc.ErrForbidden) {
+			return &permissionWarning{err: err}
+		}
 		return err
 	}
 	return nil
@@ -596,8 +612,13 @@ Examples:
 					fmt.Printf("  - %s (Key ID: %s)%s (stored in %s)\n", cred.Name, cred.KeyID, active, credentialStorageLabel(cred))
 					if *validate {
 						if err := statusValidateCredential(ctx, cred); err != nil {
-							validationFailures++
-							fmt.Printf("    %s (Key ID: %s): failed (%v)\n", cred.Name, cred.KeyID, err)
+							var permErr *permissionWarning
+							if errors.As(err, &permErr) {
+								fmt.Printf("    %s (Key ID: %s): works (insufficient permissions for apps list)\n", cred.Name, cred.KeyID)
+							} else {
+								validationFailures++
+								fmt.Printf("    %s (Key ID: %s): failed (%v)\n", cred.Name, cred.KeyID, err)
+							}
 						} else {
 							fmt.Printf("    %s (Key ID: %s): works\n", cred.Name, cred.KeyID)
 						}

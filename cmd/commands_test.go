@@ -3063,6 +3063,65 @@ func TestAuthStatusValidateSuccess(t *testing.T) {
 	}
 }
 
+func TestAuthStatusValidateForbiddenReportsWorks(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+
+	cfg := &config.Config{
+		DefaultKeyName: "default",
+		Keys: []config.Credential{
+			{
+				Name:           "default",
+				KeyID:          "KEY123",
+				IssuerID:       "ISS456",
+				PrivateKeyPath: keyPath,
+			},
+		},
+	}
+	configPath := filepath.Join(tempDir, "config.json")
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() {
+		selectedProfile = previousProfile
+	})
+
+	previousValidator := statusValidateCredential
+	statusValidateCredential = func(ctx context.Context, cred auth.Credential) error {
+		return &permissionWarning{err: errors.New("forbidden")}
+	}
+	t.Cleanup(func() {
+		statusValidateCredential = previousValidator
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"auth", "status", "--validate"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "default (Key ID: KEY123): works (insufficient permissions for apps list)") {
+		t.Fatalf("expected insufficient permissions output, got %q", stdout)
+	}
+}
+
 func TestAuthStatusValidateFailureReturnsReportedError(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "AuthKey.p8")
