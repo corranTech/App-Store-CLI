@@ -14,13 +14,7 @@ import (
 )
 
 func xcodeCloudProductsListFlags(fs *flag.FlagSet) (appID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
-	appID = fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output = fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
-	return
+	return xcodeCloudWorkflowsListFlags(fs)
 }
 
 // XcodeCloudProductsCommand returns the xcode-cloud products command with subcommands.
