@@ -1,4 +1,4 @@
-package cmd
+package certificates
 
 import (
 	"context"
