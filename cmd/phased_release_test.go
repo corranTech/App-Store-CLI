@@ -48,6 +48,8 @@ func TestPhasedReleaseCreateCommand_InvalidState(t *testing.T) {
 }
 
 func TestPhasedReleaseCreateCommand_ValidStates(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
 	validStates := []string{"INACTIVE", "ACTIVE", "inactive", "active"}
 
 	for _, state := range validStates {
@@ -107,6 +109,8 @@ func TestPhasedReleaseUpdateCommand_InvalidState(t *testing.T) {
 }
 
 func TestPhasedReleaseUpdateCommand_ValidStates(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
 	validStates := []string{"ACTIVE", "PAUSED", "COMPLETE", "active", "paused", "complete"}
 
 	for _, state := range validStates {
