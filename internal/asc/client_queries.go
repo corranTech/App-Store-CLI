@@ -159,6 +159,10 @@ type bundleIDsQuery struct {
 	identifier string
 }
 
+type promotedPurchasesQuery struct {
+	listQuery
+}
+
 type bundleIDCapabilitiesQuery struct {
 	listQuery
 }
@@ -448,6 +452,12 @@ func buildBundleIDsQuery(query *bundleIDsQuery) string {
 	if strings.TrimSpace(query.identifier) != "" {
 		values.Set("filter[identifier]", strings.TrimSpace(query.identifier))
 	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildPromotedPurchasesQuery(query *promotedPurchasesQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

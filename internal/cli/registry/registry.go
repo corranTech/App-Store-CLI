@@ -37,6 +37,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/prerelease"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/pricing"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/profiles"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/publish"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
@@ -114,6 +115,7 @@ func Subcommands(version string) []*ffcli.Command {
 		agerating.AgeRatingCommand(),
 		accessibility.AccessibilityCommand(),
 		encryption.EncryptionCommand(),
+		promotedpurchases.PromotedPurchasesCommand(),
 		migrate.MigrateCommand(),
 		gamecenter.GameCenterCommand(),
 		VersionCommand(version),

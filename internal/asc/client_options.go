@@ -65,6 +65,9 @@ type BundleIDsOption func(*bundleIDsQuery)
 // BundleIDCapabilitiesOption is a functional option for GetBundleIDCapabilities.
 type BundleIDCapabilitiesOption func(*bundleIDCapabilitiesQuery)
 
+// PromotedPurchasesOption is a functional option for promoted purchases endpoints.
+type PromotedPurchasesOption func(*promotedPurchasesQuery)
+
 // CertificatesOption is a functional option for GetCertificates.
 type CertificatesOption func(*certificatesQuery)
 
@@ -1015,6 +1018,24 @@ func WithBundleIDsFilterIdentifier(identifier string) BundleIDsOption {
 		normalized := normalizeCSVString(identifier)
 		if normalized != "" {
 			q.identifier = normalized
+		}
+	}
+}
+
+// WithPromotedPurchasesLimit sets the max number of promoted purchases to return.
+func WithPromotedPurchasesLimit(limit int) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithPromotedPurchasesNextURL uses a next page URL directly.
+func WithPromotedPurchasesNextURL(next string) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
