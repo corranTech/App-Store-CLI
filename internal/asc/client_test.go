@@ -959,7 +959,10 @@ func TestBuildWinBackOffersQuery(t *testing.T) {
 	query := &winBackOffersQuery{}
 	opts := []WinBackOffersOption{
 		WithWinBackOffersLimit(25),
-		WithWinBackOffersNextURL("https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=abc"),
+		WithWinBackOffersFields([]string{"referenceName", "offerMode"}),
+		WithWinBackOffersPriceFields([]string{"territory"}),
+		WithWinBackOffersInclude([]string{"prices"}),
+		WithWinBackOffersPricesLimit(10),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -967,9 +970,6 @@ func TestBuildWinBackOffersQuery(t *testing.T) {
 
 	if query.limit != 25 {
 		t.Fatalf("expected limit=25, got %d", query.limit)
-	}
-	if query.nextURL == "" {
-		t.Fatalf("expected nextURL to be set")
 	}
 
 	values, err := url.ParseQuery(buildWinBackOffersQuery(query))
@@ -979,13 +979,29 @@ func TestBuildWinBackOffersQuery(t *testing.T) {
 	if got := values.Get("limit"); got != "25" {
 		t.Fatalf("expected limit=25, got %q", got)
 	}
+	if got := values.Get("fields[winBackOffers]"); got != "referenceName,offerMode" {
+		t.Fatalf("expected winBackOffers fields, got %q", got)
+	}
+	if got := values.Get("fields[winBackOfferPrices]"); got != "territory" {
+		t.Fatalf("expected winBackOfferPrices fields, got %q", got)
+	}
+	if got := values.Get("include"); got != "prices" {
+		t.Fatalf("expected include=prices, got %q", got)
+	}
+	if got := values.Get("limit[prices]"); got != "10" {
+		t.Fatalf("expected limit[prices]=10, got %q", got)
+	}
 }
 
 func TestBuildWinBackOfferPricesQuery(t *testing.T) {
 	query := &winBackOfferPricesQuery{}
 	opts := []WinBackOfferPricesOption{
 		WithWinBackOfferPricesLimit(15),
-		WithWinBackOfferPricesNextURL("https://api.appstoreconnect.apple.com/v1/winBackOffers/offer-1/prices?cursor=abc"),
+		WithWinBackOfferPricesTerritoryFilter([]string{"USA", "CAN"}),
+		WithWinBackOfferPricesFields([]string{"territory"}),
+		WithWinBackOfferPricesTerritoryFields([]string{"currency"}),
+		WithWinBackOfferPricesSubscriptionPricePointFields([]string{"customerPrice", "proceeds"}),
+		WithWinBackOfferPricesInclude([]string{"territory", "subscriptionPricePoint"}),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -994,9 +1010,6 @@ func TestBuildWinBackOfferPricesQuery(t *testing.T) {
 	if query.limit != 15 {
 		t.Fatalf("expected limit=15, got %d", query.limit)
 	}
-	if query.nextURL == "" {
-		t.Fatalf("expected nextURL to be set")
-	}
 
 	values, err := url.ParseQuery(buildWinBackOfferPricesQuery(query))
 	if err != nil {
@@ -1004,6 +1017,21 @@ func TestBuildWinBackOfferPricesQuery(t *testing.T) {
 	}
 	if got := values.Get("limit"); got != "15" {
 		t.Fatalf("expected limit=15, got %q", got)
+	}
+	if got := values.Get("filter[territory]"); got != "USA,CAN" {
+		t.Fatalf("expected territory filter, got %q", got)
+	}
+	if got := values.Get("fields[winBackOfferPrices]"); got != "territory" {
+		t.Fatalf("expected winBackOfferPrices fields, got %q", got)
+	}
+	if got := values.Get("fields[territories]"); got != "currency" {
+		t.Fatalf("expected territories fields, got %q", got)
+	}
+	if got := values.Get("fields[subscriptionPricePoints]"); got != "customerPrice,proceeds" {
+		t.Fatalf("expected subscriptionPricePoints fields, got %q", got)
+	}
+	if got := values.Get("include"); got != "territory,subscriptionPricePoint" {
+		t.Fatalf("expected include list, got %q", got)
 	}
 }
 

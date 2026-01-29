@@ -99,10 +99,19 @@ type subscriptionOfferCodeOneTimeUseCodesQuery struct {
 
 type winBackOffersQuery struct {
 	listQuery
+	fields      []string
+	priceFields []string
+	include     []string
+	pricesLimit int
 }
 
 type winBackOfferPricesQuery struct {
 	listQuery
+	territoryIDs                 []string
+	fields                       []string
+	territoryFields              []string
+	subscriptionPricePointFields []string
+	include                      []string
 }
 
 type appStoreVersionsQuery struct {
@@ -639,12 +648,23 @@ func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCode
 
 func buildWinBackOffersQuery(query *winBackOffersQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[winBackOffers]", query.fields)
+	addCSV(values, "fields[winBackOfferPrices]", query.priceFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	if query.pricesLimit > 0 {
+		values.Set("limit[prices]", strconv.Itoa(query.pricesLimit))
+	}
 	return values.Encode()
 }
 
 func buildWinBackOfferPricesQuery(query *winBackOfferPricesQuery) string {
 	values := url.Values{}
+	addCSV(values, "filter[territory]", query.territoryIDs)
+	addCSV(values, "fields[winBackOfferPrices]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "fields[subscriptionPricePoints]", query.subscriptionPricePointFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

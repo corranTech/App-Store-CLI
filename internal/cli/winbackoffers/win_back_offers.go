@@ -13,7 +13,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-const winBackOffersMaxLimit = 200
+const (
+	winBackOffersMaxLimit       = 200
+	winBackOffersPricesMaxLimit = 50
+)
 
 var winBackOfferDurationValues = []string{
 	string(asc.SubscriptionOfferDurationThreeDays),
@@ -108,6 +111,10 @@ func WinBackOffersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	subscriptionID := fs.String("subscription", "", "Subscription ID")
+	fields := fs.String("fields", "", "Fields to include: "+strings.Join(winBackOfferFieldsList(), ", "))
+	priceFields := fs.String("price-fields", "", "Price fields to include: "+strings.Join(winBackOfferPriceFieldsList(), ", "))
+	include := fs.String("include", "", "Include related resources: "+strings.Join(winBackOfferIncludeList(), ", "))
+	pricesLimit := fs.Int("prices-limit", 0, "Maximum included prices per offer (1-50)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -123,7 +130,7 @@ func WinBackOffersListCommand() *ffcli.Command {
 Examples:
   asc win-back-offers list --subscription "SUB_ID"
   asc win-back-offers list --subscription "SUB_ID" --limit 50
-  asc win-back-offers list --subscription "SUB_ID" --paginate`,
+  asc win-back-offers list --subscription "SUB_ID" --include prices --price-fields territory --prices-limit 10`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -132,6 +139,30 @@ Examples:
 			}
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("win-back-offers list: %w", err)
+			}
+			if *pricesLimit != 0 && (*pricesLimit < 1 || *pricesLimit > winBackOffersPricesMaxLimit) {
+				return fmt.Errorf("win-back-offers list: --prices-limit must be between 1 and %d", winBackOffersPricesMaxLimit)
+			}
+
+			fieldsValue, err := normalizeWinBackOfferFields(*fields, "--fields")
+			if err != nil {
+				return fmt.Errorf("win-back-offers list: %w", err)
+			}
+			priceFieldsValue, err := normalizeWinBackOfferPriceFields(*priceFields, "--price-fields")
+			if err != nil {
+				return fmt.Errorf("win-back-offers list: %w", err)
+			}
+			includeValue, err := normalizeWinBackOfferInclude(*include, "--include")
+			if err != nil {
+				return fmt.Errorf("win-back-offers list: %w", err)
+			}
+			if len(priceFieldsValue) > 0 && !hasInclude(includeValue, "prices") {
+				fmt.Fprintln(os.Stderr, "Error: --price-fields requires --include prices")
+				return flag.ErrHelp
+			}
+			if *pricesLimit != 0 && !hasInclude(includeValue, "prices") {
+				fmt.Fprintln(os.Stderr, "Error: --prices-limit requires --include prices")
+				return flag.ErrHelp
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
@@ -151,6 +182,10 @@ Examples:
 			opts := []asc.WinBackOffersOption{
 				asc.WithWinBackOffersLimit(*limit),
 				asc.WithWinBackOffersNextURL(*next),
+				asc.WithWinBackOffersFields(fieldsValue),
+				asc.WithWinBackOffersPriceFields(priceFieldsValue),
+				asc.WithWinBackOffersInclude(includeValue),
+				asc.WithWinBackOffersPricesLimit(*pricesLimit),
 			}
 
 			if *paginate {
@@ -237,9 +272,9 @@ func WinBackOffersCreateCommand() *ffcli.Command {
 	var eligibilityPaidMonths optionalInt
 	fs.Var(&eligibilityPaidMonths, "eligibility-paid-months", "Paid subscription duration in months (required)")
 	var eligibilityLastSubscribedMin optionalInt
-	fs.Var(&eligibilityLastSubscribedMin, "eligibility-last-subscribed-min", "Minimum months since last subscribed (required)")
+	fs.Var(&eligibilityLastSubscribedMin, "eligibility-last-subscribed-min", "Minimum months since last subscribed")
 	var eligibilityLastSubscribedMax optionalInt
-	fs.Var(&eligibilityLastSubscribedMax, "eligibility-last-subscribed-max", "Maximum months since last subscribed (required)")
+	fs.Var(&eligibilityLastSubscribedMax, "eligibility-last-subscribed-max", "Maximum months since last subscribed")
 	var eligibilityWaitMonths optionalInt
 	fs.Var(&eligibilityWaitMonths, "eligibility-wait-months", "Wait between offers in months (optional)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
@@ -313,19 +348,26 @@ Examples:
 				return fmt.Errorf("win-back-offers create: --eligibility-paid-months must be 0 or greater")
 			}
 
-			if !eligibilityLastSubscribedMin.set {
-				fmt.Fprintln(os.Stderr, "Error: --eligibility-last-subscribed-min is required")
+			if !eligibilityLastSubscribedMin.set && !eligibilityLastSubscribedMax.set {
+				fmt.Fprintln(os.Stderr, "Error: --eligibility-last-subscribed-min or --eligibility-last-subscribed-max is required")
 				return flag.ErrHelp
 			}
-			if !eligibilityLastSubscribedMax.set {
-				fmt.Fprintln(os.Stderr, "Error: --eligibility-last-subscribed-max is required")
-				return flag.ErrHelp
+			if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMin.value < 0 {
+				return fmt.Errorf("win-back-offers create: eligibility last subscribed min must be 0 or greater")
 			}
-			if eligibilityLastSubscribedMin.value < 0 || eligibilityLastSubscribedMax.value < 0 {
-				return fmt.Errorf("win-back-offers create: eligibility last subscribed values must be 0 or greater")
+			if eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMax.value < 0 {
+				return fmt.Errorf("win-back-offers create: eligibility last subscribed max must be 0 or greater")
 			}
-			if eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
+			if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
 				return fmt.Errorf("win-back-offers create: eligibility last subscribed min must be less than or equal to max")
+			}
+
+			rangeValue := asc.IntegerRange{}
+			if eligibilityLastSubscribedMin.set {
+				rangeValue.Minimum = &eligibilityLastSubscribedMin.value
+			}
+			if eligibilityLastSubscribedMax.set {
+				rangeValue.Maximum = &eligibilityLastSubscribedMax.value
 			}
 
 			if strings.TrimSpace(*startDate) == "" {
@@ -409,7 +451,7 @@ Examples:
 						OfferMode:     offerModeValue,
 						PeriodCount:   periodCount.value,
 						CustomerEligibilityPaidSubscriptionDurationInMonths: eligibilityPaidMonths.value,
-						CustomerEligibilityTimeSinceLastSubscribedInMonths:  asc.NewIntegerRange(eligibilityLastSubscribedMin.value, eligibilityLastSubscribedMax.value),
+						CustomerEligibilityTimeSinceLastSubscribedInMonths:  rangeValue,
 						CustomerEligibilityWaitBetweenOffersInMonths:        waitBetween,
 						StartDate:       normalizedStartDate,
 						EndDate:         endDateValue,
@@ -488,16 +530,22 @@ Examples:
 			}
 
 			if eligibilityLastSubscribedMin.set || eligibilityLastSubscribedMax.set {
-				if !eligibilityLastSubscribedMin.set || !eligibilityLastSubscribedMax.set {
-					return fmt.Errorf("win-back-offers update: --eligibility-last-subscribed-min and --eligibility-last-subscribed-max must be set together")
+				if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMin.value < 0 {
+					return fmt.Errorf("win-back-offers update: eligibility last subscribed min must be 0 or greater")
 				}
-				if eligibilityLastSubscribedMin.value < 0 || eligibilityLastSubscribedMax.value < 0 {
-					return fmt.Errorf("win-back-offers update: eligibility last subscribed values must be 0 or greater")
+				if eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMax.value < 0 {
+					return fmt.Errorf("win-back-offers update: eligibility last subscribed max must be 0 or greater")
 				}
-				if eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
+				if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
 					return fmt.Errorf("win-back-offers update: eligibility last subscribed min must be less than or equal to max")
 				}
-				rangeValue := asc.NewIntegerRange(eligibilityLastSubscribedMin.value, eligibilityLastSubscribedMax.value)
+				rangeValue := asc.IntegerRange{}
+				if eligibilityLastSubscribedMin.set {
+					rangeValue.Minimum = &eligibilityLastSubscribedMin.value
+				}
+				if eligibilityLastSubscribedMax.set {
+					rangeValue.Maximum = &eligibilityLastSubscribedMax.value
+				}
 				attrs.CustomerEligibilityTimeSinceLastSubscribedInMonths = &rangeValue
 				hasUpdates = true
 			}
@@ -626,6 +674,11 @@ func WinBackOffersPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices", flag.ExitOnError)
 
 	id := fs.String("id", "", "Win-back offer ID")
+	territories := fs.String("territory", "", "Territory IDs, comma-separated")
+	fields := fs.String("fields", "", "Fields to include: "+strings.Join(winBackOfferPriceFieldsList(), ", "))
+	territoryFields := fs.String("territory-fields", "", "Territory fields to include: "+strings.Join(winBackOfferTerritoryFieldsList(), ", "))
+	pricePointFields := fs.String("price-point-fields", "", "Price point fields to include: "+strings.Join(winBackOfferSubscriptionPricePointFieldsList(), ", "))
+	include := fs.String("include", "", "Include related resources: "+strings.Join(winBackOfferPriceIncludeList(), ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -640,7 +693,7 @@ func WinBackOffersPricesCommand() *ffcli.Command {
 
 Examples:
   asc win-back-offers prices --id "OFFER_ID"
-  asc win-back-offers prices --id "OFFER_ID" --paginate`,
+  asc win-back-offers prices --id "OFFER_ID" --include territory --territory-fields currency`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -657,6 +710,31 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			fieldsValue, err := normalizeWinBackOfferPriceFields(*fields, "--fields")
+			if err != nil {
+				return fmt.Errorf("win-back-offers prices: %w", err)
+			}
+			territoryFieldsValue, err := normalizeWinBackOfferTerritoryFields(*territoryFields, "--territory-fields")
+			if err != nil {
+				return fmt.Errorf("win-back-offers prices: %w", err)
+			}
+			pricePointFieldsValue, err := normalizeWinBackOfferSubscriptionPricePointFields(*pricePointFields, "--price-point-fields")
+			if err != nil {
+				return fmt.Errorf("win-back-offers prices: %w", err)
+			}
+			includeValue, err := normalizeWinBackOfferPriceInclude(*include, "--include")
+			if err != nil {
+				return fmt.Errorf("win-back-offers prices: %w", err)
+			}
+			if len(territoryFieldsValue) > 0 && !hasInclude(includeValue, "territory") {
+				fmt.Fprintln(os.Stderr, "Error: --territory-fields requires --include territory")
+				return flag.ErrHelp
+			}
+			if len(pricePointFieldsValue) > 0 && !hasInclude(includeValue, "subscriptionPricePoint") {
+				fmt.Fprintln(os.Stderr, "Error: --price-point-fields requires --include subscriptionPricePoint")
+				return flag.ErrHelp
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("win-back-offers prices: %w", err)
@@ -668,6 +746,11 @@ Examples:
 			opts := []asc.WinBackOfferPricesOption{
 				asc.WithWinBackOfferPricesLimit(*limit),
 				asc.WithWinBackOfferPricesNextURL(*next),
+				asc.WithWinBackOfferPricesTerritoryFilter(parseCommaSeparatedIDs(*territories)),
+				asc.WithWinBackOfferPricesFields(fieldsValue),
+				asc.WithWinBackOfferPricesTerritoryFields(territoryFieldsValue),
+				asc.WithWinBackOfferPricesSubscriptionPricePointFields(pricePointFieldsValue),
+				asc.WithWinBackOfferPricesInclude(includeValue),
 			}
 
 			if *paginate {
@@ -924,4 +1007,85 @@ func normalizeEnumValue(value string) string {
 	normalized = strings.ReplaceAll(normalized, "-", "_")
 	normalized = strings.ReplaceAll(normalized, " ", "_")
 	return normalized
+}
+
+func normalizeWinBackOfferFields(value, flagName string) ([]string, error) {
+	return normalizeSelection(value, flagName, winBackOfferFieldsList())
+}
+
+func normalizeWinBackOfferPriceFields(value, flagName string) ([]string, error) {
+	return normalizeSelection(value, flagName, winBackOfferPriceFieldsList())
+}
+
+func normalizeWinBackOfferInclude(value, flagName string) ([]string, error) {
+	return normalizeSelection(value, flagName, winBackOfferIncludeList())
+}
+
+func normalizeWinBackOfferTerritoryFields(value, flagName string) ([]string, error) {
+	return normalizeSelection(value, flagName, winBackOfferTerritoryFieldsList())
+}
+
+func normalizeWinBackOfferSubscriptionPricePointFields(value, flagName string) ([]string, error) {
+	return normalizeSelection(value, flagName, winBackOfferSubscriptionPricePointFieldsList())
+}
+
+func normalizeWinBackOfferPriceInclude(value, flagName string) ([]string, error) {
+	return normalizeSelection(value, flagName, winBackOfferPriceIncludeList())
+}
+
+func normalizeSelection(value, flagName string, allowed []string) ([]string, error) {
+	values := splitCSV(value)
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	allowedSet := map[string]struct{}{}
+	for _, item := range allowed {
+		allowedSet[item] = struct{}{}
+	}
+	for _, item := range values {
+		if _, ok := allowedSet[item]; !ok {
+			return nil, fmt.Errorf("%s must be one of: %s", flagName, strings.Join(allowed, ", "))
+		}
+	}
+
+	return values, nil
+}
+
+func winBackOfferFieldsList() []string {
+	return []string{
+		"referenceName",
+		"offerId",
+		"duration",
+		"offerMode",
+		"periodCount",
+		"customerEligibilityPaidSubscriptionDurationInMonths",
+		"customerEligibilityTimeSinceLastSubscribedInMonths",
+		"customerEligibilityWaitBetweenOffersInMonths",
+		"startDate",
+		"endDate",
+		"priority",
+		"promotionIntent",
+		"prices",
+	}
+}
+
+func winBackOfferPriceFieldsList() []string {
+	return []string{"territory", "subscriptionPricePoint"}
+}
+
+func winBackOfferIncludeList() []string {
+	return []string{"prices"}
+}
+
+func winBackOfferTerritoryFieldsList() []string {
+	return []string{"currency"}
+}
+
+func winBackOfferSubscriptionPricePointFieldsList() []string {
+	return []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations"}
+}
+
+func winBackOfferPriceIncludeList() []string {
+	return []string{"territory", "subscriptionPricePoint"}
 }

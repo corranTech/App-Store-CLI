@@ -301,6 +301,36 @@ func WithWinBackOffersNextURL(next string) WinBackOffersOption {
 	}
 }
 
+// WithWinBackOffersFields sets fields[winBackOffers] for win-back offer responses.
+func WithWinBackOffersFields(fields []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOffersPriceFields sets fields[winBackOfferPrices] for included prices.
+func WithWinBackOffersPriceFields(fields []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.priceFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOffersInclude sets include for win-back offer responses.
+func WithWinBackOffersInclude(include []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithWinBackOffersPricesLimit sets limit[prices] for included prices.
+func WithWinBackOffersPricesLimit(limit int) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		if limit > 0 {
+			q.pricesLimit = limit
+		}
+	}
+}
+
 // WithWinBackOfferPricesLimit sets the max number of win-back offer prices to return.
 func WithWinBackOfferPricesLimit(limit int) WinBackOfferPricesOption {
 	return func(q *winBackOfferPricesQuery) {
@@ -316,6 +346,41 @@ func WithWinBackOfferPricesNextURL(next string) WinBackOfferPricesOption {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
+	}
+}
+
+// WithWinBackOfferPricesTerritoryFilter filters win-back offer prices by territory ID(s).
+func WithWinBackOfferPricesTerritoryFilter(ids []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.territoryIDs = normalizeList(ids)
+	}
+}
+
+// WithWinBackOfferPricesFields sets fields[winBackOfferPrices] for price responses.
+func WithWinBackOfferPricesFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesTerritoryFields sets fields[territories] for included territories.
+func WithWinBackOfferPricesTerritoryFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesSubscriptionPricePointFields sets fields[subscriptionPricePoints] for included price points.
+func WithWinBackOfferPricesSubscriptionPricePointFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.subscriptionPricePointFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesInclude sets include for win-back offer price responses.
+func WithWinBackOfferPricesInclude(include []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.include = normalizeList(include)
 	}
 }
 
