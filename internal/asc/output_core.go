@@ -111,6 +111,10 @@ func PrintMarkdown(data interface{}) error {
 		return printSubscriptionsMarkdown(v)
 	case *SubscriptionResponse:
 		return printSubscriptionsMarkdown(&SubscriptionsResponse{Data: []Resource[SubscriptionAttributes]{v.Data}})
+	case *PromotedPurchasesResponse:
+		return printPromotedPurchasesMarkdown(v)
+	case *PromotedPurchaseResponse:
+		return printPromotedPurchasesMarkdown(&PromotedPurchasesResponse{Data: []Resource[PromotedPurchaseAttributes]{v.Data}})
 	case *SubscriptionPriceResponse:
 		return printSubscriptionPriceMarkdown(v)
 	case *SubscriptionAvailabilityResponse:
@@ -413,6 +417,10 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaBuildLocalizationDeleteResultMarkdown(v)
 	case *BetaTesterInvitationResult:
 		return printBetaTesterInvitationResultMarkdown(v)
+	case *PromotedPurchaseDeleteResult:
+		return printPromotedPurchaseDeleteResultMarkdown(v)
+	case *AppPromotedPurchasesLinkResult:
+		return printAppPromotedPurchasesLinkResultMarkdown(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultMarkdown(v)
 	case *BundleIDDeleteResult:
@@ -589,6 +597,10 @@ func PrintTable(data interface{}) error {
 		return printSubscriptionsTable(v)
 	case *SubscriptionResponse:
 		return printSubscriptionsTable(&SubscriptionsResponse{Data: []Resource[SubscriptionAttributes]{v.Data}})
+	case *PromotedPurchasesResponse:
+		return printPromotedPurchasesTable(v)
+	case *PromotedPurchaseResponse:
+		return printPromotedPurchasesTable(&PromotedPurchasesResponse{Data: []Resource[PromotedPurchaseAttributes]{v.Data}})
 	case *SubscriptionPriceResponse:
 		return printSubscriptionPriceTable(v)
 	case *SubscriptionAvailabilityResponse:
@@ -891,6 +903,10 @@ func PrintTable(data interface{}) error {
 		return printBetaBuildLocalizationDeleteResultTable(v)
 	case *BetaTesterInvitationResult:
 		return printBetaTesterInvitationResultTable(v)
+	case *PromotedPurchaseDeleteResult:
+		return printPromotedPurchaseDeleteResultTable(v)
+	case *AppPromotedPurchasesLinkResult:
+		return printAppPromotedPurchasesLinkResultTable(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultTable(v)
 	case *BundleIDDeleteResult:

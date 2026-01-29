@@ -322,6 +322,100 @@ func TestGetAppTagsRelationshipsForApp_WithLimit(t *testing.T) {
 	}
 }
 
+func TestGetAppPromotedPurchases_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"promotedPurchases","id":"promo-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/promotedPurchases" {
+			t.Fatalf("expected path /v1/apps/app-1/promotedPurchases, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppPromotedPurchases(context.Background(), "app-1", WithPromotedPurchasesLimit(5)); err != nil {
+		t.Fatalf("GetAppPromotedPurchases() error: %v", err)
+	}
+}
+
+func TestGetAppPromotedPurchasesRelationships_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"promotedPurchases","id":"promo-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/relationships/promotedPurchases" {
+			t.Fatalf("expected path /v1/apps/app-1/relationships/promotedPurchases, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppPromotedPurchasesRelationships(context.Background(), "app-1", WithLinkagesLimit(5)); err != nil {
+		t.Fatalf("GetAppPromotedPurchasesRelationships() error: %v", err)
+	}
+}
+
+func TestSetAppPromotedPurchases_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/relationships/promotedPurchases" {
+			t.Fatalf("expected path /v1/apps/app-1/relationships/promotedPurchases, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 relationships, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypePromotedPurchases {
+			t.Fatalf("expected type promotedPurchases, got %q", payload.Data[0].Type)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.SetAppPromotedPurchases(context.Background(), "app-1", []string{"promo-1", "promo-2"}); err != nil {
+		t.Fatalf("SetAppPromotedPurchases() error: %v", err)
+	}
+}
+
+func TestSetAppPromotedPurchases_EmptyListClears(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/relationships/promotedPurchases" {
+			t.Fatalf("expected path /v1/apps/app-1/relationships/promotedPurchases, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data == nil {
+			t.Fatalf("expected data to be an empty array, got nil")
+		}
+		if len(payload.Data) != 0 {
+			t.Fatalf("expected 0 relationships, got %d", len(payload.Data))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.SetAppPromotedPurchases(context.Background(), "app-1", nil); err != nil {
+		t.Fatalf("SetAppPromotedPurchases() error: %v", err)
+	}
+}
+
 func TestUpdateAppTag_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appTags","id":"tag-1","attributes":{"name":"Games","visibleInAppStore":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -7293,5 +7387,166 @@ func TestGetSubscriptionWinBackOffersRelationships(t *testing.T) {
 
 	if _, err := client.GetSubscriptionWinBackOffersRelationships(context.Background(), "sub-1", WithLinkagesLimit(3)); err != nil {
 		t.Fatalf("GetSubscriptionWinBackOffersRelationships() error: %v", err)
+	}
+}
+
+func TestGetPromotedPurchase_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"promotedPurchases","id":"promo-1","attributes":{"visibleForAllUsers":true,"enabled":false}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/promotedPurchases/promo-1" {
+			t.Fatalf("expected path /v1/promotedPurchases/promo-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetPromotedPurchase(context.Background(), "promo-1"); err != nil {
+		t.Fatalf("GetPromotedPurchase() error: %v", err)
+	}
+}
+
+func TestCreatePromotedPurchase_Subscription_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"promotedPurchases","id":"promo-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/promotedPurchases" {
+			t.Fatalf("expected path /v1/promotedPurchases, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload PromotedPurchaseCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypePromotedPurchases {
+			t.Fatalf("expected type promotedPurchases, got %q", payload.Data.Type)
+		}
+		if !payload.Data.Attributes.VisibleForAllUsers {
+			t.Fatalf("expected visibleForAllUsers true")
+		}
+		if payload.Data.Relationships.App.Data.Type != ResourceTypeApps || payload.Data.Relationships.App.Data.ID != "app-1" {
+			t.Fatalf("expected app relationship, got %+v", payload.Data.Relationships.App.Data)
+		}
+		if payload.Data.Relationships.Subscription == nil || payload.Data.Relationships.Subscription.Data.ID != "sub-1" {
+			t.Fatalf("expected subscription relationship, got %+v", payload.Data.Relationships.Subscription)
+		}
+		if payload.Data.Relationships.InAppPurchaseV2 != nil {
+			t.Fatalf("expected no inAppPurchaseV2 relationship")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := PromotedPurchaseCreateAttributes{VisibleForAllUsers: true}
+	relationships := PromotedPurchaseCreateRelationships{
+		App: Relationship{
+			Data: ResourceData{Type: ResourceTypeApps, ID: "app-1"},
+		},
+		Subscription: &Relationship{
+			Data: ResourceData{Type: ResourceTypeSubscriptions, ID: "sub-1"},
+		},
+	}
+
+	if _, err := client.CreatePromotedPurchase(context.Background(), attrs, relationships); err != nil {
+		t.Fatalf("CreatePromotedPurchase() error: %v", err)
+	}
+}
+
+func TestCreatePromotedPurchase_InAppPurchase_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"promotedPurchases","id":"promo-2"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/promotedPurchases" {
+			t.Fatalf("expected path /v1/promotedPurchases, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload PromotedPurchaseCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Relationships.InAppPurchaseV2 == nil || payload.Data.Relationships.InAppPurchaseV2.Data.ID != "iap-1" {
+			t.Fatalf("expected inAppPurchaseV2 relationship, got %+v", payload.Data.Relationships.InAppPurchaseV2)
+		}
+		if payload.Data.Relationships.Subscription != nil {
+			t.Fatalf("expected no subscription relationship")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := PromotedPurchaseCreateAttributes{VisibleForAllUsers: true}
+	relationships := PromotedPurchaseCreateRelationships{
+		App: Relationship{
+			Data: ResourceData{Type: ResourceTypeApps, ID: "app-1"},
+		},
+		InAppPurchaseV2: &Relationship{
+			Data: ResourceData{Type: ResourceTypeInAppPurchases, ID: "iap-1"},
+		},
+	}
+
+	if _, err := client.CreatePromotedPurchase(context.Background(), attrs, relationships); err != nil {
+		t.Fatalf("CreatePromotedPurchase() error: %v", err)
+	}
+}
+
+func TestUpdatePromotedPurchase_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"promotedPurchases","id":"promo-1","attributes":{"enabled":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/promotedPurchases/promo-1" {
+			t.Fatalf("expected path /v1/promotedPurchases/promo-1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload PromotedPurchaseUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypePromotedPurchases {
+			t.Fatalf("expected type promotedPurchases, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "promo-1" {
+			t.Fatalf("expected id promo-1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.Enabled == nil || !*payload.Data.Attributes.Enabled {
+			t.Fatalf("expected enabled=true, got %+v", payload.Data.Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	enabled := true
+	attrs := PromotedPurchaseUpdateAttributes{Enabled: &enabled}
+	if _, err := client.UpdatePromotedPurchase(context.Background(), "promo-1", attrs); err != nil {
+		t.Fatalf("UpdatePromotedPurchase() error: %v", err)
+	}
+}
+
+func TestDeletePromotedPurchase_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/promotedPurchases/promo-1" {
+			t.Fatalf("expected path /v1/promotedPurchases/promo-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeletePromotedPurchase(context.Background(), "promo-1"); err != nil {
+		t.Fatalf("DeletePromotedPurchase() error: %v", err)
 	}
 }

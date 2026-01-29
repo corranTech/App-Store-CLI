@@ -69,6 +69,7 @@ const (
 	ResourceTypeInAppPurchaseLocalizations            ResourceType = "inAppPurchaseLocalizations"
 	ResourceTypeSubscriptionGroups                    ResourceType = "subscriptionGroups"
 	ResourceTypeSubscriptions                         ResourceType = "subscriptions"
+	ResourceTypePromotedPurchases                     ResourceType = "promotedPurchases"
 	ResourceTypeSubscriptionPrices                    ResourceType = "subscriptionPrices"
 	ResourceTypeSubscriptionAvailabilities            ResourceType = "subscriptionAvailabilities"
 	ResourceTypeSubscriptionPricePoints               ResourceType = "subscriptionPricePoints"

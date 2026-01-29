@@ -956,6 +956,62 @@ func TestPrintMarkdown_AppTags(t *testing.T) {
 	}
 }
 
+func TestPrintTable_PromotedPurchases(t *testing.T) {
+	visible := true
+	enabled := false
+	resp := &PromotedPurchasesResponse{
+		Data: []Resource[PromotedPurchaseAttributes]{
+			{
+				ID: "promo-1",
+				Attributes: PromotedPurchaseAttributes{
+					VisibleForAllUsers: &visible,
+					Enabled:            &enabled,
+					State:              "APPROVED",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Visible For All Users") {
+		t.Fatalf("expected visibility header, got: %s", output)
+	}
+	if !strings.Contains(output, "promo-1") {
+		t.Fatalf("expected promoted purchase ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_PromotedPurchases(t *testing.T) {
+	visible := false
+	enabled := true
+	resp := &PromotedPurchasesResponse{
+		Data: []Resource[PromotedPurchaseAttributes]{
+			{
+				ID: "promo-2",
+				Attributes: PromotedPurchaseAttributes{
+					VisibleForAllUsers: &visible,
+					Enabled:            &enabled,
+					State:              "IN_REVIEW",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Visible For All Users | Enabled | State |") {
+		t.Fatalf("expected promoted purchases header, got: %s", output)
+	}
+	if !strings.Contains(output, "promo-2") {
+		t.Fatalf("expected promoted purchase ID in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_Nominations(t *testing.T) {
 	resp := &NominationsResponse{
 		Data: []Resource[NominationAttributes]{
@@ -2249,6 +2305,80 @@ func TestPrintMarkdown_BuildBetaGroupsUpdateResult(t *testing.T) {
 	}
 	if !strings.Contains(output, "GROUP_1, GROUP_2") {
 		t.Fatalf("expected group IDs in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_PromotedPurchaseDeleteResult(t *testing.T) {
+	result := &PromotedPurchaseDeleteResult{
+		ID:      "promo-1",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected deleted header, got: %s", output)
+	}
+	if !strings.Contains(output, "promo-1") {
+		t.Fatalf("expected promoted purchase ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_PromotedPurchaseDeleteResult(t *testing.T) {
+	result := &PromotedPurchaseDeleteResult{
+		ID:      "promo-2",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| ID | Deleted |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "promo-2") {
+		t.Fatalf("expected promoted purchase ID in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppPromotedPurchasesLinkResult(t *testing.T) {
+	result := &AppPromotedPurchasesLinkResult{
+		AppID:               "app-1",
+		PromotedPurchaseIDs: []string{"promo-1", "promo-2"},
+		Action:              "linked",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Promoted Purchase IDs") {
+		t.Fatalf("expected promoted purchase IDs header, got: %s", output)
+	}
+	if !strings.Contains(output, "promo-1, promo-2") {
+		t.Fatalf("expected promoted purchase IDs in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppPromotedPurchasesLinkResult(t *testing.T) {
+	result := &AppPromotedPurchasesLinkResult{
+		AppID:               "app-1",
+		PromotedPurchaseIDs: []string{"promo-1", "promo-2"},
+		Action:              "linked",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| App ID | Promoted Purchase IDs | Action |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "promo-1, promo-2") {
+		t.Fatalf("expected promoted purchase IDs in output, got: %s", output)
 	}
 }
 
