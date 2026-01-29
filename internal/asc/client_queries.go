@@ -119,6 +119,20 @@ type webhookDeliveriesQuery struct {
 	include        []string
 }
 
+type backgroundAssetsQuery struct {
+	listQuery
+	archived             []string
+	assetPackIdentifiers []string
+}
+
+type backgroundAssetVersionsQuery struct {
+	listQuery
+}
+
+type backgroundAssetUploadFilesQuery struct {
+	listQuery
+}
+
 type winBackOffersQuery struct {
 	listQuery
 	fields      []string
@@ -857,6 +871,26 @@ func buildWebhookDeliveriesQuery(query *webhookDeliveriesQuery) string {
 	addCSV(values, "fields[webhookDeliveries]", query.fields)
 	addCSV(values, "fields[webhookEvents]", query.eventFields)
 	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBackgroundAssetsQuery(query *backgroundAssetsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[archived]", query.archived)
+	addCSV(values, "filter[assetPackIdentifier]", query.assetPackIdentifiers)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBackgroundAssetVersionsQuery(query *backgroundAssetVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBackgroundAssetUploadFilesQuery(query *backgroundAssetUploadFilesQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
