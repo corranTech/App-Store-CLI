@@ -97,6 +97,28 @@ type subscriptionOfferCodeOneTimeUseCodesQuery struct {
 	listQuery
 }
 
+type marketplaceWebhooksQuery struct {
+	listQuery
+	fields []string
+}
+
+type winBackOffersQuery struct {
+	listQuery
+	fields      []string
+	priceFields []string
+	include     []string
+	pricesLimit int
+}
+
+type winBackOfferPricesQuery struct {
+	listQuery
+	territoryIDs                 []string
+	fields                       []string
+	territoryFields              []string
+	subscriptionPricePointFields []string
+	include                      []string
+}
+
 type appStoreVersionsQuery struct {
 	listQuery
 	platforms      []string
@@ -159,6 +181,21 @@ type bundleIDsQuery struct {
 	identifier string
 }
 
+type promotedPurchasesQuery struct {
+	listQuery
+}
+
+type merchantIDsQuery struct {
+	listQuery
+	name              string
+	identifier        string
+	sort              string
+	fields            []string
+	certificateFields []string
+	include           []string
+	certificatesLimit int
+}
+
 type bundleIDCapabilitiesQuery struct {
 	listQuery
 }
@@ -199,6 +236,18 @@ type certificatesQuery struct {
 	certificateTypes []string
 }
 
+type merchantIDCertificatesQuery struct {
+	listQuery
+	displayName     string
+	certificateType string
+	serialNumber    string
+	ids             string
+	sort            string
+	fields          []string
+	passTypeFields  []string
+	include         []string
+}
+
 type profilesQuery struct {
 	listQuery
 	bundleID     string
@@ -233,6 +282,11 @@ type userInvitationsQuery struct {
 }
 
 type territoriesQuery struct {
+	listQuery
+	fields []string
+}
+
+type androidToIosAppMappingDetailsQuery struct {
 	listQuery
 	fields []string
 }
@@ -483,6 +537,33 @@ func buildBundleIDsQuery(query *bundleIDsQuery) string {
 	return values.Encode()
 }
 
+func buildPromotedPurchasesQuery(query *promotedPurchasesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildMerchantIDsQuery(query *merchantIDsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.name) != "" {
+		values.Set("filter[name]", strings.TrimSpace(query.name))
+	}
+	if strings.TrimSpace(query.identifier) != "" {
+		values.Set("filter[identifier]", strings.TrimSpace(query.identifier))
+	}
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addCSV(values, "fields[merchantIds]", query.fields)
+	addCSV(values, "fields[certificates]", query.certificateFields)
+	addCSV(values, "include", query.include)
+	if query.certificatesLimit > 0 {
+		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildPassTypeIDsQuery(query *passTypeIDsQuery) string {
 	values := url.Values{}
 	if strings.TrimSpace(query.ids) != "" {
@@ -526,6 +607,30 @@ func buildBundleIDCapabilitiesQuery(_ *bundleIDCapabilitiesQuery) string {
 func buildCertificatesQuery(query *certificatesQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[certificateType]", query.certificateTypes)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildMerchantIDCertificatesQuery(query *merchantIDCertificatesQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.displayName) != "" {
+		values.Set("filter[displayName]", strings.TrimSpace(query.displayName))
+	}
+	if strings.TrimSpace(query.certificateType) != "" {
+		values.Set("filter[certificateType]", strings.TrimSpace(query.certificateType))
+	}
+	if strings.TrimSpace(query.serialNumber) != "" {
+		values.Set("filter[serialNumber]", strings.TrimSpace(query.serialNumber))
+	}
+	if strings.TrimSpace(query.ids) != "" {
+		values.Set("filter[id]", strings.TrimSpace(query.ids))
+	}
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addCSV(values, "fields[certificates]", query.fields)
+	addCSV(values, "fields[passTypeIds]", query.passTypeFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -711,6 +816,36 @@ func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCode
 	return values.Encode()
 }
 
+func buildMarketplaceWebhooksQuery(query *marketplaceWebhooksQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[marketplaceWebhooks]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildWinBackOffersQuery(query *winBackOffersQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[winBackOffers]", query.fields)
+	addCSV(values, "fields[winBackOfferPrices]", query.priceFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.pricesLimit > 0 {
+		values.Set("limit[prices]", strconv.Itoa(query.pricesLimit))
+	}
+	return values.Encode()
+}
+
+func buildWinBackOfferPricesQuery(query *winBackOfferPricesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[territory]", query.territoryIDs)
+	addCSV(values, "fields[winBackOfferPrices]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "fields[subscriptionPricePoints]", query.subscriptionPricePointFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[platform]", query.platforms)
@@ -774,6 +909,19 @@ func buildTerritoriesQuery(query *territoriesQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[territories]", query.fields)
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAndroidToIosAppMappingDetailsQuery(query *androidToIosAppMappingDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAndroidToIosAppMappingDetailQuery(query *androidToIosAppMappingDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
 	return values.Encode()
 }
 

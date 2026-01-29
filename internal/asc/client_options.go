@@ -35,6 +35,12 @@ type BetaAppClipInvocationsOption func(*betaAppClipInvocationsQuery)
 // SubscriptionOfferCodeOneTimeUseCodesOption is a functional option for GetSubscriptionOfferCodeOneTimeUseCodes.
 type SubscriptionOfferCodeOneTimeUseCodesOption func(*subscriptionOfferCodeOneTimeUseCodesQuery)
 
+// WinBackOffersOption is a functional option for win-back offer list endpoints.
+type WinBackOffersOption func(*winBackOffersQuery)
+
+// WinBackOfferPricesOption is a functional option for win-back offer prices list endpoints.
+type WinBackOfferPricesOption func(*winBackOfferPricesQuery)
+
 // AppStoreVersionsOption is a functional option for GetAppStoreVersions.
 type AppStoreVersionsOption func(*appStoreVersionsQuery)
 
@@ -64,6 +70,14 @@ type BundleIDsOption func(*bundleIDsQuery)
 
 // BundleIDCapabilitiesOption is a functional option for GetBundleIDCapabilities.
 type BundleIDCapabilitiesOption func(*bundleIDCapabilitiesQuery)
+
+// PromotedPurchasesOption is a functional option for promoted purchases endpoints.
+type PromotedPurchasesOption func(*promotedPurchasesQuery)
+// MerchantIDsOption is a functional option for GetMerchantIDs.
+type MerchantIDsOption func(*merchantIDsQuery)
+
+// MerchantIDCertificatesOption is a functional option for GetMerchantIDCertificates.
+type MerchantIDCertificatesOption func(*merchantIDCertificatesQuery)
 
 // PassTypeIDsOption is a functional option for GetPassTypeIDs.
 type PassTypeIDsOption func(*passTypeIDsQuery)
@@ -116,6 +130,9 @@ type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
 
+// AndroidToIosAppMappingDetailsOption is a functional option for Android-to-iOS mappings.
+type AndroidToIosAppMappingDetailsOption func(*androidToIosAppMappingDetailsQuery)
+
 // PerfPowerMetricsOption is a functional option for performance/power metrics.
 type PerfPowerMetricsOption func(*perfPowerMetricsQuery)
 
@@ -142,6 +159,9 @@ type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
 
 // AppEncryptionDeclarationsOption is a functional option for encryption declarations.
 type AppEncryptionDeclarationsOption func(*appEncryptionDeclarationsQuery)
+
+// MarketplaceWebhooksOption is a functional option for marketplace webhooks.
+type MarketplaceWebhooksOption func(*marketplaceWebhooksQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -286,6 +306,131 @@ func WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next string) SubscriptionOf
 	}
 }
 
+// WithMarketplaceWebhooksLimit sets the max number of marketplace webhooks to return.
+func WithMarketplaceWebhooksLimit(limit int) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithMarketplaceWebhooksNextURL uses a next page URL directly.
+func WithMarketplaceWebhooksNextURL(next string) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithMarketplaceWebhooksFields sets fields[marketplaceWebhooks] for webhook responses.
+func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOffersLimit sets the max number of win-back offers to return.
+func WithWinBackOffersLimit(limit int) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithWinBackOffersNextURL uses a next page URL directly.
+func WithWinBackOffersNextURL(next string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithWinBackOffersFields sets fields[winBackOffers] for win-back offer responses.
+func WithWinBackOffersFields(fields []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOffersPriceFields sets fields[winBackOfferPrices] for included prices.
+func WithWinBackOffersPriceFields(fields []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.priceFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOffersInclude sets include for win-back offer responses.
+func WithWinBackOffersInclude(include []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithWinBackOffersPricesLimit sets limit[prices] for included prices.
+func WithWinBackOffersPricesLimit(limit int) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		if limit > 0 {
+			q.pricesLimit = limit
+		}
+	}
+}
+
+// WithWinBackOfferPricesLimit sets the max number of win-back offer prices to return.
+func WithWinBackOfferPricesLimit(limit int) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithWinBackOfferPricesNextURL uses a next page URL directly.
+func WithWinBackOfferPricesNextURL(next string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithWinBackOfferPricesTerritoryFilter filters win-back offer prices by territory ID(s).
+func WithWinBackOfferPricesTerritoryFilter(ids []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.territoryIDs = normalizeList(ids)
+	}
+}
+
+// WithWinBackOfferPricesFields sets fields[winBackOfferPrices] for price responses.
+func WithWinBackOfferPricesFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesTerritoryFields sets fields[territories] for included territories.
+func WithWinBackOfferPricesTerritoryFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesSubscriptionPricePointFields sets fields[subscriptionPricePoints] for included price points.
+func WithWinBackOfferPricesSubscriptionPricePointFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.subscriptionPricePointFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesInclude sets include for win-back offer price responses.
+func WithWinBackOfferPricesInclude(include []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.include = normalizeList(include)
+	}
+}
 // WithCrashTesterIDs filters crashes by tester ID(s).
 func WithCrashTesterIDs(ids []string) CrashOption {
 	return func(q *crashQuery) {
@@ -1028,6 +1173,188 @@ func WithBundleIDsFilterIdentifier(identifier string) BundleIDsOption {
 	}
 }
 
+// WithPromotedPurchasesLimit sets the max number of promoted purchases to return.
+func WithPromotedPurchasesLimit(limit int) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithPromotedPurchasesNextURL uses a next page URL directly.
+func WithPromotedPurchasesNextURL(next string) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithMerchantIDsLimit sets the max number of merchant IDs to return.
+func WithMerchantIDsLimit(limit int) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithMerchantIDsNextURL uses a next page URL directly.
+func WithMerchantIDsNextURL(next string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithMerchantIDsFilterIdentifier filters merchant IDs by identifier (supports CSV).
+func WithMerchantIDsFilterIdentifier(identifier string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		normalized := normalizeCSVString(identifier)
+		if normalized != "" {
+			q.identifier = normalized
+		}
+	}
+}
+
+// WithMerchantIDsFilterName filters merchant IDs by name (supports CSV).
+func WithMerchantIDsFilterName(name string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		normalized := normalizeCSVString(name)
+		if normalized != "" {
+			q.name = normalized
+		}
+	}
+}
+
+// WithMerchantIDsSort sets the sort order for merchant IDs.
+func WithMerchantIDsSort(sort string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithMerchantIDsFields sets fields[merchantIds] for merchant ID responses.
+func WithMerchantIDsFields(fields []string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithMerchantIDsCertificateFields sets fields[certificates] for included certificates.
+func WithMerchantIDsCertificateFields(fields []string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		q.certificateFields = normalizeList(fields)
+	}
+}
+
+// WithMerchantIDsInclude sets include for merchant ID responses.
+func WithMerchantIDsInclude(include []string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithMerchantIDsCertificatesLimit sets limit[certificates] for included certificates.
+func WithMerchantIDsCertificatesLimit(limit int) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		if limit > 0 {
+			q.certificatesLimit = limit
+		}
+	}
+}
+
+// WithMerchantIDCertificatesLimit sets the max number of certificates to return.
+func WithMerchantIDCertificatesLimit(limit int) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithMerchantIDCertificatesNextURL uses a next page URL directly.
+func WithMerchantIDCertificatesNextURL(next string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithMerchantIDCertificatesFilterDisplayName filters certificates by display name (supports CSV).
+func WithMerchantIDCertificatesFilterDisplayName(displayName string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		normalized := normalizeCSVString(displayName)
+		if normalized != "" {
+			q.displayName = normalized
+		}
+	}
+}
+
+// WithMerchantIDCertificatesFilterCertificateTypes filters certificates by type (supports CSV).
+func WithMerchantIDCertificatesFilterCertificateTypes(types string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		normalized := normalizeUpperCSVString(types)
+		if normalized != "" {
+			q.certificateType = normalized
+		}
+	}
+}
+
+// WithMerchantIDCertificatesFilterSerialNumbers filters certificates by serial number (supports CSV).
+func WithMerchantIDCertificatesFilterSerialNumbers(serialNumbers string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		normalized := normalizeCSVString(serialNumbers)
+		if normalized != "" {
+			q.serialNumber = normalized
+		}
+	}
+}
+
+// WithMerchantIDCertificatesFilterIDs filters certificates by ID (supports CSV).
+func WithMerchantIDCertificatesFilterIDs(ids string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		normalized := normalizeCSVString(ids)
+		if normalized != "" {
+			q.ids = normalized
+		}
+	}
+}
+
+// WithMerchantIDCertificatesSort sets the sort order for merchant ID certificates.
+func WithMerchantIDCertificatesSort(sort string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithMerchantIDCertificatesFields sets fields[certificates] for certificate responses.
+func WithMerchantIDCertificatesFields(fields []string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithMerchantIDCertificatesPassTypeFields sets fields[passTypeIds] for included pass type IDs.
+func WithMerchantIDCertificatesPassTypeFields(fields []string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		q.passTypeFields = normalizeList(fields)
+	}
+}
+
+// WithMerchantIDCertificatesInclude sets include for merchant ID certificates responses.
+func WithMerchantIDCertificatesInclude(include []string) MerchantIDCertificatesOption {
+	return func(q *merchantIDCertificatesQuery) {
+		q.include = normalizeList(include)
+	}
+}
 // WithPassTypeIDsLimit sets the max number of pass type IDs to return.
 func WithPassTypeIDsLimit(limit int) PassTypeIDsOption {
 	return func(q *passTypeIDsQuery) {
@@ -1056,22 +1383,22 @@ func WithPassTypeIDsFilterIDs(ids []string) PassTypeIDsOption {
 	}
 }
 
-// WithPassTypeIDsFilterIdentifier filters pass type IDs by identifier (supports CSV).
-func WithPassTypeIDsFilterIdentifier(identifier string) PassTypeIDsOption {
-	return func(q *passTypeIDsQuery) {
-		normalized := normalizeCSVString(identifier)
-		if normalized != "" {
-			q.identifier = normalized
-		}
-	}
-}
-
 // WithPassTypeIDsFilterName filters pass type IDs by name (supports CSV).
 func WithPassTypeIDsFilterName(name string) PassTypeIDsOption {
 	return func(q *passTypeIDsQuery) {
 		normalized := normalizeCSVString(name)
 		if normalized != "" {
 			q.name = normalized
+		}
+	}
+}
+
+// WithPassTypeIDsFilterIdentifier filters pass type IDs by identifier (supports CSV).
+func WithPassTypeIDsFilterIdentifier(identifier string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		normalized := normalizeCSVString(identifier)
+		if normalized != "" {
+			q.identifier = normalized
 		}
 	}
 }
@@ -1144,7 +1471,6 @@ func WithPassTypeIDCertificatesIncludeLimit(limit int) PassTypeIDOption {
 		}
 	}
 }
-
 // WithPassTypeIDCertificatesLimit sets the max number of certificates to return.
 func WithPassTypeIDCertificatesLimit(limit int) PassTypeIDCertificatesOption {
 	return func(q *passTypeIDCertificatesQuery) {
@@ -1220,7 +1546,6 @@ func WithPassTypeIDCertificatesInclude(include []string) PassTypeIDCertificatesO
 		q.include = normalizeList(include)
 	}
 }
-
 // WithBundleIDCapabilitiesLimit sets the max number of capabilities to return.
 func WithBundleIDCapabilitiesLimit(limit int) BundleIDCapabilitiesOption {
 	return func(q *bundleIDCapabilitiesQuery) {
@@ -1691,6 +2016,31 @@ func WithTerritoriesNextURL(next string) TerritoriesOption {
 // WithTerritoriesFields sets fields[territories] for territory responses.
 func WithTerritoriesFields(fields []string) TerritoriesOption {
 	return func(q *territoriesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAndroidToIosAppMappingDetailsLimit sets the max number of mappings to return.
+func WithAndroidToIosAppMappingDetailsLimit(limit int) AndroidToIosAppMappingDetailsOption {
+	return func(q *androidToIosAppMappingDetailsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAndroidToIosAppMappingDetailsNextURL uses a next page URL directly.
+func WithAndroidToIosAppMappingDetailsNextURL(next string) AndroidToIosAppMappingDetailsOption {
+	return func(q *androidToIosAppMappingDetailsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAndroidToIosAppMappingDetailsFields sets fields[androidToIosAppMappingDetails].
+func WithAndroidToIosAppMappingDetailsFields(fields []string) AndroidToIosAppMappingDetailsOption {
+	return func(q *androidToIosAppMappingDetailsQuery) {
 		q.fields = normalizeList(fields)
 	}
 }

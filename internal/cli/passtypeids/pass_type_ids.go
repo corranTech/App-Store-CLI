@@ -192,6 +192,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			passTypeIDValue := strings.TrimSpace(*passTypeID)
+			if passTypeIDValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
+				return flag.ErrHelp
+			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
 				return fmt.Errorf("pass-type-ids get: --limit-certificates must be between 1 and 50")
 			}
@@ -207,12 +212,6 @@ Examples:
 			includeValue, err := normalizePassTypeIDInclude(*include)
 			if err != nil {
 				return fmt.Errorf("pass-type-ids get: %w", err)
-			}
-
-			passTypeIDValue := strings.TrimSpace(*passTypeID)
-			if passTypeIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return flag.ErrHelp
 			}
 
 			client, err := getASCClient()

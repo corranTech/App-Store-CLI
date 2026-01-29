@@ -171,7 +171,7 @@ func (c *Client) GetPassTypeIDCertificatesRelationships(ctx context.Context, pas
 	if query.nextURL != "" {
 		// Validate nextURL to prevent credential exfiltration
 		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("passTypeIdCertificateRelationships: %w", err)
+			return nil, fmt.Errorf("passTypeIdCertificatesRelationships: %w", err)
 		}
 		path = query.nextURL
 	} else if queryString := buildLinkagesQuery(query); queryString != "" {

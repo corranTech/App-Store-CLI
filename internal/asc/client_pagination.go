@@ -68,6 +68,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &LinkagesResponse{Links: Links{}}
 	case *BundleIDsResponse:
 		result = &BundleIDsResponse{Links: Links{}}
+	case *MerchantIDsResponse:
+		result = &MerchantIDsResponse{Links: Links{}}
 	case *PassTypeIDsResponse:
 		result = &PassTypeIDsResponse{Links: Links{}}
 	case *InAppPurchasesV2Response:
@@ -76,6 +78,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &TerritoriesResponse{Links: Links{}}
 	case *DiagnosticSignaturesResponse:
 		result = &DiagnosticSignaturesResponse{Links: Links{}}
+	case *AndroidToIosAppMappingDetailsResponse:
+		result = &AndroidToIosAppMappingDetailsResponse{Links: Links{}}
 	case *TerritoryAvailabilitiesResponse:
 		result = &TerritoryAvailabilitiesResponse{Links: Links{}}
 	case *AppPricePointsV3Response:
@@ -88,6 +92,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaAppClipInvocationsResponse{Links: Links{}}
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		result = &SubscriptionOfferCodeOneTimeUseCodesResponse{Links: Links{}}
+	case *WinBackOffersResponse:
+		result = &WinBackOffersResponse{Links: Links{}}
+	case *WinBackOfferPricesResponse:
+		result = &WinBackOfferPricesResponse{Links: Links{}}
 	case *AppStoreVersionsResponse:
 		result = &AppStoreVersionsResponse{Links: Links{}}
 	case *ReviewSubmissionsResponse:
@@ -116,6 +124,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &SubscriptionGroupsResponse{Links: Links{}}
 	case *SubscriptionsResponse:
 		result = &SubscriptionsResponse{Links: Links{}}
+	case *PromotedPurchasesResponse:
+		result = &PromotedPurchasesResponse{Links: Links{}}
 	case *BetaGroupsResponse:
 		result = &BetaGroupsResponse{Links: Links{}}
 	case *BetaTestersResponse:
@@ -132,6 +142,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &UsersResponse{Links: Links{}}
 	case *UserInvitationsResponse:
 		result = &UserInvitationsResponse{Links: Links{}}
+	case *MarketplaceWebhooksResponse:
+		result = &MarketplaceWebhooksResponse{Links: Links{}}
 	case *SandboxTestersResponse:
 		result = &SandboxTestersResponse{Links: Links{}}
 	case *AnalyticsReportRequestsResponse:
@@ -254,12 +266,16 @@ func typeOf(p PaginatedResponse) string {
 		return "BundleIDsResponse"
 	case *PassTypeIDsResponse:
 		return "PassTypeIDsResponse"
+	case *MerchantIDsResponse:
+		return "MerchantIDsResponse"
 	case *InAppPurchasesV2Response:
 		return "InAppPurchasesV2Response"
 	case *TerritoriesResponse:
 		return "TerritoriesResponse"
 	case *DiagnosticSignaturesResponse:
 		return "DiagnosticSignaturesResponse"
+	case *AndroidToIosAppMappingDetailsResponse:
+		return "AndroidToIosAppMappingDetailsResponse"
 	case *TerritoryAvailabilitiesResponse:
 		return "TerritoryAvailabilitiesResponse"
 	case *AppPricePointsV3Response:
@@ -272,6 +288,10 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaAppClipInvocationsResponse"
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return "SubscriptionOfferCodeOneTimeUseCodesResponse"
+	case *WinBackOffersResponse:
+		return "WinBackOffersResponse"
+	case *WinBackOfferPricesResponse:
+		return "WinBackOfferPricesResponse"
 	case *AppStoreVersionsResponse:
 		return "AppStoreVersionsResponse"
 	case *ReviewSubmissionsResponse:
@@ -300,6 +320,8 @@ func typeOf(p PaginatedResponse) string {
 		return "SubscriptionGroupsResponse"
 	case *SubscriptionsResponse:
 		return "SubscriptionsResponse"
+	case *PromotedPurchasesResponse:
+		return "PromotedPurchasesResponse"
 	case *BetaGroupsResponse:
 		return "BetaGroupsResponse"
 	case *BetaTestersResponse:
@@ -316,6 +338,8 @@ func typeOf(p PaginatedResponse) string {
 		return "UsersResponse"
 	case *UserInvitationsResponse:
 		return "UserInvitationsResponse"
+	case *MarketplaceWebhooksResponse:
+		return "MarketplaceWebhooksResponse"
 	case *SandboxTestersResponse:
 		return "SandboxTestersResponse"
 	case *AnalyticsReportRequestsResponse:

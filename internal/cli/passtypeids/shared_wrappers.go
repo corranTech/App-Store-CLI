@@ -40,3 +40,7 @@ func splitCSV(value string) []string {
 func splitCSVUpper(value string) []string {
 	return shared.SplitCSVUpper(value)
 }
+
+func hasInclude(values []string, include string) bool {
+	return shared.HasInclude(values, include)
+}
