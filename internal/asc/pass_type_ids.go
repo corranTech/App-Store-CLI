@@ -14,7 +14,7 @@ type PassTypeIDCreateAttributes struct {
 
 // PassTypeIDUpdateAttributes describes attributes for updating a pass type ID.
 type PassTypeIDUpdateAttributes struct {
-	Name *string `json:"name"`
+	Name *NullableString `json:"name,omitempty"`
 }
 
 // PassTypeIDCreateData is the data portion of a pass type ID create request.
@@ -46,5 +46,11 @@ type PassTypeIDsResponse = Response[PassTypeIDAttributes]
 // PassTypeIDResponse is the response from pass type ID detail endpoint.
 type PassTypeIDResponse = SingleResponse[PassTypeIDAttributes]
 
-// PassTypeIDCertificatesLinkagesResponse is the response from pass type ID certificate linkages endpoints.
+// PassTypeIDCertificatesLinkagesResponse is the response from pass type ID certificates linkages endpoints.
 type PassTypeIDCertificatesLinkagesResponse = LinkagesResponse
+
+// CertificatePassTypeIDLinkageResponse is the response from certificate pass type ID linkage endpoint.
+type CertificatePassTypeIDLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links,omitempty"`
+}

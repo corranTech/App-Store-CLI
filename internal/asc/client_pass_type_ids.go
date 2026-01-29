@@ -39,18 +39,17 @@ func (c *Client) GetPassTypeIDs(ctx context.Context, opts ...PassTypeIDsOption) 
 }
 
 // GetPassTypeID retrieves a single pass type ID by ID.
-func (c *Client) GetPassTypeID(ctx context.Context, id string, opts ...PassTypeIDsOption) (*PassTypeIDResponse, error) {
-	query := &passTypeIDsQuery{}
+func (c *Client) GetPassTypeID(ctx context.Context, id string, opts ...PassTypeIDOption) (*PassTypeIDResponse, error) {
+	id = strings.TrimSpace(id)
+	query := &passTypeIDQuery{}
 	for _, opt := range opts {
 		opt(query)
 	}
 
-	id = strings.TrimSpace(id)
 	path := fmt.Sprintf("/v1/passTypeIds/%s", id)
-	if queryString := buildPassTypeIDsQuery(query); queryString != "" {
+	if queryString := buildPassTypeIDQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
-
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -130,12 +129,12 @@ func (c *Client) DeletePassTypeID(ctx context.Context, id string) error {
 
 // GetPassTypeIDCertificates retrieves certificates for a pass type ID.
 func (c *Client) GetPassTypeIDCertificates(ctx context.Context, passTypeID string, opts ...PassTypeIDCertificatesOption) (*CertificatesResponse, error) {
+	passTypeID = strings.TrimSpace(passTypeID)
 	query := &passTypeIDCertificatesQuery{}
 	for _, opt := range opts {
 		opt(query)
 	}
 
-	passTypeID = strings.TrimSpace(passTypeID)
 	path := fmt.Sprintf("/v1/passTypeIds/%s/certificates", passTypeID)
 	if query.nextURL != "" {
 		// Validate nextURL to prevent credential exfiltration
@@ -162,12 +161,12 @@ func (c *Client) GetPassTypeIDCertificates(ctx context.Context, passTypeID strin
 
 // GetPassTypeIDCertificatesRelationships retrieves certificate linkages for a pass type ID.
 func (c *Client) GetPassTypeIDCertificatesRelationships(ctx context.Context, passTypeID string, opts ...LinkagesOption) (*PassTypeIDCertificatesLinkagesResponse, error) {
+	passTypeID = strings.TrimSpace(passTypeID)
 	query := &linkagesQuery{}
 	for _, opt := range opts {
 		opt(query)
 	}
 
-	passTypeID = strings.TrimSpace(passTypeID)
 	path := fmt.Sprintf("/v1/passTypeIds/%s/relationships/certificates", passTypeID)
 	if query.nextURL != "" {
 		// Validate nextURL to prevent credential exfiltration
@@ -185,6 +184,40 @@ func (c *Client) GetPassTypeIDCertificatesRelationships(ctx context.Context, pas
 	}
 
 	var response PassTypeIDCertificatesLinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCertificatePassTypeID retrieves the pass type ID for a certificate.
+func (c *Client) GetCertificatePassTypeID(ctx context.Context, certificateID string) (*PassTypeIDResponse, error) {
+	certificateID = strings.TrimSpace(certificateID)
+	path := fmt.Sprintf("/v1/certificates/%s/passTypeId", certificateID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response PassTypeIDResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCertificatePassTypeIDRelationship retrieves the pass type ID linkage for a certificate.
+func (c *Client) GetCertificatePassTypeIDRelationship(ctx context.Context, certificateID string) (*CertificatePassTypeIDLinkageResponse, error) {
+	certificateID = strings.TrimSpace(certificateID)
+	path := fmt.Sprintf("/v1/certificates/%s/relationships/passTypeId", certificateID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CertificatePassTypeIDLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

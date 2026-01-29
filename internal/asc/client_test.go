@@ -1136,7 +1136,7 @@ func TestBuildPassTypeIDsQuery(t *testing.T) {
 	opts := []PassTypeIDsOption{
 		WithPassTypeIDsFilterName("Example"),
 		WithPassTypeIDsFilterIdentifier("pass.com.example"),
-		WithPassTypeIDsFilterIDs("p1"),
+		WithPassTypeIDsFilterIDs([]string{"p1"}),
 		WithPassTypeIDsSort("id"),
 		WithPassTypeIDsFields([]string{"identifier"}),
 		WithPassTypeIDsCertificateFields([]string{"certificateType"}),
@@ -1184,13 +1184,13 @@ func TestBuildPassTypeIDsQuery(t *testing.T) {
 func TestBuildPassTypeIDCertificatesQuery(t *testing.T) {
 	query := &passTypeIDCertificatesQuery{}
 	opts := []PassTypeIDCertificatesOption{
-		WithPassTypeIDCertificatesFilterDisplayName("Cert Name"),
-		WithPassTypeIDCertificatesFilterCertificateTypes("PASS_TYPE_ID"),
-		WithPassTypeIDCertificatesFilterSerialNumbers("SN123"),
-		WithPassTypeIDCertificatesFilterIDs("c1"),
+		WithPassTypeIDCertificatesFilterDisplayNames([]string{"Cert Name"}),
+		WithPassTypeIDCertificatesFilterCertificateTypes([]string{"PASS_TYPE_ID"}),
+		WithPassTypeIDCertificatesFilterSerialNumbers([]string{"SN123"}),
+		WithPassTypeIDCertificatesFilterIDs([]string{"c1"}),
 		WithPassTypeIDCertificatesSort("serialNumber"),
 		WithPassTypeIDCertificatesFields([]string{"serialNumber"}),
-		WithPassTypeIDCertificatesPassTypeFields([]string{"identifier"}),
+		WithPassTypeIDCertificatesPassTypeIDFields([]string{"identifier"}),
 		WithPassTypeIDCertificatesInclude([]string{"passTypeId"}),
 		WithPassTypeIDCertificatesLimit(5),
 	}

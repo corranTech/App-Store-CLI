@@ -200,28 +200,11 @@ type bundleIDCapabilitiesQuery struct {
 	listQuery
 }
 
-type certificatesQuery struct {
-	listQuery
-	certificateTypes []string
-}
-
-type merchantIDCertificatesQuery struct {
-	listQuery
-	displayName     string
-	certificateType string
-	serialNumber    string
-	ids             string
-	sort            string
-	fields          []string
-	passTypeFields  []string
-	include         []string
-}
-
 type passTypeIDsQuery struct {
 	listQuery
-	name              string
-	identifier        string
 	ids               string
+	identifier        string
+	name              string
 	sort              string
 	fields            []string
 	certificateFields []string
@@ -229,7 +212,31 @@ type passTypeIDsQuery struct {
 	certificatesLimit int
 }
 
+type passTypeIDQuery struct {
+	fields            []string
+	certificateFields []string
+	include           []string
+	certificatesLimit int
+}
+
 type passTypeIDCertificatesQuery struct {
+	listQuery
+	displayNames     []string
+	certificateTypes []string
+	serialNumbers    []string
+	ids              []string
+	sort             string
+	fields           []string
+	passTypeIDFields []string
+	include          []string
+}
+
+type certificatesQuery struct {
+	listQuery
+	certificateTypes []string
+}
+
+type merchantIDCertificatesQuery struct {
 	listQuery
 	displayName     string
 	certificateType string
@@ -557,6 +564,41 @@ func buildMerchantIDsQuery(query *merchantIDsQuery) string {
 	return values.Encode()
 }
 
+func buildPassTypeIDsQuery(query *passTypeIDsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.ids) != "" {
+		values.Set("filter[id]", strings.TrimSpace(query.ids))
+	}
+	if strings.TrimSpace(query.identifier) != "" {
+		values.Set("filter[identifier]", strings.TrimSpace(query.identifier))
+	}
+	if strings.TrimSpace(query.name) != "" {
+		values.Set("filter[name]", strings.TrimSpace(query.name))
+	}
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addCSV(values, "fields[passTypeIds]", query.fields)
+	addCSV(values, "fields[certificates]", query.certificateFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.certificatesLimit > 0 {
+		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
+	}
+	return values.Encode()
+}
+
+func buildPassTypeIDQuery(query *passTypeIDQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[passTypeIds]", query.fields)
+	addCSV(values, "fields[certificates]", query.certificateFields)
+	addCSV(values, "include", query.include)
+	if query.certificatesLimit > 0 {
+		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
+	}
+	return values.Encode()
+}
+
 func buildBundleIDCapabilitiesQuery(_ *bundleIDCapabilitiesQuery) string {
 	// Bundle ID capabilities endpoint does not support limit/pagination params.
 	return ""
@@ -593,49 +635,17 @@ func buildMerchantIDCertificatesQuery(query *merchantIDCertificatesQuery) string
 	return values.Encode()
 }
 
-func buildPassTypeIDsQuery(query *passTypeIDsQuery) string {
-	values := url.Values{}
-	if strings.TrimSpace(query.name) != "" {
-		values.Set("filter[name]", strings.TrimSpace(query.name))
-	}
-	if strings.TrimSpace(query.identifier) != "" {
-		values.Set("filter[identifier]", strings.TrimSpace(query.identifier))
-	}
-	if strings.TrimSpace(query.ids) != "" {
-		values.Set("filter[id]", strings.TrimSpace(query.ids))
-	}
-	if strings.TrimSpace(query.sort) != "" {
-		values.Set("sort", strings.TrimSpace(query.sort))
-	}
-	addCSV(values, "fields[passTypeIds]", query.fields)
-	addCSV(values, "fields[certificates]", query.certificateFields)
-	addCSV(values, "include", query.include)
-	if query.certificatesLimit > 0 {
-		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
-	}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildPassTypeIDCertificatesQuery(query *passTypeIDCertificatesQuery) string {
 	values := url.Values{}
-	if strings.TrimSpace(query.displayName) != "" {
-		values.Set("filter[displayName]", strings.TrimSpace(query.displayName))
-	}
-	if strings.TrimSpace(query.certificateType) != "" {
-		values.Set("filter[certificateType]", strings.TrimSpace(query.certificateType))
-	}
-	if strings.TrimSpace(query.serialNumber) != "" {
-		values.Set("filter[serialNumber]", strings.TrimSpace(query.serialNumber))
-	}
-	if strings.TrimSpace(query.ids) != "" {
-		values.Set("filter[id]", strings.TrimSpace(query.ids))
-	}
+	addCSV(values, "filter[displayName]", query.displayNames)
+	addCSV(values, "filter[certificateType]", query.certificateTypes)
+	addCSV(values, "filter[serialNumber]", query.serialNumbers)
+	addCSV(values, "filter[id]", query.ids)
 	if strings.TrimSpace(query.sort) != "" {
 		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[certificates]", query.fields)
-	addCSV(values, "fields[passTypeIds]", query.passTypeFields)
+	addCSV(values, "fields[passTypeIds]", query.passTypeIDFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()

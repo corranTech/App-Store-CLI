@@ -264,6 +264,8 @@ func typeOf(p PaginatedResponse) string {
 		return "LinkagesResponse"
 	case *BundleIDsResponse:
 		return "BundleIDsResponse"
+	case *PassTypeIDsResponse:
+		return "PassTypeIDsResponse"
 	case *MerchantIDsResponse:
 		return "MerchantIDsResponse"
 	case *InAppPurchasesV2Response:

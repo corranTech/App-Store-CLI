@@ -14,33 +14,6 @@ type AndroidToIosAppMappingDetailCreateAttributes struct {
 	AppSigningKeyPublicCertificateSha256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints"`
 }
 
-// NullableString represents a nullable string for update requests.
-type NullableString struct {
-	Value *string
-}
-
-// MarshalJSON outputs a JSON string or null.
-func (n NullableString) MarshalJSON() ([]byte, error) {
-	if n.Value == nil {
-		return []byte("null"), nil
-	}
-	return json.Marshal(*n.Value)
-}
-
-// UnmarshalJSON parses a JSON string or null.
-func (n *NullableString) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" {
-		n.Value = nil
-		return nil
-	}
-	var value string
-	if err := json.Unmarshal(data, &value); err != nil {
-		return err
-	}
-	n.Value = &value
-	return nil
-}
-
 // NullableStringSlice represents a nullable string array for update requests.
 type NullableStringSlice struct {
 	Value []string

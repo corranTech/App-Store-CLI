@@ -93,6 +93,7 @@ func Subcommands(version string) []*ffcli.Command {
 		merchantids.MerchantIDsCommand(),
 		passtypeids.PassTypeIDsCommand(),
 		certificates.CertificatesCommand(),
+		passtypeids.PassTypeIDsCommand(),
 		profiles.ProfilesCommand(),
 		offercodes.OfferCodesCommand(),
 		winbackoffers.WinBackOffersCommand(),
