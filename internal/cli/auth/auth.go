@@ -447,7 +447,12 @@ Examples:
 
 			credentials, err := authsvc.ListCredentials()
 			if err != nil {
-				return fmt.Errorf("auth switch: failed to list credentials: %w", err)
+				var warning *authsvc.CredentialsWarning
+				if errors.As(err, &warning) {
+					fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+				} else {
+					return fmt.Errorf("auth switch: failed to list credentials: %w", err)
+				}
 			}
 			if len(credentials) == 0 {
 				return fmt.Errorf("auth switch: no credentials stored")
@@ -542,8 +547,11 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			credentials, err := authsvc.ListCredentials()
+			var listWarning *authsvc.CredentialsWarning
 			if err != nil {
-				return fmt.Errorf("auth status: failed to list credentials: %w", err)
+				if !errors.As(err, &listWarning) {
+					return fmt.Errorf("auth status: failed to list credentials: %w", err)
+				}
 			}
 
 			bypassKeychain := authsvc.ShouldBypassKeychain()
@@ -552,6 +560,9 @@ Examples:
 			storageBackend := "System Keychain"
 			storageLocation := "system keychain"
 			var warnings []string
+			if listWarning != nil {
+				warnings = append(warnings, listWarning.Error())
+			}
 
 			if bypassKeychain {
 				storageBackend = "Config File"

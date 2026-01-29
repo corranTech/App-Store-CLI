@@ -378,6 +378,68 @@ func TestListCredentials_MergesKeychainAndConfig(t *testing.T) {
 	}
 }
 
+func TestListCredentials_NoDefaultWhenMergedSourcesAndNoDefaultName(t *testing.T) {
+	newKr, _ := withSeparateKeyrings(t)
+	configPath := os.Getenv("ASC_CONFIG_PATH")
+	if configPath == "" {
+		t.Fatal("expected ASC_CONFIG_PATH to be set")
+	}
+
+	storeCredentialInKeyring(t, newKr, "keychain-only", "KC-KEY", "KC-ISSUER", "/tmp/kc.p8")
+
+	cfg := &config.Config{
+		Keys: []config.Credential{
+			{
+				Name:           "config-only",
+				KeyID:          "CFG-KEY",
+				IssuerID:       "CFG-ISSUER",
+				PrivateKeyPath: "/tmp/cfg.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(configPath, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	creds, err := ListCredentials()
+	if err != nil {
+		t.Fatalf("ListCredentials() error: %v", err)
+	}
+	if len(creds) != 2 {
+		t.Fatalf("expected 2 credentials, got %d", len(creds))
+	}
+	for _, cred := range creds {
+		if cred.IsDefault {
+			t.Fatalf("expected no default credential, got %q", cred.Name)
+		}
+	}
+}
+
+func TestListCredentials_ConfigErrorWhenKeychainAvailable(t *testing.T) {
+	newKr, _ := withSeparateKeyrings(t)
+	configPath := os.Getenv("ASC_CONFIG_PATH")
+	if configPath == "" {
+		t.Fatal("expected ASC_CONFIG_PATH to be set")
+	}
+
+	storeCredentialInKeyring(t, newKr, "keychain-only", "KC-KEY", "KC-ISSUER", "/tmp/kc.p8")
+
+	if err := os.WriteFile(configPath, []byte("{invalid"), 0o600); err != nil {
+		t.Fatalf("write invalid config error: %v", err)
+	}
+
+	creds, err := ListCredentials()
+	if err == nil {
+		t.Fatal("expected ListCredentials() error")
+	}
+	if len(creds) != 1 {
+		t.Fatalf("expected 1 credential, got %d", len(creds))
+	}
+	if creds[0].Name != "keychain-only" {
+		t.Fatalf("expected keychain-only credential, got %q", creds[0].Name)
+	}
+}
+
 func TestGetCredentials_PrefersKeysOverLegacy(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")

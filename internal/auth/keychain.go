@@ -34,6 +34,20 @@ type Credential struct {
 	SourcePath     string `json:"source_path,omitempty"`
 }
 
+// CredentialsWarning indicates that some credential sources could not be read.
+// Credentials returned alongside the warning are still usable.
+type CredentialsWarning struct {
+	err error
+}
+
+func (w *CredentialsWarning) Error() string {
+	return w.err.Error()
+}
+
+func (w *CredentialsWarning) Unwrap() error {
+	return w.err
+}
+
 // Credentials stores multiple credentials
 type Credentials struct {
 	DefaultKey string       `json:"default_key"`
@@ -265,7 +279,12 @@ func clearConfigCredentialsAt(path string) error {
 // precedence when the same name exists in both sources.
 func ListCredentials() ([]Credential, error) {
 	if shouldBypassKeychain() {
-		return listFromConfig()
+		credentials, err := listFromConfig()
+		if err != nil {
+			return nil, err
+		}
+		normalizeCredentialDefaults(credentials)
+		return credentials, nil
 	}
 
 	keychainCreds, keychainErr := listFromKeychain()
@@ -277,18 +296,24 @@ func ListCredentials() ([]Credential, error) {
 	if configErr != nil {
 		// If keychain worked, return those even if config failed
 		if keychainErr == nil {
-			return keychainCreds, nil
+			normalizeCredentialDefaults(keychainCreds)
+			return keychainCreds, &CredentialsWarning{
+				err: fmt.Errorf("config credentials could not be read: %w", configErr),
+			}
 		}
 		return nil, configErr
 	}
 
 	// If keychain is unavailable, return only config credentials
 	if keychainErr != nil {
+		normalizeCredentialDefaults(configCreds)
 		return configCreds, nil
 	}
 
 	// Merge: keychain credentials take precedence for same names
-	return mergeCredentials(keychainCreds, configCreds), nil
+	merged := mergeCredentials(keychainCreds, configCreds)
+	normalizeCredentialDefaults(merged)
+	return merged, nil
 }
 
 // mergeCredentials combines credentials from two sources, with the first
@@ -316,6 +341,32 @@ func mergeCredentials(primary, secondary []Credential) []Credential {
 	}
 
 	return merged
+}
+
+func normalizeCredentialDefaults(credentials []Credential) {
+	if len(credentials) == 0 {
+		return
+	}
+	defaultName, err := defaultName()
+	if err != nil {
+		defaultName = ""
+	}
+	defaultName = strings.TrimSpace(defaultName)
+	for i := range credentials {
+		credentials[i].IsDefault = false
+	}
+	if defaultName != "" {
+		for i := range credentials {
+			if credentials[i].Name == defaultName {
+				credentials[i].IsDefault = true
+				return
+			}
+		}
+		return
+	}
+	if len(credentials) == 1 {
+		credentials[0].IsDefault = true
+	}
 }
 
 // RemoveCredentials removes a named credential.
