@@ -469,6 +469,12 @@ func PrintMarkdown(data interface{}) error {
 		return printNominationDeleteResultMarkdown(v)
 	case *AppEncryptionDeclarationBuildsUpdateResult:
 		return printAppEncryptionDeclarationBuildsUpdateResultMarkdown(v)
+	case *AndroidToIosAppMappingDetailsResponse:
+		return printAndroidToIosAppMappingDetailsMarkdown(v)
+	case *AndroidToIosAppMappingDetailResponse:
+		return printAndroidToIosAppMappingDetailsMarkdown(&AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}})
+	case *AndroidToIosAppMappingDeleteResult:
+		return printAndroidToIosAppMappingDeleteResultMarkdown(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsMarkdown(v)
 	case *DiagnosticSignaturesResponse:
@@ -909,6 +915,12 @@ func PrintTable(data interface{}) error {
 		return printNominationDeleteResultTable(v)
 	case *AppEncryptionDeclarationBuildsUpdateResult:
 		return printAppEncryptionDeclarationBuildsUpdateResultTable(v)
+	case *AndroidToIosAppMappingDetailsResponse:
+		return printAndroidToIosAppMappingDetailsTable(v)
+	case *AndroidToIosAppMappingDetailResponse:
+		return printAndroidToIosAppMappingDetailsTable(&AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}})
+	case *AndroidToIosAppMappingDeleteResult:
+		return printAndroidToIosAppMappingDeleteResultTable(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsTable(v)
 	case *DiagnosticSignaturesResponse:

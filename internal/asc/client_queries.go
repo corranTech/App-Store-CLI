@@ -206,6 +206,11 @@ type territoriesQuery struct {
 	fields []string
 }
 
+type androidToIosAppMappingDetailsQuery struct {
+	listQuery
+	fields []string
+}
+
 type perfPowerMetricsQuery struct {
 	platforms   []string
 	metricTypes []string
@@ -692,6 +697,19 @@ func buildTerritoriesQuery(query *territoriesQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[territories]", query.fields)
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAndroidToIosAppMappingDetailsQuery(query *androidToIosAppMappingDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAndroidToIosAppMappingDetailQuery(query *androidToIosAppMappingDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
 	return values.Encode()
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/actors"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/agerating"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/analytics"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/androidiosmapping"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
@@ -78,6 +79,7 @@ func Subcommands(version string) []*ffcli.Command {
 		performance.PerformanceCommand(),
 		finance.FinanceCommand(),
 		apps.AppsCommand(),
+		androidiosmapping.AndroidIosMappingCommand(),
 		apps.AppSetupCommand(),
 		apps.AppTagsCommand(),
 		nominations.NominationsCommand(),
