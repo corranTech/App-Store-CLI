@@ -182,7 +182,7 @@ func MarketplaceWebhooksCreateCommand() *ffcli.Command {
 		LongHelp: `Create a marketplace webhook.
 
 Examples:
-  asc marketplace webhooks create --url "https://example.com/webhook" --secret "secret123"`,
+  asc marketplace webhooks create --url "https://example.com/webhook" --secret "placeholder123"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

@@ -196,13 +196,13 @@ func TestCreateMarketplaceWebhook_SendsRequest(t *testing.T) {
 		if payload.Data.Attributes.EndpointURL != "https://example.com/webhook" {
 			t.Fatalf("expected endpoint url https://example.com/webhook, got %q", payload.Data.Attributes.EndpointURL)
 		}
-		if payload.Data.Attributes.Secret != "secret123" {
-			t.Fatalf("expected secret secret123, got %q", payload.Data.Attributes.Secret)
+		if payload.Data.Attributes.Secret != "placeholder123" {
+			t.Fatalf("expected secret placeholder123, got %q", payload.Data.Attributes.Secret)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateMarketplaceWebhook(context.Background(), "https://example.com/webhook", "secret123"); err != nil {
+	if _, err := client.CreateMarketplaceWebhook(context.Background(), "https://example.com/webhook", "placeholder123"); err != nil {
 		t.Fatalf("CreateMarketplaceWebhook() error: %v", err)
 	}
 }
