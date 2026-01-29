@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -16,8 +17,9 @@ import (
 const defaultSkillsPackage = "rudrankriyam/asc-skills"
 
 var (
-	lookupNpx  = exec.LookPath
-	runCommand = defaultRunCommand
+	lookupNpx      = exec.LookPath
+	runCommand     = defaultRunCommand
+	errNpxNotFound = errors.New("npx not found")
 )
 
 // InstallCommand returns the install command factory.
@@ -80,7 +82,7 @@ func installSkills(ctx context.Context, pkg string) error {
 
 	path, err := lookupNpx("npx")
 	if err != nil {
-		return fmt.Errorf("npx not found; install Node.js to continue")
+		return fmt.Errorf("%w; install Node.js to continue", errNpxNotFound)
 	}
 
 	return runCommand(ctx, path, "--yes", "add-skill", pkg)

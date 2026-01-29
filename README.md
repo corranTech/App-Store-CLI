@@ -1,7 +1,7 @@
 # Unofficial App Store Connect CLI
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
+  <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge" alt="Homebrew">
 </p>
@@ -164,7 +164,7 @@ Environment variable fallback:
 - `ASC_PRIVATE_KEY_PATH`
 - `ASC_PRIVATE_KEY` (raw key content; CLI writes a temp key file)
 - `ASC_PRIVATE_KEY_B64` (base64 key content; CLI writes a temp key file)
-- `ASC_CONFIG_PATH`
+- `ASC_CONFIG_PATH` (absolute path to config.json)
 - `ASC_PROFILE`
 - `ASC_BYPASS_KEYCHAIN` (ignore keychain and use config/env auth)
 - `ASC_STRICT_AUTH` (fail when credentials resolve from multiple sources)

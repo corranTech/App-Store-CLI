@@ -75,6 +75,12 @@ if !strings.Contains(err.Error(), "not found") {  // DON'T DO THIS
 }
 ```
 
+### Empty Results
+
+- Prefer empty arrays/objects over `null` when no data is returned
+- CLI commands should exit `0` for empty results and render empty output cleanly
+- Add tests for empty responses (including empty pagination)
+
 ### Test Isolation
 
 - Use `t.TempDir()` for temporary files

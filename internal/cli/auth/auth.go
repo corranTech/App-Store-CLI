@@ -352,8 +352,9 @@ The private key file path is stored securely. The key content is never saved.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *local && !*bypassKeychain {
-				return fmt.Errorf("auth login: --local requires --bypass-keychain")
+			bypassKeychainEnabled := *bypassKeychain || authsvc.ShouldBypassKeychain()
+			if *local && !bypassKeychainEnabled {
+				return fmt.Errorf("auth login: --local requires --bypass-keychain or ASC_BYPASS_KEYCHAIN=1")
 			}
 			if *name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
@@ -386,14 +387,14 @@ The private key file path is stored securely. The key content is never saved.`,
 				}
 			}
 
-			storageMessage, err := loginStorageMessage(*bypassKeychain, *local)
+			storageMessage, err := loginStorageMessage(bypassKeychainEnabled, *local)
 			if err != nil {
 				return fmt.Errorf("auth login: %w", err)
 			}
 			fmt.Println(storageMessage)
 
 			// Store credentials securely
-			if *bypassKeychain {
+			if bypassKeychainEnabled {
 				if *local {
 					path, err := config.LocalPath()
 					if err != nil {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -142,6 +143,18 @@ func TestPathEnvOverride(t *testing.T) {
 	}
 }
 
+func TestPathEnvOverrideRequiresAbsolutePath(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", "config.json")
+
+	_, err := Path()
+	if err == nil {
+		t.Fatal("expected error for relative ASC_CONFIG_PATH, got nil")
+	}
+	if !errors.Is(err, ErrInvalidPath) {
+		t.Fatalf("expected ErrInvalidPath, got %v", err)
+	}
+}
+
 func TestPathUsesLocalConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv("ASC_CONFIG_PATH", "")
@@ -271,5 +284,63 @@ func TestLocalPathFallsBackToCwd(t *testing.T) {
 	expected := filepath.Join(resolvedTempDir, ".asc", "config.json")
 	if path != expected {
 		t.Fatalf("LocalPath() mismatch: got %q want %q", path, expected)
+	}
+}
+
+func TestLoadAtRejectsInvalidTimeout(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+	cfg := &Config{
+		Timeout: DurationValue{Raw: "not-a-duration"},
+	}
+	if err := SaveAt(path, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	_, err := LoadAt(path)
+	if err == nil {
+		t.Fatal("expected error for invalid timeout, got nil")
+	}
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("expected ErrInvalidConfig, got %v", err)
+	}
+}
+
+func TestLoadAtRejectsMaxRetriesOutOfRange(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+	cfg := &Config{
+		MaxRetries: "31",
+	}
+	if err := SaveAt(path, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	_, err := LoadAt(path)
+	if err == nil {
+		t.Fatal("expected error for max retries out of range, got nil")
+	}
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("expected ErrInvalidConfig, got %v", err)
+	}
+}
+
+func TestLoadAtRejectsMaxDelayBelowBaseDelay(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+	cfg := &Config{
+		BaseDelay: "10s",
+		MaxDelay:  "1s",
+	}
+	if err := SaveAt(path, cfg); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+
+	_, err := LoadAt(path)
+	if err == nil {
+		t.Fatal("expected error for max delay below base delay, got nil")
+	}
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("expected ErrInvalidConfig, got %v", err)
 	}
 }

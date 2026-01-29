@@ -104,6 +104,9 @@ func ShouldBypassKeychain() bool {
 
 // KeychainAvailable reports whether a system keychain backend is available.
 func KeychainAvailable() (bool, error) {
+	if shouldBypassKeychain() {
+		return false, nil
+	}
 	_, err := keyringOpener()
 	if err == nil {
 		return true, nil

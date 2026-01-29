@@ -190,7 +190,7 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		}
 
 		if _, ok := seenNext[links.Next]; ok {
-			return result, fmt.Errorf("page %d: detected repeated pagination URL", page+1)
+			return result, fmt.Errorf("page %d: %w", page+1, ErrRepeatedPaginationURL)
 		}
 		seenNext[links.Next] = struct{}{}
 		page++

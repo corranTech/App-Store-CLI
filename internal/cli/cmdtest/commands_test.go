@@ -3406,6 +3406,42 @@ func TestAuthLoginSkipValidationBypassesJWT(t *testing.T) {
 	}
 }
 
+func TestAuthLoginUsesEnvBypass(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"auth", "login",
+			"--skip-validation",
+			"--name", "EnvKey",
+			"--key-id", "KEY123",
+			"--issuer-id", "ISS456",
+			"--private-key", keyPath,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		t.Fatalf("GlobalPath() error: %v", err)
+	}
+	if _, err := os.Stat(globalPath); err != nil {
+		t.Fatalf("expected config to be written, got %v", err)
+	}
+}
+
 func TestXcodeCloudValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 

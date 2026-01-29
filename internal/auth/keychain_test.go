@@ -62,6 +62,27 @@ func TestConfigProfileSelection(t *testing.T) {
 	}
 }
 
+func TestKeychainAvailableBypassSkipsKeyring(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	previous := keyringOpener
+	keyringOpener = func() (keyring.Keyring, error) {
+		t.Fatal("expected keyring opener to be skipped when bypassing keychain")
+		return nil, nil
+	}
+	t.Cleanup(func() {
+		keyringOpener = previous
+	})
+
+	available, err := KeychainAvailable()
+	if err != nil {
+		t.Fatalf("KeychainAvailable() error: %v", err)
+	}
+	if available {
+		t.Fatal("expected keychain unavailable when bypassed")
+	}
+}
+
 func TestConfigProfileListAndSwitch(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
