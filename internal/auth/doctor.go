@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -155,10 +156,18 @@ func inspectProfiles() DoctorSection {
 
 	credentials, err := ListCredentials()
 	if err != nil {
-		return DoctorSection{Title: "Profiles", Checks: []DoctorCheck{{
-			Status:  DoctorFail,
-			Message: fmt.Sprintf("Failed to list stored credentials: %v", err),
-		}}}
+		var warning *CredentialsWarning
+		if errors.As(err, &warning) {
+			checks = append(checks, DoctorCheck{
+				Status:  DoctorWarn,
+				Message: warning.Error(),
+			})
+		} else {
+			return DoctorSection{Title: "Profiles", Checks: []DoctorCheck{{
+				Status:  DoctorFail,
+				Message: fmt.Sprintf("Failed to list stored credentials: %v", err),
+			}}}
+		}
 	}
 
 	if len(credentials) == 0 {
@@ -227,23 +236,32 @@ func inspectProfiles() DoctorSection {
 }
 
 func inspectPrivateKeys(options DoctorOptions) DoctorSection {
+	checks := []DoctorCheck{}
 	credentials, err := ListCredentials()
 	if err != nil {
-		return DoctorSection{Title: "Private Keys", Checks: []DoctorCheck{{
-			Status:  DoctorFail,
-			Message: fmt.Sprintf("Failed to list stored credentials: %v", err),
-		}}}
+		var warning *CredentialsWarning
+		if errors.As(err, &warning) {
+			checks = append(checks, DoctorCheck{
+				Status:  DoctorWarn,
+				Message: warning.Error(),
+			})
+		} else {
+			return DoctorSection{Title: "Private Keys", Checks: []DoctorCheck{{
+				Status:  DoctorFail,
+				Message: fmt.Sprintf("Failed to list stored credentials: %v", err),
+			}}}
+		}
 	}
 
 	if len(credentials) == 0 {
-		return DoctorSection{Title: "Private Keys", Checks: []DoctorCheck{{
+		checks = append(checks, DoctorCheck{
 			Status:  DoctorInfo,
 			Message: "No private keys to validate",
-		}}}
+		})
+		return DoctorSection{Title: "Private Keys", Checks: checks}
 	}
 
 	seen := map[string]struct{}{}
-	checks := []DoctorCheck{}
 	for _, cred := range credentials {
 		path := strings.TrimSpace(cred.PrivateKeyPath)
 		if path == "" {

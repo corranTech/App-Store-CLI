@@ -34,6 +34,20 @@ type Credential struct {
 	SourcePath     string `json:"source_path,omitempty"`
 }
 
+// CredentialsWarning indicates that some credential sources could not be read.
+// Credentials returned alongside the warning are still usable.
+type CredentialsWarning struct {
+	err error
+}
+
+func (w *CredentialsWarning) Error() string {
+	return w.err.Error()
+}
+
+func (w *CredentialsWarning) Unwrap() error {
+	return w.err
+}
+
 // Credentials stores multiple credentials
 type Credentials struct {
 	DefaultKey string       `json:"default_key"`
@@ -260,23 +274,99 @@ func clearConfigCredentialsAt(path string) error {
 	return config.SaveAt(path, cfg)
 }
 
-// ListCredentials lists all stored credentials
+// ListCredentials lists all stored credentials from all sources.
+// Credentials are merged from keychain and config, with keychain taking
+// precedence when the same name exists in both sources.
 func ListCredentials() ([]Credential, error) {
 	if shouldBypassKeychain() {
-		return listFromConfig()
-	}
-	credentials, err := listFromKeychain()
-	if err == nil {
-		if len(credentials) > 0 {
-			return credentials, nil
+		credentials, err := listFromConfig()
+		if err != nil {
+			return nil, err
 		}
-		return listFromConfig()
-	}
-	if !isKeyringUnavailable(err) {
-		return nil, err
+		normalizeCredentialDefaults(credentials)
+		return credentials, nil
 	}
 
-	return listFromConfig()
+	keychainCreds, keychainErr := listFromKeychain()
+	if keychainErr != nil && !isKeyringUnavailable(keychainErr) {
+		return nil, keychainErr
+	}
+
+	configCreds, configErr := listFromConfig()
+	if configErr != nil {
+		// If keychain worked, return those even if config failed
+		if keychainErr == nil {
+			normalizeCredentialDefaults(keychainCreds)
+			return keychainCreds, &CredentialsWarning{
+				err: fmt.Errorf("config credentials could not be read: %w", configErr),
+			}
+		}
+		return nil, configErr
+	}
+
+	// If keychain is unavailable, return only config credentials
+	if keychainErr != nil {
+		normalizeCredentialDefaults(configCreds)
+		return configCreds, nil
+	}
+
+	// Merge: keychain credentials take precedence for same names
+	merged := mergeCredentials(keychainCreds, configCreds)
+	normalizeCredentialDefaults(merged)
+	return merged, nil
+}
+
+// mergeCredentials combines credentials from two sources, with the first
+// source taking precedence when the same name exists in both.
+func mergeCredentials(primary, secondary []Credential) []Credential {
+	if len(primary) == 0 {
+		return secondary
+	}
+	if len(secondary) == 0 {
+		return primary
+	}
+
+	seen := make(map[string]struct{}, len(primary))
+	for _, cred := range primary {
+		seen[cred.Name] = struct{}{}
+	}
+
+	merged := make([]Credential, len(primary), len(primary)+len(secondary))
+	copy(merged, primary)
+
+	for _, cred := range secondary {
+		if _, exists := seen[cred.Name]; !exists {
+			merged = append(merged, cred)
+		}
+	}
+
+	return merged
+}
+
+func normalizeCredentialDefaults(credentials []Credential) {
+	if len(credentials) == 0 {
+		return
+	}
+	defaultName, err := defaultName()
+	if err != nil {
+		defaultName = ""
+	}
+	defaultName = strings.TrimSpace(defaultName)
+	for i := range credentials {
+		credentials[i].IsDefault = false
+	}
+	if defaultName != "" {
+		for i := range credentials {
+			if credentials[i].Name == defaultName {
+				credentials[i].IsDefault = true
+				return
+			}
+		}
+		return
+	}
+	if len(credentials) == 1 {
+		credentials[0].IsDefault = true
+	}
 }
 
 // RemoveCredentials removes a named credential.

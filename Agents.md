@@ -41,6 +41,13 @@ make lint       # Lint code
 make format     # Format code
 ```
 
+## Testing Discipline
+
+- Use TDD for everything: bugs, refactors, and new features.
+- Start with a failing test that captures the expected behavior and edge cases.
+- For new features, begin with CLI-level tests (flags, output, errors) and add unit tests for core logic.
+- Verify the test fails for the right reason before implementing; keep tests green incrementally.
+
 ## Authentication
 
 API keys are generated at https://appstoreconnect.apple.com/access/integrations/api and stored in the system keychain (with local config fallback). Never commit keys to version control.
