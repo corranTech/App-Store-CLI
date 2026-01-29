@@ -89,6 +89,61 @@ func TestGetRatings_Success(t *testing.T) {
 	}
 }
 
+func TestGetRatings_HistogramWithCommas(t *testing.T) {
+	lookupResponse := `{
+		"resultCount": 1,
+		"results": [{
+			"trackId": 123,
+			"trackName": "Comma App",
+			"averageUserRating": 4.0,
+			"userRatingCount": 100
+		}]
+	}`
+
+	histogramHTML := `
+		<div class="ratings-histogram">
+			<div class="vote"><span class="total">1,234</span></div>
+			<div class="vote"><span class="total">567</span></div>
+			<div class="vote"><span class="total">89</span></div>
+			<div class="vote"><span class="total">12</span></div>
+			<div class="vote"><span class="total">3</span></div>
+		</div>
+	`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/lookup" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(lookupResponse))
+			return
+		}
+		if r.URL.Path == "/us/customer-reviews/id123" {
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(histogramHTML))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: &testTransport{baseURL: server.URL},
+		},
+	}
+
+	ratings, err := client.GetRatings(context.Background(), "123", "us")
+	if err != nil {
+		t.Fatalf("GetRatings() error: %v", err)
+	}
+
+	if ratings.Histogram[5] != 1234 {
+		t.Errorf("Histogram[5] = %d, want 1234", ratings.Histogram[5])
+	}
+	if ratings.Histogram[1] != 3 {
+		t.Errorf("Histogram[1] = %d, want 3", ratings.Histogram[1])
+	}
+}
+
 func TestGetRatings_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -105,6 +160,46 @@ func TestGetRatings_NotFound(t *testing.T) {
 	_, err := client.GetRatings(context.Background(), "999999999", "us")
 	if err == nil {
 		t.Fatal("expected error for not found app, got nil")
+	}
+}
+
+func TestGetRatings_HistogramFailureIsNonFatal(t *testing.T) {
+	lookupResponse := `{
+		"resultCount": 1,
+		"results": [{
+			"trackId": 123,
+			"trackName": "Histogram Down",
+			"averageUserRating": 4.0,
+			"userRatingCount": 10
+		}]
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/lookup" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(lookupResponse))
+			return
+		}
+		if r.URL.Path == "/us/customer-reviews/id123" {
+			http.Error(w, "unavailable", http.StatusInternalServerError)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: &testTransport{baseURL: server.URL},
+		},
+	}
+
+	ratings, err := client.GetRatings(context.Background(), "123", "us")
+	if err != nil {
+		t.Fatalf("GetRatings() error: %v", err)
+	}
+	if len(ratings.Histogram) != 0 {
+		t.Fatalf("expected empty histogram on failure, got %v", ratings.Histogram)
 	}
 }
 
@@ -231,6 +326,51 @@ func TestGetAllRatings_InvalidWorkers(t *testing.T) {
 	_, err = client.GetAllRatings(context.Background(), "123", -5)
 	if err != nil {
 		t.Logf("GetAllRatings with workers=-5 returned: %v", err)
+	}
+}
+
+func TestGetAllRatings_NoRatings(t *testing.T) {
+	// App exists but has no ratings in any country.
+	responses := map[string]string{
+		"us": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Zero App","averageUserRating":0,"userRatingCount":0}]}`,
+		"gb": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Zero App","averageUserRating":0,"userRatingCount":0}]}`,
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/lookup" {
+			country := r.URL.Query().Get("country")
+			if resp, ok := responses[country]; ok {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte(resp))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"resultCount":0,"results":[]}`))
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<html></html>`))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: &testTransport{baseURL: server.URL},
+		},
+	}
+
+	global, err := client.GetAllRatings(context.Background(), "123", 5)
+	if err != nil {
+		t.Fatalf("GetAllRatings() error: %v", err)
+	}
+	if global.AppName != "Zero App" {
+		t.Fatalf("AppName = %q, want Zero App", global.AppName)
+	}
+	if global.TotalCount != 0 {
+		t.Fatalf("TotalCount = %d, want 0", global.TotalCount)
+	}
+	if global.CountryCount != 0 {
+		t.Fatalf("CountryCount = %d, want 0", global.CountryCount)
 	}
 }
 

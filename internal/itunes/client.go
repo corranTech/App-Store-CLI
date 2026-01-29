@@ -153,13 +153,14 @@ func (c *Client) fetchHistogram(ctx context.Context, appID, country string, rati
 	}
 
 	// Extract values from <span class="total">NUMBER</span>
-	re := regexp.MustCompile(`<span class="total">(\d+)</span>`)
+	re := regexp.MustCompile(`<span class="total">([0-9,]+)</span>`)
 	matches := re.FindAllStringSubmatch(string(body), 5)
 
 	stars := []int{5, 4, 3, 2, 1}
 	for i, match := range matches {
 		if i < len(stars) && len(match) > 1 {
-			count, _ := strconv.ParseInt(match[1], 10, 64)
+			raw := strings.ReplaceAll(match[1], ",", "")
+			count, _ := strconv.ParseInt(raw, 10, 64)
 			ratings.Histogram[stars[i]] = count
 		}
 	}
@@ -183,6 +184,7 @@ func (c *Client) GetAllRatings(ctx context.Context, appID string, workers int) (
 		appIDInt  int64
 		total     int64
 		weighted  float64
+		found     bool
 		histogram = make(map[int]int64)
 	)
 
@@ -202,16 +204,19 @@ func (c *Client) GetAllRatings(ctx context.Context, appID string, workers int) (
 			}
 
 			ratings, err := c.GetRatings(ctx, appID, country)
-			if err != nil || ratings.RatingCount == 0 {
+			if err != nil {
 				return
 			}
 
 			mu.Lock()
-			defer mu.Unlock()
-
-			if appName == "" {
+			if !found {
+				found = true
 				appName = ratings.AppName
 				appIDInt = ratings.AppID
+			}
+			if ratings.RatingCount == 0 {
+				mu.Unlock()
+				return
 			}
 
 			results = append(results, ratings)
@@ -222,6 +227,7 @@ func (c *Client) GetAllRatings(ctx context.Context, appID string, workers int) (
 			for star, count := range ratings.Histogram {
 				histogram[star] += count
 			}
+			mu.Unlock()
 		}(country)
 	}
 
@@ -232,8 +238,19 @@ func (c *Client) GetAllRatings(ctx context.Context, appID string, workers int) (
 		return nil, ctx.Err()
 	}
 
-	if len(results) == 0 {
+	if !found {
 		return nil, fmt.Errorf("app not found in any country: %s", appID)
+	}
+	if len(results) == 0 {
+		return &GlobalRatings{
+			AppID:         appIDInt,
+			AppName:       appName,
+			AverageRating: 0,
+			TotalCount:    0,
+			CountryCount:  0,
+			Histogram:     histogram,
+			ByCountry:     nil,
+		}, nil
 	}
 
 	// Sort by rating count descending
