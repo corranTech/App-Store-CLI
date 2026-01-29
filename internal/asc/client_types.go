@@ -86,6 +86,8 @@ const (
 	ResourceTypeWinBackOffers                         ResourceType = "winBackOffers"
 	ResourceTypeWinBackOfferPrices                    ResourceType = "winBackOfferPrices"
 	ResourceTypeNominations                           ResourceType = "nominations"
+	ResourceTypeMarketplaceSearchDetails              ResourceType = "marketplaceSearchDetails"
+	ResourceTypeMarketplaceWebhooks                   ResourceType = "marketplaceWebhooks"
 	ResourceTypeGameCenterDetails                     ResourceType = "gameCenterDetails"
 	ResourceTypeGameCenterAchievements                ResourceType = "gameCenterAchievements"
 	ResourceTypeGameCenterLeaderboards                ResourceType = "gameCenterLeaderboards"

@@ -31,6 +31,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/install"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/localizations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/migrate"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/marketplace"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/nominations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/offercodes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/performance"
@@ -83,6 +84,7 @@ func Subcommands(version string) []*ffcli.Command {
 		androidiosmapping.AndroidIosMappingCommand(),
 		apps.AppSetupCommand(),
 		apps.AppTagsCommand(),
+		marketplace.MarketplaceCommand(),
 		nominations.NominationsCommand(),
 		bundleids.BundleIDsCommand(),
 		certificates.CertificatesCommand(),

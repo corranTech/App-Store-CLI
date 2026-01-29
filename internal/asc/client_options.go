@@ -143,6 +143,9 @@ type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
 // AppEncryptionDeclarationsOption is a functional option for encryption declarations.
 type AppEncryptionDeclarationsOption func(*appEncryptionDeclarationsQuery)
 
+// MarketplaceWebhooksOption is a functional option for marketplace webhooks.
+type MarketplaceWebhooksOption func(*marketplaceWebhooksQuery)
+
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
 	return func(q *feedbackQuery) {
@@ -286,6 +289,31 @@ func WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next string) SubscriptionOf
 	}
 }
 
+// WithMarketplaceWebhooksLimit sets the max number of marketplace webhooks to return.
+func WithMarketplaceWebhooksLimit(limit int) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithMarketplaceWebhooksNextURL uses a next page URL directly.
+func WithMarketplaceWebhooksNextURL(next string) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithMarketplaceWebhooksFields sets fields[marketplaceWebhooks] for webhook responses.
+func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
 // WithWinBackOffersLimit sets the max number of win-back offers to return.
 func WithWinBackOffersLimit(limit int) WinBackOffersOption {
 	return func(q *winBackOffersQuery) {
@@ -386,7 +414,6 @@ func WithWinBackOfferPricesInclude(include []string) WinBackOfferPricesOption {
 		q.include = normalizeList(include)
 	}
 }
-
 // WithCrashTesterIDs filters crashes by tester ID(s).
 func WithCrashTesterIDs(ids []string) CrashOption {
 	return func(q *crashQuery) {
