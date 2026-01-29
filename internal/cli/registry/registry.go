@@ -49,6 +49,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/testflight"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/users"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/versions"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/winbackoffers"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/xcodecloud"
 )
 
@@ -87,6 +88,7 @@ func Subcommands(version string) []*ffcli.Command {
 		certificates.CertificatesCommand(),
 		profiles.ProfilesCommand(),
 		offercodes.OfferCodesCommand(),
+		winbackoffers.WinBackOffersCommand(),
 		users.UsersCommand(),
 		actors.ActorsCommand(),
 		devices.DevicesCommand(),

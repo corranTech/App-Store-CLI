@@ -83,6 +83,8 @@ const (
 	ResourceTypeActors                                ResourceType = "actors"
 	ResourceTypeSubscriptionOfferCodes                ResourceType = "subscriptionOfferCodes"
 	ResourceTypeSubscriptionOfferCodeOneTimeUseCodes  ResourceType = "subscriptionOfferCodeOneTimeUseCodes"
+	ResourceTypeWinBackOffers                         ResourceType = "winBackOffers"
+	ResourceTypeWinBackOfferPrices                    ResourceType = "winBackOfferPrices"
 	ResourceTypeNominations                           ResourceType = "nominations"
 	ResourceTypeGameCenterDetails                     ResourceType = "gameCenterDetails"
 	ResourceTypeGameCenterAchievements                ResourceType = "gameCenterAchievements"
