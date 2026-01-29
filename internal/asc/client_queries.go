@@ -707,6 +707,12 @@ func buildAndroidToIosAppMappingDetailsQuery(query *androidToIosAppMappingDetail
 	return values.Encode()
 }
 
+func buildAndroidToIosAppMappingDetailQuery(query *androidToIosAppMappingDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
+	return values.Encode()
+}
+
 func buildPerfPowerMetricsQuery(query *perfPowerMetricsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[platform]", query.platforms)

@@ -6455,11 +6455,15 @@ func TestGetAndroidToIosAppMappingDetail(t *testing.T) {
 		if query.Get("fields[androidToIosAppMappingDetails]") != "packageName" {
 			t.Fatalf("expected fields filter, got %q", query.Get("fields[androidToIosAppMappingDetails]"))
 		}
+		if query.Get("limit") != "" {
+			t.Fatalf("expected no limit param, got %q", query.Get("limit"))
+		}
 		assertAuthorized(t, req)
 	}, response)
 
 	_, err := client.GetAndroidToIosAppMappingDetail(context.Background(), "map-1",
 		WithAndroidToIosAppMappingDetailsFields([]string{"packageName"}),
+		WithAndroidToIosAppMappingDetailsLimit(20),
 	)
 	if err != nil {
 		t.Fatalf("GetAndroidToIosAppMappingDetail() error: %v", err)
@@ -6519,14 +6523,18 @@ func TestUpdateAndroidToIosAppMappingDetail(t *testing.T) {
 		if payload.Data.Type != ResourceTypeAndroidToIosAppMappingDetails || payload.Data.ID != "map-1" {
 			t.Fatalf("unexpected payload: %+v", payload.Data)
 		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.PackageName != "com.example.android.new" {
+		if payload.Data.Attributes == nil || payload.Data.Attributes.PackageName == nil || payload.Data.Attributes.PackageName.Value == nil {
 			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
+		}
+		if *payload.Data.Attributes.PackageName.Value != "com.example.android.new" {
+			t.Fatalf("unexpected packageName: %s", *payload.Data.Attributes.PackageName.Value)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
+	packageValue := "com.example.android.new"
 	_, err := client.UpdateAndroidToIosAppMappingDetail(context.Background(), "map-1", AndroidToIosAppMappingDetailUpdateAttributes{
-		PackageName: "com.example.android.new",
+		PackageName: &NullableString{Value: &packageValue},
 	})
 	if err != nil {
 		t.Fatalf("UpdateAndroidToIosAppMappingDetail() error: %v", err)

@@ -55,7 +55,7 @@ func (c *Client) GetAndroidToIosAppMappingDetail(ctx context.Context, id string,
 	}
 
 	path := fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id)
-	if queryString := buildAndroidToIosAppMappingDetailsQuery(query); queryString != "" {
+	if queryString := buildAndroidToIosAppMappingDetailQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
 

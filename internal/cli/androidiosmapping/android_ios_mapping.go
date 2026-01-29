@@ -238,6 +238,8 @@ func AndroidIosMappingUpdateCommand() *ffcli.Command {
 	id := fs.String("mapping-id", "", "Mapping ID")
 	packageName := fs.String("android-package-name", "", "Android package name (e.g., com.example.android)")
 	fingerprints := fs.String("fingerprints", "", "Signing key fingerprints (comma-separated)")
+	clearPackageName := fs.Bool("clear-android-package-name", false, "Clear the Android package name")
+	clearFingerprints := fs.Bool("clear-fingerprints", false, "Clear signing key fingerprints")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -249,7 +251,9 @@ func AndroidIosMappingUpdateCommand() *ffcli.Command {
 
 Examples:
   asc android-ios-mapping update --mapping-id "MAPPING_ID" --android-package-name "com.example.android.new"
-  asc android-ios-mapping update --mapping-id "MAPPING_ID" --fingerprints "SHA1,SHA2"`,
+  asc android-ios-mapping update --mapping-id "MAPPING_ID" --fingerprints "SHA1,SHA2"
+  asc android-ios-mapping update --mapping-id "MAPPING_ID" --clear-android-package-name
+  asc android-ios-mapping update --mapping-id "MAPPING_ID" --clear-fingerprints`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -263,8 +267,14 @@ Examples:
 			fs.Visit(func(f *flag.Flag) {
 				seen[f.Name] = true
 			})
-			if !seen["android-package-name"] && !seen["fingerprints"] {
+			if !seen["android-package-name"] && !seen["fingerprints"] && !*clearPackageName && !*clearFingerprints {
 				return fmt.Errorf("android-ios-mapping update: at least one update flag is required")
+			}
+			if seen["android-package-name"] && *clearPackageName {
+				return fmt.Errorf("android-ios-mapping update: --android-package-name cannot be used with --clear-android-package-name")
+			}
+			if seen["fingerprints"] && *clearFingerprints {
+				return fmt.Errorf("android-ios-mapping update: --fingerprints cannot be used with --clear-fingerprints")
 			}
 
 			var attrs asc.AndroidToIosAppMappingDetailUpdateAttributes
@@ -273,14 +283,20 @@ Examples:
 				if packageValue == "" {
 					return fmt.Errorf("android-ios-mapping update: --android-package-name cannot be empty")
 				}
-				attrs.PackageName = packageValue
+				attrs.PackageName = &asc.NullableString{Value: &packageValue}
+			}
+			if *clearPackageName {
+				attrs.PackageName = &asc.NullableString{}
 			}
 			if seen["fingerprints"] {
 				fingerprintValues := splitCSV(*fingerprints)
 				if len(fingerprintValues) == 0 {
 					return fmt.Errorf("android-ios-mapping update: --fingerprints must include at least one value")
 				}
-				attrs.AppSigningKeyPublicCertificateSha256Fingerprints = fingerprintValues
+				attrs.AppSigningKeyPublicCertificateSha256Fingerprints = &asc.NullableStringSlice{Value: fingerprintValues}
+			}
+			if *clearFingerprints {
+				attrs.AppSigningKeyPublicCertificateSha256Fingerprints = &asc.NullableStringSlice{}
 			}
 
 			client, err := getASCClient()

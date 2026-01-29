@@ -1,5 +1,7 @@
 package asc
 
+import "encoding/json"
+
 // AndroidToIosAppMappingDetailAttributes describes an android-to-iOS mapping resource.
 type AndroidToIosAppMappingDetailAttributes struct {
 	PackageName                                      string   `json:"packageName,omitempty"`
@@ -12,10 +14,64 @@ type AndroidToIosAppMappingDetailCreateAttributes struct {
 	AppSigningKeyPublicCertificateSha256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints"`
 }
 
+// NullableString represents a nullable string for update requests.
+type NullableString struct {
+	Value *string
+}
+
+// MarshalJSON outputs a JSON string or null.
+func (n NullableString) MarshalJSON() ([]byte, error) {
+	if n.Value == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(*n.Value)
+}
+
+// UnmarshalJSON parses a JSON string or null.
+func (n *NullableString) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		n.Value = nil
+		return nil
+	}
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	n.Value = &value
+	return nil
+}
+
+// NullableStringSlice represents a nullable string array for update requests.
+type NullableStringSlice struct {
+	Value []string
+}
+
+// MarshalJSON outputs a JSON array or null.
+func (n NullableStringSlice) MarshalJSON() ([]byte, error) {
+	if n.Value == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(n.Value)
+}
+
+// UnmarshalJSON parses a JSON array or null.
+func (n *NullableStringSlice) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		n.Value = nil
+		return nil
+	}
+	var value []string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	n.Value = value
+	return nil
+}
+
 // AndroidToIosAppMappingDetailUpdateAttributes describes attributes for updating a mapping.
 type AndroidToIosAppMappingDetailUpdateAttributes struct {
-	PackageName                                      string   `json:"packageName,omitempty"`
-	AppSigningKeyPublicCertificateSha256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints,omitempty"`
+	PackageName                                      *NullableString      `json:"packageName,omitempty"`
+	AppSigningKeyPublicCertificateSha256Fingerprints *NullableStringSlice `json:"appSigningKeyPublicCertificateSha256Fingerprints,omitempty"`
 }
 
 // AndroidToIosAppMappingDetailCreateRelationships describes relationships for creating a mapping.
