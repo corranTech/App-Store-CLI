@@ -60,16 +60,21 @@ Examples:
 }
 
 func executeRatings(ctx context.Context, appID, country string, all bool, workers int, output string, pretty bool) error {
+	format, err := normalizeRatingsOutput(output, pretty)
+	if err != nil {
+		return err
+	}
+
 	client := itunes.NewClient()
 
 	requestCtx, cancel := contextWithTimeout(ctx)
 	defer cancel()
 
 	if all {
-		return executeAllRatings(requestCtx, client, appID, workers, output, pretty)
+		return executeAllRatings(requestCtx, client, appID, workers, format, pretty)
 	}
 
-	return executeSingleRatings(requestCtx, client, appID, country, output, pretty)
+	return executeSingleRatings(requestCtx, client, appID, country, format, pretty)
 }
 
 func executeSingleRatings(ctx context.Context, client *itunes.Client, appID, country, output string, pretty bool) error {
@@ -101,6 +106,28 @@ func executeAllRatings(ctx context.Context, client *itunes.Client, appID string,
 		return printGlobalRatingsMarkdown(global)
 	default:
 		return printOutput(global, "json", pretty)
+	}
+}
+
+func normalizeRatingsOutput(output string, pretty bool) (string, error) {
+	format := strings.ToLower(strings.TrimSpace(output))
+	if format == "" {
+		format = "json"
+	}
+	if format == "md" {
+		format = "markdown"
+	}
+
+	switch format {
+	case "json":
+		return format, nil
+	case "table", "markdown":
+		if pretty {
+			return "", fmt.Errorf("--pretty is only valid with JSON output")
+		}
+		return format, nil
+	default:
+		return "", fmt.Errorf("unsupported format: %s", format)
 	}
 }
 
