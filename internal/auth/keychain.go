@@ -260,23 +260,62 @@ func clearConfigCredentialsAt(path string) error {
 	return config.SaveAt(path, cfg)
 }
 
-// ListCredentials lists all stored credentials
+// ListCredentials lists all stored credentials from all sources.
+// Credentials are merged from keychain and config, with keychain taking
+// precedence when the same name exists in both sources.
 func ListCredentials() ([]Credential, error) {
 	if shouldBypassKeychain() {
 		return listFromConfig()
 	}
-	credentials, err := listFromKeychain()
-	if err == nil {
-		if len(credentials) > 0 {
-			return credentials, nil
-		}
-		return listFromConfig()
-	}
-	if !isKeyringUnavailable(err) {
-		return nil, err
+
+	keychainCreds, keychainErr := listFromKeychain()
+	if keychainErr != nil && !isKeyringUnavailable(keychainErr) {
+		return nil, keychainErr
 	}
 
-	return listFromConfig()
+	configCreds, configErr := listFromConfig()
+	if configErr != nil {
+		// If keychain worked, return those even if config failed
+		if keychainErr == nil {
+			return keychainCreds, nil
+		}
+		return nil, configErr
+	}
+
+	// If keychain is unavailable, return only config credentials
+	if keychainErr != nil {
+		return configCreds, nil
+	}
+
+	// Merge: keychain credentials take precedence for same names
+	return mergeCredentials(keychainCreds, configCreds), nil
+}
+
+// mergeCredentials combines credentials from two sources, with the first
+// source taking precedence when the same name exists in both.
+func mergeCredentials(primary, secondary []Credential) []Credential {
+	if len(primary) == 0 {
+		return secondary
+	}
+	if len(secondary) == 0 {
+		return primary
+	}
+
+	seen := make(map[string]struct{}, len(primary))
+	for _, cred := range primary {
+		seen[cred.Name] = struct{}{}
+	}
+
+	merged := make([]Credential, len(primary), len(primary)+len(secondary))
+	copy(merged, primary)
+
+	for _, cred := range secondary {
+		if _, exists := seen[cred.Name]; !exists {
+			merged = append(merged, cred)
+		}
+	}
+
+	return merged
 }
 
 // RemoveCredentials removes a named credential.
