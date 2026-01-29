@@ -73,6 +73,7 @@ type BundleIDCapabilitiesOption func(*bundleIDCapabilitiesQuery)
 
 // PromotedPurchasesOption is a functional option for promoted purchases endpoints.
 type PromotedPurchasesOption func(*promotedPurchasesQuery)
+
 // MerchantIDsOption is a functional option for GetMerchantIDs.
 type MerchantIDsOption func(*merchantIDsQuery)
 
@@ -162,6 +163,15 @@ type AppEncryptionDeclarationsOption func(*appEncryptionDeclarationsQuery)
 
 // MarketplaceWebhooksOption is a functional option for marketplace webhooks.
 type MarketplaceWebhooksOption func(*marketplaceWebhooksQuery)
+
+// BackgroundAssetsOption is a functional option for background assets list endpoints.
+type BackgroundAssetsOption func(*backgroundAssetsQuery)
+
+// BackgroundAssetVersionsOption is a functional option for background asset versions list endpoints.
+type BackgroundAssetVersionsOption func(*backgroundAssetVersionsQuery)
+
+// BackgroundAssetUploadFilesOption is a functional option for background asset upload files list endpoints.
+type BackgroundAssetUploadFilesOption func(*backgroundAssetUploadFilesQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -331,6 +341,74 @@ func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
 	}
 }
 
+// WithBackgroundAssetsLimit sets the max number of background assets to return.
+func WithBackgroundAssetsLimit(limit int) BackgroundAssetsOption {
+	return func(q *backgroundAssetsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBackgroundAssetsNextURL uses a next page URL directly.
+func WithBackgroundAssetsNextURL(next string) BackgroundAssetsOption {
+	return func(q *backgroundAssetsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBackgroundAssetsFilterArchived filters background assets by archived state.
+func WithBackgroundAssetsFilterArchived(values []string) BackgroundAssetsOption {
+	return func(q *backgroundAssetsQuery) {
+		q.archived = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetsFilterAssetPackIdentifier filters background assets by asset pack identifier.
+func WithBackgroundAssetsFilterAssetPackIdentifier(values []string) BackgroundAssetsOption {
+	return func(q *backgroundAssetsQuery) {
+		q.assetPackIdentifiers = normalizeList(values)
+	}
+}
+
+// WithBackgroundAssetVersionsLimit sets the max number of background asset versions to return.
+func WithBackgroundAssetVersionsLimit(limit int) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBackgroundAssetVersionsNextURL uses a next page URL directly.
+func WithBackgroundAssetVersionsNextURL(next string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBackgroundAssetUploadFilesLimit sets the max number of background asset upload files to return.
+func WithBackgroundAssetUploadFilesLimit(limit int) BackgroundAssetUploadFilesOption {
+	return func(q *backgroundAssetUploadFilesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBackgroundAssetUploadFilesNextURL uses a next page URL directly.
+func WithBackgroundAssetUploadFilesNextURL(next string) BackgroundAssetUploadFilesOption {
+	return func(q *backgroundAssetUploadFilesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithWinBackOffersLimit sets the max number of win-back offers to return.
 func WithWinBackOffersLimit(limit int) WinBackOffersOption {
 	return func(q *winBackOffersQuery) {
@@ -431,6 +509,7 @@ func WithWinBackOfferPricesInclude(include []string) WinBackOfferPricesOption {
 		q.include = normalizeList(include)
 	}
 }
+
 // WithCrashTesterIDs filters crashes by tester ID(s).
 func WithCrashTesterIDs(ids []string) CrashOption {
 	return func(q *crashQuery) {
@@ -1355,6 +1434,7 @@ func WithMerchantIDCertificatesInclude(include []string) MerchantIDCertificatesO
 		q.include = normalizeList(include)
 	}
 }
+
 // WithPassTypeIDsLimit sets the max number of pass type IDs to return.
 func WithPassTypeIDsLimit(limit int) PassTypeIDsOption {
 	return func(q *passTypeIDsQuery) {
@@ -1471,6 +1551,7 @@ func WithPassTypeIDCertificatesIncludeLimit(limit int) PassTypeIDOption {
 		}
 	}
 }
+
 // WithPassTypeIDCertificatesLimit sets the max number of certificates to return.
 func WithPassTypeIDCertificatesLimit(limit int) PassTypeIDCertificatesOption {
 	return func(q *passTypeIDCertificatesQuery) {
@@ -1546,6 +1627,7 @@ func WithPassTypeIDCertificatesInclude(include []string) PassTypeIDCertificatesO
 		q.include = normalizeList(include)
 	}
 }
+
 // WithBundleIDCapabilitiesLimit sets the max number of capabilities to return.
 func WithBundleIDCapabilitiesLimit(limit int) BundleIDCapabilitiesOption {
 	return func(q *bundleIDCapabilitiesQuery) {

@@ -1301,6 +1301,49 @@ func TestBuildAndroidToIosAppMappingDetailsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildBackgroundAssetsQuery(t *testing.T) {
+	query := &backgroundAssetsQuery{
+		listQuery:            listQuery{limit: 10},
+		archived:             []string{"true"},
+		assetPackIdentifiers: []string{"pack-1", "pack-2"},
+	}
+	values, err := url.ParseQuery(buildBackgroundAssetsQuery(query))
+	if err != nil {
+		t.Fatalf("ParseQuery() error: %v", err)
+	}
+	if values.Get("limit") != "10" {
+		t.Fatalf("expected limit=10, got %q", values.Get("limit"))
+	}
+	if values.Get("filter[archived]") != "true" {
+		t.Fatalf("expected filter[archived]=true, got %q", values.Get("filter[archived]"))
+	}
+	if values.Get("filter[assetPackIdentifier]") != "pack-1,pack-2" {
+		t.Fatalf("expected filter[assetPackIdentifier]=pack-1,pack-2, got %q", values.Get("filter[assetPackIdentifier]"))
+	}
+}
+
+func TestBuildBackgroundAssetVersionsQuery(t *testing.T) {
+	query := &backgroundAssetVersionsQuery{listQuery: listQuery{limit: 25}}
+	values, err := url.ParseQuery(buildBackgroundAssetVersionsQuery(query))
+	if err != nil {
+		t.Fatalf("ParseQuery() error: %v", err)
+	}
+	if values.Get("limit") != "25" {
+		t.Fatalf("expected limit=25, got %q", values.Get("limit"))
+	}
+}
+
+func TestBuildBackgroundAssetUploadFilesQuery(t *testing.T) {
+	query := &backgroundAssetUploadFilesQuery{listQuery: listQuery{limit: 15}}
+	values, err := url.ParseQuery(buildBackgroundAssetUploadFilesQuery(query))
+	if err != nil {
+		t.Fatalf("ParseQuery() error: %v", err)
+	}
+	if values.Get("limit") != "15" {
+		t.Fatalf("expected limit=15, got %q", values.Get("limit"))
+	}
+}
+
 func TestBuildUploadCreateRequest_JSON(t *testing.T) {
 	req := BuildUploadCreateRequest{
 		Data: BuildUploadCreateData{

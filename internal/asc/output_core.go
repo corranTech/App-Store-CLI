@@ -71,6 +71,18 @@ func PrintMarkdown(data interface{}) error {
 		return printMarketplaceWebhooksMarkdown(v)
 	case *MarketplaceWebhookResponse:
 		return printMarketplaceWebhookMarkdown(v)
+	case *BackgroundAssetsResponse:
+		return printBackgroundAssetsMarkdown(v)
+	case *BackgroundAssetResponse:
+		return printBackgroundAssetsMarkdown(&BackgroundAssetsResponse{Data: []Resource[BackgroundAssetAttributes]{v.Data}})
+	case *BackgroundAssetVersionsResponse:
+		return printBackgroundAssetVersionsMarkdown(v)
+	case *BackgroundAssetVersionResponse:
+		return printBackgroundAssetVersionsMarkdown(&BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}})
+	case *BackgroundAssetUploadFilesResponse:
+		return printBackgroundAssetUploadFilesMarkdown(v)
+	case *BackgroundAssetUploadFileResponse:
+		return printBackgroundAssetUploadFilesMarkdown(&BackgroundAssetUploadFilesResponse{Data: []Resource[BackgroundAssetUploadFileAttributes]{v.Data}})
 	case *NominationsResponse:
 		return printNominationsMarkdown(v)
 	case *NominationResponse:
@@ -557,6 +569,18 @@ func PrintTable(data interface{}) error {
 		return printMarketplaceWebhooksTable(v)
 	case *MarketplaceWebhookResponse:
 		return printMarketplaceWebhookTable(v)
+	case *BackgroundAssetsResponse:
+		return printBackgroundAssetsTable(v)
+	case *BackgroundAssetResponse:
+		return printBackgroundAssetsTable(&BackgroundAssetsResponse{Data: []Resource[BackgroundAssetAttributes]{v.Data}})
+	case *BackgroundAssetVersionsResponse:
+		return printBackgroundAssetVersionsTable(v)
+	case *BackgroundAssetVersionResponse:
+		return printBackgroundAssetVersionsTable(&BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}})
+	case *BackgroundAssetUploadFilesResponse:
+		return printBackgroundAssetUploadFilesTable(v)
+	case *BackgroundAssetUploadFileResponse:
+		return printBackgroundAssetUploadFilesTable(&BackgroundAssetUploadFilesResponse{Data: []Resource[BackgroundAssetUploadFileAttributes]{v.Data}})
 	case *NominationsResponse:
 		return printNominationsTable(v)
 	case *NominationResponse:

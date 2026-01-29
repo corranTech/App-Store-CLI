@@ -102,6 +102,20 @@ type marketplaceWebhooksQuery struct {
 	fields []string
 }
 
+type backgroundAssetsQuery struct {
+	listQuery
+	archived             []string
+	assetPackIdentifiers []string
+}
+
+type backgroundAssetVersionsQuery struct {
+	listQuery
+}
+
+type backgroundAssetUploadFilesQuery struct {
+	listQuery
+}
+
 type winBackOffersQuery struct {
 	listQuery
 	fields      []string
@@ -819,6 +833,26 @@ func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCode
 func buildMarketplaceWebhooksQuery(query *marketplaceWebhooksQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[marketplaceWebhooks]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBackgroundAssetsQuery(query *backgroundAssetsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[archived]", query.archived)
+	addCSV(values, "filter[assetPackIdentifier]", query.assetPackIdentifiers)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBackgroundAssetVersionsQuery(query *backgroundAssetVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBackgroundAssetUploadFilesQuery(query *backgroundAssetUploadFilesQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

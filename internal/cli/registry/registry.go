@@ -14,6 +14,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/backgroundassets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/buildbundles"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/buildlocalizations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/builds"
@@ -30,9 +31,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/iap"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/install"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/localizations"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/marketplace"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/merchantids"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/migrate"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/marketplace"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/nominations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/offercodes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/passtypeids"
@@ -113,6 +114,7 @@ func Subcommands(version string) []*ffcli.Command {
 		prerelease.PreReleaseVersionsCommand(),
 		localizations.LocalizationsCommand(),
 		assets.AssetsCommand(),
+		backgroundassets.BackgroundAssetsCommand(),
 		buildlocalizations.BuildLocalizationsCommand(),
 		testflight.BetaGroupsCommand(),
 		testflight.BetaTestersCommand(),
