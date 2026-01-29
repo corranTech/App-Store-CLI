@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -104,7 +103,7 @@ func TestInstallSkillsFailsWhenNpxMissing(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "npx") {
+	if !errors.Is(err, errNpxNotFound) {
 		t.Fatalf("expected npx error, got %q", err.Error())
 	}
 }

@@ -2166,7 +2166,7 @@ func TestPaginateAll_DetectsRepeatedNextURL(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "repeated pagination URL") {
+	if !errors.Is(err, ErrRepeatedPaginationURL) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if calls != 1 {

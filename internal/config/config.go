@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ const (
 	configDirName    = ".asc"
 	configFileName   = "config.json"
 	configPathEnvVar = "ASC_CONFIG_PATH"
+	maxConfigRetries = 30
 )
 
 // DurationValue stores a duration with its raw string representation.
@@ -140,6 +142,12 @@ type Config struct {
 // ErrNotFound is returned when the config file doesn't exist
 var ErrNotFound = fmt.Errorf("configuration not found")
 
+// ErrInvalidPath is returned when the config path is invalid.
+var ErrInvalidPath = errors.New("invalid config path")
+
+// ErrInvalidConfig is returned when config values fail validation.
+var ErrInvalidConfig = errors.New("invalid configuration")
+
 // configDir returns the path to the configuration directory
 func configDir() (string, error) {
 	home, err := os.UserHomeDir()
@@ -179,7 +187,7 @@ func LocalPath() (string, error) {
 
 func resolvePath() (string, error) {
 	if envPath := strings.TrimSpace(os.Getenv(configPathEnvVar)); envPath != "" {
-		return filepath.Clean(envPath), nil
+		return cleanConfigPath(envPath)
 	}
 
 	localPath, err := findLocalConfigPath()
@@ -191,6 +199,14 @@ func resolvePath() (string, error) {
 	}
 
 	return GlobalPath()
+}
+
+func cleanConfigPath(path string) (string, error) {
+	cleaned := filepath.Clean(path)
+	if !filepath.IsAbs(cleaned) {
+		return "", fmt.Errorf("%w: %s must be an absolute path", ErrInvalidPath, configPathEnvVar)
+	}
+	return cleaned, nil
 }
 
 func findLocalConfigPath() (string, error) {
@@ -293,7 +309,92 @@ func LoadAt(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate config: %w", err)
+	}
+
 	return &cfg, nil
+}
+
+// Validate ensures configuration values are parseable and within safe bounds.
+func (c *Config) Validate() error {
+	if err := validateDurationValue("timeout", c.Timeout); err != nil {
+		return wrapInvalidConfig(err)
+	}
+	if err := validateDurationValue("timeout_seconds", c.TimeoutSeconds); err != nil {
+		return wrapInvalidConfig(err)
+	}
+	if err := validateDurationValue("upload_timeout", c.UploadTimeout); err != nil {
+		return wrapInvalidConfig(err)
+	}
+	if err := validateDurationValue("upload_timeout_seconds", c.UploadTimeoutSeconds); err != nil {
+		return wrapInvalidConfig(err)
+	}
+	if err := validateMaxRetries(c.MaxRetries); err != nil {
+		return wrapInvalidConfig(err)
+	}
+
+	baseDelay, baseSet, err := parseOptionalDuration("base_delay", c.BaseDelay)
+	if err != nil {
+		return wrapInvalidConfig(err)
+	}
+	maxDelay, maxSet, err := parseOptionalDuration("max_delay", c.MaxDelay)
+	if err != nil {
+		return wrapInvalidConfig(err)
+	}
+	if baseSet && maxSet && maxDelay < baseDelay {
+		return wrapInvalidConfig(fmt.Errorf("max_delay must be >= base_delay"))
+	}
+	return nil
+}
+
+func wrapInvalidConfig(err error) error {
+	return fmt.Errorf("%w: %s", ErrInvalidConfig, err)
+}
+
+func validateDurationValue(field string, value DurationValue) error {
+	raw := strings.TrimSpace(value.Raw)
+	if raw == "" {
+		return nil
+	}
+	parsed, err := parseDurationValue(raw)
+	if err != nil {
+		return fmt.Errorf("%s: %w", field, err)
+	}
+	if parsed <= 0 {
+		return fmt.Errorf("%s must be positive", field)
+	}
+	return nil
+}
+
+func validateMaxRetries(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parsed, err := strconv.Atoi(raw)
+	if err != nil || parsed < 0 {
+		return fmt.Errorf("max_retries must be a non-negative integer")
+	}
+	if parsed > maxConfigRetries {
+		return fmt.Errorf("max_retries must be <= %d", maxConfigRetries)
+	}
+	return nil
+}
+
+func parseOptionalDuration(field, raw string) (time.Duration, bool, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, false, nil
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, false, fmt.Errorf("%s: %w", field, err)
+	}
+	if parsed <= 0 {
+		return 0, false, fmt.Errorf("%s must be positive", field)
+	}
+	return parsed, true, nil
 }
 
 // SaveAt saves the configuration to the provided path.

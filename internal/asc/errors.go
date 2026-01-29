@@ -7,10 +7,11 @@ import (
 )
 
 var (
-	ErrNotFound     = errors.New("resource not found")
-	ErrUnauthorized = errors.New("unauthorized")
-	ErrForbidden    = errors.New("forbidden")
-	ErrBadRequest   = errors.New("bad request")
+	ErrNotFound              = errors.New("resource not found")
+	ErrUnauthorized          = errors.New("unauthorized")
+	ErrForbidden             = errors.New("forbidden")
+	ErrBadRequest            = errors.New("bad request")
+	ErrRepeatedPaginationURL = errors.New("detected repeated pagination URL")
 )
 
 // APIError represents a parsed App Store Connect error response.
