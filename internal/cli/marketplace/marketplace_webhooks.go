@@ -44,6 +44,7 @@ Examples:
 func MarketplaceWebhooksListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
+	fields := fs.String("fields", "", "Fields to include: "+strings.Join(marketplaceWebhookFieldsList(), ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -63,10 +64,17 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			warnMarketplaceWebhooksDeprecated()
+
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("marketplace webhooks list: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("marketplace webhooks list: %w", err)
+			}
+
+			fieldsValue, err := normalizeMarketplaceWebhookFields(*fields)
+			if err != nil {
 				return fmt.Errorf("marketplace webhooks list: %w", err)
 			}
 
@@ -81,6 +89,9 @@ Examples:
 			opts := []asc.MarketplaceWebhooksOption{
 				asc.WithMarketplaceWebhooksLimit(*limit),
 				asc.WithMarketplaceWebhooksNextURL(*next),
+			}
+			if len(fieldsValue) > 0 {
+				opts = append(opts, asc.WithMarketplaceWebhooksFields(fieldsValue))
 			}
 
 			if *paginate {
@@ -129,6 +140,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			warnMarketplaceWebhooksDeprecated()
+
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
@@ -173,6 +186,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			warnMarketplaceWebhooksDeprecated()
+
 			endpointURL := strings.TrimSpace(*url)
 			if endpointURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --url is required")
@@ -224,6 +239,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			warnMarketplaceWebhooksDeprecated()
+
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
@@ -288,6 +305,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			warnMarketplaceWebhooksDeprecated()
+
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
@@ -318,4 +337,29 @@ Examples:
 			return printOutput(result, *output, *pretty)
 		},
 	}
+}
+
+func normalizeMarketplaceWebhookFields(value string) ([]string, error) {
+	fields := splitCSV(value)
+	if len(fields) == 0 {
+		return nil, nil
+	}
+	allowed := map[string]struct{}{}
+	for _, field := range marketplaceWebhookFieldsList() {
+		allowed[field] = struct{}{}
+	}
+	for _, field := range fields {
+		if _, ok := allowed[field]; !ok {
+			return nil, fmt.Errorf("--fields must be one of: %s", strings.Join(marketplaceWebhookFieldsList(), ", "))
+		}
+	}
+	return fields, nil
+}
+
+func marketplaceWebhookFieldsList() []string {
+	return []string{"endpointUrl"}
+}
+
+func warnMarketplaceWebhooksDeprecated() {
+	fmt.Fprintln(os.Stderr, "Warning: marketplace webhooks endpoints are deprecated in App Store Connect API.")
 }

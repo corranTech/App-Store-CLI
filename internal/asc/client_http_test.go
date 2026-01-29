@@ -6417,26 +6417,20 @@ func TestGetDiagnosticSignatureLogs(t *testing.T) {
 /*
 func TestGetMarketplaceSearchDetailForApp_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"marketplaceSearchDetails","id":"detail-1","attributes":{"catalogUrl":"https://example.com/catalog"}}}`)
-=======
 func TestGetGameCenterDetailID(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"gc-detail-1","attributes":{"achievementEnabled":true}}}`)
->>>>>>> origin/main
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/apps/app-1/marketplaceSearchDetail" {
 			t.Fatalf("expected path /v1/apps/app-1/marketplaceSearchDetail, got %s", req.URL.Path)
-=======
 		if req.URL.Path != "/v1/apps/app-1/gameCenterDetail" {
 			t.Fatalf("expected path /v1/apps/app-1/gameCenterDetail, got %s", req.URL.Path)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	if _, err := client.GetMarketplaceSearchDetailForApp(context.Background(), "app-1"); err != nil {
 		t.Fatalf("GetMarketplaceSearchDetailForApp() error: %v", err)
 	}
@@ -6444,7 +6438,6 @@ func TestGetGameCenterDetailID(t *testing.T) {
 
 func TestCreateMarketplaceSearchDetail_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"marketplaceSearchDetails","id":"detail-1","attributes":{"catalogUrl":"https://example.com/catalog"}}}`)
-=======
 	id, err := client.GetGameCenterDetailID(context.Background(), "app-1")
 	if err != nil {
 		t.Fatalf("GetGameCenterDetailID() error: %v", err)
@@ -6511,12 +6504,10 @@ func TestGetGameCenterAchievement(t *testing.T) {
 
 func TestCreateGameCenterAchievement(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"First Win","vendorIdentifier":"com.example.firstwin","points":10,"showBeforeEarned":true,"repeatable":false}}}`)
->>>>>>> origin/main
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceSearchDetails" {
 			t.Fatalf("expected path /v1/marketplaceSearchDetails, got %s", req.URL.Path)
 		}
@@ -6539,7 +6530,6 @@ func TestCreateGameCenterAchievement(t *testing.T) {
 		}
 		if payload.Data.Relationships.App.Data.ID != "app-1" {
 			t.Fatalf("expected app id app-1, got %q", payload.Data.Relationships.App.Data.ID)
-=======
 		if req.URL.Path != "/v1/gameCenterAchievements" {
 			t.Fatalf("expected path /v1/gameCenterAchievements, got %s", req.URL.Path)
 		}
@@ -6558,12 +6548,10 @@ func TestCreateGameCenterAchievement(t *testing.T) {
 		}
 		if payload.Data.Relationships.GameCenterDetail.Data.Type != ResourceTypeGameCenterDetails || payload.Data.Relationships.GameCenterDetail.Data.ID != "gc-detail-1" {
 			t.Fatalf("unexpected relationship: %+v", payload.Data.Relationships.GameCenterDetail.Data)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	if _, err := client.CreateMarketplaceSearchDetail(context.Background(), "app-1", "https://example.com/catalog"); err != nil {
 		t.Fatalf("CreateMarketplaceSearchDetail() error: %v", err)
 	}
@@ -6571,7 +6559,6 @@ func TestCreateGameCenterAchievement(t *testing.T) {
 
 func TestUpdateMarketplaceSearchDetail_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"marketplaceSearchDetails","id":"detail-1","attributes":{"catalogUrl":"https://example.com/new"}}}`)
-=======
 	attrs := GameCenterAchievementCreateAttributes{
 		ReferenceName:    "First Win",
 		VendorIdentifier: "com.example.firstwin",
@@ -6586,12 +6573,10 @@ func TestUpdateMarketplaceSearchDetail_SendsRequest(t *testing.T) {
 
 func TestUpdateGameCenterAchievement(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"Updated Name","vendorIdentifier":"com.example.firstwin","points":20,"showBeforeEarned":true,"repeatable":false}}}`)
->>>>>>> origin/main
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPatch {
 			t.Fatalf("expected PATCH, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceSearchDetails/detail-1" {
 			t.Fatalf("expected path /v1/marketplaceSearchDetails/detail-1, got %s", req.URL.Path)
 		}
@@ -6614,7 +6599,6 @@ func TestUpdateGameCenterAchievement(t *testing.T) {
 		}
 		if *payload.Data.Attributes.CatalogURL != "https://example.com/new" {
 			t.Fatalf("expected catalog url https://example.com/new, got %q", *payload.Data.Attributes.CatalogURL)
-=======
 		if req.URL.Path != "/v1/gameCenterAchievements/ach-1" {
 			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1, got %s", req.URL.Path)
 		}
@@ -6627,12 +6611,10 @@ func TestUpdateGameCenterAchievement(t *testing.T) {
 		}
 		if payload.Data.Attributes == nil || payload.Data.Attributes.Points == nil || *payload.Data.Attributes.Points != 20 {
 			t.Fatalf("expected points update, got %+v", payload.Data.Attributes)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	urlValue := "https://example.com/new"
 	if _, err := client.UpdateMarketplaceSearchDetail(context.Background(), "detail-1", MarketplaceSearchDetailUpdateAttributes{CatalogURL: &urlValue}); err != nil {
 		t.Fatalf("UpdateMarketplaceSearchDetail() error: %v", err)
@@ -6640,7 +6622,6 @@ func TestUpdateGameCenterAchievement(t *testing.T) {
 }
 
 func TestDeleteMarketplaceSearchDetail_SendsRequest(t *testing.T) {
-=======
 	points := 20
 	attrs := GameCenterAchievementUpdateAttributes{Points: &points}
 	if _, err := client.UpdateGameCenterAchievement(context.Background(), "ach-1", attrs); err != nil {
@@ -6649,24 +6630,19 @@ func TestDeleteMarketplaceSearchDetail_SendsRequest(t *testing.T) {
 }
 
 func TestDeleteGameCenterAchievement(t *testing.T) {
->>>>>>> origin/main
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodDelete {
 			t.Fatalf("expected DELETE, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceSearchDetails/detail-1" {
 			t.Fatalf("expected path /v1/marketplaceSearchDetails/detail-1, got %s", req.URL.Path)
-=======
 		if req.URL.Path != "/v1/gameCenterAchievements/ach-1" {
 			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1, got %s", req.URL.Path)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	if err := client.DeleteMarketplaceSearchDetail(context.Background(), "detail-1"); err != nil {
 		t.Fatalf("DeleteMarketplaceSearchDetail() error: %v", err)
 	}
@@ -6674,7 +6650,6 @@ func TestDeleteGameCenterAchievement(t *testing.T) {
 
 func TestGetMarketplaceWebhooks_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"marketplaceWebhooks","id":"wh-1","attributes":{"endpointUrl":"https://example.com/webhook"}}]}`)
-=======
 	if err := client.DeleteGameCenterAchievement(context.Background(), "ach-1"); err != nil {
 		t.Fatalf("DeleteGameCenterAchievement() error: %v", err)
 	}
@@ -6682,19 +6657,16 @@ func TestGetMarketplaceWebhooks_SendsRequest(t *testing.T) {
 
 func TestGetGameCenterLeaderboards_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"}}]}`)
->>>>>>> origin/main
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceWebhooks" {
 			t.Fatalf("expected path /v1/marketplaceWebhooks, got %s", req.URL.Path)
 		}
 		values := req.URL.Query()
 		if values.Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
-=======
 		if req.URL.Path != "/v1/gameCenterDetails/gc-detail-1/gameCenterLeaderboards" {
 			t.Fatalf("expected path /v1/gameCenterDetails/gc-detail-1/gameCenterLeaderboards, got %s", req.URL.Path)
 		}
@@ -6860,12 +6832,10 @@ func TestGetGameCenterAchievementLocalizations_WithLimit(t *testing.T) {
 		values := req.URL.Query()
 		if values.Get("limit") != "50" {
 			t.Fatalf("expected limit=50, got %q", values.Get("limit"))
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	if _, err := client.GetMarketplaceWebhooks(context.Background(), WithMarketplaceWebhooksLimit(5)); err != nil {
 		t.Fatalf("GetMarketplaceWebhooks() error: %v", err)
 	}
@@ -6873,7 +6843,6 @@ func TestGetGameCenterAchievementLocalizations_WithLimit(t *testing.T) {
 
 func TestGetMarketplaceWebhook_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"marketplaceWebhooks","id":"wh-1","attributes":{"endpointUrl":"https://example.com/webhook"}}}`)
-=======
 	if _, err := client.GetGameCenterAchievementLocalizations(context.Background(), "ach-1", WithGCAchievementLocalizationsLimit(50)); err != nil {
 		t.Fatalf("GetGameCenterAchievementLocalizations() error: %v", err)
 	}
@@ -6881,23 +6850,18 @@ func TestGetMarketplaceWebhook_SendsRequest(t *testing.T) {
 
 func TestGetGameCenterAchievementLocalization(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievementLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"First Win","beforeEarnedDescription":"Win your first game","afterEarnedDescription":"You won!"}}}`)
->>>>>>> origin/main
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceWebhooks/wh-1" {
 			t.Fatalf("expected path /v1/marketplaceWebhooks/wh-1, got %s", req.URL.Path)
-=======
 		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1" {
 			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1, got %s", req.URL.Path)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	if _, err := client.GetMarketplaceWebhook(context.Background(), "wh-1"); err != nil {
 		t.Fatalf("GetMarketplaceWebhook() error: %v", err)
 	}
@@ -6905,7 +6869,6 @@ func TestGetGameCenterAchievementLocalization(t *testing.T) {
 
 func TestCreateMarketplaceWebhook_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"marketplaceWebhooks","id":"wh-1","attributes":{"endpointUrl":"https://example.com/webhook"}}}`)
-=======
 	resp, err := client.GetGameCenterAchievementLocalization(context.Background(), "loc-1")
 	if err != nil {
 		t.Fatalf("GetGameCenterAchievementLocalization() error: %v", err)
@@ -6917,12 +6880,10 @@ func TestCreateMarketplaceWebhook_SendsRequest(t *testing.T) {
 
 func TestCreateGameCenterAchievementLocalization(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterAchievementLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"First Win","beforeEarnedDescription":"Win your first game","afterEarnedDescription":"You won!"}}}`)
->>>>>>> origin/main
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceWebhooks" {
 			t.Fatalf("expected path /v1/marketplaceWebhooks, got %s", req.URL.Path)
 		}
@@ -6942,7 +6903,6 @@ func TestCreateGameCenterAchievementLocalization(t *testing.T) {
 		}
 		if payload.Data.Attributes.Secret != "secret123" {
 			t.Fatalf("expected secret secret123, got %q", payload.Data.Attributes.Secret)
-=======
 		if req.URL.Path != "/v1/gameCenterAchievementLocalizations" {
 			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations, got %s", req.URL.Path)
 		}
@@ -6961,12 +6921,10 @@ func TestCreateGameCenterAchievementLocalization(t *testing.T) {
 		}
 		if payload.Data.Relationships == nil || payload.Data.Relationships.GameCenterAchievement.Data.ID != "ach-1" {
 			t.Fatalf("unexpected relationships: %+v", payload.Data.Relationships)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	if _, err := client.CreateMarketplaceWebhook(context.Background(), "https://example.com/webhook", "secret123"); err != nil {
 		t.Fatalf("CreateMarketplaceWebhook() error: %v", err)
 	}
@@ -6974,7 +6932,6 @@ func TestCreateGameCenterAchievementLocalization(t *testing.T) {
 
 func TestUpdateMarketplaceWebhook_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"marketplaceWebhooks","id":"wh-1","attributes":{"endpointUrl":"https://example.com/new"}}}`)
-=======
 	attrs := GameCenterAchievementLocalizationCreateAttributes{
 		Locale:                  "en-US",
 		Name:                    "First Win",
@@ -6988,12 +6945,10 @@ func TestUpdateMarketplaceWebhook_SendsRequest(t *testing.T) {
 
 func TestUpdateGameCenterAchievementLocalization(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievementLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Updated Name","beforeEarnedDescription":"Win a game","afterEarnedDescription":"Winner!"}}}`)
->>>>>>> origin/main
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPatch {
 			t.Fatalf("expected PATCH, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceWebhooks/wh-1" {
 			t.Fatalf("expected path /v1/marketplaceWebhooks/wh-1, got %s", req.URL.Path)
 		}
@@ -7016,7 +6971,6 @@ func TestUpdateGameCenterAchievementLocalization(t *testing.T) {
 		}
 		if *payload.Data.Attributes.EndpointURL != "https://example.com/new" {
 			t.Fatalf("expected endpoint url https://example.com/new, got %q", *payload.Data.Attributes.EndpointURL)
-=======
 		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1" {
 			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1, got %s", req.URL.Path)
 		}
@@ -7029,12 +6983,10 @@ func TestUpdateGameCenterAchievementLocalization(t *testing.T) {
 		}
 		if payload.Data.Attributes == nil || payload.Data.Attributes.Name == nil || *payload.Data.Attributes.Name != "Updated Name" {
 			t.Fatalf("expected name update, got %+v", payload.Data.Attributes)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	urlValue := "https://example.com/new"
 	if _, err := client.UpdateMarketplaceWebhook(context.Background(), "wh-1", MarketplaceWebhookUpdateAttributes{EndpointURL: &urlValue}); err != nil {
 		t.Fatalf("UpdateMarketplaceWebhook() error: %v", err)
@@ -7042,7 +6994,6 @@ func TestUpdateGameCenterAchievementLocalization(t *testing.T) {
 }
 
 func TestDeleteMarketplaceWebhook_SendsRequest(t *testing.T) {
-=======
 	name := "Updated Name"
 	attrs := GameCenterAchievementLocalizationUpdateAttributes{Name: &name}
 	if _, err := client.UpdateGameCenterAchievementLocalization(context.Background(), "loc-1", attrs); err != nil {
@@ -7051,30 +7002,23 @@ func TestDeleteMarketplaceWebhook_SendsRequest(t *testing.T) {
 }
 
 func TestDeleteGameCenterAchievementLocalization(t *testing.T) {
->>>>>>> origin/main
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodDelete {
 			t.Fatalf("expected DELETE, got %s", req.Method)
 		}
-<<<<<<< HEAD
 		if req.URL.Path != "/v1/marketplaceWebhooks/wh-1" {
 			t.Fatalf("expected path /v1/marketplaceWebhooks/wh-1, got %s", req.URL.Path)
-=======
 		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1" {
 			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1, got %s", req.URL.Path)
->>>>>>> origin/main
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-<<<<<<< HEAD
 	if err := client.DeleteMarketplaceWebhook(context.Background(), "wh-1"); err != nil {
 		t.Fatalf("DeleteMarketplaceWebhook() error: %v", err)
-=======
 	if err := client.DeleteGameCenterAchievementLocalization(context.Background(), "loc-1"); err != nil {
 		t.Fatalf("DeleteGameCenterAchievementLocalization() error: %v", err)
->>>>>>> origin/main
 	}
 }
 */

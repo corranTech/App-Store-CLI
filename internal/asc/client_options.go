@@ -298,6 +298,13 @@ func WithMarketplaceWebhooksNextURL(next string) MarketplaceWebhooksOption {
 	}
 }
 
+// WithMarketplaceWebhooksFields sets fields[marketplaceWebhooks] for webhook responses.
+func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
+	return func(q *marketplaceWebhooksQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
 // WithCrashTesterIDs filters crashes by tester ID(s).
 func WithCrashTesterIDs(ids []string) CrashOption {
 	return func(q *crashQuery) {

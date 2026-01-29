@@ -99,6 +99,7 @@ type subscriptionOfferCodeOneTimeUseCodesQuery struct {
 
 type marketplaceWebhooksQuery struct {
 	listQuery
+	fields []string
 }
 
 type appStoreVersionsQuery struct {
@@ -635,6 +636,7 @@ func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCode
 
 func buildMarketplaceWebhooksQuery(query *marketplaceWebhooksQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[marketplaceWebhooks]", query.fields)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

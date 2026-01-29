@@ -174,3 +174,14 @@ func TestMarketplaceWebhooksListCommand_InvalidLimit(t *testing.T) {
 		t.Fatalf("expected validation error for invalid --limit, got %v", err)
 	}
 }
+
+func TestMarketplaceWebhooksListCommand_InvalidFields(t *testing.T) {
+	cmd := MarketplaceWebhooksListCommand()
+	if err := cmd.FlagSet.Parse([]string{"--fields", "invalid"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err == nil || err == flag.ErrHelp {
+		t.Fatalf("expected validation error for invalid --fields, got %v", err)
+	}
+}
