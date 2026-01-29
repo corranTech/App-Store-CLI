@@ -395,18 +395,21 @@ func PromotedPurchasesLinkCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	promotedIDs := fs.String("promoted-purchase-id", "", "Comma-separated promoted purchase IDs")
+	clear := fs.Bool("clear", false, "Remove all promoted purchases from the app")
+	confirm := fs.Bool("confirm", false, "Confirm removal when using --clear")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "link",
 		ShortUsage: "asc promoted-purchases link --app APP_ID --promoted-purchase-id PROMO_ID[,PROMO_ID...]",
-		ShortHelp:  "Link promoted purchases to an app.",
+		ShortHelp:  "Link or clear promoted purchases for an app.",
 		LongHelp: `Link promoted purchases to an app.
 
 Examples:
   asc promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_ID"
-  asc promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_1,PROMO_2"`,
+  asc promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_1,PROMO_2"
+  asc promoted-purchases link --app "APP_ID" --clear --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -416,10 +419,23 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			promotedPurchaseIDs := splitCSV(*promotedIDs)
-			if len(promotedPurchaseIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return flag.ErrHelp
+			var promotedPurchaseIDs []string
+			if *clear {
+				if strings.TrimSpace(*promotedIDs) != "" {
+					fmt.Fprintln(os.Stderr, "Error: --clear cannot be used with --promoted-purchase-id")
+					return flag.ErrHelp
+				}
+				if !*confirm {
+					fmt.Fprintln(os.Stderr, "Error: --confirm is required with --clear")
+					return flag.ErrHelp
+				}
+				promotedPurchaseIDs = nil
+			} else {
+				promotedPurchaseIDs = splitCSV(*promotedIDs)
+				if len(promotedPurchaseIDs) == 0 {
+					fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
+					return flag.ErrHelp
+				}
 			}
 
 			client, err := getASCClient()
@@ -434,10 +450,14 @@ Examples:
 				return fmt.Errorf("promoted-purchases link: failed to link: %w", err)
 			}
 
+			action := "linked"
+			if *clear {
+				action = "cleared"
+			}
 			result := &asc.AppPromotedPurchasesLinkResult{
 				AppID:               resolvedAppID,
 				PromotedPurchaseIDs: promotedPurchaseIDs,
-				Action:              "linked",
+				Action:              action,
 			}
 
 			return printOutput(result, *output, *pretty)

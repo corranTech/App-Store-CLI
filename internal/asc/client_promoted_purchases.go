@@ -77,9 +77,6 @@ func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, prom
 	if appID == "" {
 		return fmt.Errorf("appID is required")
 	}
-	if len(promotedPurchaseIDs) == 0 {
-		return fmt.Errorf("promotedPurchaseIDs is required")
-	}
 
 	payload := RelationshipRequest{
 		Data: make([]RelationshipData, 0, len(promotedPurchaseIDs)),

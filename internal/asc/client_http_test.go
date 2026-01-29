@@ -389,6 +389,33 @@ func TestSetAppPromotedPurchases_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestSetAppPromotedPurchases_EmptyListClears(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/relationships/promotedPurchases" {
+			t.Fatalf("expected path /v1/apps/app-1/relationships/promotedPurchases, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data == nil {
+			t.Fatalf("expected data to be an empty array, got nil")
+		}
+		if len(payload.Data) != 0 {
+			t.Fatalf("expected 0 relationships, got %d", len(payload.Data))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.SetAppPromotedPurchases(context.Background(), "app-1", nil); err != nil {
+		t.Fatalf("SetAppPromotedPurchases() error: %v", err)
+	}
+}
+
 func TestUpdateAppTag_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appTags","id":"tag-1","attributes":{"name":"Games","visibleInAppStore":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -6481,451 +6508,367 @@ func TestGetDiagnosticSignatureLogs(t *testing.T) {
 	}
 }
 
-func TestGetGameCenterDetailID(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"gc-detail-1","attributes":{"achievementEnabled":true}}}`)
+func TestGetAndroidToIosAppMappingDetails(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"androidToIosAppMappingDetails","id":"map-1"}],"links":{"self":"https://example.com"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/apps/app-1/gameCenterDetail" {
-			t.Fatalf("expected path /v1/apps/app-1/gameCenterDetail, got %s", req.URL.Path)
+		if req.URL.Path != "/v1/apps/app-1/androidToIosAppMappingDetails" {
+			t.Fatalf("expected path /v1/apps/app-1/androidToIosAppMappingDetails, got %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		if query.Get("fields[androidToIosAppMappingDetails]") != "packageName" {
+			t.Fatalf("expected fields filter, got %q", query.Get("fields[androidToIosAppMappingDetails]"))
+		}
+		if query.Get("limit") != "20" {
+			t.Fatalf("expected limit 20, got %q", query.Get("limit"))
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	id, err := client.GetGameCenterDetailID(context.Background(), "app-1")
+	_, err := client.GetAndroidToIosAppMappingDetails(context.Background(), "app-1",
+		WithAndroidToIosAppMappingDetailsFields([]string{"packageName"}),
+		WithAndroidToIosAppMappingDetailsLimit(20),
+	)
 	if err != nil {
-		t.Fatalf("GetGameCenterDetailID() error: %v", err)
-	}
-	if id != "gc-detail-1" {
-		t.Fatalf("expected gc-detail-1, got %s", id)
+		t.Fatalf("GetAndroidToIosAppMappingDetails() error: %v", err)
 	}
 }
 
-func TestGetGameCenterAchievements_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"First Win","vendorIdentifier":"com.example.firstwin","points":10,"showBeforeEarned":true,"repeatable":false}}]}`)
+func TestGetAndroidToIosAppMappingDetail(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"androidToIosAppMappingDetails","id":"map-1"},"links":{"self":"https://example.com"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/gameCenterDetails/gc-detail-1/gameCenterAchievements" {
-			t.Fatalf("expected path /v1/gameCenterDetails/gc-detail-1/gameCenterAchievements, got %s", req.URL.Path)
+		if req.URL.Path != "/v1/androidToIosAppMappingDetails/map-1" {
+			t.Fatalf("expected path /v1/androidToIosAppMappingDetails/map-1, got %s", req.URL.Path)
 		}
-		if req.URL.Query().Get("limit") != "50" {
-			t.Fatalf("expected limit=50, got %q", req.URL.Query().Get("limit"))
+		query := req.URL.Query()
+		if query.Get("fields[androidToIosAppMappingDetails]") != "packageName" {
+			t.Fatalf("expected fields filter, got %q", query.Get("fields[androidToIosAppMappingDetails]"))
 		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterAchievements(context.Background(), "gc-detail-1", WithGCAchievementsLimit(50)); err != nil {
-		t.Fatalf("GetGameCenterAchievements() error: %v", err)
-	}
-}
-
-func TestGetGameCenterAchievements_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/gc-detail-1/gameCenterAchievements?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
+		if query.Get("limit") != "" {
+			t.Fatalf("expected no limit param, got %q", query.Get("limit"))
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAchievements(context.Background(), "gc-detail-1", WithGCAchievementsNextURL(next)); err != nil {
-		t.Fatalf("GetGameCenterAchievements() error: %v", err)
+	_, err := client.GetAndroidToIosAppMappingDetail(context.Background(), "map-1",
+		WithAndroidToIosAppMappingDetailsFields([]string{"packageName"}),
+		WithAndroidToIosAppMappingDetailsLimit(20),
+	)
+	if err != nil {
+		t.Fatalf("GetAndroidToIosAppMappingDetail() error: %v", err)
 	}
 }
 
-func TestGetGameCenterAchievement(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"First Win","vendorIdentifier":"com.example.firstwin","points":10,"showBeforeEarned":true,"repeatable":false}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterAchievements/ach-1" {
-			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterAchievement(context.Background(), "ach-1"); err != nil {
-		t.Fatalf("GetGameCenterAchievement() error: %v", err)
-	}
-}
-
-func TestCreateGameCenterAchievement(t *testing.T) {
-	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"First Win","vendorIdentifier":"com.example.firstwin","points":10,"showBeforeEarned":true,"repeatable":false}}}`)
+func TestCreateAndroidToIosAppMappingDetail(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"androidToIosAppMappingDetails","id":"map-1"},"links":{"self":"https://example.com"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/gameCenterAchievements" {
-			t.Fatalf("expected path /v1/gameCenterAchievements, got %s", req.URL.Path)
+		if req.URL.Path != "/v1/androidToIosAppMappingDetails" {
+			t.Fatalf("expected path /v1/androidToIosAppMappingDetails, got %s", req.URL.Path)
 		}
-		var payload GameCenterAchievementCreateRequest
+		var payload AndroidToIosAppMappingDetailCreateRequest
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode request: %v", err)
 		}
-		if payload.Data.Type != ResourceTypeGameCenterAchievements {
-			t.Fatalf("expected type gameCenterAchievements, got %q", payload.Data.Type)
-		}
-		if payload.Data.Attributes.ReferenceName != "First Win" || payload.Data.Attributes.VendorIdentifier != "com.example.firstwin" {
-			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
-		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.GameCenterDetail == nil {
-			t.Fatalf("expected gameCenterDetail relationship")
-		}
-		if payload.Data.Relationships.GameCenterDetail.Data.Type != ResourceTypeGameCenterDetails || payload.Data.Relationships.GameCenterDetail.Data.ID != "gc-detail-1" {
-			t.Fatalf("unexpected relationship: %+v", payload.Data.Relationships.GameCenterDetail.Data)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	attrs := GameCenterAchievementCreateAttributes{
-		ReferenceName:    "First Win",
-		VendorIdentifier: "com.example.firstwin",
-		Points:           10,
-		ShowBeforeEarned: true,
-		Repeatable:       false,
-	}
-	if _, err := client.CreateGameCenterAchievement(context.Background(), "gc-detail-1", attrs); err != nil {
-		t.Fatalf("CreateGameCenterAchievement() error: %v", err)
-	}
-}
-
-func TestUpdateGameCenterAchievement(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"Updated Name","vendorIdentifier":"com.example.firstwin","points":20,"showBeforeEarned":true,"repeatable":false}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterAchievements/ach-1" {
-			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterAchievementUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "ach-1" || payload.Data.Type != ResourceTypeGameCenterAchievements {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.Points == nil || *payload.Data.Attributes.Points != 20 {
-			t.Fatalf("expected points update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	points := 20
-	attrs := GameCenterAchievementUpdateAttributes{Points: &points}
-	if _, err := client.UpdateGameCenterAchievement(context.Background(), "ach-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterAchievement() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterAchievement(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterAchievements/ach-1" {
-			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterAchievement(context.Background(), "ach-1"); err != nil {
-		t.Fatalf("DeleteGameCenterAchievement() error: %v", err)
-	}
-}
-
-func TestGetGameCenterLeaderboards_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"}}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterDetails/gc-detail-1/gameCenterLeaderboards" {
-			t.Fatalf("expected path /v1/gameCenterDetails/gc-detail-1/gameCenterLeaderboards, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "50" {
-			t.Fatalf("expected limit=50, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterLeaderboards(context.Background(), "gc-detail-1", WithGCLeaderboardsLimit(50)); err != nil {
-		t.Fatalf("GetGameCenterLeaderboards() error: %v", err)
-	}
-}
-
-func TestGetGameCenterLeaderboards_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/gc-detail-1/gameCenterLeaderboards?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterLeaderboards(context.Background(), "gc-detail-1", WithGCLeaderboardsNextURL(next)); err != nil {
-		t.Fatalf("GetGameCenterLeaderboards() error: %v", err)
-	}
-}
-
-func TestGetGameCenterLeaderboard(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterLeaderboards/lb-1" {
-			t.Fatalf("expected path /v1/gameCenterLeaderboards/lb-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterLeaderboard(context.Background(), "lb-1"); err != nil {
-		t.Fatalf("GetGameCenterLeaderboard() error: %v", err)
-	}
-}
-
-func TestCreateGameCenterLeaderboard(t *testing.T) {
-	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterLeaderboards" {
-			t.Fatalf("expected path /v1/gameCenterLeaderboards, got %s", req.URL.Path)
-		}
-		var payload GameCenterLeaderboardCreateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.Type != ResourceTypeGameCenterLeaderboards {
-			t.Fatalf("expected type gameCenterLeaderboards, got %q", payload.Data.Type)
-		}
-		if payload.Data.Attributes.ReferenceName != "High Score" || payload.Data.Attributes.VendorIdentifier != "com.example.highscore" {
-			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
-		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.GameCenterDetail == nil {
-			t.Fatalf("expected gameCenterDetail relationship")
-		}
-		if payload.Data.Relationships.GameCenterDetail.Data.Type != ResourceTypeGameCenterDetails || payload.Data.Relationships.GameCenterDetail.Data.ID != "gc-detail-1" {
-			t.Fatalf("unexpected relationship: %+v", payload.Data.Relationships.GameCenterDetail.Data)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	attrs := GameCenterLeaderboardCreateAttributes{
-		ReferenceName:    "High Score",
-		VendorIdentifier: "com.example.highscore",
-		DefaultFormatter: "INTEGER",
-		ScoreSortType:    "DESC",
-		SubmissionType:   "BEST_SCORE",
-	}
-	if _, err := client.CreateGameCenterLeaderboard(context.Background(), "gc-detail-1", attrs); err != nil {
-		t.Fatalf("CreateGameCenterLeaderboard() error: %v", err)
-	}
-}
-
-func TestUpdateGameCenterLeaderboard(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{"referenceName":"Updated Name","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterLeaderboards/lb-1" {
-			t.Fatalf("expected path /v1/gameCenterLeaderboards/lb-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterLeaderboardUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "lb-1" || payload.Data.Type != ResourceTypeGameCenterLeaderboards {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.ReferenceName == nil || *payload.Data.Attributes.ReferenceName != "Updated Name" {
-			t.Fatalf("expected name update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "Updated Name"
-	attrs := GameCenterLeaderboardUpdateAttributes{ReferenceName: &name}
-	if _, err := client.UpdateGameCenterLeaderboard(context.Background(), "lb-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterLeaderboard() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterLeaderboard(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterLeaderboards/lb-1" {
-			t.Fatalf("expected path /v1/gameCenterLeaderboards/lb-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterLeaderboard(context.Background(), "lb-1"); err != nil {
-		t.Fatalf("DeleteGameCenterLeaderboard() error: %v", err)
-	}
-}
-
-func TestGetGameCenterAchievementLocalizations(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterAchievementLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"First Win","beforeEarnedDescription":"Win your first game","afterEarnedDescription":"You won!"}}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterAchievements/ach-1/localizations" {
-			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1/localizations, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.GetGameCenterAchievementLocalizations(context.Background(), "ach-1")
-	if err != nil {
-		t.Fatalf("GetGameCenterAchievementLocalizations() error: %v", err)
-	}
-	if len(resp.Data) != 1 || resp.Data[0].ID != "loc-1" {
-		t.Fatalf("unexpected response: %+v", resp.Data)
-	}
-}
-
-func TestGetGameCenterAchievementLocalizations_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		values := req.URL.Query()
-		if values.Get("limit") != "50" {
-			t.Fatalf("expected limit=50, got %q", values.Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterAchievementLocalizations(context.Background(), "ach-1", WithGCAchievementLocalizationsLimit(50)); err != nil {
-		t.Fatalf("GetGameCenterAchievementLocalizations() error: %v", err)
-	}
-}
-
-func TestGetGameCenterAchievementLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievementLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"First Win","beforeEarnedDescription":"Win your first game","afterEarnedDescription":"You won!"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.GetGameCenterAchievementLocalization(context.Background(), "loc-1")
-	if err != nil {
-		t.Fatalf("GetGameCenterAchievementLocalization() error: %v", err)
-	}
-	if resp.Data.ID != "loc-1" || resp.Data.Attributes.Locale != "en-US" {
-		t.Fatalf("unexpected response: %+v", resp.Data)
-	}
-}
-
-func TestCreateGameCenterAchievementLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterAchievementLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"First Win","beforeEarnedDescription":"Win your first game","afterEarnedDescription":"You won!"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterAchievementLocalizations" {
-			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations, got %s", req.URL.Path)
-		}
-		var payload GameCenterAchievementLocalizationCreateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.Type != ResourceTypeGameCenterAchievementLocalizations {
+		if payload.Data.Type != ResourceTypeAndroidToIosAppMappingDetails {
 			t.Fatalf("unexpected type: %s", payload.Data.Type)
 		}
-		if payload.Data.Attributes.Locale != "en-US" {
-			t.Fatalf("unexpected locale: %s", payload.Data.Attributes.Locale)
+		if payload.Data.Attributes.PackageName != "com.example.android" {
+			t.Fatalf("unexpected packageName: %s", payload.Data.Attributes.PackageName)
 		}
-		if payload.Data.Attributes.Name != "First Win" {
-			t.Fatalf("unexpected name: %s", payload.Data.Attributes.Name)
+		if len(payload.Data.Attributes.AppSigningKeyPublicCertificateSha256Fingerprints) != 2 {
+			t.Fatalf("expected 2 fingerprints, got %d", len(payload.Data.Attributes.AppSigningKeyPublicCertificateSha256Fingerprints))
 		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.GameCenterAchievement.Data.ID != "ach-1" {
-			t.Fatalf("unexpected relationships: %+v", payload.Data.Relationships)
+		if payload.Data.Relationships.App == nil || payload.Data.Relationships.App.Data.ID != "app-1" {
+			t.Fatalf("unexpected app relationship: %+v", payload.Data.Relationships.App)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	attrs := GameCenterAchievementLocalizationCreateAttributes{
-		Locale:                  "en-US",
-		Name:                    "First Win",
-		BeforeEarnedDescription: "Win your first game",
-		AfterEarnedDescription:  "You won!",
-	}
-	if _, err := client.CreateGameCenterAchievementLocalization(context.Background(), "ach-1", attrs); err != nil {
-		t.Fatalf("CreateGameCenterAchievementLocalization() error: %v", err)
+	_, err := client.CreateAndroidToIosAppMappingDetail(context.Background(), "app-1", AndroidToIosAppMappingDetailCreateAttributes{
+		PackageName: "com.example.android",
+		AppSigningKeyPublicCertificateSha256Fingerprints: []string{"sha1", "sha2"},
+	})
+	if err != nil {
+		t.Fatalf("CreateAndroidToIosAppMappingDetail() error: %v", err)
 	}
 }
 
-func TestUpdateGameCenterAchievementLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievementLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Updated Name","beforeEarnedDescription":"Win a game","afterEarnedDescription":"Winner!"}}}`)
+func TestUpdateAndroidToIosAppMappingDetail(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"androidToIosAppMappingDetails","id":"map-1"},"links":{"self":"https://example.com"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPatch {
 			t.Fatalf("expected PATCH, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1, got %s", req.URL.Path)
+		if req.URL.Path != "/v1/androidToIosAppMappingDetails/map-1" {
+			t.Fatalf("expected path /v1/androidToIosAppMappingDetails/map-1, got %s", req.URL.Path)
 		}
-		var payload GameCenterAchievementLocalizationUpdateRequest
+		var payload AndroidToIosAppMappingDetailUpdateRequest
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode request: %v", err)
 		}
-		if payload.Data.ID != "loc-1" || payload.Data.Type != ResourceTypeGameCenterAchievementLocalizations {
+		if payload.Data.Type != ResourceTypeAndroidToIosAppMappingDetails || payload.Data.ID != "map-1" {
 			t.Fatalf("unexpected payload: %+v", payload.Data)
 		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.Name == nil || *payload.Data.Attributes.Name != "Updated Name" {
-			t.Fatalf("expected name update, got %+v", payload.Data.Attributes)
+		if payload.Data.Attributes == nil || payload.Data.Attributes.PackageName == nil || payload.Data.Attributes.PackageName.Value == nil {
+			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
+		}
+		if *payload.Data.Attributes.PackageName.Value != "com.example.android.new" {
+			t.Fatalf("unexpected packageName: %s", *payload.Data.Attributes.PackageName.Value)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	name := "Updated Name"
-	attrs := GameCenterAchievementLocalizationUpdateAttributes{Name: &name}
-	if _, err := client.UpdateGameCenterAchievementLocalization(context.Background(), "loc-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterAchievementLocalization() error: %v", err)
+	packageValue := "com.example.android.new"
+	_, err := client.UpdateAndroidToIosAppMappingDetail(context.Background(), "map-1", AndroidToIosAppMappingDetailUpdateAttributes{
+		PackageName: &NullableString{Value: &packageValue},
+	})
+	if err != nil {
+		t.Fatalf("UpdateAndroidToIosAppMappingDetail() error: %v", err)
 	}
 }
 
-func TestDeleteGameCenterAchievementLocalization(t *testing.T) {
+func TestDeleteAndroidToIosAppMappingDetail(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodDelete {
 			t.Fatalf("expected DELETE, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1, got %s", req.URL.Path)
+		if req.URL.Path != "/v1/androidToIosAppMappingDetails/map-1" {
+			t.Fatalf("expected path /v1/androidToIosAppMappingDetails/map-1, got %s", req.URL.Path)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if err := client.DeleteGameCenterAchievementLocalization(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("DeleteGameCenterAchievementLocalization() error: %v", err)
+	if err := client.DeleteAndroidToIosAppMappingDetail(context.Background(), "map-1"); err != nil {
+		t.Fatalf("DeleteAndroidToIosAppMappingDetail() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionWinBackOffers_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/winBackOffers" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/winBackOffers, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionWinBackOffers(context.Background(), "sub-1", WithWinBackOffersLimit(5)); err != nil {
+		t.Fatalf("GetSubscriptionWinBackOffers() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionWinBackOffers_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionWinBackOffers(context.Background(), "sub-1", WithWinBackOffersNextURL(next)); err != nil {
+		t.Fatalf("GetSubscriptionWinBackOffers() error: %v", err)
+	}
+}
+
+func TestGetWinBackOffer(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"winBackOffers","id":"offer-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/winBackOffers/offer-1" {
+			t.Fatalf("expected path /v1/winBackOffers/offer-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetWinBackOffer(context.Background(), "offer-1"); err != nil {
+		t.Fatalf("GetWinBackOffer() error: %v", err)
+	}
+}
+
+func TestCreateWinBackOffer_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"winBackOffers","id":"offer-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/winBackOffers" {
+			t.Fatalf("expected path /v1/winBackOffers, got %s", req.URL.Path)
+		}
+		var payload WinBackOfferCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeWinBackOffers {
+			t.Fatalf("expected type winBackOffers, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.ReferenceName != "Spring Offer" {
+			t.Fatalf("expected referenceName, got %q", payload.Data.Attributes.ReferenceName)
+		}
+		if payload.Data.Attributes.OfferID != "OFFER-1" {
+			t.Fatalf("expected offerId, got %q", payload.Data.Attributes.OfferID)
+		}
+		if payload.Data.Relationships.Subscription.Data.Type != ResourceTypeSubscriptions {
+			t.Fatalf("expected subscription type subscriptions, got %q", payload.Data.Relationships.Subscription.Data.Type)
+		}
+		if payload.Data.Relationships.Subscription.Data.ID != "sub-1" {
+			t.Fatalf("expected subscription id sub-1, got %q", payload.Data.Relationships.Subscription.Data.ID)
+		}
+		if len(payload.Data.Relationships.Prices.Data) != 1 {
+			t.Fatalf("expected 1 price relationship, got %d", len(payload.Data.Relationships.Prices.Data))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	waitBetween := 6
+	req := WinBackOfferCreateRequest{
+		Data: WinBackOfferCreateData{
+			Type: ResourceTypeWinBackOffers,
+			Attributes: WinBackOfferCreateAttributes{
+				ReferenceName: "Spring Offer",
+				OfferID:       "OFFER-1",
+				Duration:      SubscriptionOfferDurationOneMonth,
+				OfferMode:     SubscriptionOfferModePayAsYouGo,
+				PeriodCount:   1,
+				CustomerEligibilityPaidSubscriptionDurationInMonths: 6,
+				CustomerEligibilityTimeSinceLastSubscribedInMonths:  NewIntegerRange(3, 12),
+				CustomerEligibilityWaitBetweenOffersInMonths:        &waitBetween,
+				StartDate: "2026-02-01",
+				Priority:  WinBackOfferPriorityHigh,
+			},
+			Relationships: WinBackOfferCreateRelationships{
+				Subscription: Relationship{
+					Data: ResourceData{Type: ResourceTypeSubscriptions, ID: "sub-1"},
+				},
+				Prices: RelationshipList{Data: []ResourceData{
+					{Type: ResourceTypeWinBackOfferPrices, ID: "price-1"},
+				}},
+			},
+		},
+	}
+
+	if _, err := client.CreateWinBackOffer(context.Background(), req); err != nil {
+		t.Fatalf("CreateWinBackOffer() error: %v", err)
+	}
+}
+
+func TestUpdateWinBackOffer_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"winBackOffers","id":"offer-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/winBackOffers/offer-1" {
+			t.Fatalf("expected path /v1/winBackOffers/offer-1, got %s", req.URL.Path)
+		}
+		var payload WinBackOfferUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeWinBackOffers || payload.Data.ID != "offer-1" {
+			t.Fatalf("unexpected payload: %+v", payload.Data)
+		}
+		if payload.Data.Attributes.Priority == nil || *payload.Data.Attributes.Priority != WinBackOfferPriorityNormal {
+			t.Fatalf("expected priority NORMAL, got %+v", payload.Data.Attributes.Priority)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	priority := WinBackOfferPriorityNormal
+	attrs := WinBackOfferUpdateAttributes{
+		Priority: &priority,
+	}
+	if _, err := client.UpdateWinBackOffer(context.Background(), "offer-1", attrs); err != nil {
+		t.Fatalf("UpdateWinBackOffer() error: %v", err)
+	}
+}
+
+func TestDeleteWinBackOffer_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/winBackOffers/offer-1" {
+			t.Fatalf("expected path /v1/winBackOffers/offer-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteWinBackOffer(context.Background(), "offer-1"); err != nil {
+		t.Fatalf("DeleteWinBackOffer() error: %v", err)
+	}
+}
+
+func TestGetWinBackOfferPrices_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/winBackOffers/offer-1/prices" {
+			t.Fatalf("expected path /v1/winBackOffers/offer-1/prices, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetWinBackOfferPrices(context.Background(), "offer-1", WithWinBackOfferPricesLimit(10)); err != nil {
+		t.Fatalf("GetWinBackOfferPrices() error: %v", err)
+	}
+}
+
+func TestGetWinBackOfferPricesRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/winBackOffers/offer-1/relationships/prices" {
+			t.Fatalf("expected path /v1/winBackOffers/offer-1/relationships/prices, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "2" {
+			t.Fatalf("expected limit=2, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetWinBackOfferPricesRelationships(context.Background(), "offer-1", WithLinkagesLimit(2)); err != nil {
+		t.Fatalf("GetWinBackOfferPricesRelationships() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionWinBackOffersRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/subscriptions/sub-1/relationships/winBackOffers" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/relationships/winBackOffers, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "3" {
+			t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionWinBackOffersRelationships(context.Background(), "sub-1", WithLinkagesLimit(3)); err != nil {
+		t.Fatalf("GetSubscriptionWinBackOffersRelationships() error: %v", err)
 	}
 }
 

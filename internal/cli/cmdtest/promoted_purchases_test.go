@@ -89,6 +89,16 @@ func TestPromotedPurchasesValidationErrors(t *testing.T) {
 			args:    []string{"promoted-purchases", "link", "--app", "APP_ID"},
 			wantErr: "--promoted-purchase-id is required",
 		},
+		{
+			name:    "promoted-purchases link clear missing confirm",
+			args:    []string{"promoted-purchases", "link", "--app", "APP_ID", "--clear"},
+			wantErr: "--confirm is required with --clear",
+		},
+		{
+			name:    "promoted-purchases link clear with ids",
+			args:    []string{"promoted-purchases", "link", "--app", "APP_ID", "--clear", "--confirm", "--promoted-purchase-id", "PROMO_ID"},
+			wantErr: "--clear cannot be used with --promoted-purchase-id",
+		},
 	}
 
 	for _, test := range tests {

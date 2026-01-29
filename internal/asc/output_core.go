@@ -63,6 +63,14 @@ func PrintMarkdown(data interface{}) error {
 		return printAppTagsMarkdown(v)
 	case *AppTagResponse:
 		return printAppTagsMarkdown(&AppTagsResponse{Data: []Resource[AppTagAttributes]{v.Data}})
+	case *MarketplaceSearchDetailsResponse:
+		return printMarketplaceSearchDetailsMarkdown(v)
+	case *MarketplaceSearchDetailResponse:
+		return printMarketplaceSearchDetailMarkdown(v)
+	case *MarketplaceWebhooksResponse:
+		return printMarketplaceWebhooksMarkdown(v)
+	case *MarketplaceWebhookResponse:
+		return printMarketplaceWebhookMarkdown(v)
 	case *NominationsResponse:
 		return printNominationsMarkdown(v)
 	case *NominationResponse:
@@ -121,6 +129,12 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaAppClipInvocationsMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesMarkdown(v)
+	case *WinBackOffersResponse:
+		return printWinBackOffersMarkdown(v)
+	case *WinBackOfferResponse:
+		return printWinBackOffersMarkdown(&WinBackOffersResponse{Data: []Resource[WinBackOfferAttributes]{v.Data}})
+	case *WinBackOfferPricesResponse:
+		return printWinBackOfferPricesMarkdown(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsMarkdown(v)
 	case *PreReleaseVersionsResponse:
@@ -131,6 +145,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppClipDomainStatusResultMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesMarkdown(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
+	case *WinBackOfferDeleteResult:
+		return printWinBackOfferDeleteResultMarkdown(v)
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityMarkdown(v)
 	case *TerritoryAvailabilitiesResponse:
@@ -397,12 +413,14 @@ func PrintMarkdown(data interface{}) error {
 		return printPromotedPurchaseDeleteResultMarkdown(v)
 	case *AppPromotedPurchasesLinkResult:
 		return printAppPromotedPurchasesLinkResultMarkdown(v)
-	case *SandboxTesterDeleteResult:
-		return printSandboxTesterDeleteResultMarkdown(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultMarkdown(v)
 	case *BundleIDDeleteResult:
 		return printBundleIDDeleteResultMarkdown(v)
+	case *MarketplaceSearchDetailDeleteResult:
+		return printMarketplaceSearchDetailDeleteResultMarkdown(v)
+	case *MarketplaceWebhookDeleteResult:
+		return printMarketplaceWebhookDeleteResultMarkdown(v)
 	case *BundleIDCapabilityDeleteResult:
 		return printBundleIDCapabilityDeleteResultMarkdown(v)
 	case *CertificateRevokeResult:
@@ -479,6 +497,12 @@ func PrintMarkdown(data interface{}) error {
 		return printNominationDeleteResultMarkdown(v)
 	case *AppEncryptionDeclarationBuildsUpdateResult:
 		return printAppEncryptionDeclarationBuildsUpdateResultMarkdown(v)
+	case *AndroidToIosAppMappingDetailsResponse:
+		return printAndroidToIosAppMappingDetailsMarkdown(v)
+	case *AndroidToIosAppMappingDetailResponse:
+		return printAndroidToIosAppMappingDetailsMarkdown(&AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}})
+	case *AndroidToIosAppMappingDeleteResult:
+		return printAndroidToIosAppMappingDeleteResultMarkdown(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsMarkdown(v)
 	case *DiagnosticSignaturesResponse:
@@ -513,6 +537,14 @@ func PrintTable(data interface{}) error {
 		return printAppTagsTable(v)
 	case *AppTagResponse:
 		return printAppTagsTable(&AppTagsResponse{Data: []Resource[AppTagAttributes]{v.Data}})
+	case *MarketplaceSearchDetailsResponse:
+		return printMarketplaceSearchDetailsTable(v)
+	case *MarketplaceSearchDetailResponse:
+		return printMarketplaceSearchDetailTable(v)
+	case *MarketplaceWebhooksResponse:
+		return printMarketplaceWebhooksTable(v)
+	case *MarketplaceWebhookResponse:
+		return printMarketplaceWebhookTable(v)
 	case *NominationsResponse:
 		return printNominationsTable(v)
 	case *NominationResponse:
@@ -571,6 +603,12 @@ func PrintTable(data interface{}) error {
 		return printBetaAppClipInvocationsTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesTable(v)
+	case *WinBackOffersResponse:
+		return printWinBackOffersTable(v)
+	case *WinBackOfferResponse:
+		return printWinBackOffersTable(&WinBackOffersResponse{Data: []Resource[WinBackOfferAttributes]{v.Data}})
+	case *WinBackOfferPricesResponse:
+		return printWinBackOfferPricesTable(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsTable(v)
 	case *PreReleaseVersionsResponse:
@@ -581,6 +619,8 @@ func PrintTable(data interface{}) error {
 		return printAppClipDomainStatusResultTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesTable(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
+	case *WinBackOfferDeleteResult:
+		return printWinBackOfferDeleteResultTable(v)
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityTable(v)
 	case *TerritoryAvailabilitiesResponse:
@@ -847,12 +887,14 @@ func PrintTable(data interface{}) error {
 		return printPromotedPurchaseDeleteResultTable(v)
 	case *AppPromotedPurchasesLinkResult:
 		return printAppPromotedPurchasesLinkResultTable(v)
-	case *SandboxTesterDeleteResult:
-		return printSandboxTesterDeleteResultTable(v)
 	case *SandboxTesterClearHistoryResult:
 		return printSandboxTesterClearHistoryResultTable(v)
 	case *BundleIDDeleteResult:
 		return printBundleIDDeleteResultTable(v)
+	case *MarketplaceSearchDetailDeleteResult:
+		return printMarketplaceSearchDetailDeleteResultTable(v)
+	case *MarketplaceWebhookDeleteResult:
+		return printMarketplaceWebhookDeleteResultTable(v)
 	case *BundleIDCapabilityDeleteResult:
 		return printBundleIDCapabilityDeleteResultTable(v)
 	case *CertificateRevokeResult:
@@ -929,6 +971,12 @@ func PrintTable(data interface{}) error {
 		return printNominationDeleteResultTable(v)
 	case *AppEncryptionDeclarationBuildsUpdateResult:
 		return printAppEncryptionDeclarationBuildsUpdateResultTable(v)
+	case *AndroidToIosAppMappingDetailsResponse:
+		return printAndroidToIosAppMappingDetailsTable(v)
+	case *AndroidToIosAppMappingDetailResponse:
+		return printAndroidToIosAppMappingDetailsTable(&AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}})
+	case *AndroidToIosAppMappingDeleteResult:
+		return printAndroidToIosAppMappingDeleteResultTable(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsTable(v)
 	case *DiagnosticSignaturesResponse:
