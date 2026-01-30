@@ -56,9 +56,6 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --segment-id is required")
 				return flag.ErrHelp
 			}
-			if err := validateUUIDFlag("--segment-id", *segmentID); err != nil {
-				return fmt.Errorf("analytics segments get: %w", err)
-			}
 
 			client, err := getASCClient()
 			if err != nil {

@@ -61,9 +61,6 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
 				return flag.ErrHelp
 			}
-			if err := validateUUIDFlag("--instance-id", *instanceID); err != nil {
-				return fmt.Errorf("analytics instances get: %w", err)
-			}
 
 			client, err := getASCClient()
 			if err != nil {

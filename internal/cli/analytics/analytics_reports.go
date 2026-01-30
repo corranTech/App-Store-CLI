@@ -61,9 +61,6 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --report-id is required")
 				return flag.ErrHelp
 			}
-			if err := validateUUIDFlag("--report-id", *reportID); err != nil {
-				return fmt.Errorf("analytics reports get: %w", err)
-			}
 
 			client, err := getASCClient()
 			if err != nil {
