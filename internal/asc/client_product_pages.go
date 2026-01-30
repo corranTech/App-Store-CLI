@@ -11,7 +11,7 @@ import (
 type AppCustomProductPageAttributes struct {
 	Name    string `json:"name,omitempty"`
 	URL     string `json:"url,omitempty"`
-	Visible bool   `json:"visible,omitempty"`
+	Visible *bool  `json:"visible,omitempty"`
 }
 
 // AppCustomProductPagesResponse is the response from custom product page list endpoints.

@@ -10,10 +10,10 @@ func printAppCustomProductPagesTable(resp *AppCustomProductPagesResponse) error 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tVisible\tURL")
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%t\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
-			item.Attributes.Visible,
+			boolValue(item.Attributes.Visible),
 			compactWhitespace(item.Attributes.URL),
 		)
 	}
@@ -24,10 +24,10 @@ func printAppCustomProductPagesMarkdown(resp *AppCustomProductPagesResponse) err
 	fmt.Fprintln(os.Stdout, "| ID | Name | Visible | URL |")
 	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
 	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %t | %s |\n",
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
 			escapeMarkdown(item.ID),
 			escapeMarkdown(item.Attributes.Name),
-			item.Attributes.Visible,
+			escapeMarkdown(boolValue(item.Attributes.Visible)),
 			escapeMarkdown(item.Attributes.URL),
 		)
 	}
@@ -92,10 +92,10 @@ func printAppStoreVersionExperimentsTable(resp *AppStoreVersionExperimentsRespon
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tTraffic Proportion\tState")
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
-			item.Attributes.TrafficProportion,
+			formatOptionalInt(item.Attributes.TrafficProportion),
 			compactWhitespace(item.Attributes.State),
 		)
 	}
@@ -106,10 +106,10 @@ func printAppStoreVersionExperimentsMarkdown(resp *AppStoreVersionExperimentsRes
 	fmt.Fprintln(os.Stdout, "| ID | Name | Traffic Proportion | State |")
 	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
 	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s |\n",
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
 			escapeMarkdown(item.ID),
 			escapeMarkdown(item.Attributes.Name),
-			item.Attributes.TrafficProportion,
+			escapeMarkdown(formatOptionalInt(item.Attributes.TrafficProportion)),
 			escapeMarkdown(item.Attributes.State),
 		)
 	}
@@ -120,11 +120,11 @@ func printAppStoreVersionExperimentsV2Table(resp *AppStoreVersionExperimentsV2Re
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tPlatform\tTraffic Proportion\tState")
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			string(item.Attributes.Platform),
-			item.Attributes.TrafficProportion,
+			formatOptionalInt(item.Attributes.TrafficProportion),
 			compactWhitespace(item.Attributes.State),
 		)
 	}
@@ -135,11 +135,11 @@ func printAppStoreVersionExperimentsV2Markdown(resp *AppStoreVersionExperimentsV
 	fmt.Fprintln(os.Stdout, "| ID | Name | Platform | Traffic Proportion | State |")
 	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
 	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %s |\n",
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
 			escapeMarkdown(item.ID),
 			escapeMarkdown(item.Attributes.Name),
 			escapeMarkdown(string(item.Attributes.Platform)),
-			item.Attributes.TrafficProportion,
+			escapeMarkdown(formatOptionalInt(item.Attributes.TrafficProportion)),
 			escapeMarkdown(item.Attributes.State),
 		)
 	}

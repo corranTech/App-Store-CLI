@@ -10,9 +10,9 @@ import (
 // AppStoreVersionExperimentAttributes describes experiment attributes (v1).
 type AppStoreVersionExperimentAttributes struct {
 	Name              string `json:"name,omitempty"`
-	TrafficProportion int    `json:"trafficProportion,omitempty"`
+	TrafficProportion *int   `json:"trafficProportion,omitempty"`
 	State             string `json:"state,omitempty"`
-	ReviewRequired    bool   `json:"reviewRequired,omitempty"`
+	ReviewRequired    *bool  `json:"reviewRequired,omitempty"`
 	StartDate         string `json:"startDate,omitempty"`
 	EndDate           string `json:"endDate,omitempty"`
 }
@@ -75,9 +75,9 @@ type AppStoreVersionExperimentDeleteResult struct {
 type AppStoreVersionExperimentV2Attributes struct {
 	Name              string   `json:"name,omitempty"`
 	Platform          Platform `json:"platform,omitempty"`
-	TrafficProportion int      `json:"trafficProportion,omitempty"`
+	TrafficProportion *int     `json:"trafficProportion,omitempty"`
 	State             string   `json:"state,omitempty"`
-	ReviewRequired    bool     `json:"reviewRequired,omitempty"`
+	ReviewRequired    *bool    `json:"reviewRequired,omitempty"`
 	StartDate         string   `json:"startDate,omitempty"`
 	EndDate           string   `json:"endDate,omitempty"`
 }
