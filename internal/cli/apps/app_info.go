@@ -116,14 +116,6 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("app-info get: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
 			if len(includeValues) > 0 {
 				if strings.TrimSpace(*versionID) != "" ||
 					strings.TrimSpace(*version) != "" ||
@@ -136,7 +128,17 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --include cannot be used with version localization flags")
 					return flag.ErrHelp
 				}
+			}
 
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("app-info get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if len(includeValues) > 0 {
 				appInfoIDValue, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				if err != nil {
 					return fmt.Errorf("app-info get: %w", err)
