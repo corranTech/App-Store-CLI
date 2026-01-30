@@ -3,6 +3,7 @@ package asc
 import (
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 )
 
@@ -196,7 +197,7 @@ func printScmProvidersTable(resp *ScmProvidersResponse) error {
 	for _, item := range resp.Data {
 		fmt.Fprintf(w, "%s\t%s\t%s\n",
 			item.ID,
-			item.Attributes.ScmProviderType,
+			formatScmProviderType(item.Attributes.ScmProviderType),
 			item.Attributes.URL,
 		)
 	}
@@ -209,11 +210,21 @@ func printScmProvidersMarkdown(resp *ScmProvidersResponse) error {
 	for _, item := range resp.Data {
 		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
 			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.ScmProviderType),
+			escapeMarkdown(formatScmProviderType(item.Attributes.ScmProviderType)),
 			escapeMarkdown(item.Attributes.URL),
 		)
 	}
 	return nil
+}
+
+func formatScmProviderType(providerType *ScmProviderType) string {
+	if providerType == nil {
+		return ""
+	}
+	if strings.TrimSpace(providerType.DisplayName) != "" {
+		return providerType.DisplayName
+	}
+	return strings.TrimSpace(providerType.Kind)
 }
 
 func printScmGitReferencesTable(resp *ScmGitReferencesResponse) error {

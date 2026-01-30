@@ -600,8 +600,11 @@ func TestPrintTable_ScmProviders(t *testing.T) {
 			{
 				ID: "provider-1",
 				Attributes: ScmProviderAttributes{
-					ScmProviderType: "GITHUB",
-					URL:             "https://github.com",
+					ScmProviderType: &ScmProviderType{
+						Kind:        "GITHUB_CLOUD",
+						DisplayName: "GitHub",
+					},
+					URL: "https://github.com",
 				},
 			},
 		},
@@ -614,7 +617,7 @@ func TestPrintTable_ScmProviders(t *testing.T) {
 	if !strings.Contains(output, "Provider Type") {
 		t.Fatalf("expected header in output, got: %s", output)
 	}
-	if !strings.Contains(output, "GITHUB") {
+	if !strings.Contains(output, "GitHub") {
 		t.Fatalf("expected provider type in output, got: %s", output)
 	}
 }
@@ -625,8 +628,11 @@ func TestPrintMarkdown_ScmProviders(t *testing.T) {
 			{
 				ID: "provider-2",
 				Attributes: ScmProviderAttributes{
-					ScmProviderType: "GITLAB",
-					URL:             "https://gitlab.com",
+					ScmProviderType: &ScmProviderType{
+						Kind:        "GITLAB_CLOUD",
+						DisplayName: "GitLab",
+					},
+					URL: "https://gitlab.com",
 				},
 			},
 		},

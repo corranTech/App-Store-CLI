@@ -214,8 +214,15 @@ type CiWorkflowResponse struct {
 
 // ScmProviderAttributes describes an SCM provider resource.
 type ScmProviderAttributes struct {
-	ScmProviderType string `json:"scmProviderType,omitempty"`
-	URL             string `json:"url,omitempty"`
+	ScmProviderType *ScmProviderType `json:"scmProviderType,omitempty"`
+	URL             string           `json:"url,omitempty"`
+}
+
+// ScmProviderType describes the SCM provider type metadata.
+type ScmProviderType struct {
+	Kind        string `json:"kind,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	IsOnPremise bool   `json:"isOnPremise,omitempty"`
 }
 
 // ScmProviderResource represents an SCM provider resource.
