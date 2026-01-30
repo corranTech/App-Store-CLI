@@ -607,6 +607,44 @@ func PrintMarkdown(data interface{}) error {
 		return printAlternativeDistributionDomainDeleteResultMarkdown(v)
 	case *AlternativeDistributionKeyDeleteResult:
 		return printAlternativeDistributionKeyDeleteResultMarkdown(v)
+	case *AppCustomProductPagesResponse:
+		return printAppCustomProductPagesMarkdown(v)
+	case *AppCustomProductPageResponse:
+		return printAppCustomProductPagesMarkdown(&AppCustomProductPagesResponse{Data: []Resource[AppCustomProductPageAttributes]{v.Data}})
+	case *AppCustomProductPageVersionsResponse:
+		return printAppCustomProductPageVersionsMarkdown(v)
+	case *AppCustomProductPageVersionResponse:
+		return printAppCustomProductPageVersionsMarkdown(&AppCustomProductPageVersionsResponse{Data: []Resource[AppCustomProductPageVersionAttributes]{v.Data}})
+	case *AppCustomProductPageLocalizationsResponse:
+		return printAppCustomProductPageLocalizationsMarkdown(v)
+	case *AppCustomProductPageLocalizationResponse:
+		return printAppCustomProductPageLocalizationsMarkdown(&AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsResponse:
+		return printAppStoreVersionExperimentsMarkdown(v)
+	case *AppStoreVersionExperimentResponse:
+		return printAppStoreVersionExperimentsMarkdown(&AppStoreVersionExperimentsResponse{Data: []Resource[AppStoreVersionExperimentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsV2Response:
+		return printAppStoreVersionExperimentsV2Markdown(v)
+	case *AppStoreVersionExperimentV2Response:
+		return printAppStoreVersionExperimentsV2Markdown(&AppStoreVersionExperimentsV2Response{Data: []Resource[AppStoreVersionExperimentV2Attributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentsResponse:
+		return printAppStoreVersionExperimentTreatmentsMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentResponse:
+		return printAppStoreVersionExperimentTreatmentsMarkdown(&AppStoreVersionExperimentTreatmentsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentLocalizationsResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(&AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}})
+	case *AppCustomProductPageDeleteResult:
+		return printAppCustomProductPageDeleteResultMarkdown(v)
+	case *AppCustomProductPageLocalizationDeleteResult:
+		return printAppCustomProductPageLocalizationDeleteResultMarkdown(v)
+	case *AppStoreVersionExperimentDeleteResult:
+		return printAppStoreVersionExperimentDeleteResultMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentDeleteResult:
+		return printAppStoreVersionExperimentTreatmentDeleteResultMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationDeleteResult:
+		return printAppStoreVersionExperimentTreatmentLocalizationDeleteResultMarkdown(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsMarkdown(v)
 	case *DiagnosticSignaturesResponse:
@@ -1185,6 +1223,44 @@ func PrintTable(data interface{}) error {
 		return printAlternativeDistributionDomainDeleteResultTable(v)
 	case *AlternativeDistributionKeyDeleteResult:
 		return printAlternativeDistributionKeyDeleteResultTable(v)
+	case *AppCustomProductPagesResponse:
+		return printAppCustomProductPagesTable(v)
+	case *AppCustomProductPageResponse:
+		return printAppCustomProductPagesTable(&AppCustomProductPagesResponse{Data: []Resource[AppCustomProductPageAttributes]{v.Data}})
+	case *AppCustomProductPageVersionsResponse:
+		return printAppCustomProductPageVersionsTable(v)
+	case *AppCustomProductPageVersionResponse:
+		return printAppCustomProductPageVersionsTable(&AppCustomProductPageVersionsResponse{Data: []Resource[AppCustomProductPageVersionAttributes]{v.Data}})
+	case *AppCustomProductPageLocalizationsResponse:
+		return printAppCustomProductPageLocalizationsTable(v)
+	case *AppCustomProductPageLocalizationResponse:
+		return printAppCustomProductPageLocalizationsTable(&AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsResponse:
+		return printAppStoreVersionExperimentsTable(v)
+	case *AppStoreVersionExperimentResponse:
+		return printAppStoreVersionExperimentsTable(&AppStoreVersionExperimentsResponse{Data: []Resource[AppStoreVersionExperimentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsV2Response:
+		return printAppStoreVersionExperimentsV2Table(v)
+	case *AppStoreVersionExperimentV2Response:
+		return printAppStoreVersionExperimentsV2Table(&AppStoreVersionExperimentsV2Response{Data: []Resource[AppStoreVersionExperimentV2Attributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentsResponse:
+		return printAppStoreVersionExperimentTreatmentsTable(v)
+	case *AppStoreVersionExperimentTreatmentResponse:
+		return printAppStoreVersionExperimentTreatmentsTable(&AppStoreVersionExperimentTreatmentsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentLocalizationsResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsTable(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsTable(&AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}})
+	case *AppCustomProductPageDeleteResult:
+		return printAppCustomProductPageDeleteResultTable(v)
+	case *AppCustomProductPageLocalizationDeleteResult:
+		return printAppCustomProductPageLocalizationDeleteResultTable(v)
+	case *AppStoreVersionExperimentDeleteResult:
+		return printAppStoreVersionExperimentDeleteResultTable(v)
+	case *AppStoreVersionExperimentTreatmentDeleteResult:
+		return printAppStoreVersionExperimentTreatmentDeleteResultTable(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationDeleteResult:
+		return printAppStoreVersionExperimentTreatmentLocalizationDeleteResultTable(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsTable(v)
 	case *DiagnosticSignaturesResponse:

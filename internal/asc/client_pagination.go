@@ -108,6 +108,20 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &WinBackOfferPricesResponse{Links: Links{}}
 	case *AppStoreVersionsResponse:
 		result = &AppStoreVersionsResponse{Links: Links{}}
+	case *AppCustomProductPagesResponse:
+		result = &AppCustomProductPagesResponse{Links: Links{}}
+	case *AppCustomProductPageVersionsResponse:
+		result = &AppCustomProductPageVersionsResponse{Links: Links{}}
+	case *AppCustomProductPageLocalizationsResponse:
+		result = &AppCustomProductPageLocalizationsResponse{Links: Links{}}
+	case *AppStoreVersionExperimentsResponse:
+		result = &AppStoreVersionExperimentsResponse{Links: Links{}}
+	case *AppStoreVersionExperimentsV2Response:
+		result = &AppStoreVersionExperimentsV2Response{Links: Links{}}
+	case *AppStoreVersionExperimentTreatmentsResponse:
+		result = &AppStoreVersionExperimentTreatmentsResponse{Links: Links{}}
+	case *AppStoreVersionExperimentTreatmentLocalizationsResponse:
+		result = &AppStoreVersionExperimentTreatmentLocalizationsResponse{Links: Links{}}
 	case *BackgroundAssetsResponse:
 		result = &BackgroundAssetsResponse{Links: Links{}}
 	case *BackgroundAssetVersionsResponse:
@@ -330,6 +344,20 @@ func typeOf(p PaginatedResponse) string {
 		return "WinBackOfferPricesResponse"
 	case *AppStoreVersionsResponse:
 		return "AppStoreVersionsResponse"
+	case *AppCustomProductPagesResponse:
+		return "AppCustomProductPagesResponse"
+	case *AppCustomProductPageVersionsResponse:
+		return "AppCustomProductPageVersionsResponse"
+	case *AppCustomProductPageLocalizationsResponse:
+		return "AppCustomProductPageLocalizationsResponse"
+	case *AppStoreVersionExperimentsResponse:
+		return "AppStoreVersionExperimentsResponse"
+	case *AppStoreVersionExperimentsV2Response:
+		return "AppStoreVersionExperimentsV2Response"
+	case *AppStoreVersionExperimentTreatmentsResponse:
+		return "AppStoreVersionExperimentTreatmentsResponse"
+	case *AppStoreVersionExperimentTreatmentLocalizationsResponse:
+		return "AppStoreVersionExperimentTreatmentLocalizationsResponse"
 	case *BackgroundAssetsResponse:
 		return "BackgroundAssetsResponse"
 	case *BackgroundAssetVersionsResponse:

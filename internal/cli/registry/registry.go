@@ -43,6 +43,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/preorders"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/prerelease"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/pricing"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/productpages"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/profiles"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/publish"
@@ -112,6 +113,7 @@ func Subcommands(version string) []*ffcli.Command {
 		buildbundles.BuildBundlesCommand(),
 		publish.PublishCommand(),
 		versions.VersionsCommand(),
+		productpages.ProductPagesCommand(),
 		routingcoverage.RoutingCoverageCommand(),
 		apps.AppInfoCommand(),
 		eula.EULACommand(),
