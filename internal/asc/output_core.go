@@ -647,6 +647,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppCustomProductPageLocalizationsMarkdown(v)
 	case *AppCustomProductPageLocalizationResponse:
 		return printAppCustomProductPageLocalizationsMarkdown(&AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}})
+	case *AppKeywordsResponse:
+		return printAppKeywordsMarkdown(v)
 	case *AppStoreVersionExperimentsResponse:
 		return printAppStoreVersionExperimentsMarkdown(v)
 	case *AppStoreVersionExperimentResponse:
@@ -1291,6 +1293,8 @@ func PrintTable(data interface{}) error {
 		return printAppCustomProductPageLocalizationsTable(v)
 	case *AppCustomProductPageLocalizationResponse:
 		return printAppCustomProductPageLocalizationsTable(&AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}})
+	case *AppKeywordsResponse:
+		return printAppKeywordsTable(v)
 	case *AppStoreVersionExperimentsResponse:
 		return printAppStoreVersionExperimentsTable(v)
 	case *AppStoreVersionExperimentResponse:
