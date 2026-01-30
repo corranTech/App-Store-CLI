@@ -52,6 +52,28 @@ type appsQuery struct {
 	skus      []string
 }
 
+type appClipsQuery struct {
+	listQuery
+	bundleIDs []string
+}
+
+type appClipDefaultExperiencesQuery struct {
+	listQuery
+	releaseWithVersionExists *bool
+}
+
+type appClipDefaultExperienceLocalizationsQuery struct {
+	listQuery
+	locales []string
+}
+
+type appClipAdvancedExperiencesQuery struct {
+	listQuery
+	actions      []string
+	statuses     []string
+	placeStatuses []string
+}
+
 type appTagsQuery struct {
 	listQuery
 	visibleInAppStore []string
@@ -93,6 +115,11 @@ type betaAppClipInvocationsQuery struct {
 	listQuery
 }
 
+type betaAppClipInvocationQuery struct {
+	include              []string
+	localizationsLimit   int
+}
+
 type subscriptionOfferCodeOneTimeUseCodesQuery struct {
 	listQuery
 }
@@ -101,7 +128,6 @@ type marketplaceWebhooksQuery struct {
 	listQuery
 	fields []string
 }
-
 type alternativeDistributionDomainsQuery struct {
 	listQuery
 	fields []string
@@ -125,6 +151,23 @@ type alternativeDistributionPackageVariantsQuery struct {
 type alternativeDistributionPackageDeltasQuery struct {
 	listQuery
 	fields []string
+}
+
+type webhooksQuery struct {
+	listQuery
+	fields    []string
+	appFields []string
+	include   []string
+}
+
+type webhookDeliveriesQuery struct {
+	listQuery
+	deliveryStates []string
+	createdAfter   []string
+	createdBefore  []string
+	fields         []string
+	eventFields    []string
+	include        []string
 }
 
 type backgroundAssetsQuery struct {
@@ -461,6 +504,47 @@ func buildAppsQuery(query *appsQuery) string {
 		values.Set("sort", query.sort)
 	}
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipsQuery(query *appClipsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[bundleId]", query.bundleIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) string {
+	values := url.Values{}
+	if query.releaseWithVersionExists != nil {
+		values.Set("exists[releaseWithAppStoreVersion]", strconv.FormatBool(*query.releaseWithVersionExists))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipDefaultExperienceLocalizationsQuery(query *appClipDefaultExperienceLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipAdvancedExperiencesQuery(query *appClipAdvancedExperiencesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[action]", query.actions)
+	addCSV(values, "filter[status]", query.statuses)
+	addCSV(values, "filter[placeStatus]", query.placeStatuses)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBetaAppClipInvocationQuery(query *betaAppClipInvocationQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
+	if query.localizationsLimit > 0 {
+		values.Set("limit[betaAppClipInvocationLocalizations]", strconv.Itoa(query.localizationsLimit))
+	}
 	return values.Encode()
 }
 
@@ -931,6 +1015,27 @@ func buildAlternativeDistributionPackageVariantsQuery(query *alternativeDistribu
 func buildAlternativeDistributionPackageDeltasQuery(query *alternativeDistributionPackageDeltasQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[alternativeDistributionPackageDeltas]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildWebhooksQuery(query *webhooksQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[webhooks]", query.fields)
+	addCSV(values, "fields[apps]", query.appFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildWebhookDeliveriesQuery(query *webhookDeliveriesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[deliveryState]", query.deliveryStates)
+	addCSV(values, "filter[createdDateGreaterThanOrEqualTo]", query.createdAfter)
+	addCSV(values, "filter[createdDateLessThan]", query.createdBefore)
+	addCSV(values, "fields[webhookDeliveries]", query.fields)
+	addCSV(values, "fields[webhookEvents]", query.eventFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
