@@ -151,6 +151,14 @@ type subscriptionOfferCodeOneTimeUseCodesQuery struct {
 	listQuery
 }
 
+type subscriptionOfferCodeCustomCodesQuery struct {
+	listQuery
+}
+
+type subscriptionOfferCodePricesQuery struct {
+	listQuery
+}
+
 type marketplaceWebhooksQuery struct {
 	listQuery
 	fields []string
@@ -1099,6 +1107,18 @@ func buildBetaRecruitmentCriterionOptionsQuery(query *betaRecruitmentCriterionOp
 }
 
 func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCodeOneTimeUseCodesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildSubscriptionOfferCodeCustomCodesQuery(query *subscriptionOfferCodeCustomCodesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildSubscriptionOfferCodePricesQuery(query *subscriptionOfferCodePricesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

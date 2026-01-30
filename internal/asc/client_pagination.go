@@ -442,6 +442,10 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaAppClipInvocationLocalizationsResponse"
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return "SubscriptionOfferCodeOneTimeUseCodesResponse"
+	case *SubscriptionOfferCodeCustomCodesResponse:
+		return "SubscriptionOfferCodeCustomCodesResponse"
+	case *SubscriptionOfferCodePricesResponse:
+		return "SubscriptionOfferCodePricesResponse"
 	case *WinBackOffersResponse:
 		return "WinBackOffersResponse"
 	case *WinBackOfferPricesResponse:
