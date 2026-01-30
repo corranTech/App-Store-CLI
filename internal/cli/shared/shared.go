@@ -40,23 +40,56 @@ const (
 	PrivateKeyBase64EnvVar = privateKeyBase64EnvVar
 )
 
+var ErrMissingAuth = errors.New("missing authentication")
+
+type missingAuthError struct {
+	msg string
+}
+
+func (e missingAuthError) Error() string {
+	return e.msg
+}
+
+func (e missingAuthError) Is(target error) bool {
+	return target == ErrMissingAuth
+}
+
 var (
 	privateKeyTempMu    sync.Mutex
 	privateKeyTempPath  string
 	privateKeyTempPaths []string
 	selectedProfile     string
 	strictAuth          bool
+	retryLog            OptionalBool
 )
+
+var isTerminal = term.IsTerminal
+var noProgress bool
 
 // BindRootFlags registers root-level flags that affect shared CLI behavior.
 func BindRootFlags(fs *flag.FlagSet) {
 	fs.StringVar(&selectedProfile, "profile", "", "Use named authentication profile")
 	fs.BoolVar(&strictAuth, "strict-auth", false, "Fail when credentials are resolved from multiple sources")
+	fs.Var(&retryLog, "retry-log", "Enable retry logging to stderr (overrides ASC_RETRY_LOG/config when set)")
 }
 
 // SelectedProfile returns the current profile override.
 func SelectedProfile() string {
 	return selectedProfile
+}
+
+// ProgressEnabled reports whether it's safe/appropriate to emit progress messages.
+// Progress must be stderr-only and must not appear when stderr is non-interactive.
+func ProgressEnabled() bool {
+	if noProgress {
+		return false
+	}
+	return isTerminal(int(os.Stderr.Fd()))
+}
+
+// SetNoProgress sets progress suppression (tests only).
+func SetNoProgress(value bool) {
+	noProgress = value
 }
 
 // SetSelectedProfile sets the current profile override (tests only).
@@ -85,7 +118,7 @@ func supportsANSI() bool {
 	if strings.EqualFold(os.Getenv("TERM"), "dumb") {
 		return false
 	}
-	return term.IsTerminal(int(os.Stderr.Fd()))
+	return isTerminal(int(os.Stderr.Fd()))
 }
 
 // DefaultUsageFunc returns a usage string with bold section headers
@@ -280,9 +313,9 @@ func resolveCredentials() (resolvedCredentials, error) {
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
 		if path, err := config.Path(); err == nil {
-			return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)
+			return resolvedCredentials{}, missingAuthError{msg: fmt.Sprintf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)}
 		}
-		return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or 'asc auth init'")
+		return resolvedCredentials{}, missingAuthError{msg: "missing authentication. Run 'asc auth login' or 'asc auth init'"}
 	}
 	if err := checkMixedCredentialSources(sources); err != nil {
 		return resolvedCredentials{}, err
@@ -299,6 +332,12 @@ func getASCClient() (*asc.Client, error) {
 	resolved, err := resolveCredentials()
 	if err != nil {
 		return nil, err
+	}
+	if retryLog.IsSet() {
+		value := retryLog.Value()
+		asc.SetRetryLogOverride(&value)
+	} else {
+		asc.SetRetryLogOverride(nil)
 	}
 	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
 }

@@ -9,6 +9,7 @@ import (
 )
 
 func TestProductPagesCustomPagesListRequiresApp(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
 	root := RootCommand("1.2.3")
 
 	stdout, stderr := captureOutput(t, func() {
@@ -72,6 +73,7 @@ func TestProductPagesExperimentsCreateRequiresVersionID(t *testing.T) {
 }
 
 func TestProductPagesExperimentsCreateRequiresAppForV2(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
 	root := RootCommand("1.2.3")
 
 	stdout, stderr := captureOutput(t, func() {
