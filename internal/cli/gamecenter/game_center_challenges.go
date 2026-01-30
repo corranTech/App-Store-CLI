@@ -201,12 +201,19 @@ func GameCenterChallengesCreateCommand() *ffcli.Command {
 		LongHelp: `Create a Game Center challenge.
 
 Examples:
-  asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID"`,
+  asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID"
+  asc game-center challenges create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			group := strings.TrimSpace(*groupID)
+			if group != "" && strings.TrimSpace(*appID) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --group-id")
+				return flag.ErrHelp
+			}
+
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
+			if group == "" && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
@@ -220,6 +227,10 @@ Examples:
 			vendor := strings.TrimSpace(*vendorID)
 			if vendor == "" {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id is required")
+				return flag.ErrHelp
+			}
+			if group != "" && !strings.HasPrefix(vendor, "grp.") {
+				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
 				return flag.ErrHelp
 			}
 
@@ -246,12 +257,16 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			gcDetailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-			if err != nil {
-				return fmt.Errorf("game-center challenges create: failed to get Game Center detail: %w", err)
+			gcDetailID := ""
+			if group == "" {
+				var err error
+				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("game-center challenges create: failed to get Game Center detail: %w", err)
+				}
 			}
 
-			resp, err := client.CreateGameCenterChallenge(requestCtx, gcDetailID, attrs, strings.TrimSpace(*leaderboardID), strings.TrimSpace(*groupID))
+			resp, err := client.CreateGameCenterChallenge(requestCtx, gcDetailID, attrs, strings.TrimSpace(*leaderboardID), group)
 			if err != nil {
 				return fmt.Errorf("game-center challenges create: failed to create: %w", err)
 			}

@@ -65,7 +65,7 @@ func TestGetGameCenterChallenge(t *testing.T) {
 	}
 }
 
-func TestCreateGameCenterChallenge(t *testing.T) {
+func TestCreateGameCenterChallenge_WithDetail(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{"referenceName":"Weekly","vendorIdentifier":"com.test.weekly","challengeType":"LEADERBOARD"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPost {
@@ -93,8 +93,8 @@ func TestCreateGameCenterChallenge(t *testing.T) {
 		if payload.Data.Relationships.Leaderboard == nil || payload.Data.Relationships.Leaderboard.Data.ID != "lb-1" {
 			t.Fatalf("expected leaderboard relationship lb-1")
 		}
-		if payload.Data.Relationships.GameCenterGroup == nil || payload.Data.Relationships.GameCenterGroup.Data.ID != "group-1" {
-			t.Fatalf("expected group relationship group-1")
+		if payload.Data.Relationships.GameCenterGroup != nil {
+			t.Fatalf("expected no group relationship, got %+v", payload.Data.Relationships.GameCenterGroup)
 		}
 		assertAuthorized(t, req)
 	}, response)
@@ -106,7 +106,48 @@ func TestCreateGameCenterChallenge(t *testing.T) {
 		ChallengeType:    "LEADERBOARD",
 		Repeatable:       &repeatable,
 	}
-	if _, err := client.CreateGameCenterChallenge(context.Background(), "gc-detail-1", attrs, "lb-1", "group-1"); err != nil {
+	if _, err := client.CreateGameCenterChallenge(context.Background(), "gc-detail-1", attrs, "lb-1", ""); err != nil {
+		t.Fatalf("CreateGameCenterChallenge() error: %v", err)
+	}
+}
+
+func TestCreateGameCenterChallenge_WithGroup(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{"referenceName":"Weekly","vendorIdentifier":"com.test.weekly","challengeType":"LEADERBOARD"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterChallenges" {
+			t.Fatalf("expected path /v1/gameCenterChallenges, got %s", req.URL.Path)
+		}
+		var payload GameCenterChallengeCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeGameCenterChallenges {
+			t.Fatalf("expected type gameCenterChallenges, got %q", payload.Data.Type)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.GameCenterGroup == nil {
+			t.Fatalf("expected gameCenterGroup relationship")
+		}
+		if payload.Data.Relationships.GameCenterGroup.Data.ID != "group-1" {
+			t.Fatalf("expected group-1, got %s", payload.Data.Relationships.GameCenterGroup.Data.ID)
+		}
+		if payload.Data.Relationships.GameCenterDetail != nil {
+			t.Fatalf("expected no gameCenterDetail relationship, got %+v", payload.Data.Relationships.GameCenterDetail)
+		}
+		if payload.Data.Relationships.Leaderboard == nil || payload.Data.Relationships.Leaderboard.Data.ID != "lb-1" {
+			t.Fatalf("expected leaderboard relationship lb-1")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := GameCenterChallengeCreateAttributes{
+		ReferenceName:    "Weekly",
+		VendorIdentifier: "com.test.weekly",
+		ChallengeType:    "LEADERBOARD",
+	}
+	if _, err := client.CreateGameCenterChallenge(context.Background(), "", attrs, "lb-1", "group-1"); err != nil {
 		t.Fatalf("CreateGameCenterChallenge() error: %v", err)
 	}
 }

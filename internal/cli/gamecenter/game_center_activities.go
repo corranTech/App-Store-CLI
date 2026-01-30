@@ -207,12 +207,19 @@ func GameCenterActivitiesCreateCommand() *ffcli.Command {
 		LongHelp: `Create a Game Center activity.
 
 Examples:
-  asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly"`,
+  asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly"
+  asc game-center activities create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			group := strings.TrimSpace(*groupID)
+			if group != "" && strings.TrimSpace(*appID) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --group-id")
+				return flag.ErrHelp
+			}
+
 			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
+			if group == "" && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
@@ -226,6 +233,10 @@ Examples:
 			vendor := strings.TrimSpace(*vendorID)
 			if vendor == "" {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id is required")
+				return flag.ErrHelp
+			}
+			if group != "" && !strings.HasPrefix(vendor, "grp.") {
+				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
 				return flag.ErrHelp
 			}
 
@@ -263,12 +274,16 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			gcDetailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-			if err != nil {
-				return fmt.Errorf("game-center activities create: failed to get Game Center detail: %w", err)
+			gcDetailID := ""
+			if group == "" {
+				var err error
+				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("game-center activities create: failed to get Game Center detail: %w", err)
+				}
 			}
 
-			resp, err := client.CreateGameCenterActivity(requestCtx, gcDetailID, attrs, strings.TrimSpace(*groupID))
+			resp, err := client.CreateGameCenterActivity(requestCtx, gcDetailID, attrs, group)
 			if err != nil {
 				return fmt.Errorf("game-center activities create: failed to create: %w", err)
 			}

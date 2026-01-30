@@ -60,6 +60,14 @@ func TestGameCenterActivitiesCreateValidationErrors(t *testing.T) {
 			args: []string{"game-center", "activities", "create", "--reference-name", "Seasonal"},
 		},
 		{
+			name: "app and group",
+			args: []string{"game-center", "activities", "create", "--app", "APP_ID", "--group-id", "GROUP_ID", "--reference-name", "Seasonal", "--vendor-id", "com.example.seasonal"},
+		},
+		{
+			name: "group vendor prefix",
+			args: []string{"game-center", "activities", "create", "--group-id", "GROUP_ID", "--reference-name", "Seasonal", "--vendor-id", "com.example.seasonal"},
+		},
+		{
 			name: "missing reference-name",
 			args: []string{"game-center", "activities", "create", "--app", "APP_ID"},
 		},

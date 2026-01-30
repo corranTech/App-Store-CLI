@@ -57,13 +57,17 @@ func (c *Client) GetGameCenterActivity(ctx context.Context, activityID string) (
 
 // CreateGameCenterActivity creates a new Game Center activity.
 func (c *Client) CreateGameCenterActivity(ctx context.Context, gcDetailID string, attrs GameCenterActivityCreateAttributes, groupID string) (*GameCenterActivityResponse, error) {
-	relationships := &GameCenterActivityRelationships{
-		GameCenterDetail: &Relationship{
+	relationships := &GameCenterActivityRelationships{}
+	hasRelationship := false
+
+	if strings.TrimSpace(gcDetailID) != "" {
+		relationships.GameCenterDetail = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeGameCenterDetails,
 				ID:   strings.TrimSpace(gcDetailID),
 			},
-		},
+		}
+		hasRelationship = true
 	}
 	if strings.TrimSpace(groupID) != "" {
 		relationships.GameCenterGroup = &Relationship{
@@ -72,6 +76,10 @@ func (c *Client) CreateGameCenterActivity(ctx context.Context, gcDetailID string
 				ID:   strings.TrimSpace(groupID),
 			},
 		}
+		hasRelationship = true
+	}
+	if !hasRelationship {
+		relationships = nil
 	}
 
 	payload := GameCenterActivityCreateRequest{

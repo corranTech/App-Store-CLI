@@ -65,7 +65,7 @@ func TestGetGameCenterActivity(t *testing.T) {
 	}
 }
 
-func TestCreateGameCenterActivity(t *testing.T) {
+func TestCreateGameCenterActivity_WithDetail(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterActivities","id":"act-1","attributes":{"referenceName":"Seasonal"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPost {
@@ -90,8 +90,8 @@ func TestCreateGameCenterActivity(t *testing.T) {
 		if payload.Data.Relationships.GameCenterDetail.Data.ID != "gc-detail-1" {
 			t.Fatalf("expected gc-detail-1, got %s", payload.Data.Relationships.GameCenterDetail.Data.ID)
 		}
-		if payload.Data.Relationships.GameCenterGroup == nil || payload.Data.Relationships.GameCenterGroup.Data.ID != "group-1" {
-			t.Fatalf("expected group relationship group-1")
+		if payload.Data.Relationships.GameCenterGroup != nil {
+			t.Fatalf("expected no group relationship, got %+v", payload.Data.Relationships.GameCenterGroup)
 		}
 		assertAuthorized(t, req)
 	}, response)
@@ -99,7 +99,43 @@ func TestCreateGameCenterActivity(t *testing.T) {
 	attrs := GameCenterActivityCreateAttributes{
 		ReferenceName: "Seasonal",
 	}
-	if _, err := client.CreateGameCenterActivity(context.Background(), "gc-detail-1", attrs, "group-1"); err != nil {
+	if _, err := client.CreateGameCenterActivity(context.Background(), "gc-detail-1", attrs, ""); err != nil {
+		t.Fatalf("CreateGameCenterActivity() error: %v", err)
+	}
+}
+
+func TestCreateGameCenterActivity_WithGroup(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterActivities","id":"act-1","attributes":{"referenceName":"Seasonal"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterActivities" {
+			t.Fatalf("expected path /v1/gameCenterActivities, got %s", req.URL.Path)
+		}
+		var payload GameCenterActivityCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeGameCenterActivities {
+			t.Fatalf("expected type gameCenterActivities, got %q", payload.Data.Type)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.GameCenterGroup == nil {
+			t.Fatalf("expected gameCenterGroup relationship")
+		}
+		if payload.Data.Relationships.GameCenterGroup.Data.ID != "group-1" {
+			t.Fatalf("expected group-1, got %s", payload.Data.Relationships.GameCenterGroup.Data.ID)
+		}
+		if payload.Data.Relationships.GameCenterDetail != nil {
+			t.Fatalf("expected no gameCenterDetail relationship, got %+v", payload.Data.Relationships.GameCenterDetail)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := GameCenterActivityCreateAttributes{
+		ReferenceName: "Seasonal",
+	}
+	if _, err := client.CreateGameCenterActivity(context.Background(), "", attrs, "group-1"); err != nil {
 		t.Fatalf("CreateGameCenterActivity() error: %v", err)
 	}
 }

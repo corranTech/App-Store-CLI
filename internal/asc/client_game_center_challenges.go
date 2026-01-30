@@ -57,13 +57,17 @@ func (c *Client) GetGameCenterChallenge(ctx context.Context, challengeID string)
 
 // CreateGameCenterChallenge creates a new Game Center challenge.
 func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID string, attrs GameCenterChallengeCreateAttributes, leaderboardID string, groupID string) (*GameCenterChallengeResponse, error) {
-	relationships := &GameCenterChallengeRelationships{
-		GameCenterDetail: &Relationship{
+	relationships := &GameCenterChallengeRelationships{}
+	hasRelationship := false
+
+	if strings.TrimSpace(gcDetailID) != "" {
+		relationships.GameCenterDetail = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeGameCenterDetails,
 				ID:   strings.TrimSpace(gcDetailID),
 			},
-		},
+		}
+		hasRelationship = true
 	}
 	if strings.TrimSpace(leaderboardID) != "" {
 		relationships.Leaderboard = &Relationship{
@@ -72,6 +76,7 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 				ID:   strings.TrimSpace(leaderboardID),
 			},
 		}
+		hasRelationship = true
 	}
 	if strings.TrimSpace(groupID) != "" {
 		relationships.GameCenterGroup = &Relationship{
@@ -80,6 +85,10 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 				ID:   strings.TrimSpace(groupID),
 			},
 		}
+		hasRelationship = true
+	}
+	if !hasRelationship {
+		relationships = nil
 	}
 
 	payload := GameCenterChallengeCreateRequest{
