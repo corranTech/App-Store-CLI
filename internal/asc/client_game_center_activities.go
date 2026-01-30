@@ -295,13 +295,18 @@ func (c *Client) CreateGameCenterActivityVersion(ctx context.Context, activityID
 
 // UpdateGameCenterActivityVersion updates an activity version.
 func (c *Client) UpdateGameCenterActivityVersion(ctx context.Context, versionID string, fallbackURL *string) (*GameCenterActivityVersionResponse, error) {
+	var attrs *GameCenterActivityVersionUpdateAttributes
+	if fallbackURL != nil {
+		attrs = &GameCenterActivityVersionUpdateAttributes{
+			FallbackURL: fallbackURL,
+		}
+	}
+
 	payload := GameCenterActivityVersionUpdateRequest{
 		Data: GameCenterActivityVersionUpdateData{
-			Type: ResourceTypeGameCenterActivityVersions,
-			ID:   strings.TrimSpace(versionID),
-			Attributes: &GameCenterActivityVersionUpdateAttributes{
-				FallbackURL: fallbackURL,
-			},
+			Type:       ResourceTypeGameCenterActivityVersions,
+			ID:         strings.TrimSpace(versionID),
+			Attributes: attrs,
 		},
 	}
 
