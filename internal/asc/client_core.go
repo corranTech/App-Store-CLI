@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
@@ -43,6 +44,38 @@ var retryLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		return attr
 	},
 }))
+
+var retryLogOverride struct {
+	mu  sync.RWMutex
+	val *bool
+}
+
+// SetRetryLogOverride sets an explicit retry-log override.
+// When set, it takes precedence over env/config. When unset (nil), behavior falls back to env/config.
+func SetRetryLogOverride(value *bool) {
+	retryLogOverride.mu.Lock()
+	defer retryLogOverride.mu.Unlock()
+	retryLogOverride.val = value
+}
+
+// ResolveRetryLogEnabled returns whether retry logging should be enabled.
+// Precedence: explicit override > env > config.
+func ResolveRetryLogEnabled() bool {
+	retryLogOverride.mu.RLock()
+	override := retryLogOverride.val
+	retryLogOverride.mu.RUnlock()
+	if override != nil {
+		return *override
+	}
+	if override, ok := envValue("ASC_RETRY_LOG"); ok {
+		return override != ""
+	}
+	cfg := loadConfig()
+	if cfg == nil {
+		return false
+	}
+	return strings.TrimSpace(cfg.RetryLog) != ""
+}
 
 func loadConfig() *config.Config {
 	cfg, err := config.Load()
@@ -208,7 +241,7 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 			}
 		}
 
-		if shouldLogRetries() {
+		if ResolveRetryLogEnabled() {
 			logRetry(delay, retryCount+1, opts.MaxRetries, err)
 		}
 
@@ -222,17 +255,6 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 			// Continue to next retry
 		}
 	}
-}
-
-func shouldLogRetries() bool {
-	if override, ok := envValue("ASC_RETRY_LOG"); ok {
-		return override != ""
-	}
-	cfg := loadConfig()
-	if cfg == nil {
-		return false
-	}
-	return strings.TrimSpace(cfg.RetryLog) != ""
 }
 
 func logRetry(delay time.Duration, attempt, maxRetries int, err error) {
