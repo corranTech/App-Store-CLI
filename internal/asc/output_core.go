@@ -515,6 +515,100 @@ func PrintMarkdown(data interface{}) error {
 		return printGameCenterLeaderboardSetImageUploadResultMarkdown(v)
 	case *GameCenterLeaderboardSetImageDeleteResult:
 		return printGameCenterLeaderboardSetImageDeleteResultMarkdown(v)
+	case *GameCenterChallengesResponse:
+		return printGameCenterChallengesMarkdown(v)
+	case *GameCenterChallengeResponse:
+		return printGameCenterChallengesMarkdown(&GameCenterChallengesResponse{Data: []Resource[GameCenterChallengeAttributes]{v.Data}})
+	case *GameCenterChallengeDeleteResult:
+		return printGameCenterChallengeDeleteResultMarkdown(v)
+	case *GameCenterChallengeVersionsResponse:
+		return printGameCenterChallengeVersionsMarkdown(v)
+	case *GameCenterChallengeVersionResponse:
+		return printGameCenterChallengeVersionsMarkdown(&GameCenterChallengeVersionsResponse{Data: []Resource[GameCenterChallengeVersionAttributes]{v.Data}})
+	case *GameCenterChallengeLocalizationsResponse:
+		return printGameCenterChallengeLocalizationsMarkdown(v)
+	case *GameCenterChallengeLocalizationResponse:
+		return printGameCenterChallengeLocalizationsMarkdown(&GameCenterChallengeLocalizationsResponse{Data: []Resource[GameCenterChallengeLocalizationAttributes]{v.Data}})
+	case *GameCenterChallengeLocalizationDeleteResult:
+		return printGameCenterChallengeLocalizationDeleteResultMarkdown(v)
+	case *GameCenterChallengeImagesResponse:
+		return printGameCenterChallengeImagesMarkdown(v)
+	case *GameCenterChallengeImageResponse:
+		return printGameCenterChallengeImagesMarkdown(&GameCenterChallengeImagesResponse{Data: []Resource[GameCenterChallengeImageAttributes]{v.Data}})
+	case *GameCenterChallengeImageUploadResult:
+		return printGameCenterChallengeImageUploadResultMarkdown(v)
+	case *GameCenterChallengeImageDeleteResult:
+		return printGameCenterChallengeImageDeleteResultMarkdown(v)
+	case *GameCenterChallengeVersionReleasesResponse:
+		return printGameCenterChallengeReleasesMarkdown(v)
+	case *GameCenterChallengeVersionReleaseResponse:
+		return printGameCenterChallengeReleasesMarkdown(&GameCenterChallengeVersionReleasesResponse{Data: []Resource[GameCenterChallengeVersionReleaseAttributes]{v.Data}})
+	case *GameCenterChallengeVersionReleaseDeleteResult:
+		return printGameCenterChallengeReleaseDeleteResultMarkdown(v)
+	case *GameCenterActivitiesResponse:
+		return printGameCenterActivitiesMarkdown(v)
+	case *GameCenterActivityResponse:
+		return printGameCenterActivitiesMarkdown(&GameCenterActivitiesResponse{Data: []Resource[GameCenterActivityAttributes]{v.Data}})
+	case *GameCenterActivityDeleteResult:
+		return printGameCenterActivityDeleteResultMarkdown(v)
+	case *GameCenterActivityVersionsResponse:
+		return printGameCenterActivityVersionsMarkdown(v)
+	case *GameCenterActivityVersionResponse:
+		return printGameCenterActivityVersionsMarkdown(&GameCenterActivityVersionsResponse{Data: []Resource[GameCenterActivityVersionAttributes]{v.Data}})
+	case *GameCenterActivityLocalizationsResponse:
+		return printGameCenterActivityLocalizationsMarkdown(v)
+	case *GameCenterActivityLocalizationResponse:
+		return printGameCenterActivityLocalizationsMarkdown(&GameCenterActivityLocalizationsResponse{Data: []Resource[GameCenterActivityLocalizationAttributes]{v.Data}})
+	case *GameCenterActivityLocalizationDeleteResult:
+		return printGameCenterActivityLocalizationDeleteResultMarkdown(v)
+	case *GameCenterActivityImagesResponse:
+		return printGameCenterActivityImagesMarkdown(v)
+	case *GameCenterActivityImageResponse:
+		return printGameCenterActivityImagesMarkdown(&GameCenterActivityImagesResponse{Data: []Resource[GameCenterActivityImageAttributes]{v.Data}})
+	case *GameCenterActivityImageUploadResult:
+		return printGameCenterActivityImageUploadResultMarkdown(v)
+	case *GameCenterActivityImageDeleteResult:
+		return printGameCenterActivityImageDeleteResultMarkdown(v)
+	case *GameCenterActivityVersionReleasesResponse:
+		return printGameCenterActivityReleasesMarkdown(v)
+	case *GameCenterActivityVersionReleaseResponse:
+		return printGameCenterActivityReleasesMarkdown(&GameCenterActivityVersionReleasesResponse{Data: []Resource[GameCenterActivityVersionReleaseAttributes]{v.Data}})
+	case *GameCenterActivityVersionReleaseDeleteResult:
+		return printGameCenterActivityReleaseDeleteResultMarkdown(v)
+	case *GameCenterGroupsResponse:
+		return printGameCenterGroupsMarkdown(v)
+	case *GameCenterGroupResponse:
+		return printGameCenterGroupsMarkdown(&GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}})
+	case *GameCenterGroupDeleteResult:
+		return printGameCenterGroupDeleteResultMarkdown(v)
+	case *GameCenterMatchmakingQueuesResponse:
+		return printGameCenterMatchmakingQueuesMarkdown(v)
+	case *GameCenterMatchmakingQueueResponse:
+		return printGameCenterMatchmakingQueuesMarkdown(&GameCenterMatchmakingQueuesResponse{Data: []Resource[GameCenterMatchmakingQueueAttributes]{v.Data}})
+	case *GameCenterMatchmakingQueueDeleteResult:
+		return printGameCenterMatchmakingQueueDeleteResultMarkdown(v)
+	case *GameCenterMatchmakingRuleSetsResponse:
+		return printGameCenterMatchmakingRuleSetsMarkdown(v)
+	case *GameCenterMatchmakingRuleSetResponse:
+		return printGameCenterMatchmakingRuleSetsMarkdown(&GameCenterMatchmakingRuleSetsResponse{Data: []Resource[GameCenterMatchmakingRuleSetAttributes]{v.Data}})
+	case *GameCenterMatchmakingRuleSetDeleteResult:
+		return printGameCenterMatchmakingRuleSetDeleteResultMarkdown(v)
+	case *GameCenterMatchmakingRulesResponse:
+		return printGameCenterMatchmakingRulesMarkdown(v)
+	case *GameCenterMatchmakingRuleResponse:
+		return printGameCenterMatchmakingRulesMarkdown(&GameCenterMatchmakingRulesResponse{Data: []Resource[GameCenterMatchmakingRuleAttributes]{v.Data}})
+	case *GameCenterMatchmakingRuleDeleteResult:
+		return printGameCenterMatchmakingRuleDeleteResultMarkdown(v)
+	case *GameCenterMatchmakingTeamsResponse:
+		return printGameCenterMatchmakingTeamsMarkdown(v)
+	case *GameCenterMatchmakingTeamResponse:
+		return printGameCenterMatchmakingTeamsMarkdown(&GameCenterMatchmakingTeamsResponse{Data: []Resource[GameCenterMatchmakingTeamAttributes]{v.Data}})
+	case *GameCenterMatchmakingTeamDeleteResult:
+		return printGameCenterMatchmakingTeamDeleteResultMarkdown(v)
+	case *GameCenterMetricsResponse:
+		return printGameCenterMetricsMarkdown(v)
+	case *GameCenterMatchmakingRuleSetTestResponse:
+		return printGameCenterMatchmakingRuleSetTestMarkdown(v)
 	case *SubscriptionGroupDeleteResult:
 		return printSubscriptionGroupDeleteResultMarkdown(v)
 	case *SubscriptionDeleteResult:
@@ -1161,6 +1255,100 @@ func PrintTable(data interface{}) error {
 		return printGameCenterLeaderboardSetImageUploadResultTable(v)
 	case *GameCenterLeaderboardSetImageDeleteResult:
 		return printGameCenterLeaderboardSetImageDeleteResultTable(v)
+	case *GameCenterChallengesResponse:
+		return printGameCenterChallengesTable(v)
+	case *GameCenterChallengeResponse:
+		return printGameCenterChallengesTable(&GameCenterChallengesResponse{Data: []Resource[GameCenterChallengeAttributes]{v.Data}})
+	case *GameCenterChallengeDeleteResult:
+		return printGameCenterChallengeDeleteResultTable(v)
+	case *GameCenterChallengeVersionsResponse:
+		return printGameCenterChallengeVersionsTable(v)
+	case *GameCenterChallengeVersionResponse:
+		return printGameCenterChallengeVersionsTable(&GameCenterChallengeVersionsResponse{Data: []Resource[GameCenterChallengeVersionAttributes]{v.Data}})
+	case *GameCenterChallengeLocalizationsResponse:
+		return printGameCenterChallengeLocalizationsTable(v)
+	case *GameCenterChallengeLocalizationResponse:
+		return printGameCenterChallengeLocalizationsTable(&GameCenterChallengeLocalizationsResponse{Data: []Resource[GameCenterChallengeLocalizationAttributes]{v.Data}})
+	case *GameCenterChallengeLocalizationDeleteResult:
+		return printGameCenterChallengeLocalizationDeleteResultTable(v)
+	case *GameCenterChallengeImagesResponse:
+		return printGameCenterChallengeImagesTable(v)
+	case *GameCenterChallengeImageResponse:
+		return printGameCenterChallengeImagesTable(&GameCenterChallengeImagesResponse{Data: []Resource[GameCenterChallengeImageAttributes]{v.Data}})
+	case *GameCenterChallengeImageUploadResult:
+		return printGameCenterChallengeImageUploadResultTable(v)
+	case *GameCenterChallengeImageDeleteResult:
+		return printGameCenterChallengeImageDeleteResultTable(v)
+	case *GameCenterChallengeVersionReleasesResponse:
+		return printGameCenterChallengeReleasesTable(v)
+	case *GameCenterChallengeVersionReleaseResponse:
+		return printGameCenterChallengeReleasesTable(&GameCenterChallengeVersionReleasesResponse{Data: []Resource[GameCenterChallengeVersionReleaseAttributes]{v.Data}})
+	case *GameCenterChallengeVersionReleaseDeleteResult:
+		return printGameCenterChallengeReleaseDeleteResultTable(v)
+	case *GameCenterActivitiesResponse:
+		return printGameCenterActivitiesTable(v)
+	case *GameCenterActivityResponse:
+		return printGameCenterActivitiesTable(&GameCenterActivitiesResponse{Data: []Resource[GameCenterActivityAttributes]{v.Data}})
+	case *GameCenterActivityDeleteResult:
+		return printGameCenterActivityDeleteResultTable(v)
+	case *GameCenterActivityVersionsResponse:
+		return printGameCenterActivityVersionsTable(v)
+	case *GameCenterActivityVersionResponse:
+		return printGameCenterActivityVersionsTable(&GameCenterActivityVersionsResponse{Data: []Resource[GameCenterActivityVersionAttributes]{v.Data}})
+	case *GameCenterActivityLocalizationsResponse:
+		return printGameCenterActivityLocalizationsTable(v)
+	case *GameCenterActivityLocalizationResponse:
+		return printGameCenterActivityLocalizationsTable(&GameCenterActivityLocalizationsResponse{Data: []Resource[GameCenterActivityLocalizationAttributes]{v.Data}})
+	case *GameCenterActivityLocalizationDeleteResult:
+		return printGameCenterActivityLocalizationDeleteResultTable(v)
+	case *GameCenterActivityImagesResponse:
+		return printGameCenterActivityImagesTable(v)
+	case *GameCenterActivityImageResponse:
+		return printGameCenterActivityImagesTable(&GameCenterActivityImagesResponse{Data: []Resource[GameCenterActivityImageAttributes]{v.Data}})
+	case *GameCenterActivityImageUploadResult:
+		return printGameCenterActivityImageUploadResultTable(v)
+	case *GameCenterActivityImageDeleteResult:
+		return printGameCenterActivityImageDeleteResultTable(v)
+	case *GameCenterActivityVersionReleasesResponse:
+		return printGameCenterActivityReleasesTable(v)
+	case *GameCenterActivityVersionReleaseResponse:
+		return printGameCenterActivityReleasesTable(&GameCenterActivityVersionReleasesResponse{Data: []Resource[GameCenterActivityVersionReleaseAttributes]{v.Data}})
+	case *GameCenterActivityVersionReleaseDeleteResult:
+		return printGameCenterActivityReleaseDeleteResultTable(v)
+	case *GameCenterGroupsResponse:
+		return printGameCenterGroupsTable(v)
+	case *GameCenterGroupResponse:
+		return printGameCenterGroupsTable(&GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}})
+	case *GameCenterGroupDeleteResult:
+		return printGameCenterGroupDeleteResultTable(v)
+	case *GameCenterMatchmakingQueuesResponse:
+		return printGameCenterMatchmakingQueuesTable(v)
+	case *GameCenterMatchmakingQueueResponse:
+		return printGameCenterMatchmakingQueuesTable(&GameCenterMatchmakingQueuesResponse{Data: []Resource[GameCenterMatchmakingQueueAttributes]{v.Data}})
+	case *GameCenterMatchmakingQueueDeleteResult:
+		return printGameCenterMatchmakingQueueDeleteResultTable(v)
+	case *GameCenterMatchmakingRuleSetsResponse:
+		return printGameCenterMatchmakingRuleSetsTable(v)
+	case *GameCenterMatchmakingRuleSetResponse:
+		return printGameCenterMatchmakingRuleSetsTable(&GameCenterMatchmakingRuleSetsResponse{Data: []Resource[GameCenterMatchmakingRuleSetAttributes]{v.Data}})
+	case *GameCenterMatchmakingRuleSetDeleteResult:
+		return printGameCenterMatchmakingRuleSetDeleteResultTable(v)
+	case *GameCenterMatchmakingRulesResponse:
+		return printGameCenterMatchmakingRulesTable(v)
+	case *GameCenterMatchmakingRuleResponse:
+		return printGameCenterMatchmakingRulesTable(&GameCenterMatchmakingRulesResponse{Data: []Resource[GameCenterMatchmakingRuleAttributes]{v.Data}})
+	case *GameCenterMatchmakingRuleDeleteResult:
+		return printGameCenterMatchmakingRuleDeleteResultTable(v)
+	case *GameCenterMatchmakingTeamsResponse:
+		return printGameCenterMatchmakingTeamsTable(v)
+	case *GameCenterMatchmakingTeamResponse:
+		return printGameCenterMatchmakingTeamsTable(&GameCenterMatchmakingTeamsResponse{Data: []Resource[GameCenterMatchmakingTeamAttributes]{v.Data}})
+	case *GameCenterMatchmakingTeamDeleteResult:
+		return printGameCenterMatchmakingTeamDeleteResultTable(v)
+	case *GameCenterMetricsResponse:
+		return printGameCenterMetricsTable(v)
+	case *GameCenterMatchmakingRuleSetTestResponse:
+		return printGameCenterMatchmakingRuleSetTestTable(v)
 	case *SubscriptionGroupDeleteResult:
 		return printSubscriptionGroupDeleteResultTable(v)
 	case *SubscriptionDeleteResult:

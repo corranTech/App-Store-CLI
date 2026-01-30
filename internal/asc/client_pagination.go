@@ -218,6 +218,56 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &CiMacOsVersionsResponse{Links: Links{}}
 	case *CiXcodeVersionsResponse:
 		result = &CiXcodeVersionsResponse{Links: Links{}}
+	case *GameCenterAchievementsResponse:
+		result = &GameCenterAchievementsResponse{Links: Links{}}
+	case *GameCenterLeaderboardsResponse:
+		result = &GameCenterLeaderboardsResponse{Links: Links{}}
+	case *GameCenterLeaderboardSetsResponse:
+		result = &GameCenterLeaderboardSetsResponse{Links: Links{}}
+	case *GameCenterAchievementLocalizationsResponse:
+		result = &GameCenterAchievementLocalizationsResponse{Links: Links{}}
+	case *GameCenterLeaderboardLocalizationsResponse:
+		result = &GameCenterLeaderboardLocalizationsResponse{Links: Links{}}
+	case *GameCenterLeaderboardSetLocalizationsResponse:
+		result = &GameCenterLeaderboardSetLocalizationsResponse{Links: Links{}}
+	case *GameCenterAchievementReleasesResponse:
+		result = &GameCenterAchievementReleasesResponse{Links: Links{}}
+	case *GameCenterLeaderboardReleasesResponse:
+		result = &GameCenterLeaderboardReleasesResponse{Links: Links{}}
+	case *GameCenterLeaderboardSetReleasesResponse:
+		result = &GameCenterLeaderboardSetReleasesResponse{Links: Links{}}
+	case *GameCenterAchievementImagesResponse:
+		result = &GameCenterAchievementImagesResponse{Links: Links{}}
+	case *GameCenterLeaderboardImagesResponse:
+		result = &GameCenterLeaderboardImagesResponse{Links: Links{}}
+	case *GameCenterChallengesResponse:
+		result = &GameCenterChallengesResponse{Links: Links{}}
+	case *GameCenterChallengeVersionsResponse:
+		result = &GameCenterChallengeVersionsResponse{Links: Links{}}
+	case *GameCenterChallengeLocalizationsResponse:
+		result = &GameCenterChallengeLocalizationsResponse{Links: Links{}}
+	case *GameCenterChallengeVersionReleasesResponse:
+		result = &GameCenterChallengeVersionReleasesResponse{Links: Links{}}
+	case *GameCenterActivitiesResponse:
+		result = &GameCenterActivitiesResponse{Links: Links{}}
+	case *GameCenterActivityVersionsResponse:
+		result = &GameCenterActivityVersionsResponse{Links: Links{}}
+	case *GameCenterActivityLocalizationsResponse:
+		result = &GameCenterActivityLocalizationsResponse{Links: Links{}}
+	case *GameCenterActivityVersionReleasesResponse:
+		result = &GameCenterActivityVersionReleasesResponse{Links: Links{}}
+	case *GameCenterGroupsResponse:
+		result = &GameCenterGroupsResponse{Links: Links{}}
+	case *GameCenterMatchmakingQueuesResponse:
+		result = &GameCenterMatchmakingQueuesResponse{Links: Links{}}
+	case *GameCenterMatchmakingRuleSetsResponse:
+		result = &GameCenterMatchmakingRuleSetsResponse{Links: Links{}}
+	case *GameCenterMatchmakingRulesResponse:
+		result = &GameCenterMatchmakingRulesResponse{Links: Links{}}
+	case *GameCenterMatchmakingTeamsResponse:
+		result = &GameCenterMatchmakingTeamsResponse{Links: Links{}}
+	case *GameCenterMetricsResponse:
+		result = &GameCenterMetricsResponse{Links: Links{}}
 	default:
 		return nil, fmt.Errorf("unsupported response type for pagination")
 	}
