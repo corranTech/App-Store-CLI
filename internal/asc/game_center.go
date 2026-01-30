@@ -38,3 +38,19 @@ var ValidSubmissionTypes = []string{
 	"BEST_SCORE",
 	"MOST_RECENT_SCORE",
 }
+
+// GameCenterVersionState represents the state of a Game Center version.
+type GameCenterVersionState string
+
+const (
+	GameCenterVersionStatePrepareForSubmission GameCenterVersionState = "PREPARE_FOR_SUBMISSION"
+	GameCenterVersionStateReadyForReview       GameCenterVersionState = "READY_FOR_REVIEW"
+	GameCenterVersionStateWaitingForReview     GameCenterVersionState = "WAITING_FOR_REVIEW"
+	GameCenterVersionStateInReview             GameCenterVersionState = "IN_REVIEW"
+	GameCenterVersionStateDeveloperRejected    GameCenterVersionState = "DEVELOPER_REJECTED"
+	GameCenterVersionStateRejected             GameCenterVersionState = "REJECTED"
+	GameCenterVersionStateAccepted             GameCenterVersionState = "ACCEPTED"
+	GameCenterVersionStatePendingRelease       GameCenterVersionState = "PENDING_RELEASE"
+	GameCenterVersionStateLive                 GameCenterVersionState = "LIVE"
+	GameCenterVersionStateReplacedWithNew      GameCenterVersionState = "REPLACED_WITH_NEW_VERSION"
+)

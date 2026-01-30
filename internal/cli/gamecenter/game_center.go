@@ -28,13 +28,21 @@ Examples:
   asc game-center leaderboards list --app "APP_ID"
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboard-sets list --app "APP_ID"
-  asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"`,
+  asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
+  asc game-center challenges list --app "APP_ID"
+  asc game-center activities list --app "APP_ID"
+  asc game-center groups list --app "APP_ID"
+  asc game-center matchmaking queues list`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAchievementsCommand(),
 			GameCenterLeaderboardsCommand(),
 			GameCenterLeaderboardSetsCommand(),
+			GameCenterChallengesCommand(),
+			GameCenterActivitiesCommand(),
+			GameCenterGroupsCommand(),
+			GameCenterMatchmakingCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
