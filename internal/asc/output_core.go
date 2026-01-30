@@ -583,8 +583,6 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(&AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}})
 	case *AppCustomProductPageDeleteResult:
 		return printAppCustomProductPageDeleteResultMarkdown(v)
-	case *AppCustomProductPageVersionDeleteResult:
-		return printAppCustomProductPageVersionDeleteResultMarkdown(v)
 	case *AppCustomProductPageLocalizationDeleteResult:
 		return printAppCustomProductPageLocalizationDeleteResultMarkdown(v)
 	case *AppStoreVersionExperimentDeleteResult:
@@ -1147,8 +1145,6 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionExperimentTreatmentLocalizationsTable(&AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}})
 	case *AppCustomProductPageDeleteResult:
 		return printAppCustomProductPageDeleteResultTable(v)
-	case *AppCustomProductPageVersionDeleteResult:
-		return printAppCustomProductPageVersionDeleteResultTable(v)
 	case *AppCustomProductPageLocalizationDeleteResult:
 		return printAppCustomProductPageLocalizationDeleteResultTable(v)
 	case *AppStoreVersionExperimentDeleteResult:

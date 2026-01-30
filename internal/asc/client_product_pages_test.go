@@ -239,23 +239,6 @@ func TestUpdateAppCustomProductPageVersion_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestDeleteAppCustomProductPageVersion_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appCustomProductPageVersions/version-1" {
-			t.Fatalf("expected path /v1/appCustomProductPageVersions/version-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppCustomProductPageVersion(context.Background(), "version-1"); err != nil {
-		t.Fatalf("DeleteAppCustomProductPageVersion() error: %v", err)
-	}
-}
-
 func TestGetAppCustomProductPageLocalizations_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -290,6 +273,48 @@ func TestGetAppCustomProductPageLocalization_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetAppCustomProductPageLocalization(context.Background(), "loc-1"); err != nil {
 		t.Fatalf("GetAppCustomProductPageLocalization() error: %v", err)
+	}
+}
+
+func TestGetAppCustomProductPages_RequiresAppID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPages(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPage_RequiresID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPage(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPageVersions_RequiresPageID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPageVersions(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPageVersion_RequiresID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPageVersion(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPageLocalizations_RequiresVersionID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPageLocalizations(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPageLocalization_RequiresID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPageLocalization(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 

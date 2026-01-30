@@ -118,12 +118,6 @@ type AppCustomProductPageVersionUpdateRequest struct {
 	Data AppCustomProductPageVersionUpdateData `json:"data"`
 }
 
-// AppCustomProductPageVersionDeleteResult represents CLI output for custom page version deletions.
-type AppCustomProductPageVersionDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AppCustomProductPageLocalizationAttributes describes custom product page localization attributes.
 type AppCustomProductPageLocalizationAttributes struct {
 	Locale          string `json:"locale,omitempty"`
@@ -190,6 +184,9 @@ func (c *Client) GetAppCustomProductPages(ctx context.Context, appID string, opt
 	}
 
 	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
 	path := fmt.Sprintf("/v1/apps/%s/appCustomProductPages", appID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
@@ -216,6 +213,9 @@ func (c *Client) GetAppCustomProductPages(ctx context.Context, appID string, opt
 // GetAppCustomProductPage retrieves a custom product page by ID.
 func (c *Client) GetAppCustomProductPage(ctx context.Context, pageID string) (*AppCustomProductPageResponse, error) {
 	pageID = strings.TrimSpace(pageID)
+	if pageID == "" {
+		return nil, fmt.Errorf("pageID is required")
+	}
 	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appCustomProductPages/%s", pageID), nil)
 	if err != nil {
 		return nil, err
@@ -326,6 +326,9 @@ func (c *Client) GetAppCustomProductPageVersions(ctx context.Context, pageID str
 	}
 
 	pageID = strings.TrimSpace(pageID)
+	if query.nextURL == "" && pageID == "" {
+		return nil, fmt.Errorf("pageID is required")
+	}
 	path := fmt.Sprintf("/v1/appCustomProductPages/%s/appCustomProductPageVersions", pageID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
@@ -352,6 +355,9 @@ func (c *Client) GetAppCustomProductPageVersions(ctx context.Context, pageID str
 // GetAppCustomProductPageVersion retrieves a custom product page version by ID.
 func (c *Client) GetAppCustomProductPageVersion(ctx context.Context, versionID string) (*AppCustomProductPageVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
 	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID), nil)
 	if err != nil {
 		return nil, err
@@ -441,16 +447,6 @@ func (c *Client) UpdateAppCustomProductPageVersion(ctx context.Context, versionI
 	return &response, nil
 }
 
-// DeleteAppCustomProductPageVersion deletes a custom product page version.
-func (c *Client) DeleteAppCustomProductPageVersion(ctx context.Context, versionID string) error {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return fmt.Errorf("versionID is required")
-	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID), nil)
-	return err
-}
-
 // GetAppCustomProductPageLocalizations retrieves custom product page localizations for a version.
 func (c *Client) GetAppCustomProductPageLocalizations(ctx context.Context, versionID string, opts ...AppCustomProductPageLocalizationsOption) (*AppCustomProductPageLocalizationsResponse, error) {
 	query := &appCustomProductPageLocalizationsQuery{}
@@ -459,6 +455,9 @@ func (c *Client) GetAppCustomProductPageLocalizations(ctx context.Context, versi
 	}
 
 	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
 	path := fmt.Sprintf("/v1/appCustomProductPageVersions/%s/appCustomProductPageLocalizations", versionID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
@@ -485,6 +484,9 @@ func (c *Client) GetAppCustomProductPageLocalizations(ctx context.Context, versi
 // GetAppCustomProductPageLocalization retrieves a custom product page localization by ID.
 func (c *Client) GetAppCustomProductPageLocalization(ctx context.Context, localizationID string) (*AppCustomProductPageLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
 	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
 	if err != nil {
 		return nil, err

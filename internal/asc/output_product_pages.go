@@ -212,20 +212,6 @@ func printAppCustomProductPageDeleteResultMarkdown(result *AppCustomProductPageD
 	return nil
 }
 
-func printAppCustomProductPageVersionDeleteResultTable(result *AppCustomProductPageVersionDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
-}
-
-func printAppCustomProductPageVersionDeleteResultMarkdown(result *AppCustomProductPageVersionDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
-	return nil
-}
-
 func printAppCustomProductPageLocalizationDeleteResultTable(result *AppCustomProductPageLocalizationDeleteResult) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tDeleted")

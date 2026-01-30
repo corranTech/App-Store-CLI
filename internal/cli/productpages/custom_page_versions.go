@@ -24,8 +24,7 @@ func CustomPageVersionsCommand() *ffcli.Command {
 
 Examples:
   asc product-pages custom-pages versions list --custom-page-id "PAGE_ID"
-  asc product-pages custom-pages versions create --custom-page-id "PAGE_ID" --deep-link "https://example.com"
-  asc product-pages custom-pages versions delete --custom-page-version-id "VERSION_ID" --confirm`,
+  asc product-pages custom-pages versions create --custom-page-id "PAGE_ID" --deep-link "https://example.com"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -33,7 +32,6 @@ Examples:
 			CustomPageVersionsGetCommand(),
 			CustomPageVersionsCreateCommand(),
 			CustomPageVersionsUpdateCommand(),
-			CustomPageVersionsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -255,54 +253,6 @@ Examples:
 			}
 
 			return printOutput(resp, *output, *pretty)
-		},
-	}
-}
-
-// CustomPageVersionsDeleteCommand returns the custom page versions delete subcommand.
-func CustomPageVersionsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-versions delete", flag.ExitOnError)
-
-	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc product-pages custom-pages versions delete --custom-page-version-id \"VERSION_ID\" --confirm",
-		ShortHelp:  "Delete a custom product page version.",
-		LongHelp: `Delete a custom product page version.
-
-Examples:
-  asc product-pages custom-pages versions delete --custom-page-version-id "VERSION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-version-id is required")
-				return flag.ErrHelp
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
-			}
-
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("custom-pages versions delete: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppCustomProductPageVersion(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("custom-pages versions delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AppCustomProductPageVersionDeleteResult{ID: trimmedID, Deleted: true}
-			return printOutput(result, *output, *pretty)
 		},
 	}
 }
