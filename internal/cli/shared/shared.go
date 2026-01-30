@@ -49,6 +49,8 @@ var (
 	noProgress          bool
 )
 
+var isTerminal = term.IsTerminal
+
 // BindRootFlags registers root-level flags that affect shared CLI behavior.
 func BindRootFlags(fs *flag.FlagSet) {
 	fs.StringVar(&selectedProfile, "profile", "", "Use named authentication profile")
@@ -61,23 +63,23 @@ func SelectedProfile() string {
 	return selectedProfile
 }
 
-// SetSelectedProfile sets the current profile override (tests only).
-func SetSelectedProfile(value string) {
-	selectedProfile = value
-}
-
-// ProgressEnabled returns true if progress indicators should be displayed.
-// Progress is disabled when --no-progress is set or stderr is not a TTY.
+// ProgressEnabled reports whether it's safe/appropriate to emit progress messages.
+// Progress must be stderr-only and must not appear when stderr is non-interactive.
 func ProgressEnabled() bool {
 	if noProgress {
 		return false
 	}
-	return term.IsTerminal(int(os.Stderr.Fd()))
+	return isTerminal(int(os.Stderr.Fd()))
 }
 
-// SetNoProgress sets the no-progress flag (tests only).
+// SetNoProgress sets progress suppression (tests only).
 func SetNoProgress(value bool) {
 	noProgress = value
+}
+
+// SetSelectedProfile sets the current profile override (tests only).
+func SetSelectedProfile(value string) {
+	selectedProfile = value
 }
 
 // CleanupTempPrivateKey removes any temporary private key created from env values.
@@ -101,7 +103,7 @@ func supportsANSI() bool {
 	if strings.EqualFold(os.Getenv("TERM"), "dumb") {
 		return false
 	}
-	return term.IsTerminal(int(os.Stderr.Fd()))
+	return isTerminal(int(os.Stderr.Fd()))
 }
 
 // DefaultUsageFunc returns a usage string with bold section headers

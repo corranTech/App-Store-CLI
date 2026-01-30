@@ -73,6 +73,54 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 	return stdout, stderr
 }
 
+func TestProgressEnabled_RespectsNoProgressFlag(t *testing.T) {
+	prevNoProgress := noProgress
+	prevIsTerminal := isTerminal
+	t.Cleanup(func() {
+		SetNoProgress(prevNoProgress)
+		isTerminal = prevIsTerminal
+	})
+
+	isTerminal = func(int) bool { return true }
+	SetNoProgress(true)
+
+	if ProgressEnabled() {
+		t.Fatal("expected progress to be disabled when --no-progress is set")
+	}
+}
+
+func TestProgressEnabled_DisabledWhenStderrNotTTY(t *testing.T) {
+	prevNoProgress := noProgress
+	prevIsTerminal := isTerminal
+	t.Cleanup(func() {
+		SetNoProgress(prevNoProgress)
+		isTerminal = prevIsTerminal
+	})
+
+	isTerminal = func(int) bool { return false }
+	SetNoProgress(false)
+
+	if ProgressEnabled() {
+		t.Fatal("expected progress to be disabled when stderr is not a TTY")
+	}
+}
+
+func TestProgressEnabled_EnabledWhenTTYAndNotDisabled(t *testing.T) {
+	prevNoProgress := noProgress
+	prevIsTerminal := isTerminal
+	t.Cleanup(func() {
+		SetNoProgress(prevNoProgress)
+		isTerminal = prevIsTerminal
+	})
+
+	isTerminal = func(int) bool { return true }
+	SetNoProgress(false)
+
+	if !ProgressEnabled() {
+		t.Fatal("expected progress to be enabled when stderr is a TTY and --no-progress is not set")
+	}
+}
+
 func TestResolvePrivateKeyPathPrefersPath(t *testing.T) {
 	resetPrivateKeyTemp(t)
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
