@@ -49,7 +49,7 @@ func CompletionCommand(rootSubcommands []*ffcli.Command) *ffcli.Command {
 			fmt.Fprint(os.Stdout, fishScript(names))
 			return nil
 		default:
-			fmt.Fprintf(os.Stderr, "Error: unsupported shell: %s\n", s)
+			fmt.Fprintf(os.Stderr, "Error: unsupported shell: %s\n", shared.SanitizeTerminal(s))
 			return flag.ErrHelp
 		}
 	}
@@ -117,4 +117,3 @@ func fishScript(subcommands []string) string {
 complete -c asc -f -a '%s'
 `, words)
 }
-

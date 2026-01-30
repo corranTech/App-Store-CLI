@@ -40,8 +40,12 @@ func RootCommand(version string) *ffcli.Command {
 			return nil
 		}
 		if len(args) > 0 {
-			fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", args[0])
+			unknown := shared.SanitizeTerminal(args[0])
+			fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", unknown)
 			if suggestions := suggest.Commands(args[0], rootSubcommandNames); len(suggestions) > 0 {
+				for i, suggestion := range suggestions {
+					suggestions[i] = shared.SanitizeTerminal(suggestion)
+				}
 				fmt.Fprintf(os.Stderr, "Did you mean: %s\n\n", strings.Join(suggestions, ", "))
 			}
 		}
