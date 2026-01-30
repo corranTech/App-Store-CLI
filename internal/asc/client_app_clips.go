@@ -552,12 +552,6 @@ type AppClipHeaderImageDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// AppClipAppStoreReviewDetailDeleteResult represents review detail deletion.
-type AppClipAppStoreReviewDetailDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // BetaAppClipInvocationDeleteResult represents invocation deletion.
 type BetaAppClipInvocationDeleteResult struct {
 	ID      string `json:"id"`
