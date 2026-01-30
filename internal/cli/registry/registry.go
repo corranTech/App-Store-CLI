@@ -14,6 +14,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/androidiosmapping"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/app_events"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/backgroundassets"
@@ -43,6 +44,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/preorders"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/prerelease"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/pricing"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/productpages"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/profiles"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/publish"
@@ -56,6 +58,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/testflight"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/users"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/versions"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/webhooks"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/winbackoffers"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/xcodecloud"
 )
@@ -87,11 +90,13 @@ func Subcommands(version string) []*ffcli.Command {
 		performance.PerformanceCommand(),
 		finance.FinanceCommand(),
 		apps.AppsCommand(),
+		appclips.AppClipsCommand(),
 		androidiosmapping.AndroidIosMappingCommand(),
 		apps.AppSetupCommand(),
 		apps.AppTagsCommand(),
 		marketplace.MarketplaceCommand(),
 		alternativedistribution.Command(),
+		webhooks.WebhooksCommand(),
 		nominations.NominationsCommand(),
 		bundleids.BundleIDsCommand(),
 		merchantids.MerchantIDsCommand(),
@@ -109,6 +114,7 @@ func Subcommands(version string) []*ffcli.Command {
 		buildbundles.BuildBundlesCommand(),
 		publish.PublishCommand(),
 		versions.VersionsCommand(),
+		productpages.ProductPagesCommand(),
 		routingcoverage.RoutingCoverageCommand(),
 		apps.AppInfoCommand(),
 		eula.EULACommand(),

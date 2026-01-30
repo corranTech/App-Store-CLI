@@ -53,10 +53,26 @@ func PrintMarkdown(data interface{}) error {
 		return printReviewsMarkdown(v)
 	case *AppsResponse:
 		return printAppsMarkdown(v)
+	case *AppClipsResponse:
+		return printAppClipsMarkdown(v)
 	case *AppCategoriesResponse:
 		return printAppCategoriesMarkdown(v)
 	case *AppResponse:
 		return printAppsMarkdown(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *AppClipResponse:
+		return printAppClipsMarkdown(&AppClipsResponse{Data: []Resource[AppClipAttributes]{v.Data}})
+	case *AppClipDefaultExperiencesResponse:
+		return printAppClipDefaultExperiencesMarkdown(v)
+	case *AppClipDefaultExperienceResponse:
+		return printAppClipDefaultExperiencesMarkdown(&AppClipDefaultExperiencesResponse{Data: []Resource[AppClipDefaultExperienceAttributes]{v.Data}})
+	case *AppClipDefaultExperienceLocalizationsResponse:
+		return printAppClipDefaultExperienceLocalizationsMarkdown(v)
+	case *AppClipDefaultExperienceLocalizationResponse:
+		return printAppClipDefaultExperienceLocalizationsMarkdown(&AppClipDefaultExperienceLocalizationsResponse{Data: []Resource[AppClipDefaultExperienceLocalizationAttributes]{v.Data}})
+	case *AppClipAdvancedExperiencesResponse:
+		return printAppClipAdvancedExperiencesMarkdown(v)
+	case *AppClipAdvancedExperienceResponse:
+		return printAppClipAdvancedExperiencesMarkdown(&AppClipAdvancedExperiencesResponse{Data: []Resource[AppClipAdvancedExperienceAttributes]{v.Data}})
 	case *AppSetupInfoResult:
 		return printAppSetupInfoResultMarkdown(v)
 	case *AppTagsResponse:
@@ -71,6 +87,14 @@ func PrintMarkdown(data interface{}) error {
 		return printMarketplaceWebhooksMarkdown(v)
 	case *MarketplaceWebhookResponse:
 		return printMarketplaceWebhookMarkdown(v)
+	case *WebhooksResponse:
+		return printWebhooksMarkdown(v)
+	case *WebhookResponse:
+		return printWebhooksMarkdown(&WebhooksResponse{Data: []Resource[WebhookAttributes]{v.Data}})
+	case *WebhookDeliveriesResponse:
+		return printWebhookDeliveriesMarkdown(v)
+	case *WebhookDeliveryResponse:
+		return printWebhookDeliveriesMarkdown(&WebhookDeliveriesResponse{Data: []Resource[WebhookDeliveryAttributes]{v.Data}})
 	case *AlternativeDistributionDomainsResponse:
 		return printAlternativeDistributionDomainsMarkdown(v)
 	case *AlternativeDistributionDomainResponse:
@@ -185,6 +209,12 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildBundleFileSizesMarkdown(v)
 	case *BetaAppClipInvocationsResponse:
 		return printBetaAppClipInvocationsMarkdown(v)
+	case *BetaAppClipInvocationResponse:
+		return printBetaAppClipInvocationsMarkdown(&BetaAppClipInvocationsResponse{Data: []Resource[BetaAppClipInvocationAttributes]{v.Data}})
+	case *BetaAppClipInvocationLocalizationsResponse:
+		return printBetaAppClipInvocationLocalizationsMarkdown(v)
+	case *BetaAppClipInvocationLocalizationResponse:
+		return printBetaAppClipInvocationLocalizationsMarkdown(&BetaAppClipInvocationLocalizationsResponse{Data: []Resource[BetaAppClipInvocationLocalizationAttributes]{v.Data}})
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesMarkdown(v)
 	case *WinBackOffersResponse:
@@ -293,6 +323,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreReviewAttachmentsMarkdown(v)
 	case *AppStoreReviewAttachmentResponse:
 		return printAppStoreReviewAttachmentMarkdown(v)
+	case *AppClipAppStoreReviewDetailResponse:
+		return printAppClipAppStoreReviewDetailMarkdown(v)
 	case *RoutingAppCoverageResponse:
 		return printRoutingAppCoverageMarkdown(v)
 	case *AppEncryptionDeclarationsResponse:
@@ -331,8 +363,26 @@ func PrintMarkdown(data interface{}) error {
 		return printAppScreenshotUploadResultMarkdown(v)
 	case *AppPreviewUploadResult:
 		return printAppPreviewUploadResultMarkdown(v)
+	case *AppClipAdvancedExperienceImageUploadResult:
+		return printAppClipAdvancedExperienceImageUploadResultMarkdown(v)
+	case *AppClipHeaderImageUploadResult:
+		return printAppClipHeaderImageUploadResultMarkdown(v)
 	case *AssetDeleteResult:
 		return printAssetDeleteResultMarkdown(v)
+	case *AppClipDefaultExperienceDeleteResult:
+		return printAppClipDefaultExperienceDeleteResultMarkdown(v)
+	case *AppClipDefaultExperienceLocalizationDeleteResult:
+		return printAppClipDefaultExperienceLocalizationDeleteResultMarkdown(v)
+	case *AppClipAdvancedExperienceDeleteResult:
+		return printAppClipAdvancedExperienceDeleteResultMarkdown(v)
+	case *AppClipAdvancedExperienceImageDeleteResult:
+		return printAppClipAdvancedExperienceImageDeleteResultMarkdown(v)
+	case *AppClipHeaderImageDeleteResult:
+		return printAppClipHeaderImageDeleteResultMarkdown(v)
+	case *BetaAppClipInvocationDeleteResult:
+		return printBetaAppClipInvocationDeleteResultMarkdown(v)
+	case *BetaAppClipInvocationLocalizationDeleteResult:
+		return printBetaAppClipInvocationLocalizationDeleteResultMarkdown(v)
 	case *TestFlightPublishResult:
 		return printTestFlightPublishResultMarkdown(v)
 	case *AppStorePublishResult:
@@ -485,6 +535,10 @@ func PrintMarkdown(data interface{}) error {
 		return printMarketplaceSearchDetailDeleteResultMarkdown(v)
 	case *MarketplaceWebhookDeleteResult:
 		return printMarketplaceWebhookDeleteResultMarkdown(v)
+	case *WebhookDeleteResult:
+		return printWebhookDeleteResultMarkdown(v)
+	case *WebhookPingResponse:
+		return printWebhookPingMarkdown(v)
 	case *MerchantIDDeleteResult:
 		return printMerchantIDDeleteResultMarkdown(v)
 	case *PassTypeIDDeleteResult:
@@ -575,6 +629,44 @@ func PrintMarkdown(data interface{}) error {
 		return printAlternativeDistributionDomainDeleteResultMarkdown(v)
 	case *AlternativeDistributionKeyDeleteResult:
 		return printAlternativeDistributionKeyDeleteResultMarkdown(v)
+	case *AppCustomProductPagesResponse:
+		return printAppCustomProductPagesMarkdown(v)
+	case *AppCustomProductPageResponse:
+		return printAppCustomProductPagesMarkdown(&AppCustomProductPagesResponse{Data: []Resource[AppCustomProductPageAttributes]{v.Data}})
+	case *AppCustomProductPageVersionsResponse:
+		return printAppCustomProductPageVersionsMarkdown(v)
+	case *AppCustomProductPageVersionResponse:
+		return printAppCustomProductPageVersionsMarkdown(&AppCustomProductPageVersionsResponse{Data: []Resource[AppCustomProductPageVersionAttributes]{v.Data}})
+	case *AppCustomProductPageLocalizationsResponse:
+		return printAppCustomProductPageLocalizationsMarkdown(v)
+	case *AppCustomProductPageLocalizationResponse:
+		return printAppCustomProductPageLocalizationsMarkdown(&AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsResponse:
+		return printAppStoreVersionExperimentsMarkdown(v)
+	case *AppStoreVersionExperimentResponse:
+		return printAppStoreVersionExperimentsMarkdown(&AppStoreVersionExperimentsResponse{Data: []Resource[AppStoreVersionExperimentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsV2Response:
+		return printAppStoreVersionExperimentsV2Markdown(v)
+	case *AppStoreVersionExperimentV2Response:
+		return printAppStoreVersionExperimentsV2Markdown(&AppStoreVersionExperimentsV2Response{Data: []Resource[AppStoreVersionExperimentV2Attributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentsResponse:
+		return printAppStoreVersionExperimentTreatmentsMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentResponse:
+		return printAppStoreVersionExperimentTreatmentsMarkdown(&AppStoreVersionExperimentTreatmentsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentLocalizationsResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(&AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}})
+	case *AppCustomProductPageDeleteResult:
+		return printAppCustomProductPageDeleteResultMarkdown(v)
+	case *AppCustomProductPageLocalizationDeleteResult:
+		return printAppCustomProductPageLocalizationDeleteResultMarkdown(v)
+	case *AppStoreVersionExperimentDeleteResult:
+		return printAppStoreVersionExperimentDeleteResultMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentDeleteResult:
+		return printAppStoreVersionExperimentTreatmentDeleteResultMarkdown(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationDeleteResult:
+		return printAppStoreVersionExperimentTreatmentLocalizationDeleteResultMarkdown(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsMarkdown(v)
 	case *DiagnosticSignaturesResponse:
@@ -599,10 +691,26 @@ func PrintTable(data interface{}) error {
 		return printReviewsTable(v)
 	case *AppsResponse:
 		return printAppsTable(v)
+	case *AppClipsResponse:
+		return printAppClipsTable(v)
 	case *AppCategoriesResponse:
 		return printAppCategoriesTable(v)
 	case *AppResponse:
 		return printAppsTable(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
+	case *AppClipResponse:
+		return printAppClipsTable(&AppClipsResponse{Data: []Resource[AppClipAttributes]{v.Data}})
+	case *AppClipDefaultExperiencesResponse:
+		return printAppClipDefaultExperiencesTable(v)
+	case *AppClipDefaultExperienceResponse:
+		return printAppClipDefaultExperiencesTable(&AppClipDefaultExperiencesResponse{Data: []Resource[AppClipDefaultExperienceAttributes]{v.Data}})
+	case *AppClipDefaultExperienceLocalizationsResponse:
+		return printAppClipDefaultExperienceLocalizationsTable(v)
+	case *AppClipDefaultExperienceLocalizationResponse:
+		return printAppClipDefaultExperienceLocalizationsTable(&AppClipDefaultExperienceLocalizationsResponse{Data: []Resource[AppClipDefaultExperienceLocalizationAttributes]{v.Data}})
+	case *AppClipAdvancedExperiencesResponse:
+		return printAppClipAdvancedExperiencesTable(v)
+	case *AppClipAdvancedExperienceResponse:
+		return printAppClipAdvancedExperiencesTable(&AppClipAdvancedExperiencesResponse{Data: []Resource[AppClipAdvancedExperienceAttributes]{v.Data}})
 	case *AppSetupInfoResult:
 		return printAppSetupInfoResultTable(v)
 	case *AppTagsResponse:
@@ -617,6 +725,14 @@ func PrintTable(data interface{}) error {
 		return printMarketplaceWebhooksTable(v)
 	case *MarketplaceWebhookResponse:
 		return printMarketplaceWebhookTable(v)
+	case *WebhooksResponse:
+		return printWebhooksTable(v)
+	case *WebhookResponse:
+		return printWebhooksTable(&WebhooksResponse{Data: []Resource[WebhookAttributes]{v.Data}})
+	case *WebhookDeliveriesResponse:
+		return printWebhookDeliveriesTable(v)
+	case *WebhookDeliveryResponse:
+		return printWebhookDeliveriesTable(&WebhookDeliveriesResponse{Data: []Resource[WebhookDeliveryAttributes]{v.Data}})
 	case *AlternativeDistributionDomainsResponse:
 		return printAlternativeDistributionDomainsTable(v)
 	case *AlternativeDistributionDomainResponse:
@@ -731,6 +847,12 @@ func PrintTable(data interface{}) error {
 		return printBuildBundleFileSizesTable(v)
 	case *BetaAppClipInvocationsResponse:
 		return printBetaAppClipInvocationsTable(v)
+	case *BetaAppClipInvocationResponse:
+		return printBetaAppClipInvocationsTable(&BetaAppClipInvocationsResponse{Data: []Resource[BetaAppClipInvocationAttributes]{v.Data}})
+	case *BetaAppClipInvocationLocalizationsResponse:
+		return printBetaAppClipInvocationLocalizationsTable(v)
+	case *BetaAppClipInvocationLocalizationResponse:
+		return printBetaAppClipInvocationLocalizationsTable(&BetaAppClipInvocationLocalizationsResponse{Data: []Resource[BetaAppClipInvocationLocalizationAttributes]{v.Data}})
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesTable(v)
 	case *WinBackOffersResponse:
@@ -839,6 +961,8 @@ func PrintTable(data interface{}) error {
 		return printAppStoreReviewAttachmentsTable(v)
 	case *AppStoreReviewAttachmentResponse:
 		return printAppStoreReviewAttachmentTable(v)
+	case *AppClipAppStoreReviewDetailResponse:
+		return printAppClipAppStoreReviewDetailTable(v)
 	case *RoutingAppCoverageResponse:
 		return printRoutingAppCoverageTable(v)
 	case *AppEncryptionDeclarationsResponse:
@@ -877,8 +1001,26 @@ func PrintTable(data interface{}) error {
 		return printAppScreenshotUploadResultTable(v)
 	case *AppPreviewUploadResult:
 		return printAppPreviewUploadResultTable(v)
+	case *AppClipAdvancedExperienceImageUploadResult:
+		return printAppClipAdvancedExperienceImageUploadResultTable(v)
+	case *AppClipHeaderImageUploadResult:
+		return printAppClipHeaderImageUploadResultTable(v)
 	case *AssetDeleteResult:
 		return printAssetDeleteResultTable(v)
+	case *AppClipDefaultExperienceDeleteResult:
+		return printAppClipDefaultExperienceDeleteResultTable(v)
+	case *AppClipDefaultExperienceLocalizationDeleteResult:
+		return printAppClipDefaultExperienceLocalizationDeleteResultTable(v)
+	case *AppClipAdvancedExperienceDeleteResult:
+		return printAppClipAdvancedExperienceDeleteResultTable(v)
+	case *AppClipAdvancedExperienceImageDeleteResult:
+		return printAppClipAdvancedExperienceImageDeleteResultTable(v)
+	case *AppClipHeaderImageDeleteResult:
+		return printAppClipHeaderImageDeleteResultTable(v)
+	case *BetaAppClipInvocationDeleteResult:
+		return printBetaAppClipInvocationDeleteResultTable(v)
+	case *BetaAppClipInvocationLocalizationDeleteResult:
+		return printBetaAppClipInvocationLocalizationDeleteResultTable(v)
 	case *TestFlightPublishResult:
 		return printTestFlightPublishResultTable(v)
 	case *AppStorePublishResult:
@@ -1031,6 +1173,10 @@ func PrintTable(data interface{}) error {
 		return printMarketplaceSearchDetailDeleteResultTable(v)
 	case *MarketplaceWebhookDeleteResult:
 		return printMarketplaceWebhookDeleteResultTable(v)
+	case *WebhookDeleteResult:
+		return printWebhookDeleteResultTable(v)
+	case *WebhookPingResponse:
+		return printWebhookPingTable(v)
 	case *MerchantIDDeleteResult:
 		return printMerchantIDDeleteResultTable(v)
 	case *PassTypeIDDeleteResult:
@@ -1121,6 +1267,44 @@ func PrintTable(data interface{}) error {
 		return printAlternativeDistributionDomainDeleteResultTable(v)
 	case *AlternativeDistributionKeyDeleteResult:
 		return printAlternativeDistributionKeyDeleteResultTable(v)
+	case *AppCustomProductPagesResponse:
+		return printAppCustomProductPagesTable(v)
+	case *AppCustomProductPageResponse:
+		return printAppCustomProductPagesTable(&AppCustomProductPagesResponse{Data: []Resource[AppCustomProductPageAttributes]{v.Data}})
+	case *AppCustomProductPageVersionsResponse:
+		return printAppCustomProductPageVersionsTable(v)
+	case *AppCustomProductPageVersionResponse:
+		return printAppCustomProductPageVersionsTable(&AppCustomProductPageVersionsResponse{Data: []Resource[AppCustomProductPageVersionAttributes]{v.Data}})
+	case *AppCustomProductPageLocalizationsResponse:
+		return printAppCustomProductPageLocalizationsTable(v)
+	case *AppCustomProductPageLocalizationResponse:
+		return printAppCustomProductPageLocalizationsTable(&AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsResponse:
+		return printAppStoreVersionExperimentsTable(v)
+	case *AppStoreVersionExperimentResponse:
+		return printAppStoreVersionExperimentsTable(&AppStoreVersionExperimentsResponse{Data: []Resource[AppStoreVersionExperimentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentsV2Response:
+		return printAppStoreVersionExperimentsV2Table(v)
+	case *AppStoreVersionExperimentV2Response:
+		return printAppStoreVersionExperimentsV2Table(&AppStoreVersionExperimentsV2Response{Data: []Resource[AppStoreVersionExperimentV2Attributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentsResponse:
+		return printAppStoreVersionExperimentTreatmentsTable(v)
+	case *AppStoreVersionExperimentTreatmentResponse:
+		return printAppStoreVersionExperimentTreatmentsTable(&AppStoreVersionExperimentTreatmentsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentAttributes]{v.Data}})
+	case *AppStoreVersionExperimentTreatmentLocalizationsResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsTable(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationResponse:
+		return printAppStoreVersionExperimentTreatmentLocalizationsTable(&AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}})
+	case *AppCustomProductPageDeleteResult:
+		return printAppCustomProductPageDeleteResultTable(v)
+	case *AppCustomProductPageLocalizationDeleteResult:
+		return printAppCustomProductPageLocalizationDeleteResultTable(v)
+	case *AppStoreVersionExperimentDeleteResult:
+		return printAppStoreVersionExperimentDeleteResultTable(v)
+	case *AppStoreVersionExperimentTreatmentDeleteResult:
+		return printAppStoreVersionExperimentTreatmentDeleteResultTable(v)
+	case *AppStoreVersionExperimentTreatmentLocalizationDeleteResult:
+		return printAppStoreVersionExperimentTreatmentLocalizationDeleteResultTable(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsTable(v)
 	case *DiagnosticSignaturesResponse:

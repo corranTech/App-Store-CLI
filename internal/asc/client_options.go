@@ -14,6 +14,21 @@ type ReviewOption func(*reviewQuery)
 // AppsOption is a functional option for GetApps.
 type AppsOption func(*appsQuery)
 
+// AppClipsOption is a functional option for GetAppClips.
+type AppClipsOption func(*appClipsQuery)
+
+// AppClipDefaultExperiencesOption is a functional option for GetAppClipDefaultExperiences.
+type AppClipDefaultExperiencesOption func(*appClipDefaultExperiencesQuery)
+
+// AppClipDefaultExperienceLocalizationsOption is a functional option for GetAppClipDefaultExperienceLocalizations.
+type AppClipDefaultExperienceLocalizationsOption func(*appClipDefaultExperienceLocalizationsQuery)
+
+// AppClipAdvancedExperiencesOption is a functional option for GetAppClipAdvancedExperiences.
+type AppClipAdvancedExperiencesOption func(*appClipAdvancedExperiencesQuery)
+
+// BetaAppClipInvocationOption is a functional option for GetBetaAppClipInvocation.
+type BetaAppClipInvocationOption func(*betaAppClipInvocationQuery)
+
 // AppTagsOption is a functional option for GetAppTags.
 type AppTagsOption func(*appTagsQuery)
 
@@ -128,6 +143,27 @@ type BetaBuildLocalizationsOption func(*betaBuildLocalizationsQuery)
 // AppInfoLocalizationsOption is a functional option for app info localizations.
 type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
 
+// AppCustomProductPagesOption is a functional option for custom product page list endpoints.
+type AppCustomProductPagesOption func(*appCustomProductPagesQuery)
+
+// AppCustomProductPageVersionsOption is a functional option for custom product page version list endpoints.
+type AppCustomProductPageVersionsOption func(*appCustomProductPageVersionsQuery)
+
+// AppCustomProductPageLocalizationsOption is a functional option for custom product page localization list endpoints.
+type AppCustomProductPageLocalizationsOption func(*appCustomProductPageLocalizationsQuery)
+
+// AppStoreVersionExperimentsOption is a functional option for app store version experiment list endpoints (v1).
+type AppStoreVersionExperimentsOption func(*appStoreVersionExperimentsQuery)
+
+// AppStoreVersionExperimentsV2Option is a functional option for app store version experiment list endpoints (v2).
+type AppStoreVersionExperimentsV2Option func(*appStoreVersionExperimentsV2Query)
+
+// AppStoreVersionExperimentTreatmentsOption is a functional option for experiment treatment list endpoints.
+type AppStoreVersionExperimentTreatmentsOption func(*appStoreVersionExperimentTreatmentsQuery)
+
+// AppStoreVersionExperimentTreatmentLocalizationsOption is a functional option for treatment localization list endpoints.
+type AppStoreVersionExperimentTreatmentLocalizationsOption func(*appStoreVersionExperimentTreatmentLocalizationsQuery)
+
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
 
@@ -178,6 +214,12 @@ type AlternativeDistributionPackageVariantsOption func(*alternativeDistributionP
 
 // AlternativeDistributionPackageDeltasOption is a functional option for package delta list endpoints.
 type AlternativeDistributionPackageDeltasOption func(*alternativeDistributionPackageDeltasQuery)
+
+// WebhooksOption is a functional option for webhooks list endpoints.
+type WebhooksOption func(*webhooksQuery)
+
+// WebhookDeliveriesOption is a functional option for webhook deliveries endpoints.
+type WebhookDeliveriesOption func(*webhookDeliveriesQuery)
 
 // BackgroundAssetsOption is a functional option for background assets list endpoints.
 type BackgroundAssetsOption func(*backgroundAssetsQuery)
@@ -443,6 +485,105 @@ func WithAlternativeDistributionPackageDeltasNextURL(next string) AlternativeDis
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
+	}
+}
+
+// WithWebhooksLimit sets the max number of webhooks to return.
+func WithWebhooksLimit(limit int) WebhooksOption {
+	return func(q *webhooksQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithWebhooksNextURL uses a next page URL directly.
+func WithWebhooksNextURL(next string) WebhooksOption {
+	return func(q *webhooksQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithWebhooksFields sets fields[webhooks] for webhook responses.
+func WithWebhooksFields(fields []string) WebhooksOption {
+	return func(q *webhooksQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWebhooksAppFields sets fields[apps] for webhook responses.
+func WithWebhooksAppFields(fields []string) WebhooksOption {
+	return func(q *webhooksQuery) {
+		q.appFields = normalizeList(fields)
+	}
+}
+
+// WithWebhooksInclude sets include for webhook responses.
+func WithWebhooksInclude(include []string) WebhooksOption {
+	return func(q *webhooksQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithWebhookDeliveriesLimit sets the max number of webhook deliveries to return.
+func WithWebhookDeliveriesLimit(limit int) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithWebhookDeliveriesNextURL uses a next page URL directly.
+func WithWebhookDeliveriesNextURL(next string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithWebhookDeliveriesDeliveryStates filters deliveries by state.
+func WithWebhookDeliveriesDeliveryStates(states []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.deliveryStates = normalizeUpperList(states)
+	}
+}
+
+// WithWebhookDeliveriesCreatedAfter filters deliveries created after or equal to a timestamp.
+func WithWebhookDeliveriesCreatedAfter(values []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.createdAfter = normalizeList(values)
+	}
+}
+
+// WithWebhookDeliveriesCreatedBefore filters deliveries created before a timestamp.
+func WithWebhookDeliveriesCreatedBefore(values []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.createdBefore = normalizeList(values)
+	}
+}
+
+// WithWebhookDeliveriesFields sets fields[webhookDeliveries] for delivery responses.
+func WithWebhookDeliveriesFields(fields []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWebhookDeliveriesEventFields sets fields[webhookEvents] for delivery responses.
+func WithWebhookDeliveriesEventFields(fields []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.eventFields = normalizeList(fields)
+	}
+}
+
+// WithWebhookDeliveriesInclude sets include for delivery responses.
+func WithWebhookDeliveriesInclude(include []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.include = normalizeList(include)
 	}
 }
 
@@ -872,6 +1013,136 @@ func WithAppsNames(names []string) AppsOption {
 func WithAppsSKUs(skus []string) AppsOption {
 	return func(q *appsQuery) {
 		q.skus = normalizeList(skus)
+	}
+}
+
+// WithAppClipsLimit sets the max number of App Clips to return.
+func WithAppClipsLimit(limit int) AppClipsOption {
+	return func(q *appClipsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipsNextURL uses a next page URL directly.
+func WithAppClipsNextURL(next string) AppClipsOption {
+	return func(q *appClipsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipsBundleIDs filters App Clips by bundle ID(s).
+func WithAppClipsBundleIDs(bundleIDs []string) AppClipsOption {
+	return func(q *appClipsQuery) {
+		q.bundleIDs = normalizeList(bundleIDs)
+	}
+}
+
+// WithAppClipDefaultExperiencesLimit sets the max number of default experiences to return.
+func WithAppClipDefaultExperiencesLimit(limit int) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipDefaultExperiencesNextURL uses a next page URL directly.
+func WithAppClipDefaultExperiencesNextURL(next string) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipDefaultExperiencesReleaseWithVersionExists filters by releaseWithAppStoreVersion existence.
+func WithAppClipDefaultExperiencesReleaseWithVersionExists(value bool) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		q.releaseWithVersionExists = &value
+	}
+}
+
+// WithAppClipDefaultExperienceLocalizationsLimit sets the max number of localizations to return.
+func WithAppClipDefaultExperienceLocalizationsLimit(limit int) AppClipDefaultExperienceLocalizationsOption {
+	return func(q *appClipDefaultExperienceLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipDefaultExperienceLocalizationsNextURL uses a next page URL directly.
+func WithAppClipDefaultExperienceLocalizationsNextURL(next string) AppClipDefaultExperienceLocalizationsOption {
+	return func(q *appClipDefaultExperienceLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipDefaultExperienceLocalizationsLocales filters localizations by locale(s).
+func WithAppClipDefaultExperienceLocalizationsLocales(locales []string) AppClipDefaultExperienceLocalizationsOption {
+	return func(q *appClipDefaultExperienceLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+// WithAppClipAdvancedExperiencesLimit sets the max number of advanced experiences to return.
+func WithAppClipAdvancedExperiencesLimit(limit int) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppClipAdvancedExperiencesNextURL uses a next page URL directly.
+func WithAppClipAdvancedExperiencesNextURL(next string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppClipAdvancedExperiencesActions filters advanced experiences by action(s).
+func WithAppClipAdvancedExperiencesActions(actions []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.actions = normalizeList(actions)
+	}
+}
+
+// WithAppClipAdvancedExperiencesStatuses filters advanced experiences by status(es).
+func WithAppClipAdvancedExperiencesStatuses(statuses []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.statuses = normalizeList(statuses)
+	}
+}
+
+// WithAppClipAdvancedExperiencesPlaceStatuses filters advanced experiences by place status(es).
+func WithAppClipAdvancedExperiencesPlaceStatuses(placeStatuses []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.placeStatuses = normalizeList(placeStatuses)
+	}
+}
+
+// WithBetaAppClipInvocationInclude sets include for beta App Clip invocation detail.
+func WithBetaAppClipInvocationInclude(include []string) BetaAppClipInvocationOption {
+	return func(q *betaAppClipInvocationQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithBetaAppClipInvocationLocalizationsLimit sets limit for included localizations.
+func WithBetaAppClipInvocationLocalizationsLimit(limit int) BetaAppClipInvocationOption {
+	return func(q *betaAppClipInvocationQuery) {
+		if limit > 0 {
+			q.localizationsLimit = limit
+		}
 	}
 }
 
@@ -2353,6 +2624,146 @@ func WithPricePointsTerritory(territory string) PricePointsOption {
 	return func(q *pricePointsQuery) {
 		if strings.TrimSpace(territory) != "" {
 			q.territory = strings.ToUpper(strings.TrimSpace(territory))
+		}
+	}
+}
+
+// WithAppCustomProductPagesLimit sets the max number of custom product pages to return.
+func WithAppCustomProductPagesLimit(limit int) AppCustomProductPagesOption {
+	return func(q *appCustomProductPagesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppCustomProductPagesNextURL uses a next page URL directly.
+func WithAppCustomProductPagesNextURL(next string) AppCustomProductPagesOption {
+	return func(q *appCustomProductPagesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppCustomProductPageVersionsLimit sets the max number of versions to return.
+func WithAppCustomProductPageVersionsLimit(limit int) AppCustomProductPageVersionsOption {
+	return func(q *appCustomProductPageVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppCustomProductPageVersionsNextURL uses a next page URL directly.
+func WithAppCustomProductPageVersionsNextURL(next string) AppCustomProductPageVersionsOption {
+	return func(q *appCustomProductPageVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppCustomProductPageLocalizationsLimit sets the max number of localizations to return.
+func WithAppCustomProductPageLocalizationsLimit(limit int) AppCustomProductPageLocalizationsOption {
+	return func(q *appCustomProductPageLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppCustomProductPageLocalizationsNextURL uses a next page URL directly.
+func WithAppCustomProductPageLocalizationsNextURL(next string) AppCustomProductPageLocalizationsOption {
+	return func(q *appCustomProductPageLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentsLimit sets the max number of experiments to return.
+func WithAppStoreVersionExperimentsLimit(limit int) AppStoreVersionExperimentsOption {
+	return func(q *appStoreVersionExperimentsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentsNextURL uses a next page URL directly.
+func WithAppStoreVersionExperimentsNextURL(next string) AppStoreVersionExperimentsOption {
+	return func(q *appStoreVersionExperimentsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentsState filters experiments by state.
+func WithAppStoreVersionExperimentsState(states []string) AppStoreVersionExperimentsOption {
+	return func(q *appStoreVersionExperimentsQuery) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithAppStoreVersionExperimentsV2Limit sets the max number of experiments to return (v2).
+func WithAppStoreVersionExperimentsV2Limit(limit int) AppStoreVersionExperimentsV2Option {
+	return func(q *appStoreVersionExperimentsV2Query) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentsV2NextURL uses a next page URL directly (v2).
+func WithAppStoreVersionExperimentsV2NextURL(next string) AppStoreVersionExperimentsV2Option {
+	return func(q *appStoreVersionExperimentsV2Query) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentsV2State filters experiments by state (v2).
+func WithAppStoreVersionExperimentsV2State(states []string) AppStoreVersionExperimentsV2Option {
+	return func(q *appStoreVersionExperimentsV2Query) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentsLimit sets the max number of treatments to return.
+func WithAppStoreVersionExperimentTreatmentsLimit(limit int) AppStoreVersionExperimentTreatmentsOption {
+	return func(q *appStoreVersionExperimentTreatmentsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentsNextURL uses a next page URL directly.
+func WithAppStoreVersionExperimentTreatmentsNextURL(next string) AppStoreVersionExperimentTreatmentsOption {
+	return func(q *appStoreVersionExperimentTreatmentsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationsLimit sets the max number of treatment localizations to return.
+func WithAppStoreVersionExperimentTreatmentLocalizationsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationsNextURL uses a next page URL directly.
+func WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(next string) AppStoreVersionExperimentTreatmentLocalizationsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
