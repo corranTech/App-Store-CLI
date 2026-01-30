@@ -46,12 +46,14 @@ var (
 	privateKeyTempPaths []string
 	selectedProfile     string
 	strictAuth          bool
+	noProgress          bool
 )
 
 // BindRootFlags registers root-level flags that affect shared CLI behavior.
 func BindRootFlags(fs *flag.FlagSet) {
 	fs.StringVar(&selectedProfile, "profile", "", "Use named authentication profile")
 	fs.BoolVar(&strictAuth, "strict-auth", false, "Fail when credentials are resolved from multiple sources")
+	fs.BoolVar(&noProgress, "no-progress", false, "Disable progress indicators and status updates")
 }
 
 // SelectedProfile returns the current profile override.
@@ -62,6 +64,20 @@ func SelectedProfile() string {
 // SetSelectedProfile sets the current profile override (tests only).
 func SetSelectedProfile(value string) {
 	selectedProfile = value
+}
+
+// ProgressEnabled returns true if progress indicators should be displayed.
+// Progress is disabled when --no-progress is set or stderr is not a TTY.
+func ProgressEnabled() bool {
+	if noProgress {
+		return false
+	}
+	return term.IsTerminal(int(os.Stderr.Fd()))
+}
+
+// SetNoProgress sets the no-progress flag (tests only).
+func SetNoProgress(value bool) {
+	noProgress = value
 }
 
 // CleanupTempPrivateKey removes any temporary private key created from env values.

@@ -337,3 +337,52 @@ func writeECDSAPEM(t *testing.T, path string) {
 		t.Fatalf("write key file error: %v", err)
 	}
 }
+
+func TestProgressEnabled_DisabledByFlag(t *testing.T) {
+	previousNoProgress := noProgress
+	t.Cleanup(func() {
+		noProgress = previousNoProgress
+	})
+
+	SetNoProgress(true)
+	if ProgressEnabled() {
+		t.Fatal("expected ProgressEnabled() to return false when noProgress is true")
+	}
+
+	SetNoProgress(false)
+	// Progress should still be disabled in tests because stderr is piped (not a TTY)
+	if ProgressEnabled() {
+		t.Fatal("expected ProgressEnabled() to return false in test environment (stderr not a TTY)")
+	}
+}
+
+func TestProgressEnabled_DisabledInNonTTY(t *testing.T) {
+	previousNoProgress := noProgress
+	noProgress = false
+	t.Cleanup(func() {
+		noProgress = previousNoProgress
+	})
+
+	// In test environment, stderr is piped (not a TTY)
+	// So ProgressEnabled should return false regardless of flag
+	if ProgressEnabled() {
+		t.Fatal("expected ProgressEnabled() to return false when stderr is not a TTY")
+	}
+}
+
+func TestSetNoProgress(t *testing.T) {
+	previousNoProgress := noProgress
+	t.Cleanup(func() {
+		noProgress = previousNoProgress
+	})
+
+	SetNoProgress(true)
+	if !noProgress {
+		t.Fatal("expected noProgress to be true after SetNoProgress(true)")
+	}
+
+	SetNoProgress(false)
+	if noProgress {
+		t.Fatal("expected noProgress to be false after SetNoProgress(false)")
+	}
+}
