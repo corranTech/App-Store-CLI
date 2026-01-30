@@ -394,6 +394,8 @@ func WebhookDeliveriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("deliveries", flag.ExitOnError)
 
 	webhookID := fs.String("webhook-id", "", "Webhook ID")
+	createdAfter := fs.String("created-after", "", "Filter deliveries created after or equal to a timestamp")
+	createdBefore := fs.String("created-before", "", "Filter deliveries created before a timestamp")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -407,7 +409,7 @@ func WebhookDeliveriesCommand() *ffcli.Command {
 		LongHelp: `List webhook deliveries.
 
 Examples:
-  asc webhooks deliveries --webhook-id "WEBHOOK_ID"
+  asc webhooks deliveries --webhook-id "WEBHOOK_ID" --created-after "2026-01-01T00:00:00Z"
   asc webhooks deliveries --webhook-id "WEBHOOK_ID" --limit 10
   asc webhooks deliveries --webhook-id "WEBHOOK_ID" --paginate`,
 		FlagSet:   fs,
@@ -417,9 +419,27 @@ Examples:
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*webhookID)
-			if trimmedID == "" && strings.TrimSpace(*next) == "" {
+			trimmedNext := strings.TrimSpace(*next)
+			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
 				return flag.ErrHelp
+			}
+			filterCount := 0
+			if strings.TrimSpace(*createdAfter) != "" {
+				filterCount++
+			}
+			if strings.TrimSpace(*createdBefore) != "" {
+				filterCount++
+			}
+			if trimmedNext == "" {
+				if filterCount == 0 {
+					fmt.Fprintln(os.Stderr, "Error: --created-after or --created-before is required")
+					return flag.ErrHelp
+				}
+				if filterCount > 1 {
+					fmt.Fprintln(os.Stderr, "Error: only one of --created-after or --created-before can be used")
+					return flag.ErrHelp
+				}
 			}
 			if *limit != 0 && (*limit < 1 || *limit > webhooksMaxLimit) {
 				return fmt.Errorf("webhooks deliveries: --limit must be between 1 and %d", webhooksMaxLimit)
@@ -439,6 +459,22 @@ Examples:
 			opts := []asc.WebhookDeliveriesOption{
 				asc.WithWebhookDeliveriesLimit(*limit),
 				asc.WithWebhookDeliveriesNextURL(*next),
+			}
+			if strings.TrimSpace(*createdAfter) != "" {
+				values := splitCSV(*createdAfter)
+				if len(values) == 0 {
+					fmt.Fprintln(os.Stderr, "Error: --created-after must include at least one value")
+					return flag.ErrHelp
+				}
+				opts = append(opts, asc.WithWebhookDeliveriesCreatedAfter(values))
+			}
+			if strings.TrimSpace(*createdBefore) != "" {
+				values := splitCSV(*createdBefore)
+				if len(values) == 0 {
+					fmt.Fprintln(os.Stderr, "Error: --created-before must include at least one value")
+					return flag.ErrHelp
+				}
+				opts = append(opts, asc.WithWebhookDeliveriesCreatedBefore(values))
 			}
 
 			if *paginate {

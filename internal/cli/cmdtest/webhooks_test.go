@@ -81,6 +81,16 @@ func TestWebhooksValidationErrors(t *testing.T) {
 			wantErr: "--webhook-id is required",
 		},
 		{
+			name:    "deliveries missing filter",
+			args:    []string{"webhooks", "deliveries", "--webhook-id", "wh-1"},
+			wantErr: "--created-after or --created-before is required",
+		},
+		{
+			name:    "deliveries multiple filters",
+			args:    []string{"webhooks", "deliveries", "--webhook-id", "wh-1", "--created-after", "2026-01-01", "--created-before", "2026-01-02"},
+			wantErr: "only one of --created-after or --created-before can be used",
+		},
+		{
 			name:    "deliveries redeliver missing delivery id",
 			args:    []string{"webhooks", "deliveries", "redeliver"},
 			wantErr: "--delivery-id is required",
