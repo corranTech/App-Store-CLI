@@ -80,6 +80,10 @@ Examples:
 
 			resp, err := client.GetBetaAppClipInvocationLocalizations(requestCtx, invocationValue, *limit)
 			if err != nil {
+				if asc.IsNotFound(err) {
+					empty := &asc.BetaAppClipInvocationLocalizationsResponse{Data: []asc.Resource[asc.BetaAppClipInvocationLocalizationAttributes]{}}
+					return printOutput(empty, *output, *pretty)
+				}
 				return fmt.Errorf("app-clips invocations localizations list: failed to fetch: %w", err)
 			}
 

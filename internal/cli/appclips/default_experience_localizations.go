@@ -95,6 +95,10 @@ Examples:
 				paginateOpts := append(opts, asc.WithAppClipDefaultExperienceLocalizationsLimit(200))
 				firstPage, err := client.GetAppClipDefaultExperienceLocalizations(requestCtx, experienceValue, paginateOpts...)
 				if err != nil {
+					if asc.IsNotFound(err) {
+						empty := &asc.AppClipDefaultExperienceLocalizationsResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}}
+						return printOutput(empty, *output, *pretty)
+					}
 					return fmt.Errorf("app-clips default-experiences localizations list: failed to fetch: %w", err)
 				}
 
@@ -110,6 +114,10 @@ Examples:
 
 			resp, err := client.GetAppClipDefaultExperienceLocalizations(requestCtx, experienceValue, opts...)
 			if err != nil {
+				if asc.IsNotFound(err) {
+					empty := &asc.AppClipDefaultExperienceLocalizationsResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}}
+					return printOutput(empty, *output, *pretty)
+				}
 				return fmt.Errorf("app-clips default-experiences localizations list: failed to fetch: %w", err)
 			}
 

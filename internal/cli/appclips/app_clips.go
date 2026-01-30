@@ -102,6 +102,10 @@ Examples:
 				paginateOpts := append(opts, asc.WithAppClipsLimit(200))
 				firstPage, err := client.GetAppClips(requestCtx, appValue, paginateOpts...)
 				if err != nil {
+					if asc.IsNotFound(err) {
+						empty := &asc.AppClipsResponse{Data: []asc.Resource[asc.AppClipAttributes]{}}
+						return printOutput(empty, *output, *pretty)
+					}
 					return fmt.Errorf("app-clips list: failed to fetch: %w", err)
 				}
 
@@ -117,6 +121,10 @@ Examples:
 
 			resp, err := client.GetAppClips(requestCtx, appValue, opts...)
 			if err != nil {
+				if asc.IsNotFound(err) {
+					empty := &asc.AppClipsResponse{Data: []asc.Resource[asc.AppClipAttributes]{}}
+					return printOutput(empty, *output, *pretty)
+				}
 				return fmt.Errorf("app-clips list: failed to fetch: %w", err)
 			}
 

@@ -105,6 +105,10 @@ Examples:
 				paginateOpts := append(opts, asc.WithAppClipAdvancedExperiencesLimit(200))
 				firstPage, err := client.GetAppClipAdvancedExperiences(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
+					if asc.IsNotFound(err) {
+						empty := &asc.AppClipAdvancedExperiencesResponse{Data: []asc.Resource[asc.AppClipAdvancedExperienceAttributes]{}}
+						return printOutput(empty, *output, *pretty)
+					}
 					return fmt.Errorf("app-clips advanced-experiences list: failed to fetch: %w", err)
 				}
 
@@ -120,6 +124,10 @@ Examples:
 
 			resp, err := client.GetAppClipAdvancedExperiences(requestCtx, appClipValue, opts...)
 			if err != nil {
+				if asc.IsNotFound(err) {
+					empty := &asc.AppClipAdvancedExperiencesResponse{Data: []asc.Resource[asc.AppClipAdvancedExperienceAttributes]{}}
+					return printOutput(empty, *output, *pretty)
+				}
 				return fmt.Errorf("app-clips advanced-experiences list: failed to fetch: %w", err)
 			}
 

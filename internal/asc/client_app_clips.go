@@ -691,7 +691,8 @@ func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID s
 			},
 		},
 	}
-	if releaseVersionID = strings.TrimSpace(releaseVersionID); releaseVersionID != "" {
+	releaseVersionID = strings.TrimSpace(releaseVersionID)
+	if releaseVersionID != "" {
 		relationships.ReleaseWithAppStoreVersion = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeAppStoreVersions,
@@ -699,7 +700,8 @@ func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID s
 			},
 		}
 	}
-	if templateID = strings.TrimSpace(templateID); templateID != "" {
+	templateID = strings.TrimSpace(templateID)
+	if templateID != "" {
 		relationships.AppClipDefaultExperienceTemplate = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeAppClipDefaultExperiences,
@@ -742,7 +744,8 @@ func (c *Client) UpdateAppClipDefaultExperience(ctx context.Context, experienceI
 	}
 
 	var relationships *AppClipDefaultExperienceUpdateRelationships
-	if releaseVersionID = strings.TrimSpace(releaseVersionID); releaseVersionID != "" {
+	releaseVersionID = strings.TrimSpace(releaseVersionID)
+	if releaseVersionID != "" {
 		relationships = &AppClipDefaultExperienceUpdateRelationships{
 			ReleaseWithAppStoreVersion: &Relationship{
 				Data: ResourceData{
@@ -1005,7 +1008,8 @@ func (c *Client) CreateAppClipAdvancedExperience(ctx context.Context, appClipID 
 		},
 	}
 
-	if headerImageID = strings.TrimSpace(headerImageID); headerImageID != "" {
+	headerImageID = strings.TrimSpace(headerImageID)
+	if headerImageID != "" {
 		relationships.HeaderImage = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeAppClipAdvancedExperienceImages,
@@ -1065,7 +1069,8 @@ func (c *Client) UpdateAppClipAdvancedExperience(ctx context.Context, experience
 	}
 
 	var relationships *AppClipAdvancedExperienceRelationships
-	if appClipID = strings.TrimSpace(appClipID); appClipID != "" {
+	appClipID = strings.TrimSpace(appClipID)
+	if appClipID != "" {
 		if relationships == nil {
 			relationships = &AppClipAdvancedExperienceRelationships{}
 		}
@@ -1076,7 +1081,8 @@ func (c *Client) UpdateAppClipAdvancedExperience(ctx context.Context, experience
 			},
 		}
 	}
-	if headerImageID = strings.TrimSpace(headerImageID); headerImageID != "" {
+	headerImageID = strings.TrimSpace(headerImageID)
+	if headerImageID != "" {
 		if relationships == nil {
 			relationships = &AppClipAdvancedExperienceRelationships{}
 		}

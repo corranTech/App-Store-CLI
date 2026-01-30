@@ -96,6 +96,10 @@ Examples:
 				paginateOpts := append(opts, asc.WithAppClipDefaultExperiencesLimit(200))
 				firstPage, err := client.GetAppClipDefaultExperiences(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
+					if asc.IsNotFound(err) {
+						empty := &asc.AppClipDefaultExperiencesResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceAttributes]{}}
+						return printOutput(empty, *output, *pretty)
+					}
 					return fmt.Errorf("app-clips default-experiences list: failed to fetch: %w", err)
 				}
 
@@ -111,6 +115,10 @@ Examples:
 
 			resp, err := client.GetAppClipDefaultExperiences(requestCtx, appClipValue, opts...)
 			if err != nil {
+				if asc.IsNotFound(err) {
+					empty := &asc.AppClipDefaultExperiencesResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceAttributes]{}}
+					return printOutput(empty, *output, *pretty)
+				}
 				return fmt.Errorf("app-clips default-experiences list: failed to fetch: %w", err)
 			}
 
