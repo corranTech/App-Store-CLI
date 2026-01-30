@@ -293,6 +293,8 @@ func PrintMarkdown(data interface{}) error {
 		return printOfferCodesMarkdown(v)
 	case *SubscriptionOfferCodeCustomCodesResponse:
 		return printOfferCodeCustomCodesMarkdown(v)
+	case *SubscriptionOfferCodeResponse:
+		return printSubscriptionOfferCodeMarkdown(v)
 	case *WinBackOffersResponse:
 		return printWinBackOffersMarkdown(v)
 	case *WinBackOfferResponse:
@@ -1145,6 +1147,8 @@ func PrintTable(data interface{}) error {
 		return printOfferCodesTable(v)
 	case *SubscriptionOfferCodeCustomCodesResponse:
 		return printOfferCodeCustomCodesTable(v)
+	case *SubscriptionOfferCodeResponse:
+		return printSubscriptionOfferCodeTable(v)
 	case *WinBackOffersResponse:
 		return printWinBackOffersTable(v)
 	case *WinBackOfferResponse:
