@@ -79,6 +79,28 @@ func PrintMarkdown(data interface{}) error {
 		return printWebhookDeliveriesMarkdown(v)
 	case *WebhookDeliveryResponse:
 		return printWebhookDeliveriesMarkdown(&WebhookDeliveriesResponse{Data: []Resource[WebhookDeliveryAttributes]{v.Data}})
+	case *AlternativeDistributionDomainsResponse:
+		return printAlternativeDistributionDomainsMarkdown(v)
+	case *AlternativeDistributionDomainResponse:
+		return printAlternativeDistributionDomainsMarkdown(&AlternativeDistributionDomainsResponse{Data: []Resource[AlternativeDistributionDomainAttributes]{v.Data}})
+	case *AlternativeDistributionKeysResponse:
+		return printAlternativeDistributionKeysMarkdown(v)
+	case *AlternativeDistributionKeyResponse:
+		return printAlternativeDistributionKeysMarkdown(&AlternativeDistributionKeysResponse{Data: []Resource[AlternativeDistributionKeyAttributes]{v.Data}})
+	case *AlternativeDistributionPackageResponse:
+		return printAlternativeDistributionPackageMarkdown(v)
+	case *AlternativeDistributionPackageVersionsResponse:
+		return printAlternativeDistributionPackageVersionsMarkdown(v)
+	case *AlternativeDistributionPackageVersionResponse:
+		return printAlternativeDistributionPackageVersionsMarkdown(&AlternativeDistributionPackageVersionsResponse{Data: []Resource[AlternativeDistributionPackageVersionAttributes]{v.Data}})
+	case *AlternativeDistributionPackageVariantsResponse:
+		return printAlternativeDistributionPackageVariantsMarkdown(v)
+	case *AlternativeDistributionPackageVariantResponse:
+		return printAlternativeDistributionPackageVariantsMarkdown(&AlternativeDistributionPackageVariantsResponse{Data: []Resource[AlternativeDistributionPackageVariantAttributes]{v.Data}})
+	case *AlternativeDistributionPackageDeltasResponse:
+		return printAlternativeDistributionPackageDeltasMarkdown(v)
+	case *AlternativeDistributionPackageDeltaResponse:
+		return printAlternativeDistributionPackageDeltasMarkdown(&AlternativeDistributionPackageDeltasResponse{Data: []Resource[AlternativeDistributionPackageDeltaAttributes]{v.Data}})
 	case *BackgroundAssetsResponse:
 		return printBackgroundAssetsMarkdown(v)
 	case *BackgroundAssetResponse:
@@ -539,6 +561,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAndroidToIosAppMappingDetailsMarkdown(&AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}})
 	case *AndroidToIosAppMappingDeleteResult:
 		return printAndroidToIosAppMappingDeleteResultMarkdown(v)
+	case *AlternativeDistributionDomainDeleteResult:
+		return printAlternativeDistributionDomainDeleteResultMarkdown(v)
+	case *AlternativeDistributionKeyDeleteResult:
+		return printAlternativeDistributionKeyDeleteResultMarkdown(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsMarkdown(v)
 	case *DiagnosticSignaturesResponse:
@@ -589,6 +615,28 @@ func PrintTable(data interface{}) error {
 		return printWebhookDeliveriesTable(v)
 	case *WebhookDeliveryResponse:
 		return printWebhookDeliveriesTable(&WebhookDeliveriesResponse{Data: []Resource[WebhookDeliveryAttributes]{v.Data}})
+	case *AlternativeDistributionDomainsResponse:
+		return printAlternativeDistributionDomainsTable(v)
+	case *AlternativeDistributionDomainResponse:
+		return printAlternativeDistributionDomainsTable(&AlternativeDistributionDomainsResponse{Data: []Resource[AlternativeDistributionDomainAttributes]{v.Data}})
+	case *AlternativeDistributionKeysResponse:
+		return printAlternativeDistributionKeysTable(v)
+	case *AlternativeDistributionKeyResponse:
+		return printAlternativeDistributionKeysTable(&AlternativeDistributionKeysResponse{Data: []Resource[AlternativeDistributionKeyAttributes]{v.Data}})
+	case *AlternativeDistributionPackageResponse:
+		return printAlternativeDistributionPackageTable(v)
+	case *AlternativeDistributionPackageVersionsResponse:
+		return printAlternativeDistributionPackageVersionsTable(v)
+	case *AlternativeDistributionPackageVersionResponse:
+		return printAlternativeDistributionPackageVersionsTable(&AlternativeDistributionPackageVersionsResponse{Data: []Resource[AlternativeDistributionPackageVersionAttributes]{v.Data}})
+	case *AlternativeDistributionPackageVariantsResponse:
+		return printAlternativeDistributionPackageVariantsTable(v)
+	case *AlternativeDistributionPackageVariantResponse:
+		return printAlternativeDistributionPackageVariantsTable(&AlternativeDistributionPackageVariantsResponse{Data: []Resource[AlternativeDistributionPackageVariantAttributes]{v.Data}})
+	case *AlternativeDistributionPackageDeltasResponse:
+		return printAlternativeDistributionPackageDeltasTable(v)
+	case *AlternativeDistributionPackageDeltaResponse:
+		return printAlternativeDistributionPackageDeltasTable(&AlternativeDistributionPackageDeltasResponse{Data: []Resource[AlternativeDistributionPackageDeltaAttributes]{v.Data}})
 	case *BackgroundAssetsResponse:
 		return printBackgroundAssetsTable(v)
 	case *BackgroundAssetResponse:
@@ -1049,6 +1097,10 @@ func PrintTable(data interface{}) error {
 		return printAndroidToIosAppMappingDetailsTable(&AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}})
 	case *AndroidToIosAppMappingDeleteResult:
 		return printAndroidToIosAppMappingDeleteResultTable(v)
+	case *AlternativeDistributionDomainDeleteResult:
+		return printAlternativeDistributionDomainDeleteResultTable(v)
+	case *AlternativeDistributionKeyDeleteResult:
+		return printAlternativeDistributionKeyDeleteResultTable(v)
 	case *PerfPowerMetricsResponse:
 		return printPerfPowerMetricsTable(v)
 	case *DiagnosticSignaturesResponse:
