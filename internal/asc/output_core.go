@@ -161,6 +161,22 @@ func PrintMarkdown(data interface{}) error {
 		return printInAppPurchasesMarkdown(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
 	case *InAppPurchaseLocalizationsResponse:
 		return printInAppPurchaseLocalizationsMarkdown(v)
+	case *AppEventsResponse:
+		return printAppEventsMarkdown(v)
+	case *AppEventResponse:
+		return printAppEventsMarkdown(&AppEventsResponse{Data: []Resource[AppEventAttributes]{v.Data}})
+	case *AppEventLocalizationsResponse:
+		return printAppEventLocalizationsMarkdown(v)
+	case *AppEventLocalizationResponse:
+		return printAppEventLocalizationsMarkdown(&AppEventLocalizationsResponse{Data: []Resource[AppEventLocalizationAttributes]{v.Data}})
+	case *AppEventScreenshotsResponse:
+		return printAppEventScreenshotsMarkdown(v)
+	case *AppEventScreenshotResponse:
+		return printAppEventScreenshotsMarkdown(&AppEventScreenshotsResponse{Data: []Resource[AppEventScreenshotAttributes]{v.Data}})
+	case *AppEventVideoClipsResponse:
+		return printAppEventVideoClipsMarkdown(v)
+	case *AppEventVideoClipResponse:
+		return printAppEventVideoClipsMarkdown(&AppEventVideoClipsResponse{Data: []Resource[AppEventVideoClipAttributes]{v.Data}})
 	case *SubscriptionGroupsResponse:
 		return printSubscriptionGroupsMarkdown(v)
 	case *SubscriptionGroupResponse:
@@ -421,6 +437,12 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildBetaGroupsUpdateMarkdown(v)
 	case *InAppPurchaseDeleteResult:
 		return printInAppPurchaseDeleteResultMarkdown(v)
+	case *AppEventDeleteResult:
+		return printAppEventDeleteResultMarkdown(v)
+	case *AppEventLocalizationDeleteResult:
+		return printAppEventLocalizationDeleteResultMarkdown(v)
+	case *AppEventSubmissionResult:
+		return printAppEventSubmissionResultMarkdown(v)
 	case *GameCenterAchievementsResponse:
 		return printGameCenterAchievementsMarkdown(v)
 	case *GameCenterAchievementResponse:
@@ -777,6 +799,22 @@ func PrintTable(data interface{}) error {
 		return printInAppPurchasesTable(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
 	case *InAppPurchaseLocalizationsResponse:
 		return printInAppPurchaseLocalizationsTable(v)
+	case *AppEventsResponse:
+		return printAppEventsTable(v)
+	case *AppEventResponse:
+		return printAppEventsTable(&AppEventsResponse{Data: []Resource[AppEventAttributes]{v.Data}})
+	case *AppEventLocalizationsResponse:
+		return printAppEventLocalizationsTable(v)
+	case *AppEventLocalizationResponse:
+		return printAppEventLocalizationsTable(&AppEventLocalizationsResponse{Data: []Resource[AppEventLocalizationAttributes]{v.Data}})
+	case *AppEventScreenshotsResponse:
+		return printAppEventScreenshotsTable(v)
+	case *AppEventScreenshotResponse:
+		return printAppEventScreenshotsTable(&AppEventScreenshotsResponse{Data: []Resource[AppEventScreenshotAttributes]{v.Data}})
+	case *AppEventVideoClipsResponse:
+		return printAppEventVideoClipsTable(v)
+	case *AppEventVideoClipResponse:
+		return printAppEventVideoClipsTable(&AppEventVideoClipsResponse{Data: []Resource[AppEventVideoClipAttributes]{v.Data}})
 	case *SubscriptionGroupsResponse:
 		return printSubscriptionGroupsTable(v)
 	case *SubscriptionGroupResponse:
@@ -1037,6 +1075,12 @@ func PrintTable(data interface{}) error {
 		return printBuildBetaGroupsUpdateTable(v)
 	case *InAppPurchaseDeleteResult:
 		return printInAppPurchaseDeleteResultTable(v)
+	case *AppEventDeleteResult:
+		return printAppEventDeleteResultTable(v)
+	case *AppEventLocalizationDeleteResult:
+		return printAppEventLocalizationDeleteResultTable(v)
+	case *AppEventSubmissionResult:
+		return printAppEventSubmissionResultTable(v)
 	case *GameCenterAchievementsResponse:
 		return printGameCenterAchievementsTable(v)
 	case *GameCenterAchievementResponse:

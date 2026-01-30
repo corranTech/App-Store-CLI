@@ -12,6 +12,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/alternativedistribution"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/analytics"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/androidiosmapping"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/app_events"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
@@ -129,6 +130,7 @@ func Subcommands(version string) []*ffcli.Command {
 		sandbox.SandboxCommand(),
 		signing.SigningCommand(),
 		iap.IAPCommand(),
+		app_events.Command(),
 		subscriptions.SubscriptionsCommand(),
 		submit.SubmitCommand(),
 		xcodecloud.XcodeCloudCommand(),
