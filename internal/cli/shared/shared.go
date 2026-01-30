@@ -46,12 +46,14 @@ var (
 	privateKeyTempPaths []string
 	selectedProfile     string
 	strictAuth          bool
+	retryLog            OptionalBool
 )
 
 // BindRootFlags registers root-level flags that affect shared CLI behavior.
 func BindRootFlags(fs *flag.FlagSet) {
 	fs.StringVar(&selectedProfile, "profile", "", "Use named authentication profile")
 	fs.BoolVar(&strictAuth, "strict-auth", false, "Fail when credentials are resolved from multiple sources")
+	fs.Var(&retryLog, "retry-log", "Enable retry logging to stderr (overrides ASC_RETRY_LOG/config when set)")
 }
 
 // SelectedProfile returns the current profile override.
@@ -299,6 +301,12 @@ func getASCClient() (*asc.Client, error) {
 	resolved, err := resolveCredentials()
 	if err != nil {
 		return nil, err
+	}
+	if retryLog.IsSet() {
+		value := retryLog.Value()
+		asc.SetRetryLogOverride(&value)
+	} else {
+		asc.SetRetryLogOverride(nil)
 	}
 	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
 }
