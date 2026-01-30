@@ -86,20 +86,20 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("experiments list: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
 			if *v2 {
 				resolvedAppID := resolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 					return flag.ErrHelp
 				}
+
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("experiments list: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
 
 				opts := []asc.AppStoreVersionExperimentsV2Option{
 					asc.WithAppStoreVersionExperimentsV2Limit(*limit),
@@ -137,6 +137,14 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return flag.ErrHelp
 			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("experiments list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentsOption{
 				asc.WithAppStoreVersionExperimentsLimit(*limit),
@@ -261,14 +269,6 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
-			if err != nil {
-				return fmt.Errorf("experiments create: %w", err)
-			}
-
-			requestCtx, cancel := contextWithTimeout(ctx)
-			defer cancel()
-
 			if *v2 {
 				resolvedAppID := resolveAppID(*appID)
 				if resolvedAppID == "" {
@@ -281,6 +281,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error:", err)
 					return flag.ErrHelp
 				}
+
+				client, err := getASCClient()
+				if err != nil {
+					return fmt.Errorf("experiments create: %w", err)
+				}
+
+				requestCtx, cancel := contextWithTimeout(ctx)
+				defer cancel()
 
 				resp, err := client.CreateAppStoreVersionExperimentV2(requestCtx, resolvedAppID, platformValue, nameValue, trafficValue)
 				if err != nil {
@@ -295,6 +303,14 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return flag.ErrHelp
 			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("experiments create: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionExperiment(requestCtx, trimmedVersionID, nameValue, trafficValue)
 			if err != nil {
