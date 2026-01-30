@@ -196,6 +196,36 @@ type appInfoLocalizationsQuery struct {
 	locales []string
 }
 
+type appCustomProductPagesQuery struct {
+	listQuery
+}
+
+type appCustomProductPageVersionsQuery struct {
+	listQuery
+}
+
+type appCustomProductPageLocalizationsQuery struct {
+	listQuery
+}
+
+type appStoreVersionExperimentsQuery struct {
+	listQuery
+	states []string
+}
+
+type appStoreVersionExperimentsV2Query struct {
+	listQuery
+	states []string
+}
+
+type appStoreVersionExperimentTreatmentsQuery struct {
+	listQuery
+}
+
+type appStoreVersionExperimentTreatmentLocalizationsQuery struct {
+	listQuery
+}
+
 type betaGroupsQuery struct {
 	listQuery
 }
@@ -1003,6 +1033,50 @@ func buildBetaBuildLocalizationsQuery(query *betaBuildLocalizationsQuery) string
 func buildAppInfoLocalizationsQuery(query *appInfoLocalizationsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppCustomProductPagesQuery(query *appCustomProductPagesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppCustomProductPageVersionsQuery(query *appCustomProductPageVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppCustomProductPageLocalizationsQuery(query *appCustomProductPageLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppStoreVersionExperimentsQuery(query *appStoreVersionExperimentsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[state]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppStoreVersionExperimentsV2Query(query *appStoreVersionExperimentsV2Query) string {
+	values := url.Values{}
+	addCSV(values, "filter[state]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppStoreVersionExperimentTreatmentsQuery(query *appStoreVersionExperimentTreatmentsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query *appStoreVersionExperimentTreatmentLocalizationsQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

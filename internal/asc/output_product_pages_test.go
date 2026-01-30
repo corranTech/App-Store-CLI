@@ -271,8 +271,8 @@ func TestPrintTable_AppStoreVersionExperimentTreatments(t *testing.T) {
 			{
 				ID: "treat-1",
 				Attributes: AppStoreVersionExperimentTreatmentAttributes{
-					Name:        "Variant A",
-					AppIconName: "Icon A",
+					Name:         "Variant A",
+					AppIconName:  "Icon A",
 					PromotedDate: "2026-01-01T00:00:00Z",
 				},
 			},
@@ -297,8 +297,8 @@ func TestPrintMarkdown_AppStoreVersionExperimentTreatments(t *testing.T) {
 			{
 				ID: "treat-1",
 				Attributes: AppStoreVersionExperimentTreatmentAttributes{
-					Name:        "Variant A",
-					AppIconName: "Icon A",
+					Name:         "Variant A",
+					AppIconName:  "Icon A",
 					PromotedDate: "2026-01-01T00:00:00Z",
 				},
 			},
