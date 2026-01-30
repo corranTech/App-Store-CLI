@@ -40,6 +40,20 @@ const (
 	PrivateKeyBase64EnvVar = privateKeyBase64EnvVar
 )
 
+var ErrMissingAuth = errors.New("missing authentication")
+
+type missingAuthError struct {
+	msg string
+}
+
+func (e missingAuthError) Error() string {
+	return e.msg
+}
+
+func (e missingAuthError) Is(target error) bool {
+	return target == ErrMissingAuth
+}
+
 var (
 	privateKeyTempMu    sync.Mutex
 	privateKeyTempPath  string
@@ -280,9 +294,9 @@ func resolveCredentials() (resolvedCredentials, error) {
 
 	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
 		if path, err := config.Path(); err == nil {
-			return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)
+			return resolvedCredentials{}, missingAuthError{msg: fmt.Sprintf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)}
 		}
-		return resolvedCredentials{}, fmt.Errorf("missing authentication. Run 'asc auth login' or 'asc auth init'")
+		return resolvedCredentials{}, missingAuthError{msg: "missing authentication. Run 'asc auth login' or 'asc auth init'"}
 	}
 	if err := checkMixedCredentialSources(sources); err != nil {
 		return resolvedCredentials{}, err
