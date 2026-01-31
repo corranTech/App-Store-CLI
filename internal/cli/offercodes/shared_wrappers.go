@@ -32,3 +32,11 @@ func validateNextURL(next string) error {
 func normalizeDate(value, flagName string) (string, error) {
 	return shared.NormalizeDate(value, flagName)
 }
+
+func parseCommaSeparatedIDs(value string) []string {
+	return shared.SplitCSV(value)
+}
+
+func parseOptionalBoolFlag(name, value string) (*bool, error) {
+	return shared.ParseOptionalBoolFlag(name, value)
+}

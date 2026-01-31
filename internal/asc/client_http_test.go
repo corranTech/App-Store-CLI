@@ -645,6 +645,206 @@ func TestGetSubscriptionOfferCodeOneTimeUseCodeValues(t *testing.T) {
 	}
 }
 
+func TestGetSubscriptionOfferCodeCustomCodes_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionOfferCodeCustomCodes(context.Background(), "123", WithSubscriptionOfferCodeCustomCodesNextURL(next)); err != nil {
+		t.Fatalf("GetSubscriptionOfferCodeCustomCodes() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionOfferCodeCustomCode(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionOfferCodeCustomCodes","id":"custom-1","attributes":{"customCode":"SPRING"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeCustomCodes/custom-1" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodeCustomCodes/custom-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionOfferCodeCustomCode(context.Background(), "custom-1"); err != nil {
+		t.Fatalf("GetSubscriptionOfferCodeCustomCode() error: %v", err)
+	}
+}
+
+func TestCreateSubscriptionOfferCodeCustomCode_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionOfferCodeCustomCodes","id":"custom-1","attributes":{"customCode":"SPRING"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeCustomCodes" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodeCustomCodes, got %s", req.URL.Path)
+		}
+		var payload struct {
+			Data struct {
+				Type       string `json:"type"`
+				Attributes struct {
+					CustomCode     string  `json:"customCode"`
+					NumberOfCodes  int     `json:"numberOfCodes"`
+					ExpirationDate *string `json:"expirationDate"`
+				} `json:"attributes"`
+				Relationships struct {
+					OfferCode struct {
+						Data struct {
+							Type string `json:"type"`
+							ID   string `json:"id"`
+						} `json:"data"`
+					} `json:"offerCode"`
+				} `json:"relationships"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if payload.Data.Type != "subscriptionOfferCodeCustomCodes" {
+			t.Fatalf("expected type=subscriptionOfferCodeCustomCodes, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.CustomCode != "SPRING2026" {
+			t.Fatalf("expected customCode=SPRING2026, got %q", payload.Data.Attributes.CustomCode)
+		}
+		if payload.Data.Attributes.NumberOfCodes != 10 {
+			t.Fatalf("expected numberOfCodes=10, got %d", payload.Data.Attributes.NumberOfCodes)
+		}
+		if payload.Data.Attributes.ExpirationDate == nil || *payload.Data.Attributes.ExpirationDate != "2026-02-01" {
+			t.Fatalf("expected expirationDate=2026-02-01")
+		}
+		if payload.Data.Relationships.OfferCode.Data.Type != "subscriptionOfferCodes" {
+			t.Fatalf("expected offerCode type=subscriptionOfferCodes, got %q", payload.Data.Relationships.OfferCode.Data.Type)
+		}
+		if payload.Data.Relationships.OfferCode.Data.ID != "OFFER_CODE_ID" {
+			t.Fatalf("expected offerCode id=OFFER_CODE_ID, got %q", payload.Data.Relationships.OfferCode.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	expiration := "2026-02-01"
+	req := SubscriptionOfferCodeCustomCodeCreateRequest{
+		Data: SubscriptionOfferCodeCustomCodeCreateData{
+			Type: ResourceTypeSubscriptionOfferCodeCustomCodes,
+			Attributes: SubscriptionOfferCodeCustomCodeCreateAttributes{
+				CustomCode:     "SPRING2026",
+				NumberOfCodes:  10,
+				ExpirationDate: &expiration,
+			},
+			Relationships: SubscriptionOfferCodeCustomCodeCreateRelationships{
+				OfferCode: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptionOfferCodes,
+						ID:   "OFFER_CODE_ID",
+					},
+				},
+			},
+		},
+	}
+	if _, err := client.CreateSubscriptionOfferCodeCustomCode(context.Background(), req); err != nil {
+		t.Fatalf("CreateSubscriptionOfferCodeCustomCode() error: %v", err)
+	}
+}
+
+func TestUpdateSubscriptionOfferCodeCustomCode_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionOfferCodeCustomCodes","id":"custom-1","attributes":{"active":false}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeCustomCodes/custom-1" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodeCustomCodes/custom-1, got %s", req.URL.Path)
+		}
+		var payload struct {
+			Data struct {
+				Type       string `json:"type"`
+				ID         string `json:"id"`
+				Attributes struct {
+					Active *bool `json:"active"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if payload.Data.Type != "subscriptionOfferCodeCustomCodes" {
+			t.Fatalf("expected type=subscriptionOfferCodeCustomCodes, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "custom-1" {
+			t.Fatalf("expected id=custom-1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes.Active == nil || *payload.Data.Attributes.Active {
+			t.Fatalf("expected active=false")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	active := false
+	if _, err := client.UpdateSubscriptionOfferCodeCustomCode(context.Background(), "custom-1", SubscriptionOfferCodeCustomCodeUpdateAttributes{Active: &active}); err != nil {
+		t.Fatalf("UpdateSubscriptionOfferCodeCustomCode() error: %v", err)
+	}
+}
+
+func TestUpdateSubscriptionOfferCodeOneTimeUseCode_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"one-time-1","attributes":{"active":false}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeOneTimeUseCodes/one-time-1" {
+			t.Fatalf("expected path /v1/subscriptionOfferCodeOneTimeUseCodes/one-time-1, got %s", req.URL.Path)
+		}
+		var payload struct {
+			Data struct {
+				Type       string `json:"type"`
+				ID         string `json:"id"`
+				Attributes struct {
+					Active *bool `json:"active"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode error: %v", err)
+		}
+		if payload.Data.Type != "subscriptionOfferCodeOneTimeUseCodes" {
+			t.Fatalf("expected type=subscriptionOfferCodeOneTimeUseCodes, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "one-time-1" {
+			t.Fatalf("expected id=one-time-1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes.Active == nil || *payload.Data.Attributes.Active {
+			t.Fatalf("expected active=false")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	active := false
+	if _, err := client.UpdateSubscriptionOfferCodeOneTimeUseCode(context.Background(), "one-time-1", SubscriptionOfferCodeOneTimeUseCodeUpdateAttributes{Active: &active}); err != nil {
+		t.Fatalf("UpdateSubscriptionOfferCodeOneTimeUseCode() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionOfferCodePrices_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionOfferCodePrices(context.Background(), "123", WithSubscriptionOfferCodePricesNextURL(next)); err != nil {
+		t.Fatalf("GetSubscriptionOfferCodePrices() error: %v", err)
+	}
+}
+
 func TestGetBuilds_WithSortAndLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

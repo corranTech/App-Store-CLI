@@ -222,6 +222,9 @@ type SubscriptionOfferCodeAttributes struct {
 	NumberOfPeriods       int                               `json:"numberOfPeriods,omitempty"`
 	AutoRenewEnabled      *bool                             `json:"autoRenewEnabled,omitempty"`
 	Active                bool                              `json:"active,omitempty"`
+	TotalNumberOfCodes    int                               `json:"totalNumberOfCodes,omitempty"`
+	ProductionCodeCount   int                               `json:"productionCodeCount,omitempty"`
+	SandboxCodeCount      int                               `json:"sandboxCodeCount,omitempty"`
 }
 
 // SubscriptionOfferCodeCreateAttributes describes attributes for creating an offer code.
