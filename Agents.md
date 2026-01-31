@@ -73,7 +73,7 @@ API keys are generated at https://appstoreconnect.apple.com/access/integrations/
 | `ASC_TIMEOUT_SECONDS` | Timeout in seconds (alternative) |
 | `ASC_UPLOAD_TIMEOUT` | Upload timeout (e.g., `60s`, `2m`) |
 | `ASC_UPLOAD_TIMEOUT_SECONDS` | Upload timeout in seconds (alternative) |
-| `ASC_DEBUG` | Enable debug logging (HTTP requests/responses, timing) |
+| `ASC_DEBUG` | Enable debug logging (set to `api` for HTTP requests/responses) |
 
 ## References
 

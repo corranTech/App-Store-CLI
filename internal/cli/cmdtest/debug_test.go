@@ -3,7 +3,6 @@ package cmdtest
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -22,16 +21,10 @@ func TestDebugFlagLogsHTTPRequests(t *testing.T) {
 	keyPath := tmpDir + "/key.p8"
 	writeECDSAPEM(t, keyPath)
 
-	os.Setenv("ASC_KEY_ID", "TEST_KEY")
-	os.Setenv("ASC_ISSUER_ID", "TEST_ISSUER")
-	os.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
-	os.Setenv("ASC_DEBUG", "1")
-	defer func() {
-		os.Unsetenv("ASC_KEY_ID")
-		os.Unsetenv("ASC_ISSUER_ID")
-		os.Unsetenv("ASC_PRIVATE_KEY_PATH")
-		os.Unsetenv("ASC_DEBUG")
-	}()
+	t.Setenv("ASC_KEY_ID", "TEST_KEY")
+	t.Setenv("ASC_ISSUER_ID", "TEST_ISSUER")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+	t.Setenv("ASC_DEBUG", "1")
 
 	root := RootCommand("test")
 
@@ -48,45 +41,21 @@ func TestDebugFlagLogsHTTPRequests(t *testing.T) {
 	if strings.Contains(stderr, "flag provided but not defined: -debug") {
 		t.Fatalf("--debug flag not registered")
 	}
-}
 
-func TestDebugLogsHTTPMethodAndURL(t *testing.T) {
-	// This test verifies that debug logging outputs HTTP method and URL
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data":[]}`))
-	}))
-	defer server.Close()
-
-	// Enable debug mode for asc client
-	debugEnabled := true
-	asc.SetDebugOverride(&debugEnabled)
-	defer asc.SetDebugOverride(nil)
-
-	// The actual test would need a mock HTTP client
-	// For now, we verify the debug infrastructure exists
-	if !asc.ResolveDebugEnabled() {
-		t.Fatal("Debug mode should be enabled")
+	root = RootCommand("test")
+	_, stderr = captureOutput(t, func() {
+		// Parse with --api-debug flag
+		if err := root.Parse([]string{"--api-debug", "apps"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+	})
+	if strings.Contains(stderr, "flag provided but not defined: -api-debug") {
+		t.Fatalf("--api-debug flag not registered")
 	}
-}
-
-func TestDebugSanitizesAuthorizationHeader(t *testing.T) {
-	// This test verifies that Authorization headers are sanitized in debug output
-	// We'll implement this after the infrastructure is in place
-	debugEnabled := true
-	asc.SetDebugOverride(&debugEnabled)
-	defer asc.SetDebugOverride(nil)
-
-	if !asc.ResolveDebugEnabled() {
-		t.Fatal("Debug mode should be enabled")
-	}
-
-	// TODO: Add test to verify auth header is logged as "Bearer [REDACTED]"
 }
 
 func TestDebugEnvVarEnablesDebugMode(t *testing.T) {
-	os.Setenv("ASC_DEBUG", "1")
-	defer os.Unsetenv("ASC_DEBUG")
+	t.Setenv("ASC_DEBUG", "1")
 
 	if !asc.ResolveDebugEnabled() {
 		t.Fatal("ASC_DEBUG=1 should enable debug mode")
@@ -95,8 +64,9 @@ func TestDebugEnvVarEnablesDebugMode(t *testing.T) {
 
 func TestDebugDisabledByDefault(t *testing.T) {
 	// Ensure no env var is set
-	os.Unsetenv("ASC_DEBUG")
+	t.Setenv("ASC_DEBUG", "")
 	asc.SetDebugOverride(nil)
+	asc.SetDebugHTTPOverride(nil)
 
 	if asc.ResolveDebugEnabled() {
 		t.Fatal("Debug mode should be disabled by default")

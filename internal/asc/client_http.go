@@ -98,17 +98,17 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 
 func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
 	start := time.Now()
-	debugEnabled := ResolveDebugEnabled()
+	debugSettings := resolveDebugSettings()
 
 	req, err := c.newRequest(ctx, method, path, body)
 	if err != nil {
 		return nil, err
 	}
 
-	if debugEnabled {
+	if debugSettings.verboseHTTP {
 		debugLogger.Info("→ HTTP Request",
 			"method", method,
-			"url", req.URL.String(),
+			"url", sanitizeURLForLog(req.URL.String()),
 			"content-type", req.Header.Get("Content-Type"),
 			"authorization", sanitizeAuthHeader(req.Header.Get("Authorization")),
 		)
@@ -118,7 +118,7 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 	elapsed := time.Since(start)
 
 	if err != nil {
-		if debugEnabled {
+		if debugSettings.verboseHTTP {
 			debugLogger.Info("← HTTP Error",
 				"error", err.Error(),
 				"elapsed", elapsed.String(),
@@ -128,7 +128,7 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 	}
 	defer resp.Body.Close()
 
-	if debugEnabled {
+	if debugSettings.verboseHTTP {
 		debugLogger.Info("← HTTP Response",
 			"status", resp.StatusCode,
 			"elapsed", elapsed.String(),
@@ -167,6 +167,34 @@ func sanitizeAuthHeader(value string) string {
 		return "Bearer [REDACTED]"
 	}
 	return "[REDACTED]"
+}
+
+func sanitizeURLForLog(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if parsedURL.User != nil {
+		parsedURL.User = url.User("[REDACTED]")
+	}
+	values := parsedURL.Query()
+	if len(values) == 0 {
+		return parsedURL.String()
+	}
+	redactAll := hasSignedQuery(values)
+	for key, vals := range values {
+		if redactAll || isSensitiveQueryKey(key) {
+			for i := range vals {
+				vals[i] = "[REDACTED]"
+			}
+			values[key] = vals
+		}
+	}
+	parsedURL.RawQuery = values.Encode()
+	return parsedURL.String()
 }
 
 func shouldRetryMethod(method string) bool {
@@ -287,6 +315,33 @@ var allowedAnalyticsCDNHosts = []string{
 	"azureedge.net",    // Azure CDN
 }
 
+var signedQueryKeys = map[string]struct{}{
+	"x-amz-signature":     {},
+	"x-amz-credential":    {},
+	"x-amz-algorithm":     {},
+	"x-amz-signedheaders": {},
+	"signature":           {},
+	"key-pair-id":         {},
+	"policy":              {},
+	"sig":                 {},
+}
+
+var sensitiveQueryKeys = map[string]struct{}{
+	"x-amz-signature":      {},
+	"x-amz-credential":     {},
+	"x-amz-algorithm":      {},
+	"x-amz-signedheaders":  {},
+	"x-amz-security-token": {},
+	"signature":            {},
+	"key-pair-id":          {},
+	"policy":               {},
+	"sig":                  {},
+	"token":                {},
+	"access_token":         {},
+	"id_token":             {},
+	"refresh_token":        {},
+}
+
 // isAllowedAnalyticsHost checks if the host matches any allowed host suffix.
 func isAllowedAnalyticsHost(host string) bool {
 	for _, allowed := range allowedAnalyticsHosts {
@@ -310,18 +365,26 @@ func isAllowedAnalyticsCDNHost(host string) bool {
 
 // hasSignedAnalyticsQuery checks for common signed URL query parameters.
 func hasSignedAnalyticsQuery(values url.Values) bool {
-	signatureKeys := []string{
-		"X-Amz-Signature",
-		"X-Amz-Credential",
-		"X-Amz-Algorithm",
-		"X-Amz-SignedHeaders",
-		"Signature",
-		"Key-Pair-Id",
-		"Policy",
-		"sig",
+	return hasSignedQuery(values)
+}
+
+func hasSignedQuery(values url.Values) bool {
+	for key, vals := range values {
+		if _, ok := signedQueryKeys[strings.ToLower(key)]; ok && hasNonEmptyValue(vals) {
+			return true
+		}
 	}
-	for _, key := range signatureKeys {
-		if values.Get(key) != "" {
+	return false
+}
+
+func isSensitiveQueryKey(key string) bool {
+	_, ok := sensitiveQueryKeys[strings.ToLower(key)]
+	return ok
+}
+
+func hasNonEmptyValue(values []string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
 			return true
 		}
 	}

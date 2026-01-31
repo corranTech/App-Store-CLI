@@ -61,8 +61,14 @@ var retryLogOverride struct {
 }
 
 var debugOverride struct {
-	mu  sync.RWMutex
-	val *bool
+	mu          sync.RWMutex
+	enabled     *bool
+	verboseHTTP *bool
+}
+
+type debugSettings struct {
+	enabled     bool
+	verboseHTTP bool
 }
 
 // SetRetryLogOverride sets an explicit retry-log override.
@@ -78,7 +84,15 @@ func SetRetryLogOverride(value *bool) {
 func SetDebugOverride(value *bool) {
 	debugOverride.mu.Lock()
 	defer debugOverride.mu.Unlock()
-	debugOverride.val = value
+	debugOverride.enabled = value
+}
+
+// SetDebugHTTPOverride sets an explicit HTTP-debug override.
+// When set, it takes precedence over env/config for HTTP logging only.
+func SetDebugHTTPOverride(value *bool) {
+	debugOverride.mu.Lock()
+	defer debugOverride.mu.Unlock()
+	debugOverride.verboseHTTP = value
 }
 
 // ResolveRetryLogEnabled returns whether retry logging should be enabled.
@@ -103,20 +117,59 @@ func ResolveRetryLogEnabled() bool {
 // ResolveDebugEnabled returns whether debug logging should be enabled.
 // Precedence: explicit override > env > config.
 func ResolveDebugEnabled() bool {
+	return resolveDebugSettings().enabled
+}
+
+func resolveDebugSettings() debugSettings {
+	settings := debugSettings{}
+	if value, ok := envValue("ASC_DEBUG"); ok {
+		settings = resolveDebugValue(value)
+	} else {
+		cfg := loadConfig()
+		if cfg != nil {
+			settings = resolveDebugValue(cfg.Debug)
+		}
+	}
+
 	debugOverride.mu.RLock()
-	override := debugOverride.val
+	enabledOverride := debugOverride.enabled
+	verboseOverride := debugOverride.verboseHTTP
 	debugOverride.mu.RUnlock()
-	if override != nil {
-		return *override
+
+	if verboseOverride != nil {
+		settings.verboseHTTP = *verboseOverride
+		if *verboseOverride {
+			settings.enabled = true
+		}
 	}
-	if override, ok := envValue("ASC_DEBUG"); ok {
-		return override != ""
+
+	if enabledOverride != nil {
+		if !*enabledOverride {
+			return debugSettings{}
+		}
+		settings.enabled = true
+		if verboseOverride == nil {
+			settings.verboseHTTP = false
+		}
 	}
-	cfg := loadConfig()
-	if cfg == nil {
-		return false
+
+	return settings
+}
+
+func resolveDebugValue(value string) debugSettings {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return debugSettings{}
 	}
-	return strings.TrimSpace(cfg.Debug) != ""
+	normalized := strings.ToLower(trimmed)
+	switch normalized {
+	case "0", "false", "no":
+		return debugSettings{}
+	}
+	return debugSettings{
+		enabled:     true,
+		verboseHTTP: strings.Contains(normalized, "api"),
+	}
 }
 
 func loadConfig() *config.Config {

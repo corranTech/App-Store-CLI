@@ -192,8 +192,10 @@ Retry behavior env:
 - Retry errors include `retry after` in the final error message when available
 
 Debug logging:
-- `ASC_DEBUG=1` to enable debug logging (HTTP requests, responses, timing)
-- Use `--debug` flag for per-command debug output
+- `ASC_DEBUG=1` to enable debug output
+- `ASC_DEBUG=api` to include HTTP request/response details (redacted)
+- Use `--debug` for per-command debug output
+- Use `--api-debug` for per-command HTTP debug output (redacted)
 
 Config.json keys (same semantics, snake_case):
 - `app_id`
@@ -205,7 +207,7 @@ Config.json keys (same semantics, snake_case):
 - `base_delay`
 - `max_delay`
 - `retry_log` (set to `1` or `true` to enable)
-- `debug` (set to `1` or `true` to enable debug logging)
+- `debug` (set to `1` for debug output or `api` for HTTP details)
 
 ## Commands
 
