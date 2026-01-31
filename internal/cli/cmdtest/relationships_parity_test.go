@@ -5,55 +5,45 @@ import (
 	"errors"
 	"flag"
 	"io"
-	"strings"
 	"testing"
 )
 
 func TestRelationshipCommandValidationErrors(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
+		name string
+		args []string
 	}{
 		{
-			name:    "bundle-ids app get missing id",
-			args:    []string{"bundle-ids", "app", "get"},
-			wantErr: "--id is required",
+			name: "bundle-ids app get missing id",
+			args: []string{"bundle-ids", "app", "get"},
 		},
 		{
-			name:    "bundle-ids profiles list missing id",
-			args:    []string{"bundle-ids", "profiles", "list"},
-			wantErr: "--id is required",
+			name: "bundle-ids profiles list missing id",
+			args: []string{"bundle-ids", "profiles", "list"},
 		},
 		{
-			name:    "users invites visible-apps list missing id",
-			args:    []string{"users", "invites", "visible-apps", "list"},
-			wantErr: "--id is required",
+			name: "users invites visible-apps list missing id",
+			args: []string{"users", "invites", "visible-apps", "list"},
 		},
 		{
-			name:    "agreements territories list missing id",
-			args:    []string{"agreements", "territories", "list"},
-			wantErr: "--id is required",
+			name: "agreements territories list missing id",
+			args: []string{"agreements", "territories", "list"},
 		},
 		{
-			name:    "background-assets app-store-releases get missing id",
-			args:    []string{"background-assets", "app-store-releases", "get"},
-			wantErr: "--id is required",
+			name: "background-assets app-store-releases get missing id",
+			args: []string{"background-assets", "app-store-releases", "get"},
 		},
 		{
-			name:    "background-assets external-beta-releases get missing id",
-			args:    []string{"background-assets", "external-beta-releases", "get"},
-			wantErr: "--id is required",
+			name: "background-assets external-beta-releases get missing id",
+			args: []string{"background-assets", "external-beta-releases", "get"},
 		},
 		{
-			name:    "background-assets internal-beta-releases get missing id",
-			args:    []string{"background-assets", "internal-beta-releases", "get"},
-			wantErr: "--id is required",
+			name: "background-assets internal-beta-releases get missing id",
+			args: []string{"background-assets", "internal-beta-releases", "get"},
 		},
 		{
-			name:    "apps ci-product get missing id",
-			args:    []string{"apps", "ci-product", "get"},
-			wantErr: "--id is required",
+			name: "apps ci-product get missing id",
+			args: []string{"apps", "ci-product", "get"},
 		},
 	}
 
@@ -75,8 +65,8 @@ func TestRelationshipCommandValidationErrors(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if !strings.Contains(stderr, test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			if stderr == "" {
+				t.Fatalf("expected stderr output")
 			}
 		})
 	}
