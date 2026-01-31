@@ -86,7 +86,7 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			if nextURL == "" {
+			if nextURL == "" && !*paginate && *limit == 0 {
 				detailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
 				if err != nil {
 					return fmt.Errorf("game-center details list: failed to get Game Center detail: %w", err)
