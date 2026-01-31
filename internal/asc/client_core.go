@@ -45,7 +45,22 @@ var retryLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 	},
 }))
 
+var debugLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+	Level: slog.LevelInfo,
+	ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
+		if attr.Key == slog.TimeKey {
+			return slog.Attr{}
+		}
+		return attr
+	},
+}))
+
 var retryLogOverride struct {
+	mu  sync.RWMutex
+	val *bool
+}
+
+var debugOverride struct {
 	mu  sync.RWMutex
 	val *bool
 }
@@ -56,6 +71,14 @@ func SetRetryLogOverride(value *bool) {
 	retryLogOverride.mu.Lock()
 	defer retryLogOverride.mu.Unlock()
 	retryLogOverride.val = value
+}
+
+// SetDebugOverride sets an explicit debug override.
+// When set, it takes precedence over env/config. When unset (nil), behavior falls back to env/config.
+func SetDebugOverride(value *bool) {
+	debugOverride.mu.Lock()
+	defer debugOverride.mu.Unlock()
+	debugOverride.val = value
 }
 
 // ResolveRetryLogEnabled returns whether retry logging should be enabled.
@@ -75,6 +98,25 @@ func ResolveRetryLogEnabled() bool {
 		return false
 	}
 	return strings.TrimSpace(cfg.RetryLog) != ""
+}
+
+// ResolveDebugEnabled returns whether debug logging should be enabled.
+// Precedence: explicit override > env > config.
+func ResolveDebugEnabled() bool {
+	debugOverride.mu.RLock()
+	override := debugOverride.val
+	debugOverride.mu.RUnlock()
+	if override != nil {
+		return *override
+	}
+	if override, ok := envValue("ASC_DEBUG"); ok {
+		return override != ""
+	}
+	cfg := loadConfig()
+	if cfg == nil {
+		return false
+	}
+	return strings.TrimSpace(cfg.Debug) != ""
 }
 
 func loadConfig() *config.Config {
@@ -188,6 +230,7 @@ func ResolveRetryOptions() RetryOptions {
 // It uses exponential backoff with jitter and respects Retry-After headers.
 func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptions) (T, error) {
 	var zero T
+	debugEnabled := ResolveDebugEnabled()
 
 	// If MaxRetries is negative, use the default; if zero, fail on first error
 	if opts.MaxRetries < 0 {
@@ -243,6 +286,15 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 
 		if ResolveRetryLogEnabled() {
 			logRetry(delay, retryCount+1, opts.MaxRetries, err)
+		}
+
+		if debugEnabled {
+			debugLogger.Info("⟳ Retrying request",
+				"attempt", retryCount+1,
+				"max_retries", opts.MaxRetries,
+				"delay", delay.String(),
+				"error", err.Error(),
+			)
 		}
 
 		retryCount++

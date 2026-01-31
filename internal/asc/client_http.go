@@ -97,16 +97,45 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 }
 
 func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
+	start := time.Now()
+	debugEnabled := ResolveDebugEnabled()
+
 	req, err := c.newRequest(ctx, method, path, body)
 	if err != nil {
 		return nil, err
 	}
 
+	if debugEnabled {
+		debugLogger.Info("→ HTTP Request",
+			"method", method,
+			"url", req.URL.String(),
+			"content-type", req.Header.Get("Content-Type"),
+			"authorization", sanitizeAuthHeader(req.Header.Get("Authorization")),
+		)
+	}
+
 	resp, err := c.httpClient.Do(req)
+	elapsed := time.Since(start)
+
 	if err != nil {
+		if debugEnabled {
+			debugLogger.Info("← HTTP Error",
+				"error", err.Error(),
+				"elapsed", elapsed.String(),
+			)
+		}
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if debugEnabled {
+		debugLogger.Info("← HTTP Response",
+			"status", resp.StatusCode,
+			"elapsed", elapsed.String(),
+			"content-type", resp.Header.Get("Content-Type"),
+			"content-length", resp.Header.Get("Content-Length"),
+		)
+	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -127,6 +156,17 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+// sanitizeAuthHeader redacts the JWT token from Authorization header for logging.
+func sanitizeAuthHeader(value string) string {
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, "Bearer ") {
+		return "Bearer [REDACTED]"
+	}
+	return "[REDACTED]"
 }
 
 func shouldRetryMethod(method string) bool {
