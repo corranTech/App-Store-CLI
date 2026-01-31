@@ -124,6 +124,7 @@ const (
 	ResourceTypeTerritoryAvailabilities                         ResourceType = "territoryAvailabilities"
 	ResourceTypeAppStoreReviewDetails                           ResourceType = "appStoreReviewDetails"
 	ResourceTypeAppStoreReviewAttachments                       ResourceType = "appStoreReviewAttachments"
+	ResourceTypeCustomerReviewSummarizations                    ResourceType = "customerReviewSummarizations"
 	ResourceTypeUsers                                           ResourceType = "users"
 	ResourceTypeUserInvitations                                 ResourceType = "userInvitations"
 	ResourceTypeActors                                          ResourceType = "actors"
