@@ -599,7 +599,7 @@ func GameCenterLeaderboardsSubmitCommand() *ffcli.Command {
 	score := fs.String("score", "", "Score value")
 	bundleID := fs.String("bundle-id", "", "App bundle ID")
 	scopedPlayerID := fs.String("scoped-player-id", "", "Scoped player ID")
-	context := fs.String("context", "", "Optional score context value")
+	scoreContext := fs.String("context", "", "Optional score context value")
 	challengeIDs := fs.String("challenge-ids", "", "Challenge ID(s), comma-separated")
 	submittedDate := fs.String("submitted-date", "", "Submission date (RFC3339)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
@@ -654,7 +654,7 @@ Examples:
 				ScopedPlayerID:   playerValue,
 				ChallengeIDs:     splitCSV(*challengeIDs),
 			}
-			if value := strings.TrimSpace(*context); value != "" {
+			if value := strings.TrimSpace(*scoreContext); value != "" {
 				attrs.Context = &value
 			}
 			if value := strings.TrimSpace(*submittedDate); value != "" {
