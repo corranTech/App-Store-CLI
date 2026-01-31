@@ -715,6 +715,16 @@ func PrintMarkdown(data interface{}) error {
 		return printGameCenterGroupsMarkdown(&GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}})
 	case *GameCenterGroupDeleteResult:
 		return printGameCenterGroupDeleteResultMarkdown(v)
+	case *GameCenterAppVersionsResponse:
+		return printGameCenterAppVersionsMarkdown(v)
+	case *GameCenterAppVersionResponse:
+		return printGameCenterAppVersionsMarkdown(&GameCenterAppVersionsResponse{Data: []Resource[GameCenterAppVersionAttributes]{v.Data}})
+	case *GameCenterEnabledVersionsResponse:
+		return printGameCenterEnabledVersionsMarkdown(v)
+	case *GameCenterDetailsResponse:
+		return printGameCenterDetailsMarkdown(v)
+	case *GameCenterDetailResponse:
+		return printGameCenterDetailsMarkdown(&GameCenterDetailsResponse{Data: []Resource[GameCenterDetailAttributes]{v.Data}})
 	case *GameCenterMatchmakingQueuesResponse:
 		return printGameCenterMatchmakingQueuesMarkdown(v)
 	case *GameCenterMatchmakingQueueResponse:
@@ -1599,6 +1609,16 @@ func PrintTable(data interface{}) error {
 		return printGameCenterGroupsTable(&GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}})
 	case *GameCenterGroupDeleteResult:
 		return printGameCenterGroupDeleteResultTable(v)
+	case *GameCenterAppVersionsResponse:
+		return printGameCenterAppVersionsTable(v)
+	case *GameCenterAppVersionResponse:
+		return printGameCenterAppVersionsTable(&GameCenterAppVersionsResponse{Data: []Resource[GameCenterAppVersionAttributes]{v.Data}})
+	case *GameCenterEnabledVersionsResponse:
+		return printGameCenterEnabledVersionsTable(v)
+	case *GameCenterDetailsResponse:
+		return printGameCenterDetailsTable(v)
+	case *GameCenterDetailResponse:
+		return printGameCenterDetailsTable(&GameCenterDetailsResponse{Data: []Resource[GameCenterDetailAttributes]{v.Data}})
 	case *GameCenterMatchmakingQueuesResponse:
 		return printGameCenterMatchmakingQueuesTable(v)
 	case *GameCenterMatchmakingQueueResponse:

@@ -32,6 +32,8 @@ Examples:
   asc game-center challenges list --app "APP_ID"
   asc game-center activities list --app "APP_ID"
   asc game-center groups list --app "APP_ID"
+  asc game-center app-versions list --app "APP_ID"
+  asc game-center details list --app "APP_ID"
   asc game-center matchmaking queues list`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -42,6 +44,8 @@ Examples:
 			GameCenterChallengesCommand(),
 			GameCenterActivitiesCommand(),
 			GameCenterGroupsCommand(),
+			GameCenterAppVersionsCommand(),
+			GameCenterDetailsCommand(),
 			GameCenterMatchmakingCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {

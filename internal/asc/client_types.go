@@ -147,6 +147,8 @@ const (
 	ResourceTypeAlternativeDistributionKeys                     ResourceType = "alternativeDistributionKeys"
 	ResourceTypeAlternativeDistributionPackages                 ResourceType = "alternativeDistributionPackages"
 	ResourceTypeGameCenterDetails                               ResourceType = "gameCenterDetails"
+	ResourceTypeGameCenterAppVersions                           ResourceType = "gameCenterAppVersions"
+	ResourceTypeGameCenterEnabledVersions                       ResourceType = "gameCenterEnabledVersions"
 	ResourceTypeGameCenterAchievements                          ResourceType = "gameCenterAchievements"
 	ResourceTypeGameCenterLeaderboards                          ResourceType = "gameCenterLeaderboards"
 	ResourceTypeGameCenterLeaderboardSets                       ResourceType = "gameCenterLeaderboardSets"

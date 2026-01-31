@@ -306,6 +306,12 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &GameCenterActivityVersionReleasesResponse{Links: Links{}}
 	case *GameCenterGroupsResponse:
 		result = &GameCenterGroupsResponse{Links: Links{}}
+	case *GameCenterAppVersionsResponse:
+		result = &GameCenterAppVersionsResponse{Links: Links{}}
+	case *GameCenterDetailsResponse:
+		result = &GameCenterDetailsResponse{Links: Links{}}
+	case *GameCenterEnabledVersionsResponse:
+		result = &GameCenterEnabledVersionsResponse{Links: Links{}}
 	case *GameCenterMatchmakingQueuesResponse:
 		result = &GameCenterMatchmakingQueuesResponse{Links: Links{}}
 	case *GameCenterMatchmakingRuleSetsResponse:
