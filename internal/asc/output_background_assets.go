@@ -102,3 +102,54 @@ func printBackgroundAssetUploadFilesMarkdown(resp *BackgroundAssetUploadFilesRes
 	}
 	return nil
 }
+
+func printBackgroundAssetVersionAppStoreReleaseTable(resp *BackgroundAssetVersionAppStoreReleaseResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tState")
+	fmt.Fprintf(w, "%s\t%s\n", resp.Data.ID, resp.Data.Attributes.State)
+	return w.Flush()
+}
+
+func printBackgroundAssetVersionAppStoreReleaseMarkdown(resp *BackgroundAssetVersionAppStoreReleaseResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
+		escapeMarkdown(resp.Data.ID),
+		escapeMarkdown(resp.Data.Attributes.State),
+	)
+	return nil
+}
+
+func printBackgroundAssetVersionExternalBetaReleaseTable(resp *BackgroundAssetVersionExternalBetaReleaseResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tState")
+	fmt.Fprintf(w, "%s\t%s\n", resp.Data.ID, resp.Data.Attributes.State)
+	return w.Flush()
+}
+
+func printBackgroundAssetVersionExternalBetaReleaseMarkdown(resp *BackgroundAssetVersionExternalBetaReleaseResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
+		escapeMarkdown(resp.Data.ID),
+		escapeMarkdown(resp.Data.Attributes.State),
+	)
+	return nil
+}
+
+func printBackgroundAssetVersionInternalBetaReleaseTable(resp *BackgroundAssetVersionInternalBetaReleaseResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tState")
+	fmt.Fprintf(w, "%s\t%s\n", resp.Data.ID, resp.Data.Attributes.State)
+	return w.Flush()
+}
+
+func printBackgroundAssetVersionInternalBetaReleaseMarkdown(resp *BackgroundAssetVersionInternalBetaReleaseResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
+		escapeMarkdown(resp.Data.ID),
+		escapeMarkdown(resp.Data.Attributes.State),
+	)
+	return nil
+}

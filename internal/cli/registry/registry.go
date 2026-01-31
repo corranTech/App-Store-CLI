@@ -9,6 +9,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/accessibility"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/actors"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/agerating"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/agreements"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/alternativedistribution"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/analytics"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/androidiosmapping"
@@ -121,6 +122,7 @@ func Subcommands(version string) []*ffcli.Command {
 		routingcoverage.RoutingCoverageCommand(),
 		apps.AppInfoCommand(),
 		eula.EULACommand(),
+		agreements.AgreementsCommand(),
 		pricing.PricingCommand(),
 		preorders.PreOrdersCommand(),
 		prerelease.PreReleaseVersionsCommand(),

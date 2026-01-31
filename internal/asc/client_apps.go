@@ -190,7 +190,17 @@ func (c *Client) SetAppSearchKeywords(ctx context.Context, appID string, keyword
 
 // GetAppCiProduct retrieves the CI product for an app.
 func (c *Client) GetAppCiProduct(ctx context.Context, appID string) (*CiProductResponse, error) {
-	_ = ctx
-	_ = appID
-	return nil, fmt.Errorf("GetAppCiProduct not implemented")
+	appID = strings.TrimSpace(appID)
+	path := fmt.Sprintf("/v1/apps/%s/ciProduct", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiProductResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
 }

@@ -137,6 +137,12 @@ func PrintMarkdown(data interface{}) error {
 		return printBackgroundAssetVersionsMarkdown(v)
 	case *BackgroundAssetVersionResponse:
 		return printBackgroundAssetVersionsMarkdown(&BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}})
+	case *BackgroundAssetVersionAppStoreReleaseResponse:
+		return printBackgroundAssetVersionAppStoreReleaseMarkdown(v)
+	case *BackgroundAssetVersionExternalBetaReleaseResponse:
+		return printBackgroundAssetVersionExternalBetaReleaseMarkdown(v)
+	case *BackgroundAssetVersionInternalBetaReleaseResponse:
+		return printBackgroundAssetVersionInternalBetaReleaseMarkdown(v)
 	case *BackgroundAssetUploadFilesResponse:
 		return printBackgroundAssetUploadFilesMarkdown(v)
 	case *BackgroundAssetUploadFileResponse:
@@ -1009,6 +1015,12 @@ func PrintTable(data interface{}) error {
 		return printBackgroundAssetVersionsTable(v)
 	case *BackgroundAssetVersionResponse:
 		return printBackgroundAssetVersionsTable(&BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}})
+	case *BackgroundAssetVersionAppStoreReleaseResponse:
+		return printBackgroundAssetVersionAppStoreReleaseTable(v)
+	case *BackgroundAssetVersionExternalBetaReleaseResponse:
+		return printBackgroundAssetVersionExternalBetaReleaseTable(v)
+	case *BackgroundAssetVersionInternalBetaReleaseResponse:
+		return printBackgroundAssetVersionInternalBetaReleaseTable(v)
 	case *BackgroundAssetUploadFilesResponse:
 		return printBackgroundAssetUploadFilesTable(v)
 	case *BackgroundAssetUploadFileResponse:

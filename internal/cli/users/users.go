@@ -30,6 +30,7 @@ Examples:
   asc users delete --id "USER_ID" --confirm
   asc users invite --email "user@example.com" --roles "ADMIN" --all-apps
   asc users invites list
+  asc users invites visible-apps list --id "INVITE_ID"
   asc users visible-apps list --id "USER_ID"
   asc users visible-apps get --id "USER_ID"`,
 		FlagSet:   fs,
@@ -408,13 +409,15 @@ func UsersInvitesCommand() *ffcli.Command {
 Examples:
   asc users invites list
   asc users invites get --id "INVITE_ID"
-  asc users invites revoke --id "INVITE_ID" --confirm`,
+  asc users invites revoke --id "INVITE_ID" --confirm
+  asc users invites visible-apps list --id "INVITE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			UsersInvitesListCommand(),
 			UsersInvitesGetCommand(),
 			UsersInvitesRevokeCommand(),
+			UsersInvitesVisibleAppsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
