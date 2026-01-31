@@ -113,12 +113,12 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithAppEncryptionDeclarationsLimit(200))
-				firstPage, err := client.GetAppEncryptionDeclarationsForApp(requestCtx, resolvedAppID, paginateOpts...)
+				firstPage, err := client.GetAppEncryptionDeclarations(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("apps app-encryption-declarations list: failed to fetch: %w", err)
 				}
 				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEncryptionDeclarationsForApp(ctx, resolvedAppID, asc.WithAppEncryptionDeclarationsNextURL(nextURL))
+					return client.GetAppEncryptionDeclarations(ctx, resolvedAppID, asc.WithAppEncryptionDeclarationsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps app-encryption-declarations list: %w", err)
@@ -126,7 +126,7 @@ Examples:
 				return printOutput(pages, *output, *pretty)
 			}
 
-			resp, err := client.GetAppEncryptionDeclarationsForApp(requestCtx, resolvedAppID, opts...)
+			resp, err := client.GetAppEncryptionDeclarations(requestCtx, resolvedAppID, opts...)
 			if err != nil {
 				return fmt.Errorf("apps app-encryption-declarations list: failed to fetch: %w", err)
 			}
