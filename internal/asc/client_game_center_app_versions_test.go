@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"testing"
