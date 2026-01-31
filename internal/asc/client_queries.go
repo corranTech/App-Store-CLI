@@ -1434,6 +1434,12 @@ func buildDiagnosticLogsQuery(query *diagnosticLogsQuery) string {
 	return values.Encode()
 }
 
+func buildListQuery(query *listQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildLinkagesQuery(query *linkagesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)

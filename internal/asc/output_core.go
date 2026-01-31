@@ -311,6 +311,8 @@ func PrintMarkdown(data interface{}) error {
 		return printPreReleaseVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildIconsResponse:
+		return printBuildIconsMarkdown(v)
 	case *BuildUploadsResponse:
 		return printBuildUploadsMarkdown(v)
 	case *BuildUploadResponse:
@@ -1171,6 +1173,8 @@ func PrintTable(data interface{}) error {
 		return printPreReleaseVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildIconsResponse:
+		return printBuildIconsTable(v)
 	case *BuildUploadsResponse:
 		return printBuildUploadsTable(v)
 	case *BuildUploadResponse:

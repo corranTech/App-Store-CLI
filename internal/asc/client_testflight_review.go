@@ -58,6 +58,27 @@ func (c *Client) GetBetaAppReviewDetail(ctx context.Context, detailID string) (*
 	return &response, nil
 }
 
+// GetBetaAppReviewDetailApp retrieves the app for a beta app review detail.
+func (c *Client) GetBetaAppReviewDetailApp(ctx context.Context, detailID string) (*AppResponse, error) {
+	detailID = strings.TrimSpace(detailID)
+	if detailID == "" {
+		return nil, fmt.Errorf("detailID is required")
+	}
+
+	path := fmt.Sprintf("/v1/betaAppReviewDetails/%s/app", detailID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // UpdateBetaAppReviewDetail updates beta app review details by ID.
 func (c *Client) UpdateBetaAppReviewDetail(ctx context.Context, detailID string, attrs BetaAppReviewDetailUpdateAttributes) (*BetaAppReviewDetailResponse, error) {
 	detailID = strings.TrimSpace(detailID)
@@ -181,6 +202,27 @@ func (c *Client) GetBetaAppReviewSubmission(ctx context.Context, submissionID st
 	return &response, nil
 }
 
+// GetBetaAppReviewSubmissionBuild retrieves the build for a beta app review submission.
+func (c *Client) GetBetaAppReviewSubmissionBuild(ctx context.Context, submissionID string) (*BuildResponse, error) {
+	submissionID = strings.TrimSpace(submissionID)
+	if submissionID == "" {
+		return nil, fmt.Errorf("submissionID is required")
+	}
+
+	path := fmt.Sprintf("/v1/betaAppReviewSubmissions/%s/build", submissionID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetBuildBetaDetails retrieves build beta details.
 func (c *Client) GetBuildBetaDetails(ctx context.Context, opts ...BuildBetaDetailsOption) (*BuildBetaDetailsResponse, error) {
 	query := &buildBetaDetailsQuery{}
@@ -225,6 +267,27 @@ func (c *Client) GetBuildBetaDetail(ctx context.Context, detailID string) (*Buil
 	}
 
 	var response BuildBetaDetailResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBuildBetaDetailBuild retrieves the build for a build beta detail.
+func (c *Client) GetBuildBetaDetailBuild(ctx context.Context, detailID string) (*BuildResponse, error) {
+	detailID = strings.TrimSpace(detailID)
+	if detailID == "" {
+		return nil, fmt.Errorf("detailID is required")
+	}
+
+	path := fmt.Sprintf("/v1/buildBetaDetails/%s/build", detailID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

@@ -26,12 +26,16 @@ Examples:
   asc testflight review get --app "APP_ID"
   asc testflight review update --id "DETAIL_ID" --contact-email "dev@example.com"
   asc testflight review submit --build "BUILD_ID" --confirm`,
+  asc testflight review app get --id "DETAIL_ID"
+  asc testflight review submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightReviewGetCommand(),
+			TestFlightReviewAppCommand(),
 			TestFlightReviewUpdateCommand(),
 			TestFlightReviewSubmitCommand(),
+			TestFlightReviewSubmissionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -247,6 +251,183 @@ Examples:
 	}
 }
 
+// TestFlightReviewAppCommand returns the review app command group.
+func TestFlightReviewAppCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "app",
+		ShortUsage: "asc testflight review app <subcommand> [flags]",
+		ShortHelp:  "View the app for a beta app review detail.",
+		LongHelp: `View the app for a beta app review detail.
+
+Examples:
+  asc testflight review app get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			TestFlightReviewAppGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightReviewAppGetCommand retrieves the app for a beta app review detail.
+func TestFlightReviewAppGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta app review detail ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc testflight review app get --id \"DETAIL_ID\"",
+		ShortHelp:  "Get the app for a beta app review detail.",
+		LongHelp: `Get the app for a beta app review detail.
+
+Examples:
+  asc testflight review app get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight review app get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBetaAppReviewDetailApp(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight review app get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// TestFlightReviewSubmissionsCommand returns the review submissions command group.
+func TestFlightReviewSubmissionsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "submissions",
+		ShortUsage: "asc testflight review submissions <subcommand> [flags]",
+		ShortHelp:  "View beta app review submissions.",
+		LongHelp: `View beta app review submissions.
+
+Examples:
+  asc testflight review submissions get --id "SUBMISSION_ID"
+  asc testflight review submissions build --id "SUBMISSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			TestFlightReviewSubmissionsGetCommand(),
+			TestFlightReviewSubmissionsBuildCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightReviewSubmissionsGetCommand retrieves a beta app review submission by ID.
+func TestFlightReviewSubmissionsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta app review submission ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc testflight review submissions get --id \"SUBMISSION_ID\"",
+		ShortHelp:  "Get a beta app review submission by ID.",
+		LongHelp: `Get a beta app review submission by ID.
+
+Examples:
+  asc testflight review submissions get --id "SUBMISSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight review submissions get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBetaAppReviewSubmission(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight review submissions get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// TestFlightReviewSubmissionsBuildCommand retrieves the build for a beta app review submission.
+func TestFlightReviewSubmissionsBuildCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions build", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta app review submission ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "build",
+		ShortUsage: "asc testflight review submissions build --id \"SUBMISSION_ID\"",
+		ShortHelp:  "Get the build for a beta app review submission.",
+		LongHelp: `Get the build for a beta app review submission.
+
+Examples:
+  asc testflight review submissions build --id "SUBMISSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight review submissions build: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBetaAppReviewSubmissionBuild(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight review submissions build: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // TestFlightBetaDetailsCommand returns the testflight beta-details command with subcommands.
 func TestFlightBetaDetailsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-details", flag.ExitOnError)
@@ -264,6 +445,7 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightBetaDetailsGetCommand(),
+			TestFlightBetaDetailsBuildCommand(),
 			TestFlightBetaDetailsUpdateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -326,6 +508,72 @@ Examples:
 			}
 
 			return printOutput(details, *output, *pretty)
+		},
+	}
+}
+
+// TestFlightBetaDetailsBuildCommand returns the beta-details build command group.
+func TestFlightBetaDetailsBuildCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("build", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "build",
+		ShortUsage: "asc testflight beta-details build <subcommand> [flags]",
+		ShortHelp:  "View the build for a build beta detail.",
+		LongHelp: `View the build for a build beta detail.
+
+Examples:
+  asc testflight beta-details build get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			TestFlightBetaDetailsBuildGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightBetaDetailsBuildGetCommand retrieves the build for a build beta detail.
+func TestFlightBetaDetailsBuildGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("build get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Build beta detail ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc testflight beta-details build get --id \"DETAIL_ID\"",
+		ShortHelp:  "Get the build for a build beta detail.",
+		LongHelp: `Get the build for a build beta detail.
+
+Examples:
+  asc testflight beta-details build get --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight beta-details build get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetBuildBetaDetailBuild(requestCtx, idValue)
+			if err != nil {
+				return fmt.Errorf("testflight beta-details build get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

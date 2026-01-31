@@ -2,11 +2,20 @@ package asc
 
 // BetaRecruitmentCriteriaAttributes describes beta recruitment criteria metadata.
 type BetaRecruitmentCriteriaAttributes struct {
-	LastModifiedDate string `json:"lastModifiedDate,omitempty"`
+	LastModifiedDate              string                       `json:"lastModifiedDate,omitempty"`
+	DeviceFamilyOsVersionFilters  []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
 }
 
 // BetaRecruitmentCriteriaResponse is the response from beta recruitment criteria endpoints.
 type BetaRecruitmentCriteriaResponse = SingleResponse[BetaRecruitmentCriteriaAttributes]
+
+// BetaRecruitmentCriterionCompatibleBuildCheckAttributes describes compatible build check attributes.
+type BetaRecruitmentCriterionCompatibleBuildCheckAttributes struct {
+	HasCompatibleBuild bool `json:"hasCompatibleBuild,omitempty"`
+}
+
+// BetaRecruitmentCriterionCompatibleBuildCheckResponse is the response for compatible build checks.
+type BetaRecruitmentCriterionCompatibleBuildCheckResponse = SingleResponse[BetaRecruitmentCriterionCompatibleBuildCheckAttributes]
 
 // BetaRecruitmentCriteriaRelationships describes relationships for recruitment criteria.
 type BetaRecruitmentCriteriaRelationships struct {
