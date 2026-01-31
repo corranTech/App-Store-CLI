@@ -343,6 +343,7 @@ Examples:
 			BuildsUploadCommand(),
 			BuildsUploadsCommand(),
 			BuildsTestNotesCommand(),
+			BuildsAppEncryptionDeclarationCommand(),
 			BuildsAddGroupsCommand(),
 			BuildsRemoveGroupsCommand(),
 			BuildsIndividualTestersCommand(),

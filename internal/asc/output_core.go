@@ -273,6 +273,8 @@ func PrintMarkdown(data interface{}) error {
 		return printSubscriptionAvailabilityMarkdown(v)
 	case *TerritoriesResponse:
 		return printTerritoriesMarkdown(v)
+	case *TerritoryAgeRatingsResponse:
+		return printTerritoryAgeRatingsMarkdown(v)
 	case *AppPricePointsV3Response:
 		return printAppPricePointsMarkdown(v)
 	case *AppPriceScheduleResponse:
@@ -1133,6 +1135,8 @@ func PrintTable(data interface{}) error {
 		return printSubscriptionAvailabilityTable(v)
 	case *TerritoriesResponse:
 		return printTerritoriesTable(v)
+	case *TerritoryAgeRatingsResponse:
+		return printTerritoryAgeRatingsTable(v)
 	case *AppPricePointsV3Response:
 		return printAppPricePointsTable(v)
 	case *AppPriceScheduleResponse:
