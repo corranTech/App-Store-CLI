@@ -19,14 +19,17 @@ func GameCenterDetailsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "details",
 		ShortUsage: "asc game-center details <subcommand> [flags]",
-		ShortHelp:  "Manage Game Center details.",
-		LongHelp: `Manage Game Center details.
+		ShortHelp:  "Manage Game Center details and related resources.",
+		LongHelp: `Manage Game Center details and related resources.
 
 Examples:
   asc game-center details list --app "APP_ID"
   asc game-center details get --id "DETAIL_ID"
   asc game-center details app-versions list --id "DETAIL_ID"
-  asc game-center details group get --id "DETAIL_ID"`,
+  asc game-center details group get --id "DETAIL_ID"
+  asc game-center details achievements-v2 list --id "DETAIL_ID"
+  asc game-center details leaderboard-releases list --id "DETAIL_ID"
+  asc game-center details metrics classic-matchmaking --id "DETAIL_ID" --granularity P1D`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -34,6 +37,13 @@ Examples:
 			GameCenterDetailsGetCommand(),
 			GameCenterDetailsAppVersionsCommand(),
 			GameCenterDetailsGroupCommand(),
+			GameCenterDetailsAchievementsV2Command(),
+			GameCenterDetailsLeaderboardsV2Command(),
+			GameCenterDetailsLeaderboardSetsV2Command(),
+			GameCenterDetailsAchievementReleasesCommand(),
+			GameCenterDetailsLeaderboardReleasesCommand(),
+			GameCenterDetailsLeaderboardSetReleasesCommand(),
+			GameCenterDetailsMetricsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -322,4 +332,742 @@ Examples:
 			return printOutput(resp, *output, *pretty)
 		},
 	}
+}
+
+// GameCenterDetailsAchievementsV2Command returns the achievements v2 command group.
+func GameCenterDetailsAchievementsV2Command() *ffcli.Command {
+	fs := flag.NewFlagSet("achievements-v2", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "achievements-v2",
+		ShortUsage: "asc game-center details achievements-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 achievements for a Game Center detail.",
+		LongHelp: `List v2 achievements for a Game Center detail.
+
+Examples:
+  asc game-center details achievements-v2 list --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterDetailsAchievementsV2ListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterDetailsAchievementsV2ListCommand returns the achievements v2 list subcommand.
+func GameCenterDetailsAchievementsV2ListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center details achievements-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 achievements for a Game Center detail.",
+		LongHelp: `List v2 achievements for a Game Center detail.
+
+Examples:
+  asc game-center details achievements-v2 list --id "DETAIL_ID"
+  asc game-center details achievements-v2 list --id "DETAIL_ID" --limit 50
+  asc game-center details achievements-v2 list --id "DETAIL_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center details achievements-v2 list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center details achievements-v2 list: %w", err)
+			}
+
+			id := strings.TrimSpace(*detailID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details achievements-v2 list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCAchievementsOption{
+				asc.WithGCAchievementsLimit(*limit),
+				asc.WithGCAchievementsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCAchievementsLimit(200))
+				firstPage, err := client.GetGameCenterDetailsAchievementsV2(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center details achievements-v2 list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterDetailsAchievementsV2(ctx, id, asc.WithGCAchievementsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center details achievements-v2 list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterDetailsAchievementsV2(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center details achievements-v2 list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardsV2Command returns the leaderboards v2 command group.
+func GameCenterDetailsLeaderboardsV2Command() *ffcli.Command {
+	fs := flag.NewFlagSet("leaderboards-v2", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "leaderboards-v2",
+		ShortUsage: "asc game-center details leaderboards-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 leaderboards for a Game Center detail.",
+		LongHelp: `List v2 leaderboards for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboards-v2 list --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterDetailsLeaderboardsV2ListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardsV2ListCommand returns the leaderboards v2 list subcommand.
+func GameCenterDetailsLeaderboardsV2ListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboards-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 leaderboards for a Game Center detail.",
+		LongHelp: `List v2 leaderboards for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboards-v2 list --id "DETAIL_ID"
+  asc game-center details leaderboards-v2 list --id "DETAIL_ID" --limit 50
+  asc game-center details leaderboards-v2 list --id "DETAIL_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center details leaderboards-v2 list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center details leaderboards-v2 list: %w", err)
+			}
+
+			id := strings.TrimSpace(*detailID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboards-v2 list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCLeaderboardsOption{
+				asc.WithGCLeaderboardsLimit(*limit),
+				asc.WithGCLeaderboardsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCLeaderboardsLimit(200))
+				firstPage, err := client.GetGameCenterDetailsLeaderboardsV2(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboards-v2 list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterDetailsLeaderboardsV2(ctx, id, asc.WithGCLeaderboardsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboards-v2 list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterDetailsLeaderboardsV2(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboards-v2 list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardSetsV2Command returns the leaderboard sets v2 command group.
+func GameCenterDetailsLeaderboardSetsV2Command() *ffcli.Command {
+	fs := flag.NewFlagSet("leaderboard-sets-v2", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "leaderboard-sets-v2",
+		ShortUsage: "asc game-center details leaderboard-sets-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 leaderboard sets for a Game Center detail.",
+		LongHelp: `List v2 leaderboard sets for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterDetailsLeaderboardSetsV2ListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardSetsV2ListCommand returns the leaderboard sets v2 list subcommand.
+func GameCenterDetailsLeaderboardSetsV2ListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboard-sets-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 leaderboard sets for a Game Center detail.",
+		LongHelp: `List v2 leaderboard sets for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID"
+  asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID" --limit 50
+  asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center details leaderboard-sets-v2 list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center details leaderboard-sets-v2 list: %w", err)
+			}
+
+			id := strings.TrimSpace(*detailID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboard-sets-v2 list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCLeaderboardSetsOption{
+				asc.WithGCLeaderboardSetsLimit(*limit),
+				asc.WithGCLeaderboardSetsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCLeaderboardSetsLimit(200))
+				firstPage, err := client.GetGameCenterDetailsLeaderboardSetsV2(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboard-sets-v2 list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterDetailsLeaderboardSetsV2(ctx, id, asc.WithGCLeaderboardSetsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboard-sets-v2 list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterDetailsLeaderboardSetsV2(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboard-sets-v2 list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsAchievementReleasesCommand returns the achievement releases command group.
+func GameCenterDetailsAchievementReleasesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("achievement-releases", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "achievement-releases",
+		ShortUsage: "asc game-center details achievement-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List achievement releases for a Game Center detail.",
+		LongHelp: `List achievement releases for a Game Center detail.
+
+Examples:
+  asc game-center details achievement-releases list --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterDetailsAchievementReleasesListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterDetailsAchievementReleasesListCommand returns the achievement releases list subcommand.
+func GameCenterDetailsAchievementReleasesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center details achievement-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List achievement releases for a Game Center detail.",
+		LongHelp: `List achievement releases for a Game Center detail.
+
+Examples:
+  asc game-center details achievement-releases list --id "DETAIL_ID"
+  asc game-center details achievement-releases list --id "DETAIL_ID" --limit 50
+  asc game-center details achievement-releases list --id "DETAIL_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center details achievement-releases list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center details achievement-releases list: %w", err)
+			}
+
+			id := strings.TrimSpace(*detailID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details achievement-releases list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCAchievementReleasesOption{
+				asc.WithGCAchievementReleasesLimit(*limit),
+				asc.WithGCAchievementReleasesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCAchievementReleasesLimit(200))
+				firstPage, err := client.GetGameCenterDetailsAchievementReleases(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center details achievement-releases list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterDetailsAchievementReleases(ctx, id, asc.WithGCAchievementReleasesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center details achievement-releases list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterDetailsAchievementReleases(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center details achievement-releases list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardReleasesCommand returns the leaderboard releases command group.
+func GameCenterDetailsLeaderboardReleasesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("leaderboard-releases", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "leaderboard-releases",
+		ShortUsage: "asc game-center details leaderboard-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List leaderboard releases for a Game Center detail.",
+		LongHelp: `List leaderboard releases for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboard-releases list --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterDetailsLeaderboardReleasesListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardReleasesListCommand returns the leaderboard releases list subcommand.
+func GameCenterDetailsLeaderboardReleasesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboard-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List leaderboard releases for a Game Center detail.",
+		LongHelp: `List leaderboard releases for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboard-releases list --id "DETAIL_ID"
+  asc game-center details leaderboard-releases list --id "DETAIL_ID" --limit 50
+  asc game-center details leaderboard-releases list --id "DETAIL_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center details leaderboard-releases list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center details leaderboard-releases list: %w", err)
+			}
+
+			id := strings.TrimSpace(*detailID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboard-releases list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCLeaderboardReleasesOption{
+				asc.WithGCLeaderboardReleasesLimit(*limit),
+				asc.WithGCLeaderboardReleasesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCLeaderboardReleasesLimit(200))
+				firstPage, err := client.GetGameCenterDetailsLeaderboardReleases(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboard-releases list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterDetailsLeaderboardReleases(ctx, id, asc.WithGCLeaderboardReleasesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboard-releases list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterDetailsLeaderboardReleases(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboard-releases list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardSetReleasesCommand returns the leaderboard set releases command group.
+func GameCenterDetailsLeaderboardSetReleasesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("leaderboard-set-releases", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "leaderboard-set-releases",
+		ShortUsage: "asc game-center details leaderboard-set-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List leaderboard set releases for a Game Center detail.",
+		LongHelp: `List leaderboard set releases for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboard-set-releases list --id "DETAIL_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterDetailsLeaderboardSetReleasesListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterDetailsLeaderboardSetReleasesListCommand returns the leaderboard set releases list subcommand.
+func GameCenterDetailsLeaderboardSetReleasesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboard-set-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List leaderboard set releases for a Game Center detail.",
+		LongHelp: `List leaderboard set releases for a Game Center detail.
+
+Examples:
+  asc game-center details leaderboard-set-releases list --id "DETAIL_ID"
+  asc game-center details leaderboard-set-releases list --id "DETAIL_ID" --limit 50
+  asc game-center details leaderboard-set-releases list --id "DETAIL_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center details leaderboard-set-releases list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center details leaderboard-set-releases list: %w", err)
+			}
+
+			id := strings.TrimSpace(*detailID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboard-set-releases list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCLeaderboardSetReleasesOption{
+				asc.WithGCLeaderboardSetReleasesLimit(*limit),
+				asc.WithGCLeaderboardSetReleasesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCLeaderboardSetReleasesLimit(200))
+				firstPage, err := client.GetGameCenterDetailsLeaderboardSetReleases(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboard-set-releases list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterDetailsLeaderboardSetReleases(ctx, id, asc.WithGCLeaderboardSetReleasesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center details leaderboard-set-releases list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterDetailsLeaderboardSetReleases(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center details leaderboard-set-releases list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsMetricsCommand returns the details metrics command group.
+func GameCenterDetailsMetricsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "metrics",
+		ShortUsage: "asc game-center details metrics <subcommand> [flags]",
+		ShortHelp:  "Fetch Game Center details metrics.",
+		LongHelp: `Fetch Game Center details metrics.
+
+Examples:
+  asc game-center details metrics classic-matchmaking --id "DETAIL_ID" --granularity P1D
+  asc game-center details metrics rule-based-matchmaking --id "DETAIL_ID" --granularity P1D --group-by result`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterDetailsClassicMatchmakingCommand(),
+			GameCenterDetailsRuleBasedMatchmakingCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterDetailsClassicMatchmakingCommand returns the classic matchmaking metrics subcommand.
+func GameCenterDetailsClassicMatchmakingCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("classic-matchmaking", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
+	groupBy := fs.String("group-by", "", "Group by (comma-separated: result)")
+	filterResult := fs.String("filter-result", "", "Filter result (MATCHED, CANCELED, EXPIRED)")
+	sort := fs.String("sort", "", "Sort fields (comma-separated)")
+	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return detailsMetricsCommand("classic-matchmaking", fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error) {
+		return ascClient(ctx).GetGameCenterDetailsClassicMatchmakingRequests(ctx, id, opts...)
+	})
+}
+
+// GameCenterDetailsRuleBasedMatchmakingCommand returns the rule-based matchmaking metrics subcommand.
+func GameCenterDetailsRuleBasedMatchmakingCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("rule-based-matchmaking", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
+	groupBy := fs.String("group-by", "", "Group by (comma-separated: result)")
+	filterResult := fs.String("filter-result", "", "Filter result (MATCHED, CANCELED, EXPIRED)")
+	sort := fs.String("sort", "", "Sort fields (comma-separated)")
+	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return detailsMetricsCommand("rule-based-matchmaking", fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error) {
+		return ascClient(ctx).GetGameCenterDetailsRuleBasedMatchmakingRequests(ctx, id, opts...)
+	})
+}
+
+func detailsMetricsCommand(name string, fs *flag.FlagSet, detailID *string, granularity *string, groupBy *string, filterResult *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error)) *ffcli.Command {
+	return &ffcli.Command{
+		Name:       name,
+		ShortUsage: "asc game-center details metrics " + name + " --id \"DETAIL_ID\" --granularity P1D",
+		ShortHelp:  "Fetch Game Center details metrics.",
+		LongHelp: `Fetch Game Center details metrics.
+
+Examples:
+  asc game-center details metrics ` + name + ` --id "DETAIL_ID" --granularity P1D`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			return runDetailsMetrics(ctx, name, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output, pretty, fetch)
+		},
+	}
+}
+
+func runDetailsMetrics(ctx context.Context, name string, detailID *string, granularity *string, groupBy *string, filterResult *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error)) error {
+	if *limit != 0 && (*limit < 1 || *limit > 200) {
+		return fmt.Errorf("game-center details metrics %s: --limit must be between 1 and 200", name)
+	}
+	if err := validateNextURL(*next); err != nil {
+		return fmt.Errorf("game-center details metrics %s: %w", name, err)
+	}
+
+	id := strings.TrimSpace(*detailID)
+	if id == "" && strings.TrimSpace(*next) == "" {
+		fmt.Fprintln(os.Stderr, "Error: --id is required")
+		return flag.ErrHelp
+	}
+	gran := strings.TrimSpace(*granularity)
+	if gran == "" && strings.TrimSpace(*next) == "" {
+		fmt.Fprintln(os.Stderr, "Error: --granularity is required")
+		return flag.ErrHelp
+	}
+
+	requestCtx, cancel := contextWithTimeout(ctx)
+	defer cancel()
+
+	opts := []asc.GCMatchmakingMetricsOption{
+		asc.WithGCMatchmakingMetricsGranularity(gran),
+		asc.WithGCMatchmakingMetricsGroupBy(splitCSV(*groupBy)),
+		asc.WithGCMatchmakingMetricsFilterResult(strings.TrimSpace(*filterResult)),
+		asc.WithGCMatchmakingMetricsSort(splitCSV(*sort)),
+		asc.WithGCMatchmakingMetricsLimit(*limit),
+		asc.WithGCMatchmakingMetricsNextURL(*next),
+	}
+
+	if *paginate {
+		paginateOpts := append(opts, asc.WithGCMatchmakingMetricsLimit(200))
+		firstPage, err := fetch(requestCtx, id, paginateOpts...)
+		if err != nil {
+			return fmt.Errorf("game-center details metrics %s: failed to fetch: %w", name, err)
+		}
+
+		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return fetch(ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+		})
+		if err != nil {
+			return fmt.Errorf("game-center details metrics %s: %w", name, err)
+		}
+
+		return printOutput(resp, *output, *pretty)
+	}
+
+	resp, err := fetch(requestCtx, id, opts...)
+	if err != nil {
+		return fmt.Errorf("game-center details metrics %s: failed to fetch: %w", name, err)
+	}
+
+	return printOutput(resp, *output, *pretty)
 }

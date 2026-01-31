@@ -129,3 +129,161 @@ func TestGCDetailsOptions(t *testing.T) {
 		t.Fatalf("expected limit=8, got %q", values.Get("limit"))
 	}
 }
+
+func TestGetGameCenterDetailsAchievementReleases_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterDetails/detail-1/achievementReleases" {
+			t.Fatalf("expected path /v1/gameCenterDetails/detail-1/achievementReleases, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "12" {
+			t.Fatalf("expected limit=12, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterDetailsAchievementReleases(context.Background(), "detail-1", WithGCAchievementReleasesLimit(12)); err != nil {
+		t.Fatalf("GetGameCenterDetailsAchievementReleases() error: %v", err)
+	}
+}
+
+func TestGetGameCenterDetailsLeaderboardReleases_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterDetails/detail-1/leaderboardReleases" {
+			t.Fatalf("expected path /v1/gameCenterDetails/detail-1/leaderboardReleases, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "15" {
+			t.Fatalf("expected limit=15, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterDetailsLeaderboardReleases(context.Background(), "detail-1", WithGCLeaderboardReleasesLimit(15)); err != nil {
+		t.Fatalf("GetGameCenterDetailsLeaderboardReleases() error: %v", err)
+	}
+}
+
+func TestGetGameCenterDetailsLeaderboardSetReleases_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterDetails/detail-1/leaderboardSetReleases" {
+			t.Fatalf("expected path /v1/gameCenterDetails/detail-1/leaderboardSetReleases, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "18" {
+			t.Fatalf("expected limit=18, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterDetailsLeaderboardSetReleases(context.Background(), "detail-1", WithGCLeaderboardSetReleasesLimit(18)); err != nil {
+		t.Fatalf("GetGameCenterDetailsLeaderboardSetReleases() error: %v", err)
+	}
+}
+
+func TestGetGameCenterDetailsAchievementsV2_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterDetails/detail-1/gameCenterAchievementsV2" {
+			t.Fatalf("expected path /v1/gameCenterDetails/detail-1/gameCenterAchievementsV2, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "20" {
+			t.Fatalf("expected limit=20, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterDetailsAchievementsV2(context.Background(), "detail-1", WithGCAchievementsLimit(20)); err != nil {
+		t.Fatalf("GetGameCenterDetailsAchievementsV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterDetailsLeaderboardsV2_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterDetails/detail-1/gameCenterLeaderboardsV2" {
+			t.Fatalf("expected path /v1/gameCenterDetails/detail-1/gameCenterLeaderboardsV2, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "25" {
+			t.Fatalf("expected limit=25, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterDetailsLeaderboardsV2(context.Background(), "detail-1", WithGCLeaderboardsLimit(25)); err != nil {
+		t.Fatalf("GetGameCenterDetailsLeaderboardsV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterDetailsLeaderboardSetsV2_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterDetails/detail-1/gameCenterLeaderboardSetsV2" {
+			t.Fatalf("expected path /v1/gameCenterDetails/detail-1/gameCenterLeaderboardSetsV2, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "30" {
+			t.Fatalf("expected limit=30, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterDetailsLeaderboardSetsV2(context.Background(), "detail-1", WithGCLeaderboardSetsLimit(30)); err != nil {
+		t.Fatalf("GetGameCenterDetailsLeaderboardSetsV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterDetailsClassicMatchmakingRequests_WithQuery(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterDetails/detail-1/metrics/classicMatchmakingRequests" {
+			t.Fatalf("expected path /v1/gameCenterDetails/detail-1/metrics/classicMatchmakingRequests, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("granularity") != "P1D" {
+			t.Fatalf("expected granularity=P1D, got %q", values.Get("granularity"))
+		}
+		if values.Get("groupBy") != "result" {
+			t.Fatalf("expected groupBy=result, got %q", values.Get("groupBy"))
+		}
+		if values.Get("filter[result]") != "MATCHED" {
+			t.Fatalf("expected filter[result]=MATCHED, got %q", values.Get("filter[result]"))
+		}
+		if values.Get("sort") != "-count" {
+			t.Fatalf("expected sort=-count, got %q", values.Get("sort"))
+		}
+		if values.Get("limit") != "50" {
+			t.Fatalf("expected limit=50, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	opts := []GCMatchmakingMetricsOption{
+		WithGCMatchmakingMetricsGranularity("P1D"),
+		WithGCMatchmakingMetricsGroupBy([]string{"result"}),
+		WithGCMatchmakingMetricsFilterResult("MATCHED"),
+		WithGCMatchmakingMetricsSort([]string{"-count"}),
+		WithGCMatchmakingMetricsLimit(50),
+	}
+
+	if _, err := client.GetGameCenterDetailsClassicMatchmakingRequests(context.Background(), "detail-1", opts...); err != nil {
+		t.Fatalf("GetGameCenterDetailsClassicMatchmakingRequests() error: %v", err)
+	}
+}
+
+func TestGetGameCenterDetailsRuleBasedMatchmakingRequests_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/detail-1/metrics/ruleBasedMatchmakingRequests?cursor=next"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterDetailsRuleBasedMatchmakingRequests(context.Background(), "detail-1", WithGCMatchmakingMetricsNextURL(next)); err != nil {
+		t.Fatalf("GetGameCenterDetailsRuleBasedMatchmakingRequests() error: %v", err)
+	}
+}

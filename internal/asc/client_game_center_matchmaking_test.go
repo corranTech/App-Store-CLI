@@ -208,10 +208,10 @@ func TestCreateGameCenterMatchmakingRuleSet(t *testing.T) {
 	}, response)
 
 	attrs := GameCenterMatchmakingRuleSetCreateAttributes{
-		ReferenceName:      "Rules",
+		ReferenceName:       "Rules",
 		RuleLanguageVersion: 1,
-		MinPlayers:         2,
-		MaxPlayers:         8,
+		MinPlayers:          2,
+		MaxPlayers:          8,
 	}
 	if _, err := client.CreateGameCenterMatchmakingRuleSet(context.Background(), attrs); err != nil {
 		t.Fatalf("CreateGameCenterMatchmakingRuleSet() error: %v", err)
@@ -612,6 +612,41 @@ func TestCreateGameCenterMatchmakingRuleSetTest(t *testing.T) {
 
 	if _, err := client.CreateGameCenterMatchmakingRuleSetTest(context.Background(), payload); err != nil {
 		t.Fatalf("CreateGameCenterMatchmakingRuleSetTest() error: %v", err)
+	}
+}
+
+func TestGetGameCenterMatchmakingRuleSetQueues_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterMatchmakingRuleSets/rules-1/matchmakingQueues" {
+			t.Fatalf("expected path /v1/gameCenterMatchmakingRuleSets/rules-1/matchmakingQueues, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "22" {
+			t.Fatalf("expected limit=22, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterMatchmakingRuleSetQueues(context.Background(), "rules-1", WithGCMatchmakingQueuesLimit(22)); err != nil {
+		t.Fatalf("GetGameCenterMatchmakingRuleSetQueues() error: %v", err)
+	}
+}
+
+func TestGetGameCenterMatchmakingRuleSetQueues_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/gameCenterMatchmakingRuleSets/rules-1/matchmakingQueues?cursor=next"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterMatchmakingRuleSetQueues(context.Background(), "rules-1", WithGCMatchmakingQueuesNextURL(next)); err != nil {
+		t.Fatalf("GetGameCenterMatchmakingRuleSetQueues() error: %v", err)
 	}
 }
 

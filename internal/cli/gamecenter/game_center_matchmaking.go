@@ -373,7 +373,8 @@ Examples:
   asc game-center matchmaking rule-sets get --id "RULE_SET_ID"
   asc game-center matchmaking rule-sets create --reference-name "Rules" --rule-language-version 1 --min-players 2 --max-players 8
   asc game-center matchmaking rule-sets update --id "RULE_SET_ID" --min-players 2
-  asc game-center matchmaking rule-sets delete --id "RULE_SET_ID" --confirm`,
+  asc game-center matchmaking rule-sets delete --id "RULE_SET_ID" --confirm
+  asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -382,6 +383,7 @@ Examples:
 			GameCenterMatchmakingRuleSetsCreateCommand(),
 			GameCenterMatchmakingRuleSetsUpdateCommand(),
 			GameCenterMatchmakingRuleSetsDeleteCommand(),
+			GameCenterMatchmakingRuleSetQueuesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -676,6 +678,106 @@ Examples:
 			}
 
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterMatchmakingRuleSetQueuesCommand returns the rule set queues command group.
+func GameCenterMatchmakingRuleSetQueuesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("queues", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "queues",
+		ShortUsage: "asc game-center matchmaking rule-sets queues list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:  "List matchmaking queues for a rule set.",
+		LongHelp: `List matchmaking queues for a rule set.
+
+Examples:
+  asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterMatchmakingRuleSetQueuesListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterMatchmakingRuleSetQueuesListCommand returns the rule set queues list subcommand.
+func GameCenterMatchmakingRuleSetQueuesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	ruleSetID := fs.String("rule-set-id", "", "Matchmaking rule set ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center matchmaking rule-sets queues list --rule-set-id \"RULE_SET_ID\"",
+		ShortHelp:  "List queues for a matchmaking rule set.",
+		LongHelp: `List queues for a matchmaking rule set.
+
+Examples:
+  asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"
+  asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID" --limit 50
+  asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center matchmaking rule-sets queues list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
+			}
+
+			id := strings.TrimSpace(*ruleSetID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --rule-set-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCMatchmakingQueuesOption{
+				asc.WithGCMatchmakingQueuesLimit(*limit),
+				asc.WithGCMatchmakingQueuesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCMatchmakingQueuesLimit(200))
+				firstPage, err := client.GetGameCenterMatchmakingRuleSetQueues(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center matchmaking rule-sets queues list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterMatchmakingRuleSetQueues(ctx, id, asc.WithGCMatchmakingQueuesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterMatchmakingRuleSetQueues(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center matchmaking rule-sets queues list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

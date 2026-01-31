@@ -739,6 +739,40 @@ func TestDeleteGameCenterActivityVersionRelease(t *testing.T) {
 	}
 }
 
+func TestGetGameCenterActivityLocalizationImage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterActivityLocalizations/loc-1/image" {
+			t.Fatalf("expected path /v1/gameCenterActivityLocalizations/loc-1/image, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterActivityLocalizationImage(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterActivityLocalizationImage() error: %v", err)
+	}
+}
+
+func TestGetGameCenterActivityVersionDefaultImage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterActivityVersions/ver-1/defaultImage" {
+			t.Fatalf("expected path /v1/gameCenterActivityVersions/ver-1/defaultImage, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterActivityVersionDefaultImage(context.Background(), "ver-1"); err != nil {
+		t.Fatalf("GetGameCenterActivityVersionDefaultImage() error: %v", err)
+	}
+}
+
 func TestBuildRelationshipData(t *testing.T) {
 	data := buildRelationshipData(ResourceTypeGameCenterAchievements, []string{" ach-1 ", "", "ach-2"})
 	if len(data) != 2 {

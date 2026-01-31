@@ -162,6 +162,7 @@ const (
 	ResourceTypeGameCenterLeaderboardSetReleases                ResourceType = "gameCenterLeaderboardSetReleases"
 	ResourceTypeGameCenterLeaderboardImages                     ResourceType = "gameCenterLeaderboardImages"
 	ResourceTypeGameCenterLeaderboardSetLocalizations           ResourceType = "gameCenterLeaderboardSetLocalizations"
+	ResourceTypeGameCenterLeaderboardSetMemberLocalizations     ResourceType = "gameCenterLeaderboardSetMemberLocalizations"
 	ResourceTypeGameCenterAchievementImages                     ResourceType = "gameCenterAchievementImages"
 	ResourceTypeGameCenterLeaderboardSetImages                  ResourceType = "gameCenterLeaderboardSetImages"
 	ResourceTypeGameCenterChallenges                            ResourceType = "gameCenterChallenges"

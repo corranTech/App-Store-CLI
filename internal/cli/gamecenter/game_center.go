@@ -34,6 +34,7 @@ Examples:
   asc game-center groups list --app "APP_ID"
   asc game-center app-versions list --app "APP_ID"
   asc game-center details list --app "APP_ID"
+  asc game-center details achievements-v2 list --id "DETAILS_ID"
   asc game-center matchmaking queues list`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,

@@ -788,3 +788,122 @@ func TestCreateGameCenterPlayerAchievementSubmission(t *testing.T) {
 		t.Fatalf("CreateGameCenterPlayerAchievementSubmission() error: %v", err)
 	}
 }
+
+func TestGetGameCenterAchievementGroupAchievement(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"Group Achievement"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterAchievements/ach-1/groupAchievement" {
+			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1/groupAchievement, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterAchievementGroupAchievement(context.Background(), "ach-1"); err != nil {
+		t.Fatalf("GetGameCenterAchievementGroupAchievement() error: %v", err)
+	}
+}
+
+func TestGetGameCenterAchievementLocalizationAchievement(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"Achievement"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1/gameCenterAchievement" {
+			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1/gameCenterAchievement, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterAchievementLocalizationAchievement(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterAchievementLocalizationAchievement() error: %v", err)
+	}
+}
+
+func TestGetGameCenterAchievementLocalizationImage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievementImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterAchievementLocalizations/loc-1/gameCenterAchievementImage" {
+			t.Fatalf("expected path /v1/gameCenterAchievementLocalizations/loc-1/gameCenterAchievementImage, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterAchievementLocalizationImage(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterAchievementLocalizationImage() error: %v", err)
+	}
+}
+
+func TestGetGameCenterLeaderboardGroupLeaderboard(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{"referenceName":"Group Leaderboard"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterLeaderboards/lb-1/groupLeaderboard" {
+			t.Fatalf("expected path /v1/gameCenterLeaderboards/lb-1/groupLeaderboard, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardGroupLeaderboard(context.Background(), "lb-1"); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardGroupLeaderboard() error: %v", err)
+	}
+}
+
+func TestGetGameCenterLeaderboardLocalizationImage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboardImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterLeaderboardLocalizations/loc-1/gameCenterLeaderboardImage" {
+			t.Fatalf("expected path /v1/gameCenterLeaderboardLocalizations/loc-1/gameCenterLeaderboardImage, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardLocalizationImage(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardLocalizationImage() error: %v", err)
+	}
+}
+
+func TestGetGameCenterLeaderboardSetGroupLeaderboardSet(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboardSets","id":"set-1","attributes":{"referenceName":"Group Set"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterLeaderboardSets/set-1/groupLeaderboardSet" {
+			t.Fatalf("expected path /v1/gameCenterLeaderboardSets/set-1/groupLeaderboardSet, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardSetGroupLeaderboardSet(context.Background(), "set-1"); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardSetGroupLeaderboardSet() error: %v", err)
+	}
+}
+
+func TestGetGameCenterLeaderboardSetLocalizationImage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboardSetImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterLeaderboardSetLocalizations/loc-1/gameCenterLeaderboardSetImage" {
+			t.Fatalf("expected path /v1/gameCenterLeaderboardSetLocalizations/loc-1/gameCenterLeaderboardSetImage, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardSetLocalizationImage(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardSetLocalizationImage() error: %v", err)
+	}
+}

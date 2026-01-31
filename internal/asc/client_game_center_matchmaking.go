@@ -204,6 +204,36 @@ func (c *Client) GetGameCenterMatchmakingRuleSet(ctx context.Context, ruleSetID 
 	return &response, nil
 }
 
+// GetGameCenterMatchmakingRuleSetQueues retrieves the queues for a rule set.
+func (c *Client) GetGameCenterMatchmakingRuleSetQueues(ctx context.Context, ruleSetID string, opts ...GCMatchmakingQueuesOption) (*GameCenterMatchmakingQueuesResponse, error) {
+	query := &gcMatchmakingQueuesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s/matchmakingQueues", strings.TrimSpace(ruleSetID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("game-center-matchmaking-rule-set-queues: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildGCMatchmakingQueuesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterMatchmakingQueuesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterMatchmakingRuleSet creates a new matchmaking rule set.
 func (c *Client) CreateGameCenterMatchmakingRuleSet(ctx context.Context, attrs GameCenterMatchmakingRuleSetCreateAttributes) (*GameCenterMatchmakingRuleSetResponse, error) {
 	payload := GameCenterMatchmakingRuleSetCreateRequest{

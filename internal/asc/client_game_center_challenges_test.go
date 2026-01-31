@@ -712,6 +712,40 @@ func TestGCChallengeLocalizationsOptions(t *testing.T) {
 	}
 }
 
+func TestGetGameCenterChallengeLocalizationImage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterChallengeLocalizations/loc-1/image" {
+			t.Fatalf("expected path /v1/gameCenterChallengeLocalizations/loc-1/image, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterChallengeLocalizationImage(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterChallengeLocalizationImage() error: %v", err)
+	}
+}
+
+func TestGetGameCenterChallengeVersionDefaultImage(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterChallengeVersions/ver-1/defaultImage" {
+			t.Fatalf("expected path /v1/gameCenterChallengeVersions/ver-1/defaultImage, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterChallengeVersionDefaultImage(context.Background(), "ver-1"); err != nil {
+		t.Fatalf("GetGameCenterChallengeVersionDefaultImage() error: %v", err)
+	}
+}
+
 func TestGCChallengeVersionReleasesOptions(t *testing.T) {
 	query := &gcChallengeVersionReleasesQuery{}
 	WithGCChallengeVersionReleasesLimit(12)(query)

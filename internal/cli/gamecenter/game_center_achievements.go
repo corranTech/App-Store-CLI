@@ -25,6 +25,7 @@ func GameCenterAchievementsCommand() *ffcli.Command {
 Examples:
   asc game-center achievements list --app "APP_ID"
   asc game-center achievements get --id "ACHIEVEMENT_ID"
+  asc game-center achievements group-achievement get --id "ACHIEVEMENT_ID"
   asc game-center achievements create --app "APP_ID" --reference-name "First Win" --vendor-id "com.example.firstwin" --points 10
   asc game-center achievements update --id "ACHIEVEMENT_ID" --points 20
   asc game-center achievements delete --id "ACHIEVEMENT_ID" --confirm
@@ -33,6 +34,8 @@ Examples:
   asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win" --before-earned-description "Win your first game" --after-earned-description "You won!"
   asc game-center achievements localizations update --id "LOC_ID" --name "New Name"
   asc game-center achievements localizations delete --id "LOC_ID" --confirm
+  asc game-center achievements localizations image get --id "LOC_ID"
+  asc game-center achievements localizations achievement get --id "LOC_ID"
   asc game-center achievements images upload --localization-id "LOC_ID" --file "path/to/image.png"
   asc game-center achievements images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
@@ -40,6 +43,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			GameCenterAchievementsListCommand(),
 			GameCenterAchievementsGetCommand(),
+			GameCenterAchievementGroupAchievementCommand(),
 			GameCenterAchievementsCreateCommand(),
 			GameCenterAchievementsUpdateCommand(),
 			GameCenterAchievementsDeleteCommand(),
@@ -556,7 +560,9 @@ Examples:
   asc game-center achievements localizations get --id "LOC_ID"
   asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win" --before-earned-description "Win your first game" --after-earned-description "You won!"
   asc game-center achievements localizations update --id "LOC_ID" --name "New Name"
-  asc game-center achievements localizations delete --id "LOC_ID" --confirm`,
+  asc game-center achievements localizations delete --id "LOC_ID" --confirm
+  asc game-center achievements localizations image get --id "LOC_ID"
+  asc game-center achievements localizations achievement get --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -565,6 +571,8 @@ Examples:
 			GameCenterAchievementLocalizationsCreateCommand(),
 			GameCenterAchievementLocalizationsUpdateCommand(),
 			GameCenterAchievementLocalizationsDeleteCommand(),
+			GameCenterAchievementLocalizationImageCommand(),
+			GameCenterAchievementLocalizationAchievementCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1278,6 +1286,204 @@ Examples:
 			}
 
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAchievementGroupAchievementCommand returns the group achievement command group.
+func GameCenterAchievementGroupAchievementCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("group-achievement", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "group-achievement",
+		ShortUsage: "asc game-center achievements group-achievement get --id \"ACHIEVEMENT_ID\"",
+		ShortHelp:  "Get the group achievement for an achievement.",
+		LongHelp: `Get the group achievement for a Game Center achievement.
+
+Examples:
+  asc game-center achievements group-achievement get --id "ACHIEVEMENT_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterAchievementGroupAchievementGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterAchievementGroupAchievementGetCommand returns the group achievement get subcommand.
+func GameCenterAchievementGroupAchievementGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	achievementID := fs.String("id", "", "Game Center achievement ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center achievements group-achievement get --id \"ACHIEVEMENT_ID\"",
+		ShortHelp:  "Get a group achievement by achievement ID.",
+		LongHelp: `Get a group achievement by achievement ID.
+
+Examples:
+  asc game-center achievements group-achievement get --id "ACHIEVEMENT_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*achievementID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center achievements group-achievement get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterAchievementGroupAchievement(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center achievements group-achievement get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAchievementLocalizationImageCommand returns the localization image command group.
+func GameCenterAchievementLocalizationImageCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("image", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "image",
+		ShortUsage: "asc game-center achievements localizations image get --id \"LOC_ID\"",
+		ShortHelp:  "Get the image for an achievement localization.",
+		LongHelp: `Get the image for an achievement localization.
+
+Examples:
+  asc game-center achievements localizations image get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterAchievementLocalizationImageGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterAchievementLocalizationImageGetCommand returns the localization image get subcommand.
+func GameCenterAchievementLocalizationImageGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	localizationID := fs.String("id", "", "Game Center achievement localization ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center achievements localizations image get --id \"LOC_ID\"",
+		ShortHelp:  "Get an achievement localization image.",
+		LongHelp: `Get an achievement localization image.
+
+Examples:
+  asc game-center achievements localizations image get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*localizationID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center achievements localizations image get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterAchievementLocalizationImage(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center achievements localizations image get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAchievementLocalizationAchievementCommand returns the localization achievement command group.
+func GameCenterAchievementLocalizationAchievementCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("achievement", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "achievement",
+		ShortUsage: "asc game-center achievements localizations achievement get --id \"LOC_ID\"",
+		ShortHelp:  "Get the achievement for a localization.",
+		LongHelp: `Get the achievement for a Game Center achievement localization.
+
+Examples:
+  asc game-center achievements localizations achievement get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterAchievementLocalizationAchievementGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterAchievementLocalizationAchievementGetCommand returns the localization achievement get subcommand.
+func GameCenterAchievementLocalizationAchievementGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	localizationID := fs.String("id", "", "Game Center achievement localization ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center achievements localizations achievement get --id \"LOC_ID\"",
+		ShortHelp:  "Get an achievement for a localization.",
+		LongHelp: `Get an achievement for a Game Center achievement localization.
+
+Examples:
+  asc game-center achievements localizations achievement get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*localizationID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center achievements localizations achievement get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterAchievementLocalizationAchievement(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center achievements localizations achievement get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
