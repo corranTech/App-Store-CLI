@@ -26,6 +26,8 @@ func BundleIDsCommand() *ffcli.Command {
 Examples:
   asc bundle-ids list
   asc bundle-ids get --id "BUNDLE_ID"
+  asc bundle-ids app get --id "BUNDLE_ID"
+  asc bundle-ids profiles list --id "BUNDLE_ID"
   asc bundle-ids create --identifier "com.example.app" --name "Example" --platform IOS
   asc bundle-ids update --id "BUNDLE_ID" --name "New Name"
   asc bundle-ids delete --id "BUNDLE_ID" --confirm
@@ -35,6 +37,8 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			BundleIDsListCommand(),
 			BundleIDsGetCommand(),
+			BundleIDsAppCommand(),
+			BundleIDsProfilesCommand(),
 			BundleIDsCreateCommand(),
 			BundleIDsUpdateCommand(),
 			BundleIDsDeleteCommand(),

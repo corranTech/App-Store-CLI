@@ -616,6 +616,84 @@ func printGameCenterChallengeDeleteResultMarkdown(result *GameCenterChallengeDel
 	return nil
 }
 
+func printGameCenterAchievementVersionsTable(resp *GameCenterAchievementVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tState")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%d\t%s\n",
+			item.ID,
+			item.Attributes.Version,
+			item.Attributes.State,
+		)
+	}
+	return w.Flush()
+}
+
+func printGameCenterAchievementVersionsMarkdown(resp *GameCenterAchievementVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %d | %s |\n",
+			escapeMarkdown(item.ID),
+			item.Attributes.Version,
+			escapeMarkdown(string(item.Attributes.State)),
+		)
+	}
+	return nil
+}
+
+func printGameCenterLeaderboardVersionsTable(resp *GameCenterLeaderboardVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tState")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%d\t%s\n",
+			item.ID,
+			item.Attributes.Version,
+			item.Attributes.State,
+		)
+	}
+	return w.Flush()
+}
+
+func printGameCenterLeaderboardVersionsMarkdown(resp *GameCenterLeaderboardVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %d | %s |\n",
+			escapeMarkdown(item.ID),
+			item.Attributes.Version,
+			escapeMarkdown(string(item.Attributes.State)),
+		)
+	}
+	return nil
+}
+
+func printGameCenterLeaderboardSetVersionsTable(resp *GameCenterLeaderboardSetVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tState")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%d\t%s\n",
+			item.ID,
+			item.Attributes.Version,
+			item.Attributes.State,
+		)
+	}
+	return w.Flush()
+}
+
+func printGameCenterLeaderboardSetVersionsMarkdown(resp *GameCenterLeaderboardSetVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %d | %s |\n",
+			escapeMarkdown(item.ID),
+			item.Attributes.Version,
+			escapeMarkdown(string(item.Attributes.State)),
+		)
+	}
+	return nil
+}
+
 func printGameCenterChallengeVersionsTable(resp *GameCenterChallengeVersionsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tVersion\tState")
@@ -1062,6 +1140,96 @@ func printGameCenterGroupDeleteResultMarkdown(result *GameCenterGroupDeleteResul
 	return nil
 }
 
+func printGameCenterAppVersionsTable(resp *GameCenterAppVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tEnabled")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%t\n", item.ID, item.Attributes.Enabled)
+	}
+	return w.Flush()
+}
+
+func printGameCenterAppVersionsMarkdown(resp *GameCenterAppVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Enabled |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(item.ID), item.Attributes.Enabled)
+	}
+	return nil
+}
+
+func printGameCenterEnabledVersionsTable(resp *GameCenterEnabledVersionsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tPlatform\tVersion\tIcon Template URL")
+	for _, item := range resp.Data {
+		iconURL := ""
+		if item.Attributes.IconAsset != nil {
+			iconURL = item.Attributes.IconAsset.TemplateURL
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+			item.ID,
+			item.Attributes.Platform,
+			item.Attributes.VersionString,
+			iconURL,
+		)
+	}
+	return w.Flush()
+}
+
+func printGameCenterEnabledVersionsMarkdown(resp *GameCenterEnabledVersionsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Platform | Version | Icon Template URL |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		iconURL := ""
+		if item.Attributes.IconAsset != nil {
+			iconURL = item.Attributes.IconAsset.TemplateURL
+		}
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(string(item.Attributes.Platform)),
+			escapeMarkdown(item.Attributes.VersionString),
+			escapeMarkdown(iconURL),
+		)
+	}
+	return nil
+}
+
+func printGameCenterDetailsTable(resp *GameCenterDetailsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tArcade Enabled\tChallenge Enabled\tLeaderboard Enabled\tLeaderboard Set Enabled\tAchievement Enabled\tMultiplayer Session\tTurn-Based Session")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%t\t%t\t%t\t%t\t%t\t%t\t%t\n",
+			item.ID,
+			item.Attributes.ArcadeEnabled,
+			item.Attributes.ChallengeEnabled,
+			item.Attributes.LeaderboardEnabled,
+			item.Attributes.LeaderboardSetEnabled,
+			item.Attributes.AchievementEnabled,
+			item.Attributes.MultiplayerSessionEnabled,
+			item.Attributes.MultiplayerTurnBasedSessionEnabled,
+		)
+	}
+	return w.Flush()
+}
+
+func printGameCenterDetailsMarkdown(resp *GameCenterDetailsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Arcade Enabled | Challenge Enabled | Leaderboard Enabled | Leaderboard Set Enabled | Achievement Enabled | Multiplayer Session | Turn-Based Session |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %t | %t | %t | %t | %t | %t | %t |\n",
+			escapeMarkdown(item.ID),
+			item.Attributes.ArcadeEnabled,
+			item.Attributes.ChallengeEnabled,
+			item.Attributes.LeaderboardEnabled,
+			item.Attributes.LeaderboardSetEnabled,
+			item.Attributes.AchievementEnabled,
+			item.Attributes.MultiplayerSessionEnabled,
+			item.Attributes.MultiplayerTurnBasedSessionEnabled,
+		)
+	}
+	return nil
+}
+
 func printGameCenterMatchmakingQueuesTable(resp *GameCenterMatchmakingQueuesResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tReference Name\tClassic Bundle IDs")
@@ -1275,6 +1443,82 @@ func printGameCenterMatchmakingRuleSetTestMarkdown(resp *GameCenterMatchmakingRu
 	fmt.Fprintln(os.Stdout, "| ID |")
 	fmt.Fprintln(os.Stdout, "| --- |")
 	fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(resp.Data.ID))
+	return nil
+}
+
+func printGameCenterLeaderboardEntrySubmissionTable(resp *GameCenterLeaderboardEntrySubmissionResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVendor ID\tScore\tBundle ID\tScoped Player ID\tSubmitted Date")
+	attrs := resp.Data.Attributes
+	submittedDate := ""
+	if attrs.SubmittedDate != nil {
+		submittedDate = *attrs.SubmittedDate
+	}
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		resp.Data.ID,
+		compactWhitespace(attrs.VendorIdentifier),
+		compactWhitespace(attrs.Score),
+		compactWhitespace(attrs.BundleID),
+		compactWhitespace(attrs.ScopedPlayerID),
+		compactWhitespace(submittedDate),
+	)
+	return w.Flush()
+}
+
+func printGameCenterLeaderboardEntrySubmissionMarkdown(resp *GameCenterLeaderboardEntrySubmissionResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Vendor ID | Score | Bundle ID | Scoped Player ID | Submitted Date |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	attrs := resp.Data.Attributes
+	submittedDate := ""
+	if attrs.SubmittedDate != nil {
+		submittedDate = *attrs.SubmittedDate
+	}
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
+		escapeMarkdown(resp.Data.ID),
+		escapeMarkdown(attrs.VendorIdentifier),
+		escapeMarkdown(attrs.Score),
+		escapeMarkdown(attrs.BundleID),
+		escapeMarkdown(attrs.ScopedPlayerID),
+		escapeMarkdown(submittedDate),
+	)
+	return nil
+}
+
+func printGameCenterPlayerAchievementSubmissionTable(resp *GameCenterPlayerAchievementSubmissionResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVendor ID\tPercent\tBundle ID\tScoped Player ID\tSubmitted Date")
+	attrs := resp.Data.Attributes
+	submittedDate := ""
+	if attrs.SubmittedDate != nil {
+		submittedDate = *attrs.SubmittedDate
+	}
+	fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\n",
+		resp.Data.ID,
+		compactWhitespace(attrs.VendorIdentifier),
+		attrs.PercentageAchieved,
+		compactWhitespace(attrs.BundleID),
+		compactWhitespace(attrs.ScopedPlayerID),
+		compactWhitespace(submittedDate),
+	)
+	return w.Flush()
+}
+
+func printGameCenterPlayerAchievementSubmissionMarkdown(resp *GameCenterPlayerAchievementSubmissionResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Vendor ID | Percent | Bundle ID | Scoped Player ID | Submitted Date |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	attrs := resp.Data.Attributes
+	submittedDate := ""
+	if attrs.SubmittedDate != nil {
+		submittedDate = *attrs.SubmittedDate
+	}
+	fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s | %s | %s |\n",
+		escapeMarkdown(resp.Data.ID),
+		escapeMarkdown(attrs.VendorIdentifier),
+		attrs.PercentageAchieved,
+		escapeMarkdown(attrs.BundleID),
+		escapeMarkdown(attrs.ScopedPlayerID),
+		escapeMarkdown(submittedDate),
+	)
 	return nil
 }
 

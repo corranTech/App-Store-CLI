@@ -30,6 +30,8 @@ Examples:
   asc game-center challenges delete --id "CHALLENGE_ID" --confirm
   asc game-center challenges versions list --challenge-id "CHALLENGE_ID"
   asc game-center challenges localizations list --version-id "VERSION_ID"
+  asc game-center challenges localizations image get --id "LOC_ID"
+  asc game-center challenges versions default-image get --id "VERSION_ID"
   asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center challenges releases list --app "APP_ID"`,
 		FlagSet:   fs,
@@ -423,13 +425,15 @@ func GameCenterChallengeVersionsCommand() *ffcli.Command {
 Examples:
   asc game-center challenges versions list --challenge-id "CHALLENGE_ID"
   asc game-center challenges versions get --id "VERSION_ID"
-  asc game-center challenges versions create --challenge-id "CHALLENGE_ID"`,
+  asc game-center challenges versions create --challenge-id "CHALLENGE_ID"
+  asc game-center challenges versions default-image get --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterChallengeVersionsListCommand(),
 			GameCenterChallengeVersionsGetCommand(),
 			GameCenterChallengeVersionsCreateCommand(),
+			GameCenterChallengeVersionDefaultImageCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -614,7 +618,8 @@ Examples:
   asc game-center challenges localizations list --version-id "VERSION_ID"
   asc game-center challenges localizations create --version-id "VERSION_ID" --locale en-US --name "Weekly" --description "Win weekly"
   asc game-center challenges localizations update --id "LOC_ID" --name "New Name"
-  asc game-center challenges localizations delete --id "LOC_ID" --confirm`,
+  asc game-center challenges localizations delete --id "LOC_ID" --confirm
+  asc game-center challenges localizations image get --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -623,6 +628,7 @@ Examples:
 			GameCenterChallengeLocalizationsCreateCommand(),
 			GameCenterChallengeLocalizationsUpdateCommand(),
 			GameCenterChallengeLocalizationsDeleteCommand(),
+			GameCenterChallengeLocalizationImageCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1312,6 +1318,138 @@ Examples:
 			}
 
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterChallengeLocalizationImageCommand returns the challenge localization image command group.
+func GameCenterChallengeLocalizationImageCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("image", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "image",
+		ShortUsage: "asc game-center challenges localizations image get --id \"LOC_ID\"",
+		ShortHelp:  "Get the image for a challenge localization.",
+		LongHelp: `Get the image for a challenge localization.
+
+Examples:
+  asc game-center challenges localizations image get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterChallengeLocalizationImageGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterChallengeLocalizationImageGetCommand returns the challenge localization image get subcommand.
+func GameCenterChallengeLocalizationImageGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	localizationID := fs.String("id", "", "Game Center challenge localization ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center challenges localizations image get --id \"LOC_ID\"",
+		ShortHelp:  "Get a challenge localization image.",
+		LongHelp: `Get a challenge localization image.
+
+Examples:
+  asc game-center challenges localizations image get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*localizationID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center challenges localizations image get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterChallengeLocalizationImage(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center challenges localizations image get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterChallengeVersionDefaultImageCommand returns the challenge version default image command group.
+func GameCenterChallengeVersionDefaultImageCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("default-image", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "default-image",
+		ShortUsage: "asc game-center challenges versions default-image get --id \"VERSION_ID\"",
+		ShortHelp:  "Get the default image for a challenge version.",
+		LongHelp: `Get the default image for a challenge version.
+
+Examples:
+  asc game-center challenges versions default-image get --id "VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterChallengeVersionDefaultImageGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterChallengeVersionDefaultImageGetCommand returns the challenge version default image get subcommand.
+func GameCenterChallengeVersionDefaultImageGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	versionID := fs.String("id", "", "Game Center challenge version ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center challenges versions default-image get --id \"VERSION_ID\"",
+		ShortHelp:  "Get a default image for a challenge version.",
+		LongHelp: `Get a default image for a challenge version.
+
+Examples:
+  asc game-center challenges versions default-image get --id "VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*versionID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center challenges versions default-image get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterChallengeVersionDefaultImage(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center challenges versions default-image get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

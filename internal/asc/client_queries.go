@@ -344,6 +344,14 @@ type appStoreVersionExperimentTreatmentLocalizationsQuery struct {
 	listQuery
 }
 
+type appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery struct {
+	listQuery
+}
+
+type appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery struct {
+	listQuery
+}
+
 type betaGroupsQuery struct {
 	listQuery
 }
@@ -458,7 +466,15 @@ type profileDevicesQuery struct {
 	listQuery
 }
 
+type bundleIDProfilesQuery struct {
+	listQuery
+}
+
 type userVisibleAppsQuery struct {
+	listQuery
+}
+
+type userInvitationVisibleAppsQuery struct {
 	listQuery
 }
 
@@ -480,6 +496,10 @@ type devicesQuery struct {
 }
 
 type userInvitationsQuery struct {
+	listQuery
+}
+
+type endUserLicenseAgreementTerritoriesQuery struct {
 	listQuery
 }
 
@@ -562,6 +582,7 @@ type buildBetaDetailsQuery struct {
 
 type betaRecruitmentCriterionOptionsQuery struct {
 	listQuery
+	fields []string
 }
 
 func buildReviewQuery(opts []ReviewOption) string {
@@ -935,7 +956,19 @@ func buildProfileDevicesQuery(query *profileDevicesQuery) string {
 	return values.Encode()
 }
 
+func buildBundleIDProfilesQuery(query *bundleIDProfilesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildUserVisibleAppsQuery(query *userVisibleAppsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildUserInvitationVisibleAppsQuery(query *userInvitationVisibleAppsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -1101,6 +1134,7 @@ func buildBetaAppClipInvocationsQuery(query *betaAppClipInvocationsQuery) string
 
 func buildBetaRecruitmentCriterionOptionsQuery(query *betaRecruitmentCriterionOptionsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[betaRecruitmentCriterionOptions]", query.fields)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -1408,6 +1442,24 @@ func buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query *appStoreVe
 	return values.Encode()
 }
 
+func buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery(query *appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery(query *appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildEndUserLicenseAgreementTerritoriesQuery(query *endUserLicenseAgreementTerritoriesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildTerritoriesQuery(query *territoriesQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[territories]", query.fields)
@@ -1445,6 +1497,12 @@ func buildDiagnosticSignaturesQuery(query *diagnosticSignaturesQuery) string {
 }
 
 func buildDiagnosticLogsQuery(query *diagnosticLogsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildListQuery(query *listQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

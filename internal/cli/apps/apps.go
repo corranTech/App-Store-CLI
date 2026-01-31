@@ -41,8 +41,10 @@ Examples:
   asc apps
   asc apps list --bundle-id "com.example.app"
   asc apps get --id "APP_ID"
+  asc apps ci-product get --id "APP_ID"
   asc apps update --id "APP_ID" --bundle-id "com.example.app"
   asc apps update --id "APP_ID" --primary-locale "en-US"
+  asc apps subscription-grace-period get --app "APP_ID"
   asc apps --limit 10
   asc apps --sort name
   asc apps --output table
@@ -53,7 +55,9 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			AppsListCommand(),
 			AppsGetCommand(),
+			AppsCIProductCommand(),
 			AppsUpdateCommand(),
+			AppsSubscriptionGracePeriodCommand(),
 			AppsSearchKeywordsCommand(),
 			AppEncryptionDeclarationsCommand(),
 		},

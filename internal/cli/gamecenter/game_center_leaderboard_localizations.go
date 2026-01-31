@@ -27,7 +27,8 @@ Examples:
   asc game-center leaderboards localizations get --id "LOCALIZATION_ID"
   asc game-center leaderboards localizations create --leaderboard-id "LEADERBOARD_ID" --locale en-US --name "High Score"
   asc game-center leaderboards localizations update --id "LOCALIZATION_ID" --name "Top Score"
-  asc game-center leaderboards localizations delete --id "LOCALIZATION_ID" --confirm`,
+  asc game-center leaderboards localizations delete --id "LOCALIZATION_ID" --confirm
+  asc game-center leaderboards localizations image get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -36,6 +37,7 @@ Examples:
 			GameCenterLeaderboardLocalizationsCreateCommand(),
 			GameCenterLeaderboardLocalizationsUpdateCommand(),
 			GameCenterLeaderboardLocalizationsDeleteCommand(),
+			GameCenterLeaderboardLocalizationImageCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -389,6 +391,72 @@ Examples:
 			}
 
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterLeaderboardLocalizationImageCommand returns the localization image command group.
+func GameCenterLeaderboardLocalizationImageCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("image", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "image",
+		ShortUsage: "asc game-center leaderboards localizations image get --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "Get the image for a leaderboard localization.",
+		LongHelp: `Get the image for a leaderboard localization.
+
+Examples:
+  asc game-center leaderboards localizations image get --id "LOCALIZATION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterLeaderboardLocalizationImageGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterLeaderboardLocalizationImageGetCommand returns the localization image get subcommand.
+func GameCenterLeaderboardLocalizationImageGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center leaderboards localizations image get --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "Get a leaderboard localization image.",
+		LongHelp: `Get a leaderboard localization image.
+
+Examples:
+  asc game-center leaderboards localizations image get --id "LOCALIZATION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*localizationID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center leaderboards localizations image get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterLeaderboardLocalizationImage(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center leaderboards localizations image get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -132,6 +132,27 @@ func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPri
 	return &response, nil
 }
 
+// getAppPriceScheduleByID retrieves an app price schedule by ID.
+func (c *Client) getAppPriceScheduleByID(ctx context.Context, scheduleID string) (*AppPriceScheduleResponse, error) {
+	scheduleID = strings.TrimSpace(scheduleID)
+	if scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+	path := fmt.Sprintf("/v1/appPriceSchedules/%s", scheduleID)
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppPriceScheduleResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse app price schedule response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateAppPriceSchedule creates an app price schedule with a manual price.
 func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs AppPriceScheduleCreateAttributes) (*AppPriceScheduleResponse, error) {
 	appID = strings.TrimSpace(appID)
@@ -270,6 +291,27 @@ func (c *Client) GetAppPriceScheduleAutomaticPrices(ctx context.Context, schedul
 func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAvailabilityV2Response, error) {
 	appID = strings.TrimSpace(appID)
 	path := fmt.Sprintf("/v1/apps/%s/appAvailabilityV2", appID)
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppAvailabilityV2Response
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse app availability response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// getAppAvailabilityV2ByID retrieves app availability by ID.
+func (c *Client) getAppAvailabilityV2ByID(ctx context.Context, availabilityID string) (*AppAvailabilityV2Response, error) {
+	availabilityID = strings.TrimSpace(availabilityID)
+	if availabilityID == "" {
+		return nil, fmt.Errorf("availabilityID is required")
+	}
+	path := fmt.Sprintf("/v2/appAvailabilities/%s", availabilityID)
 
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {

@@ -645,6 +645,34 @@ func TestGetSubscriptionOfferCodeOneTimeUseCodeValues(t *testing.T) {
 	}
 }
 
+func TestGetInAppPurchaseOfferCodeOneTimeUseCodeValues(t *testing.T) {
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader("code\nIAP123\nIAP456\n")),
+		Header:     http.Header{},
+	}
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchaseOfferCodeOneTimeUseCodes/code-1/values" {
+			t.Fatalf("expected path /v1/inAppPurchaseOfferCodeOneTimeUseCodes/code-1/values, got %s", req.URL.Path)
+		}
+		if req.Header.Get("Accept") != "text/csv" {
+			t.Fatalf("expected Accept=text/csv, got %q", req.Header.Get("Accept"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	values, err := client.GetInAppPurchaseOfferCodeOneTimeUseCodeValues(context.Background(), "code-1")
+	if err != nil {
+		t.Fatalf("GetInAppPurchaseOfferCodeOneTimeUseCodeValues() error: %v", err)
+	}
+	if len(values) != 2 || values[0] != "IAP123" || values[1] != "IAP456" {
+		t.Fatalf("expected codes to parse, got %v", values)
+	}
+}
+
 func TestGetSubscriptionOfferCodeCustomCodes_UsesNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
@@ -2725,6 +2753,23 @@ func TestGetReviews_BuildsQuery(t *testing.T) {
 
 	if _, err := client.GetReviews(context.Background(), "123", opts...); err != nil {
 		t.Fatalf("GetReviews() error: %v", err)
+	}
+}
+
+func TestGetCustomerReview_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"customerReviews","id":"review-1","attributes":{"rating":5,"title":"Great","body":"Nice","reviewerNickname":"Tester","createdDate":"2026-01-20T00:00:00Z","territory":"US"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/customerReviews/review-1" {
+			t.Fatalf("expected path /v1/customerReviews/review-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCustomerReview(context.Background(), "review-1"); err != nil {
+		t.Fatalf("GetCustomerReview() error: %v", err)
 	}
 }
 
@@ -4819,6 +4864,58 @@ func TestGetInAppPurchasesV2_UsesNextURL(t *testing.T) {
 	}
 }
 
+func TestGetInAppPurchases_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/123/inAppPurchases" {
+			t.Fatalf("expected path /v1/apps/123/inAppPurchases, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchases(context.Background(), "123", WithIAPLimit(10)); err != nil {
+		t.Fatalf("GetInAppPurchases() error: %v", err)
+	}
+}
+
+func TestGetInAppPurchases_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchases?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchases(context.Background(), "123", WithIAPNextURL(next)); err != nil {
+		t.Fatalf("GetInAppPurchases() error: %v", err)
+	}
+}
+
+func TestGetInAppPurchase(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchases/iap-1" {
+			t.Fatalf("expected path /v1/inAppPurchases/iap-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchase(context.Background(), "iap-1"); err != nil {
+		t.Fatalf("GetInAppPurchase() error: %v", err)
+	}
+}
+
 func TestGetBundleID_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -6614,13 +6711,22 @@ func TestCreateBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 		if payload.Data.Relationships.BetaGroup.Data.ID != "group-1" {
 			t.Fatalf("expected group id group-1, got %q", payload.Data.Relationships.BetaGroup.Data.ID)
 		}
-		if payload.Data.Relationships.BetaRecruitmentCriterionOptions == nil || len(payload.Data.Relationships.BetaRecruitmentCriterionOptions.Data) != 2 {
-			t.Fatalf("expected 2 option relationships")
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters == nil || len(payload.Data.Attributes.DeviceFamilyOsVersionFilters) != 2 {
+			t.Fatalf("expected 2 device family filters")
+		}
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily != DeviceFamilyIPhone {
+			t.Fatalf("expected device family IPHONE, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily)
+		}
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].MinimumOsInclusive != "26" {
+			t.Fatalf("expected min os 26, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].MinimumOsInclusive)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateBetaRecruitmentCriteria(context.Background(), "group-1", []string{"opt-1", "opt-2"}); err != nil {
+	if _, err := client.CreateBetaRecruitmentCriteria(context.Background(), "group-1", []DeviceFamilyOsVersionFilter{
+		{DeviceFamily: DeviceFamilyIPhone, MinimumOsInclusive: "26"},
+		{DeviceFamily: DeviceFamilyIPad, MinimumOsInclusive: "26"},
+	}); err != nil {
 		t.Fatalf("CreateBetaRecruitmentCriteria() error: %v", err)
 	}
 }
@@ -6644,13 +6750,18 @@ func TestUpdateBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 		if payload.Data.ID != "criteria-1" {
 			t.Fatalf("expected id criteria-1, got %q", payload.Data.ID)
 		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.BetaRecruitmentCriterionOptions == nil {
-			t.Fatalf("expected option relationships")
+		if payload.Data.Attributes == nil || len(payload.Data.Attributes.DeviceFamilyOsVersionFilters) != 1 {
+			t.Fatalf("expected 1 device family filter")
+		}
+		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily != DeviceFamilyMac {
+			t.Fatalf("expected device family MAC, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.UpdateBetaRecruitmentCriteria(context.Background(), "criteria-1", []string{"opt-1"}); err != nil {
+	if _, err := client.UpdateBetaRecruitmentCriteria(context.Background(), "criteria-1", []DeviceFamilyOsVersionFilter{
+		{DeviceFamily: DeviceFamilyMac, MinimumOsInclusive: "26"},
+	}); err != nil {
 		t.Fatalf("UpdateBetaRecruitmentCriteria() error: %v", err)
 	}
 }

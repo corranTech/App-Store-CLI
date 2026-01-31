@@ -87,6 +87,149 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*AppResponse, error)
 	return &response, nil
 }
 
+// GetAppBetaAppLocalizations retrieves beta app localizations for an app.
+func (c *Client) GetAppBetaAppLocalizations(ctx context.Context, appID string, opts ...AppBetaAppLocalizationsOption) (*BetaAppLocalizationsResponse, error) {
+	query := &listQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/betaAppLocalizations", appID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appBetaAppLocalizations: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildListQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BetaAppLocalizationsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppBetaAppReviewDetail retrieves beta app review detail for an app.
+func (c *Client) GetAppBetaAppReviewDetail(ctx context.Context, appID string) (*BetaAppReviewDetailResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/betaAppReviewDetail", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BetaAppReviewDetailResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppSubscriptionGracePeriod retrieves the subscription grace period for an app.
+func (c *Client) GetAppSubscriptionGracePeriod(ctx context.Context, appID string) (*SubscriptionGracePeriodResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/subscriptionGracePeriod", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionGracePeriodResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppBetaTesterUsagesMetrics retrieves beta tester usage metrics for an app.
+func (c *Client) GetAppBetaTesterUsagesMetrics(ctx context.Context, appID string, opts ...BetaTesterUsagesOption) (*BetaTesterUsagesResponse, error) {
+	query := &betaTesterUsagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+
+	query.appID = ""
+	path := fmt.Sprintf("/v1/apps/%s/metrics/betaTesterUsages", appID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("betaTesterUsages: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildBetaTesterUsagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BetaTesterUsagesResponse{Data: data}, nil
+}
+
+// GetAppPreReleaseVersions retrieves pre-release versions for an app.
+func (c *Client) GetAppPreReleaseVersions(ctx context.Context, appID string, opts ...AppPreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
+	query := &listQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/preReleaseVersions", appID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appPreReleaseVersions: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildListQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response PreReleaseVersionsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // UpdateApp updates an app by ID.
 func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAttributes) (*AppResponse, error) {
 	appID = strings.TrimSpace(appID)
@@ -186,4 +329,21 @@ func (c *Client) SetAppSearchKeywords(ctx context.Context, appID string, keyword
 	path := fmt.Sprintf("/v1/apps/%s/relationships/searchKeywords", appID)
 	_, err = c.do(ctx, "PATCH", path, body)
 	return err
+}
+
+// GetAppCiProduct retrieves the CI product for an app.
+func (c *Client) GetAppCiProduct(ctx context.Context, appID string) (*CiProductResponse, error) {
+	appID = strings.TrimSpace(appID)
+	path := fmt.Sprintf("/v1/apps/%s/ciProduct", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiProductResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
 }

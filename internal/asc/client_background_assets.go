@@ -363,3 +363,66 @@ func (c *Client) UpdateBackgroundAssetUploadFile(ctx context.Context, uploadFile
 
 	return &response, nil
 }
+
+// GetBackgroundAssetVersionAppStoreRelease retrieves an App Store release by ID.
+func (c *Client) GetBackgroundAssetVersionAppStoreRelease(ctx context.Context, releaseID string) (*BackgroundAssetVersionAppStoreReleaseResponse, error) {
+	releaseID = strings.TrimSpace(releaseID)
+	if releaseID == "" {
+		return nil, fmt.Errorf("background asset version App Store release ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/backgroundAssetVersionAppStoreReleases/%s", releaseID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BackgroundAssetVersionAppStoreReleaseResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBackgroundAssetVersionExternalBetaRelease retrieves an external beta release by ID.
+func (c *Client) GetBackgroundAssetVersionExternalBetaRelease(ctx context.Context, releaseID string) (*BackgroundAssetVersionExternalBetaReleaseResponse, error) {
+	releaseID = strings.TrimSpace(releaseID)
+	if releaseID == "" {
+		return nil, fmt.Errorf("background asset version external beta release ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/backgroundAssetVersionExternalBetaReleases/%s", releaseID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BackgroundAssetVersionExternalBetaReleaseResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBackgroundAssetVersionInternalBetaRelease retrieves an internal beta release by ID.
+func (c *Client) GetBackgroundAssetVersionInternalBetaRelease(ctx context.Context, releaseID string) (*BackgroundAssetVersionInternalBetaReleaseResponse, error) {
+	releaseID = strings.TrimSpace(releaseID)
+	if releaseID == "" {
+		return nil, fmt.Errorf("background asset version internal beta release ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/backgroundAssetVersionInternalBetaReleases/%s", releaseID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BackgroundAssetVersionInternalBetaReleaseResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}

@@ -375,6 +375,38 @@ func (c *Client) GetGameCenterActivityLocalization(ctx context.Context, localiza
 	return &response, nil
 }
 
+// GetGameCenterActivityLocalizationImage retrieves the image for an activity localization.
+func (c *Client) GetGameCenterActivityLocalizationImage(ctx context.Context, localizationID string) (*GameCenterActivityImageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterActivityLocalizations/%s/image", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterActivityImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterActivityVersionDefaultImage retrieves the default image for an activity version.
+func (c *Client) GetGameCenterActivityVersionDefaultImage(ctx context.Context, versionID string) (*GameCenterActivityImageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterActivityVersions/%s/defaultImage", strings.TrimSpace(versionID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterActivityImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterActivityLocalization creates a new activity localization.
 func (c *Client) CreateGameCenterActivityLocalization(ctx context.Context, versionID string, attrs GameCenterActivityLocalizationCreateAttributes) (*GameCenterActivityLocalizationResponse, error) {
 	payload := GameCenterActivityLocalizationCreateRequest{

@@ -28,8 +28,13 @@ Examples:
   asc game-center groups create --reference-name "Group 1"
   asc game-center groups update --id "GROUP_ID" --reference-name "New Name"
   asc game-center groups delete --id "GROUP_ID" --confirm
+  asc game-center groups achievements list --group-id "GROUP_ID"
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2"
+  asc game-center groups leaderboards list --group-id "GROUP_ID"
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2"
+  asc game-center groups leaderboard-sets list --group-id "GROUP_ID"
+  asc game-center groups activities list --group-id "GROUP_ID"
+  asc game-center groups challenges list --group-id "GROUP_ID"
   asc game-center groups challenges set --group-id "GROUP_ID" --ids "CH_1,CH_2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
@@ -41,7 +46,10 @@ Examples:
 			GameCenterGroupsDeleteCommand(),
 			GameCenterGroupAchievementsCommand(),
 			GameCenterGroupLeaderboardsCommand(),
+			GameCenterGroupLeaderboardSetsCommand(),
+			GameCenterGroupActivitiesCommand(),
 			GameCenterGroupChallengesCommand(),
+			GameCenterGroupDetailsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -338,14 +346,110 @@ func GameCenterGroupAchievementsCommand() *ffcli.Command {
 		LongHelp: `Manage group achievements relationships.
 
 Examples:
+  asc game-center groups achievements list --group-id "GROUP_ID"
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+		GameCenterGroupAchievementsListCommand(),
 			GameCenterGroupAchievementsSetCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterGroupAchievementsListCommand returns the group achievements list subcommand.
+func GameCenterGroupAchievementsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	groupID := fs.String("group-id", "", "Game Center group ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center groups achievements list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List achievements for a Game Center group.",
+		LongHelp: `List achievements for a Game Center group.
+
+Examples:
+  asc game-center groups achievements list --group-id "GROUP_ID"
+  asc game-center groups achievements list --group-id "GROUP_ID" --limit 50
+  asc game-center groups achievements list --group-id "GROUP_ID" --paginate
+  asc game-center groups achievements list --group-id "GROUP_ID" --v2`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center groups achievements list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center groups achievements list: %w", err)
+			}
+
+			id := strings.TrimSpace(*groupID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center groups achievements list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCAchievementsOption{
+				asc.WithGCAchievementsLimit(*limit),
+				asc.WithGCAchievementsNextURL(*next),
+			}
+
+			fetch := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				if *v2 {
+					return client.GetGameCenterGroupAchievementsV2(ctx, id, asc.WithGCAchievementsNextURL(nextURL))
+				}
+				return client.GetGameCenterGroupAchievements(ctx, id, asc.WithGCAchievementsNextURL(nextURL))
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCAchievementsLimit(200))
+				var firstPage *asc.GameCenterAchievementsResponse
+				if *v2 {
+					firstPage, err = client.GetGameCenterGroupAchievementsV2(requestCtx, id, paginateOpts...)
+				} else {
+					firstPage, err = client.GetGameCenterGroupAchievements(requestCtx, id, paginateOpts...)
+				}
+				if err != nil {
+					return fmt.Errorf("game-center groups achievements list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, fetch)
+				if err != nil {
+					return fmt.Errorf("game-center groups achievements list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			var resp *asc.GameCenterAchievementsResponse
+			if *v2 {
+				resp, err = client.GetGameCenterGroupAchievementsV2(requestCtx, id, opts...)
+			} else {
+				resp, err = client.GetGameCenterGroupAchievements(requestCtx, id, opts...)
+			}
+			if err != nil {
+				return fmt.Errorf("game-center groups achievements list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -418,14 +522,110 @@ func GameCenterGroupLeaderboardsCommand() *ffcli.Command {
 		LongHelp: `Manage group leaderboards relationships.
 
 Examples:
+  asc game-center groups leaderboards list --group-id "GROUP_ID"
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+		GameCenterGroupLeaderboardsListCommand(),
 			GameCenterGroupLeaderboardsSetCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterGroupLeaderboardsListCommand returns the group leaderboards list subcommand.
+func GameCenterGroupLeaderboardsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	groupID := fs.String("group-id", "", "Game Center group ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center groups leaderboards list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List leaderboards for a Game Center group.",
+		LongHelp: `List leaderboards for a Game Center group.
+
+Examples:
+  asc game-center groups leaderboards list --group-id "GROUP_ID"
+  asc game-center groups leaderboards list --group-id "GROUP_ID" --limit 50
+  asc game-center groups leaderboards list --group-id "GROUP_ID" --paginate
+  asc game-center groups leaderboards list --group-id "GROUP_ID" --v2`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center groups leaderboards list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center groups leaderboards list: %w", err)
+			}
+
+			id := strings.TrimSpace(*groupID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center groups leaderboards list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCLeaderboardsOption{
+				asc.WithGCLeaderboardsLimit(*limit),
+				asc.WithGCLeaderboardsNextURL(*next),
+			}
+
+			fetch := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				if *v2 {
+					return client.GetGameCenterGroupLeaderboardsV2(ctx, id, asc.WithGCLeaderboardsNextURL(nextURL))
+				}
+				return client.GetGameCenterGroupLeaderboards(ctx, id, asc.WithGCLeaderboardsNextURL(nextURL))
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCLeaderboardsLimit(200))
+				var firstPage *asc.GameCenterLeaderboardsResponse
+				if *v2 {
+					firstPage, err = client.GetGameCenterGroupLeaderboardsV2(requestCtx, id, paginateOpts...)
+				} else {
+					firstPage, err = client.GetGameCenterGroupLeaderboards(requestCtx, id, paginateOpts...)
+				}
+				if err != nil {
+					return fmt.Errorf("game-center groups leaderboards list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, fetch)
+				if err != nil {
+					return fmt.Errorf("game-center groups leaderboards list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			var resp *asc.GameCenterLeaderboardsResponse
+			if *v2 {
+				resp, err = client.GetGameCenterGroupLeaderboardsV2(requestCtx, id, opts...)
+			} else {
+				resp, err = client.GetGameCenterGroupLeaderboards(requestCtx, id, opts...)
+			}
+			if err != nil {
+				return fmt.Errorf("game-center groups leaderboards list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -487,6 +687,223 @@ Examples:
 	}
 }
 
+// GameCenterGroupLeaderboardSetsCommand returns the group leaderboard sets command group.
+func GameCenterGroupLeaderboardSetsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("leaderboard-sets", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "leaderboard-sets",
+		ShortUsage: "asc game-center groups leaderboard-sets list --group-id \"GROUP_ID\"",
+		ShortHelp:  "Manage group leaderboard sets relationships.",
+		LongHelp: `Manage group leaderboard sets relationships.
+
+Examples:
+  asc game-center groups leaderboard-sets list --group-id "GROUP_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterGroupLeaderboardSetsListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterGroupLeaderboardSetsListCommand returns the group leaderboard sets list subcommand.
+func GameCenterGroupLeaderboardSetsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	groupID := fs.String("group-id", "", "Game Center group ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	v2 := fs.Bool("v2", false, "Use v2 leaderboard sets endpoint")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center groups leaderboard-sets list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List leaderboard sets for a Game Center group.",
+		LongHelp: `List leaderboard sets for a Game Center group.
+
+Examples:
+  asc game-center groups leaderboard-sets list --group-id "GROUP_ID"
+  asc game-center groups leaderboard-sets list --group-id "GROUP_ID" --limit 50
+  asc game-center groups leaderboard-sets list --group-id "GROUP_ID" --paginate
+  asc game-center groups leaderboard-sets list --group-id "GROUP_ID" --v2`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center groups leaderboard-sets list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center groups leaderboard-sets list: %w", err)
+			}
+
+			id := strings.TrimSpace(*groupID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center groups leaderboard-sets list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCLeaderboardSetsOption{
+				asc.WithGCLeaderboardSetsLimit(*limit),
+				asc.WithGCLeaderboardSetsNextURL(*next),
+			}
+
+			fetch := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				if *v2 {
+					return client.GetGameCenterGroupLeaderboardSetsV2(ctx, id, asc.WithGCLeaderboardSetsNextURL(nextURL))
+				}
+				return client.GetGameCenterGroupLeaderboardSets(ctx, id, asc.WithGCLeaderboardSetsNextURL(nextURL))
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCLeaderboardSetsLimit(200))
+				var firstPage *asc.GameCenterLeaderboardSetsResponse
+				if *v2 {
+					firstPage, err = client.GetGameCenterGroupLeaderboardSetsV2(requestCtx, id, paginateOpts...)
+				} else {
+					firstPage, err = client.GetGameCenterGroupLeaderboardSets(requestCtx, id, paginateOpts...)
+				}
+				if err != nil {
+					return fmt.Errorf("game-center groups leaderboard-sets list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, fetch)
+				if err != nil {
+					return fmt.Errorf("game-center groups leaderboard-sets list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			var resp *asc.GameCenterLeaderboardSetsResponse
+			if *v2 {
+				resp, err = client.GetGameCenterGroupLeaderboardSetsV2(requestCtx, id, opts...)
+			} else {
+				resp, err = client.GetGameCenterGroupLeaderboardSets(requestCtx, id, opts...)
+			}
+			if err != nil {
+				return fmt.Errorf("game-center groups leaderboard-sets list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterGroupActivitiesCommand returns the group activities command group.
+func GameCenterGroupActivitiesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("activities", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "activities",
+		ShortUsage: "asc game-center groups activities list --group-id \"GROUP_ID\"",
+		ShortHelp:  "Manage group activities relationships.",
+		LongHelp: `Manage group activities relationships.
+
+Examples:
+  asc game-center groups activities list --group-id "GROUP_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterGroupActivitiesListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterGroupActivitiesListCommand returns the group activities list subcommand.
+func GameCenterGroupActivitiesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	groupID := fs.String("group-id", "", "Game Center group ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center groups activities list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List activities for a Game Center group.",
+		LongHelp: `List activities for a Game Center group.
+
+Examples:
+  asc game-center groups activities list --group-id "GROUP_ID"
+  asc game-center groups activities list --group-id "GROUP_ID" --limit 50
+  asc game-center groups activities list --group-id "GROUP_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center groups activities list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center groups activities list: %w", err)
+			}
+
+			id := strings.TrimSpace(*groupID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center groups activities list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCActivitiesOption{
+				asc.WithGCActivitiesLimit(*limit),
+				asc.WithGCActivitiesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCActivitiesLimit(200))
+				firstPage, err := client.GetGameCenterGroupActivities(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center groups activities list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterGroupActivities(ctx, id, asc.WithGCActivitiesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center groups activities list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterGroupActivities(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center groups activities list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // GameCenterGroupChallengesCommand returns the group challenges command group.
 func GameCenterGroupChallengesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("challenges", flag.ExitOnError)
@@ -498,14 +915,93 @@ func GameCenterGroupChallengesCommand() *ffcli.Command {
 		LongHelp: `Manage group challenges relationships.
 
 Examples:
+  asc game-center groups challenges list --group-id "GROUP_ID"
   asc game-center groups challenges set --group-id "GROUP_ID" --ids "CH_1,CH_2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+		GameCenterGroupChallengesListCommand(),
 			GameCenterGroupChallengesSetCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterGroupChallengesListCommand returns the group challenges list subcommand.
+func GameCenterGroupChallengesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	groupID := fs.String("group-id", "", "Game Center group ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center groups challenges list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List challenges for a Game Center group.",
+		LongHelp: `List challenges for a Game Center group.
+
+Examples:
+  asc game-center groups challenges list --group-id "GROUP_ID"
+  asc game-center groups challenges list --group-id "GROUP_ID" --limit 50
+  asc game-center groups challenges list --group-id "GROUP_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center groups challenges list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center groups challenges list: %w", err)
+			}
+
+			id := strings.TrimSpace(*groupID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center groups challenges list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCChallengesOption{
+				asc.WithGCChallengesLimit(*limit),
+				asc.WithGCChallengesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithGCChallengesLimit(200))
+				firstPage, err := client.GetGameCenterGroupChallenges(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center groups challenges list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterGroupChallenges(ctx, id, asc.WithGCChallengesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center groups challenges list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterGroupChallenges(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center groups challenges list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -555,6 +1051,110 @@ Examples:
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterChallenges, idsValue)}
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterGroupDetailsCommand returns the group details command group.
+func GameCenterGroupDetailsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("details", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "details",
+		ShortUsage: "asc game-center groups details list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List Game Center details for a group.",
+		LongHelp: `List Game Center details for a group.
+
+Examples:
+  asc game-center groups details list --group-id "GROUP_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterGroupDetailsListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterGroupDetailsListCommand returns the group details list subcommand.
+func GameCenterGroupDetailsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	groupID := fs.String("group-id", "", "Game Center group ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center groups details list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List Game Center details for a group.",
+		LongHelp: `List Game Center details for a group.
+
+Examples:
+  asc game-center groups details list --group-id "GROUP_ID"
+  asc game-center groups details list --group-id "GROUP_ID" --limit 50
+  asc game-center groups details list --group-id "GROUP_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center groups details list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center groups details list: %w", err)
+			}
+
+			id := strings.TrimSpace(*groupID)
+			nextURL := strings.TrimSpace(*next)
+			if id == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center groups details list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCDetailsOption{
+				asc.WithGCDetailsLimit(*limit),
+				asc.WithGCDetailsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := []asc.GCDetailsOption{asc.WithGCDetailsNextURL(*next)}
+				if nextURL == "" {
+					paginateOpts = []asc.GCDetailsOption{asc.WithGCDetailsLimit(200)}
+				}
+				firstPage, err := client.GetGameCenterGroupGameCenterDetails(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center groups details list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterGroupGameCenterDetails(ctx, id, asc.WithGCDetailsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center groups details list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterGroupGameCenterDetails(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center groups details list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

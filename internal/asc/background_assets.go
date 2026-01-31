@@ -55,6 +55,30 @@ type BackgroundAssetVersionsResponse = Response[BackgroundAssetVersionAttributes
 // BackgroundAssetVersionResponse represents a background asset version response.
 type BackgroundAssetVersionResponse = SingleResponse[BackgroundAssetVersionAttributes]
 
+// BackgroundAssetVersionAppStoreReleaseAttributes describes an App Store release.
+type BackgroundAssetVersionAppStoreReleaseAttributes struct {
+	State string `json:"state,omitempty"`
+}
+
+// BackgroundAssetVersionExternalBetaReleaseAttributes describes an external beta release.
+type BackgroundAssetVersionExternalBetaReleaseAttributes struct {
+	State string `json:"state,omitempty"`
+}
+
+// BackgroundAssetVersionInternalBetaReleaseAttributes describes an internal beta release.
+type BackgroundAssetVersionInternalBetaReleaseAttributes struct {
+	State string `json:"state,omitempty"`
+}
+
+// BackgroundAssetVersionAppStoreReleaseResponse represents an App Store release response.
+type BackgroundAssetVersionAppStoreReleaseResponse = SingleResponse[BackgroundAssetVersionAppStoreReleaseAttributes]
+
+// BackgroundAssetVersionExternalBetaReleaseResponse represents an external beta release response.
+type BackgroundAssetVersionExternalBetaReleaseResponse = SingleResponse[BackgroundAssetVersionExternalBetaReleaseAttributes]
+
+// BackgroundAssetVersionInternalBetaReleaseResponse represents an internal beta release response.
+type BackgroundAssetVersionInternalBetaReleaseResponse = SingleResponse[BackgroundAssetVersionInternalBetaReleaseAttributes]
+
 // BackgroundAssetUploadFilesResponse represents a background asset upload files list response.
 type BackgroundAssetUploadFilesResponse = Response[BackgroundAssetUploadFileAttributes]
 

@@ -292,6 +292,38 @@ func (c *Client) GetGameCenterChallengeLocalization(ctx context.Context, localiz
 	return &response, nil
 }
 
+// GetGameCenterChallengeLocalizationImage retrieves the image for a challenge localization.
+func (c *Client) GetGameCenterChallengeLocalizationImage(ctx context.Context, localizationID string) (*GameCenterChallengeImageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s/image", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterChallengeImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterChallengeVersionDefaultImage retrieves the default image for a challenge version.
+func (c *Client) GetGameCenterChallengeVersionDefaultImage(ctx context.Context, versionID string) (*GameCenterChallengeImageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/defaultImage", strings.TrimSpace(versionID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterChallengeImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterChallengeLocalization creates a new challenge localization.
 func (c *Client) CreateGameCenterChallengeLocalization(ctx context.Context, versionID string, attrs GameCenterChallengeLocalizationCreateAttributes) (*GameCenterChallengeLocalizationResponse, error) {
 	payload := GameCenterChallengeLocalizationCreateRequest{

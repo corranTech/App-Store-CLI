@@ -137,3 +137,32 @@ func TestBundleIDsCapabilitiesRemoveCommand_MissingConfirm(t *testing.T) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }
+
+func TestExtractBundleIDFromNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/bundleIds/bundle-123/profiles?cursor=abc"
+	got, err := extractBundleIDFromNextURL(next)
+	if err != nil {
+		t.Fatalf("extractBundleIDFromNextURL() error: %v", err)
+	}
+	if got != "bundle-123" {
+		t.Fatalf("expected bundle-123, got %q", got)
+	}
+}
+
+func TestExtractBundleIDFromNextURLRelationships(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/bundleIds/bundle-123/relationships/profiles?cursor=abc"
+	got, err := extractBundleIDFromNextURL(next)
+	if err != nil {
+		t.Fatalf("extractBundleIDFromNextURL() error: %v", err)
+	}
+	if got != "bundle-123" {
+		t.Fatalf("expected bundle-123, got %q", got)
+	}
+}
+
+func TestExtractBundleIDFromNextURL_Invalid(t *testing.T) {
+	_, err := extractBundleIDFromNextURL("https://api.appstoreconnect.apple.com/v1/bundleIds")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}

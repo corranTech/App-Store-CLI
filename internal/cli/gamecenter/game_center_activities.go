@@ -32,6 +32,8 @@ Examples:
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1,LB_2"
   asc game-center activities versions list --activity-id "ACTIVITY_ID"
   asc game-center activities localizations list --version-id "VERSION_ID"
+  asc game-center activities localizations image get --id "LOC_ID"
+  asc game-center activities versions default-image get --id "VERSION_ID"
   asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center activities releases list --app "APP_ID"`,
 		FlagSet:   fs,
@@ -622,7 +624,8 @@ Examples:
   asc game-center activities versions list --activity-id "ACTIVITY_ID"
   asc game-center activities versions get --id "VERSION_ID"
   asc game-center activities versions create --activity-id "ACTIVITY_ID" --fallback-url "https://example.com"
-  asc game-center activities versions update --id "VERSION_ID" --fallback-url "https://example.com"`,
+  asc game-center activities versions update --id "VERSION_ID" --fallback-url "https://example.com"
+  asc game-center activities versions default-image get --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -630,6 +633,7 @@ Examples:
 			GameCenterActivityVersionsGetCommand(),
 			GameCenterActivityVersionsCreateCommand(),
 			GameCenterActivityVersionsUpdateCommand(),
+			GameCenterActivityVersionDefaultImageCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -867,7 +871,8 @@ Examples:
   asc game-center activities localizations list --version-id "VERSION_ID"
   asc game-center activities localizations create --version-id "VERSION_ID" --locale en-US --name "Weekly" --description "Win weekly"
   asc game-center activities localizations update --id "LOC_ID" --name "New Name"
-  asc game-center activities localizations delete --id "LOC_ID" --confirm`,
+  asc game-center activities localizations delete --id "LOC_ID" --confirm
+  asc game-center activities localizations image get --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -876,6 +881,7 @@ Examples:
 			GameCenterActivityLocalizationsCreateCommand(),
 			GameCenterActivityLocalizationsUpdateCommand(),
 			GameCenterActivityLocalizationsDeleteCommand(),
+			GameCenterActivityLocalizationImageCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1565,6 +1571,138 @@ Examples:
 			}
 
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterActivityLocalizationImageCommand returns the activity localization image command group.
+func GameCenterActivityLocalizationImageCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("image", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "image",
+		ShortUsage: "asc game-center activities localizations image get --id \"LOC_ID\"",
+		ShortHelp:  "Get the image for an activity localization.",
+		LongHelp: `Get the image for an activity localization.
+
+Examples:
+  asc game-center activities localizations image get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterActivityLocalizationImageGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterActivityLocalizationImageGetCommand returns the activity localization image get subcommand.
+func GameCenterActivityLocalizationImageGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	localizationID := fs.String("id", "", "Game Center activity localization ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center activities localizations image get --id \"LOC_ID\"",
+		ShortHelp:  "Get an activity localization image.",
+		LongHelp: `Get an activity localization image.
+
+Examples:
+  asc game-center activities localizations image get --id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*localizationID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center activities localizations image get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterActivityLocalizationImage(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center activities localizations image get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterActivityVersionDefaultImageCommand returns the activity version default image command group.
+func GameCenterActivityVersionDefaultImageCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("default-image", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "default-image",
+		ShortUsage: "asc game-center activities versions default-image get --id \"VERSION_ID\"",
+		ShortHelp:  "Get the default image for an activity version.",
+		LongHelp: `Get the default image for an activity version.
+
+Examples:
+  asc game-center activities versions default-image get --id "VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterActivityVersionDefaultImageGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterActivityVersionDefaultImageGetCommand returns the activity version default image get subcommand.
+func GameCenterActivityVersionDefaultImageGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	versionID := fs.String("id", "", "Game Center activity version ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center activities versions default-image get --id \"VERSION_ID\"",
+		ShortHelp:  "Get a default image for an activity version.",
+		LongHelp: `Get a default image for an activity version.
+
+Examples:
+  asc game-center activities versions default-image get --id "VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*versionID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center activities versions default-image get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterActivityVersionDefaultImage(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center activities versions default-image get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

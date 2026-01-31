@@ -55,6 +55,10 @@ func PrintMarkdown(data interface{}) error {
 		return printCrashesMarkdown(v)
 	case *ReviewsResponse:
 		return printReviewsMarkdown(v)
+	case *CustomerReviewSummarizationsResponse:
+		return printCustomerReviewSummarizationsMarkdown(v)
+	case *CustomerReviewResponse:
+		return printReviewsMarkdown(&ReviewsResponse{Data: []Resource[ReviewAttributes]{v.Data}})
 	case *AppsResponse:
 		return printAppsMarkdown(v)
 	case *AppClipsResponse:
@@ -79,6 +83,8 @@ func PrintMarkdown(data interface{}) error {
 		return printAppClipDefaultExperienceLocalizationsMarkdown(v)
 	case *AppClipDefaultExperienceLocalizationResponse:
 		return printAppClipDefaultExperienceLocalizationsMarkdown(&AppClipDefaultExperienceLocalizationsResponse{Data: []Resource[AppClipDefaultExperienceLocalizationAttributes]{v.Data}})
+	case *AppClipHeaderImageResponse:
+		return printAppClipHeaderImageMarkdown(v)
 	case *AppClipAdvancedExperiencesResponse:
 		return printAppClipAdvancedExperiencesMarkdown(v)
 	case *AppClipAdvancedExperienceResponse:
@@ -135,6 +141,12 @@ func PrintMarkdown(data interface{}) error {
 		return printBackgroundAssetVersionsMarkdown(v)
 	case *BackgroundAssetVersionResponse:
 		return printBackgroundAssetVersionsMarkdown(&BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}})
+	case *BackgroundAssetVersionAppStoreReleaseResponse:
+		return printBackgroundAssetVersionAppStoreReleaseMarkdown(v)
+	case *BackgroundAssetVersionExternalBetaReleaseResponse:
+		return printBackgroundAssetVersionExternalBetaReleaseMarkdown(v)
+	case *BackgroundAssetVersionInternalBetaReleaseResponse:
+		return printBackgroundAssetVersionInternalBetaReleaseMarkdown(v)
 	case *BackgroundAssetUploadFilesResponse:
 		return printBackgroundAssetUploadFilesMarkdown(v)
 	case *BackgroundAssetUploadFileResponse:
@@ -209,6 +221,10 @@ func PrintMarkdown(data interface{}) error {
 		return printProfilesMarkdown(v)
 	case *ProfileResponse:
 		return printProfilesMarkdown(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
+	case *InAppPurchasesResponse:
+		return printLegacyInAppPurchasesMarkdown(v)
+	case *InAppPurchaseResponse:
+		return printLegacyInAppPurchasesMarkdown(&InAppPurchasesResponse{Data: []Resource[InAppPurchaseAttributes]{v.Data}})
 	case *InAppPurchasesV2Response:
 		return printInAppPurchasesMarkdown(v)
 	case *InAppPurchaseV2Response:
@@ -229,6 +245,14 @@ func PrintMarkdown(data interface{}) error {
 		return printInAppPurchaseOfferCodesMarkdown(v)
 	case *InAppPurchaseOfferCodeResponse:
 		return printInAppPurchaseOfferCodesMarkdown(&InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeCustomCodesResponse:
+		return printInAppPurchaseOfferCodeCustomCodesMarkdown(v)
+	case *InAppPurchaseOfferCodeCustomCodeResponse:
+		return printInAppPurchaseOfferCodeCustomCodesMarkdown(&InAppPurchaseOfferCodeCustomCodesResponse{Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeOneTimeUseCodesResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesMarkdown(v)
+	case *InAppPurchaseOfferCodeOneTimeUseCodeResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesMarkdown(&InAppPurchaseOfferCodeOneTimeUseCodesResponse{Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *InAppPurchaseAvailabilityResponse:
 		return printInAppPurchaseAvailabilityMarkdown(v)
 	case *InAppPurchaseContentResponse:
@@ -271,10 +295,14 @@ func PrintMarkdown(data interface{}) error {
 		return printSubscriptionPriceMarkdown(v)
 	case *SubscriptionAvailabilityResponse:
 		return printSubscriptionAvailabilityMarkdown(v)
+	case *SubscriptionGracePeriodResponse:
+		return printSubscriptionGracePeriodMarkdown(v)
 	case *TerritoriesResponse:
 		return printTerritoriesMarkdown(v)
 	case *TerritoryAgeRatingsResponse:
 		return printTerritoryAgeRatingsMarkdown(v)
+	case *OfferCodeValuesResult:
+		return printOfferCodeValuesMarkdown(v)
 	case *AppPricePointsV3Response:
 		return printAppPricePointsMarkdown(v)
 	case *AppPriceScheduleResponse:
@@ -309,10 +337,14 @@ func PrintMarkdown(data interface{}) error {
 		return printWinBackOfferPricesMarkdown(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsMarkdown(v)
+	case *AppStoreVersionResponse:
+		return printAppStoreVersionsMarkdown(&AppStoreVersionsResponse{Data: []Resource[AppStoreVersionAttributes]{v.Data}})
 	case *PreReleaseVersionsResponse:
 		return printPreReleaseVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildIconsResponse:
+		return printBuildIconsMarkdown(v)
 	case *BuildUploadsResponse:
 		return printBuildUploadsMarkdown(v)
 	case *BuildUploadResponse:
@@ -413,6 +445,12 @@ func PrintMarkdown(data interface{}) error {
 		return printBuildBetaDetailsMarkdown(v)
 	case *BuildBetaDetailResponse:
 		return printBuildBetaDetailMarkdown(v)
+	case *BetaLicenseAgreementsResponse:
+		return printBetaLicenseAgreementsMarkdown(v)
+	case *BetaLicenseAgreementResponse:
+		return printBetaLicenseAgreementsMarkdown(&BetaLicenseAgreementsResponse{Data: []BetaLicenseAgreementResource{v.Data}})
+	case *BuildBetaNotificationResponse:
+		return printBuildBetaNotificationMarkdown(v)
 	case *AgeRatingDeclarationResponse:
 		return printAgeRatingDeclarationMarkdown(v)
 	case *AccessibilityDeclarationsResponse:
@@ -567,18 +605,30 @@ func PrintMarkdown(data interface{}) error {
 		return printGameCenterAchievementsMarkdown(&GameCenterAchievementsResponse{Data: []Resource[GameCenterAchievementAttributes]{v.Data}})
 	case *GameCenterAchievementDeleteResult:
 		return printGameCenterAchievementDeleteResultMarkdown(v)
+	case *GameCenterAchievementVersionsResponse:
+		return printGameCenterAchievementVersionsMarkdown(v)
+	case *GameCenterAchievementVersionResponse:
+		return printGameCenterAchievementVersionsMarkdown(&GameCenterAchievementVersionsResponse{Data: []Resource[GameCenterAchievementVersionAttributes]{v.Data}})
 	case *GameCenterLeaderboardsResponse:
 		return printGameCenterLeaderboardsMarkdown(v)
 	case *GameCenterLeaderboardResponse:
 		return printGameCenterLeaderboardsMarkdown(&GameCenterLeaderboardsResponse{Data: []Resource[GameCenterLeaderboardAttributes]{v.Data}})
 	case *GameCenterLeaderboardDeleteResult:
 		return printGameCenterLeaderboardDeleteResultMarkdown(v)
+	case *GameCenterLeaderboardVersionsResponse:
+		return printGameCenterLeaderboardVersionsMarkdown(v)
+	case *GameCenterLeaderboardVersionResponse:
+		return printGameCenterLeaderboardVersionsMarkdown(&GameCenterLeaderboardVersionsResponse{Data: []Resource[GameCenterLeaderboardVersionAttributes]{v.Data}})
 	case *GameCenterLeaderboardSetsResponse:
 		return printGameCenterLeaderboardSetsMarkdown(v)
 	case *GameCenterLeaderboardSetResponse:
 		return printGameCenterLeaderboardSetsMarkdown(&GameCenterLeaderboardSetsResponse{Data: []Resource[GameCenterLeaderboardSetAttributes]{v.Data}})
 	case *GameCenterLeaderboardSetDeleteResult:
 		return printGameCenterLeaderboardSetDeleteResultMarkdown(v)
+	case *GameCenterLeaderboardSetVersionsResponse:
+		return printGameCenterLeaderboardSetVersionsMarkdown(v)
+	case *GameCenterLeaderboardSetVersionResponse:
+		return printGameCenterLeaderboardSetVersionsMarkdown(&GameCenterLeaderboardSetVersionsResponse{Data: []Resource[GameCenterLeaderboardSetVersionAttributes]{v.Data}})
 	case *GameCenterLeaderboardLocalizationsResponse:
 		return printGameCenterLeaderboardLocalizationsMarkdown(v)
 	case *GameCenterLeaderboardLocalizationResponse:
@@ -591,6 +641,10 @@ func PrintMarkdown(data interface{}) error {
 		return printGameCenterLeaderboardReleasesMarkdown(&GameCenterLeaderboardReleasesResponse{Data: []Resource[GameCenterLeaderboardReleaseAttributes]{v.Data}})
 	case *GameCenterLeaderboardReleaseDeleteResult:
 		return printGameCenterLeaderboardReleaseDeleteResultMarkdown(v)
+	case *GameCenterLeaderboardEntrySubmissionResponse:
+		return printGameCenterLeaderboardEntrySubmissionMarkdown(v)
+	case *GameCenterPlayerAchievementSubmissionResponse:
+		return printGameCenterPlayerAchievementSubmissionMarkdown(v)
 	case *GameCenterAchievementReleasesResponse:
 		return printGameCenterAchievementReleasesMarkdown(v)
 	case *GameCenterAchievementReleaseResponse:
@@ -693,6 +747,16 @@ func PrintMarkdown(data interface{}) error {
 		return printGameCenterGroupsMarkdown(&GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}})
 	case *GameCenterGroupDeleteResult:
 		return printGameCenterGroupDeleteResultMarkdown(v)
+	case *GameCenterAppVersionsResponse:
+		return printGameCenterAppVersionsMarkdown(v)
+	case *GameCenterAppVersionResponse:
+		return printGameCenterAppVersionsMarkdown(&GameCenterAppVersionsResponse{Data: []Resource[GameCenterAppVersionAttributes]{v.Data}})
+	case *GameCenterEnabledVersionsResponse:
+		return printGameCenterEnabledVersionsMarkdown(v)
+	case *GameCenterDetailsResponse:
+		return printGameCenterDetailsMarkdown(v)
+	case *GameCenterDetailResponse:
+		return printGameCenterDetailsMarkdown(&GameCenterDetailsResponse{Data: []Resource[GameCenterDetailAttributes]{v.Data}})
 	case *GameCenterMatchmakingQueuesResponse:
 		return printGameCenterMatchmakingQueuesMarkdown(v)
 	case *GameCenterMatchmakingQueueResponse:
@@ -917,6 +981,10 @@ func PrintTable(data interface{}) error {
 		return printCrashesTable(v)
 	case *ReviewsResponse:
 		return printReviewsTable(v)
+	case *CustomerReviewSummarizationsResponse:
+		return printCustomerReviewSummarizationsTable(v)
+	case *CustomerReviewResponse:
+		return printReviewsTable(&ReviewsResponse{Data: []Resource[ReviewAttributes]{v.Data}})
 	case *AppsResponse:
 		return printAppsTable(v)
 	case *AppClipsResponse:
@@ -941,6 +1009,8 @@ func PrintTable(data interface{}) error {
 		return printAppClipDefaultExperienceLocalizationsTable(v)
 	case *AppClipDefaultExperienceLocalizationResponse:
 		return printAppClipDefaultExperienceLocalizationsTable(&AppClipDefaultExperienceLocalizationsResponse{Data: []Resource[AppClipDefaultExperienceLocalizationAttributes]{v.Data}})
+	case *AppClipHeaderImageResponse:
+		return printAppClipHeaderImageTable(v)
 	case *AppClipAdvancedExperiencesResponse:
 		return printAppClipAdvancedExperiencesTable(v)
 	case *AppClipAdvancedExperienceResponse:
@@ -997,6 +1067,12 @@ func PrintTable(data interface{}) error {
 		return printBackgroundAssetVersionsTable(v)
 	case *BackgroundAssetVersionResponse:
 		return printBackgroundAssetVersionsTable(&BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}})
+	case *BackgroundAssetVersionAppStoreReleaseResponse:
+		return printBackgroundAssetVersionAppStoreReleaseTable(v)
+	case *BackgroundAssetVersionExternalBetaReleaseResponse:
+		return printBackgroundAssetVersionExternalBetaReleaseTable(v)
+	case *BackgroundAssetVersionInternalBetaReleaseResponse:
+		return printBackgroundAssetVersionInternalBetaReleaseTable(v)
 	case *BackgroundAssetUploadFilesResponse:
 		return printBackgroundAssetUploadFilesTable(v)
 	case *BackgroundAssetUploadFileResponse:
@@ -1071,6 +1147,10 @@ func PrintTable(data interface{}) error {
 		return printProfilesTable(v)
 	case *ProfileResponse:
 		return printProfilesTable(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
+	case *InAppPurchasesResponse:
+		return printLegacyInAppPurchasesTable(v)
+	case *InAppPurchaseResponse:
+		return printLegacyInAppPurchasesTable(&InAppPurchasesResponse{Data: []Resource[InAppPurchaseAttributes]{v.Data}})
 	case *InAppPurchasesV2Response:
 		return printInAppPurchasesTable(v)
 	case *InAppPurchaseV2Response:
@@ -1091,6 +1171,14 @@ func PrintTable(data interface{}) error {
 		return printInAppPurchaseOfferCodesTable(v)
 	case *InAppPurchaseOfferCodeResponse:
 		return printInAppPurchaseOfferCodesTable(&InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeCustomCodesResponse:
+		return printInAppPurchaseOfferCodeCustomCodesTable(v)
+	case *InAppPurchaseOfferCodeCustomCodeResponse:
+		return printInAppPurchaseOfferCodeCustomCodesTable(&InAppPurchaseOfferCodeCustomCodesResponse{Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeOneTimeUseCodesResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesTable(v)
+	case *InAppPurchaseOfferCodeOneTimeUseCodeResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesTable(&InAppPurchaseOfferCodeOneTimeUseCodesResponse{Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *InAppPurchaseAvailabilityResponse:
 		return printInAppPurchaseAvailabilityTable(v)
 	case *InAppPurchaseContentResponse:
@@ -1133,10 +1221,14 @@ func PrintTable(data interface{}) error {
 		return printSubscriptionPriceTable(v)
 	case *SubscriptionAvailabilityResponse:
 		return printSubscriptionAvailabilityTable(v)
+	case *SubscriptionGracePeriodResponse:
+		return printSubscriptionGracePeriodTable(v)
 	case *TerritoriesResponse:
 		return printTerritoriesTable(v)
 	case *TerritoryAgeRatingsResponse:
 		return printTerritoryAgeRatingsTable(v)
+	case *OfferCodeValuesResult:
+		return printOfferCodeValuesTable(v)
 	case *AppPricePointsV3Response:
 		return printAppPricePointsTable(v)
 	case *AppPriceScheduleResponse:
@@ -1171,10 +1263,14 @@ func PrintTable(data interface{}) error {
 		return printWinBackOfferPricesTable(v)
 	case *AppStoreVersionsResponse:
 		return printAppStoreVersionsTable(v)
+	case *AppStoreVersionResponse:
+		return printAppStoreVersionsTable(&AppStoreVersionsResponse{Data: []Resource[AppStoreVersionAttributes]{v.Data}})
 	case *PreReleaseVersionsResponse:
 		return printPreReleaseVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildIconsResponse:
+		return printBuildIconsTable(v)
 	case *BuildUploadsResponse:
 		return printBuildUploadsTable(v)
 	case *BuildUploadResponse:
@@ -1275,6 +1371,12 @@ func PrintTable(data interface{}) error {
 		return printBuildBetaDetailsTable(v)
 	case *BuildBetaDetailResponse:
 		return printBuildBetaDetailTable(v)
+	case *BetaLicenseAgreementsResponse:
+		return printBetaLicenseAgreementsTable(v)
+	case *BetaLicenseAgreementResponse:
+		return printBetaLicenseAgreementsTable(&BetaLicenseAgreementsResponse{Data: []BetaLicenseAgreementResource{v.Data}})
+	case *BuildBetaNotificationResponse:
+		return printBuildBetaNotificationTable(v)
 	case *AgeRatingDeclarationResponse:
 		return printAgeRatingDeclarationTable(v)
 	case *AccessibilityDeclarationsResponse:
@@ -1429,18 +1531,30 @@ func PrintTable(data interface{}) error {
 		return printGameCenterAchievementsTable(&GameCenterAchievementsResponse{Data: []Resource[GameCenterAchievementAttributes]{v.Data}})
 	case *GameCenterAchievementDeleteResult:
 		return printGameCenterAchievementDeleteResultTable(v)
+	case *GameCenterAchievementVersionsResponse:
+		return printGameCenterAchievementVersionsTable(v)
+	case *GameCenterAchievementVersionResponse:
+		return printGameCenterAchievementVersionsTable(&GameCenterAchievementVersionsResponse{Data: []Resource[GameCenterAchievementVersionAttributes]{v.Data}})
 	case *GameCenterLeaderboardsResponse:
 		return printGameCenterLeaderboardsTable(v)
 	case *GameCenterLeaderboardResponse:
 		return printGameCenterLeaderboardsTable(&GameCenterLeaderboardsResponse{Data: []Resource[GameCenterLeaderboardAttributes]{v.Data}})
 	case *GameCenterLeaderboardDeleteResult:
 		return printGameCenterLeaderboardDeleteResultTable(v)
+	case *GameCenterLeaderboardVersionsResponse:
+		return printGameCenterLeaderboardVersionsTable(v)
+	case *GameCenterLeaderboardVersionResponse:
+		return printGameCenterLeaderboardVersionsTable(&GameCenterLeaderboardVersionsResponse{Data: []Resource[GameCenterLeaderboardVersionAttributes]{v.Data}})
 	case *GameCenterLeaderboardSetsResponse:
 		return printGameCenterLeaderboardSetsTable(v)
 	case *GameCenterLeaderboardSetResponse:
 		return printGameCenterLeaderboardSetsTable(&GameCenterLeaderboardSetsResponse{Data: []Resource[GameCenterLeaderboardSetAttributes]{v.Data}})
 	case *GameCenterLeaderboardSetDeleteResult:
 		return printGameCenterLeaderboardSetDeleteResultTable(v)
+	case *GameCenterLeaderboardSetVersionsResponse:
+		return printGameCenterLeaderboardSetVersionsTable(v)
+	case *GameCenterLeaderboardSetVersionResponse:
+		return printGameCenterLeaderboardSetVersionsTable(&GameCenterLeaderboardSetVersionsResponse{Data: []Resource[GameCenterLeaderboardSetVersionAttributes]{v.Data}})
 	case *GameCenterLeaderboardLocalizationsResponse:
 		return printGameCenterLeaderboardLocalizationsTable(v)
 	case *GameCenterLeaderboardLocalizationResponse:
@@ -1453,6 +1567,10 @@ func PrintTable(data interface{}) error {
 		return printGameCenterLeaderboardReleasesTable(&GameCenterLeaderboardReleasesResponse{Data: []Resource[GameCenterLeaderboardReleaseAttributes]{v.Data}})
 	case *GameCenterLeaderboardReleaseDeleteResult:
 		return printGameCenterLeaderboardReleaseDeleteResultTable(v)
+	case *GameCenterLeaderboardEntrySubmissionResponse:
+		return printGameCenterLeaderboardEntrySubmissionTable(v)
+	case *GameCenterPlayerAchievementSubmissionResponse:
+		return printGameCenterPlayerAchievementSubmissionTable(v)
 	case *GameCenterLeaderboardSetReleasesResponse:
 		return printGameCenterLeaderboardSetReleasesTable(v)
 	case *GameCenterLeaderboardSetReleaseResponse:
@@ -1555,6 +1673,16 @@ func PrintTable(data interface{}) error {
 		return printGameCenterGroupsTable(&GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}})
 	case *GameCenterGroupDeleteResult:
 		return printGameCenterGroupDeleteResultTable(v)
+	case *GameCenterAppVersionsResponse:
+		return printGameCenterAppVersionsTable(v)
+	case *GameCenterAppVersionResponse:
+		return printGameCenterAppVersionsTable(&GameCenterAppVersionsResponse{Data: []Resource[GameCenterAppVersionAttributes]{v.Data}})
+	case *GameCenterEnabledVersionsResponse:
+		return printGameCenterEnabledVersionsTable(v)
+	case *GameCenterDetailsResponse:
+		return printGameCenterDetailsTable(v)
+	case *GameCenterDetailResponse:
+		return printGameCenterDetailsTable(&GameCenterDetailsResponse{Data: []Resource[GameCenterDetailAttributes]{v.Data}})
 	case *GameCenterMatchmakingQueuesResponse:
 		return printGameCenterMatchmakingQueuesTable(v)
 	case *GameCenterMatchmakingQueueResponse:

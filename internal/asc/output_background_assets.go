@@ -102,3 +102,44 @@ func printBackgroundAssetUploadFilesMarkdown(resp *BackgroundAssetUploadFilesRes
 	}
 	return nil
 }
+
+func printBackgroundAssetVersionStateTable(id string, state string) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tState")
+	fmt.Fprintf(w, "%s\t%s\n", id, state)
+	return w.Flush()
+}
+
+func printBackgroundAssetVersionStateMarkdown(id string, state string) error {
+	fmt.Fprintln(os.Stdout, "| ID | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
+		escapeMarkdown(id),
+		escapeMarkdown(state),
+	)
+	return nil
+}
+
+func printBackgroundAssetVersionAppStoreReleaseTable(resp *BackgroundAssetVersionAppStoreReleaseResponse) error {
+	return printBackgroundAssetVersionStateTable(resp.Data.ID, resp.Data.Attributes.State)
+}
+
+func printBackgroundAssetVersionAppStoreReleaseMarkdown(resp *BackgroundAssetVersionAppStoreReleaseResponse) error {
+	return printBackgroundAssetVersionStateMarkdown(resp.Data.ID, resp.Data.Attributes.State)
+}
+
+func printBackgroundAssetVersionExternalBetaReleaseTable(resp *BackgroundAssetVersionExternalBetaReleaseResponse) error {
+	return printBackgroundAssetVersionStateTable(resp.Data.ID, resp.Data.Attributes.State)
+}
+
+func printBackgroundAssetVersionExternalBetaReleaseMarkdown(resp *BackgroundAssetVersionExternalBetaReleaseResponse) error {
+	return printBackgroundAssetVersionStateMarkdown(resp.Data.ID, resp.Data.Attributes.State)
+}
+
+func printBackgroundAssetVersionInternalBetaReleaseTable(resp *BackgroundAssetVersionInternalBetaReleaseResponse) error {
+	return printBackgroundAssetVersionStateTable(resp.Data.ID, resp.Data.Attributes.State)
+}
+
+func printBackgroundAssetVersionInternalBetaReleaseMarkdown(resp *BackgroundAssetVersionInternalBetaReleaseResponse) error {
+	return printBackgroundAssetVersionStateMarkdown(resp.Data.ID, resp.Data.Attributes.State)
+}

@@ -285,3 +285,157 @@ func TestGCGroupsOptions(t *testing.T) {
 		t.Fatalf("expected filter[gameCenterDetails]=gc-1,gc-2, got %q", values.Get("filter[gameCenterDetails]"))
 	}
 }
+
+func TestGetGameCenterGroupAchievements_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterAchievements" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterAchievements, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupAchievements(context.Background(), "group-1", WithGCAchievementsLimit(10)); err != nil {
+		t.Fatalf("GetGameCenterGroupAchievements() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupAchievements_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/gameCenterGroups/group-1/gameCenterAchievements?cursor=next"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupAchievements(context.Background(), "group-1", WithGCAchievementsNextURL(next)); err != nil {
+		t.Fatalf("GetGameCenterGroupAchievements() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupAchievementsV2_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterAchievementsV2" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterAchievementsV2, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "15" {
+			t.Fatalf("expected limit=15, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupAchievementsV2(context.Background(), "group-1", WithGCAchievementsLimit(15)); err != nil {
+		t.Fatalf("GetGameCenterGroupAchievementsV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupActivities_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterActivities" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterActivities, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "20" {
+			t.Fatalf("expected limit=20, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupActivities(context.Background(), "group-1", WithGCActivitiesLimit(20)); err != nil {
+		t.Fatalf("GetGameCenterGroupActivities() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupChallenges_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterChallenges" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterChallenges, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "25" {
+			t.Fatalf("expected limit=25, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupChallenges(context.Background(), "group-1", WithGCChallengesLimit(25)); err != nil {
+		t.Fatalf("GetGameCenterGroupChallenges() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupLeaderboards_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterLeaderboards" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterLeaderboards, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "30" {
+			t.Fatalf("expected limit=30, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupLeaderboards(context.Background(), "group-1", WithGCLeaderboardsLimit(30)); err != nil {
+		t.Fatalf("GetGameCenterGroupLeaderboards() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupLeaderboardsV2_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterLeaderboardsV2" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterLeaderboardsV2, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "35" {
+			t.Fatalf("expected limit=35, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupLeaderboardsV2(context.Background(), "group-1", WithGCLeaderboardsLimit(35)); err != nil {
+		t.Fatalf("GetGameCenterGroupLeaderboardsV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupLeaderboardSets_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterLeaderboardSets" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterLeaderboardSets, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "40" {
+			t.Fatalf("expected limit=40, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupLeaderboardSets(context.Background(), "group-1", WithGCLeaderboardSetsLimit(40)); err != nil {
+		t.Fatalf("GetGameCenterGroupLeaderboardSets() error: %v", err)
+	}
+}
+
+func TestGetGameCenterGroupLeaderboardSetsV2_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/gameCenterGroups/group-1/gameCenterLeaderboardSetsV2" {
+			t.Fatalf("expected path /v1/gameCenterGroups/group-1/gameCenterLeaderboardSetsV2, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "45" {
+			t.Fatalf("expected limit=45, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterGroupLeaderboardSetsV2(context.Background(), "group-1", WithGCLeaderboardSetsLimit(45)); err != nil {
+		t.Fatalf("GetGameCenterGroupLeaderboardSetsV2() error: %v", err)
+	}
+}
