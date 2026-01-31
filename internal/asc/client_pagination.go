@@ -160,6 +160,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &AppStoreReviewAttachmentsResponse{Links: Links{}}
 	case *AppStoreVersionLocalizationsResponse:
 		result = &AppStoreVersionLocalizationsResponse{Links: Links{}}
+	case *BetaAppLocalizationsResponse:
+		result = &BetaAppLocalizationsResponse{Links: Links{}}
 	case *BetaBuildLocalizationsResponse:
 		result = &BetaBuildLocalizationsResponse{Links: Links{}}
 	case *AppInfoLocalizationsResponse:
@@ -176,6 +178,10 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaGroupsResponse{Links: Links{}}
 	case *BetaTestersResponse:
 		result = &BetaTestersResponse{Links: Links{}}
+	case *BuildUploadsResponse:
+		result = &BuildUploadsResponse{Links: Links{}}
+	case *BuildUploadFilesResponse:
+		result = &BuildUploadFilesResponse{Links: Links{}}
 	case *BundleIDCapabilitiesResponse:
 		result = &BundleIDCapabilitiesResponse{Links: Links{}}
 	case *CertificatesResponse:
@@ -466,6 +472,8 @@ func typeOf(p PaginatedResponse) string {
 		return "AppStoreReviewAttachmentsResponse"
 	case *AppStoreVersionLocalizationsResponse:
 		return "AppStoreVersionLocalizationsResponse"
+	case *BetaAppLocalizationsResponse:
+		return "BetaAppLocalizationsResponse"
 	case *BetaBuildLocalizationsResponse:
 		return "BetaBuildLocalizationsResponse"
 	case *AppInfoLocalizationsResponse:
@@ -482,6 +490,10 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaGroupsResponse"
 	case *BetaTestersResponse:
 		return "BetaTestersResponse"
+	case *BuildUploadsResponse:
+		return "BuildUploadsResponse"
+	case *BuildUploadFilesResponse:
+		return "BuildUploadFilesResponse"
 	case *BundleIDCapabilitiesResponse:
 		return "BundleIDCapabilitiesResponse"
 	case *CertificatesResponse:
