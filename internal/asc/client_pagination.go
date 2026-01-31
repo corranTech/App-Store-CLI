@@ -60,6 +60,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &CrashesResponse{Links: Links{}}
 	case *ReviewsResponse:
 		result = &ReviewsResponse{Links: Links{}}
+	case *CustomerReviewSummarizationsResponse:
+		result = &CustomerReviewSummarizationsResponse{Links: Links{}}
 	case *AppsResponse:
 		result = &AppsResponse{Links: Links{}}
 	case *AppClipsResponse:
@@ -192,6 +194,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaAppLocalizationsResponse{Links: Links{}}
 	case *BetaBuildLocalizationsResponse:
 		result = &BetaBuildLocalizationsResponse{Links: Links{}}
+	case *BetaLicenseAgreementsResponse:
+		result = &BetaLicenseAgreementsResponse{Links: Links{}}
 	case *AppInfoLocalizationsResponse:
 		result = &AppInfoLocalizationsResponse{Links: Links{}}
 	case *InAppPurchaseLocalizationsResponse:
@@ -266,10 +270,16 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &CiXcodeVersionsResponse{Links: Links{}}
 	case *GameCenterAchievementsResponse:
 		result = &GameCenterAchievementsResponse{Links: Links{}}
+	case *GameCenterAchievementVersionsResponse:
+		result = &GameCenterAchievementVersionsResponse{Links: Links{}}
 	case *GameCenterLeaderboardsResponse:
 		result = &GameCenterLeaderboardsResponse{Links: Links{}}
+	case *GameCenterLeaderboardVersionsResponse:
+		result = &GameCenterLeaderboardVersionsResponse{Links: Links{}}
 	case *GameCenterLeaderboardSetsResponse:
 		result = &GameCenterLeaderboardSetsResponse{Links: Links{}}
+	case *GameCenterLeaderboardSetVersionsResponse:
+		result = &GameCenterLeaderboardSetVersionsResponse{Links: Links{}}
 	case *GameCenterAchievementLocalizationsResponse:
 		result = &GameCenterAchievementLocalizationsResponse{Links: Links{}}
 	case *GameCenterLeaderboardLocalizationsResponse:
@@ -304,6 +314,12 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &GameCenterActivityVersionReleasesResponse{Links: Links{}}
 	case *GameCenterGroupsResponse:
 		result = &GameCenterGroupsResponse{Links: Links{}}
+	case *GameCenterAppVersionsResponse:
+		result = &GameCenterAppVersionsResponse{Links: Links{}}
+	case *GameCenterDetailsResponse:
+		result = &GameCenterDetailsResponse{Links: Links{}}
+	case *GameCenterEnabledVersionsResponse:
+		result = &GameCenterEnabledVersionsResponse{Links: Links{}}
 	case *GameCenterMatchmakingQueuesResponse:
 		result = &GameCenterMatchmakingQueuesResponse{Links: Links{}}
 	case *GameCenterMatchmakingRuleSetsResponse:
@@ -400,6 +416,8 @@ func typeOf(p PaginatedResponse) string {
 		return "CrashesResponse"
 	case *ReviewsResponse:
 		return "ReviewsResponse"
+	case *CustomerReviewSummarizationsResponse:
+		return "CustomerReviewSummarizationsResponse"
 	case *AppsResponse:
 		return "AppsResponse"
 	case *AppClipsResponse:
@@ -510,6 +528,8 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaAppLocalizationsResponse"
 	case *BetaBuildLocalizationsResponse:
 		return "BetaBuildLocalizationsResponse"
+	case *BetaLicenseAgreementsResponse:
+		return "BetaLicenseAgreementsResponse"
 	case *AppInfoLocalizationsResponse:
 		return "AppInfoLocalizationsResponse"
 	case *InAppPurchaseLocalizationsResponse:

@@ -29,6 +29,7 @@ Examples:
   asc background-assets create --app "APP_ID" --asset-pack-identifier "com.example.assetpack"
   asc background-assets update --id "ASSET_ID" --archived true
   asc background-assets versions list --background-asset-id "ASSET_ID"
+  asc background-assets app-store-releases get --id "RELEASE_ID"
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
@@ -38,6 +39,9 @@ Examples:
 			BackgroundAssetsCreateCommand(),
 			BackgroundAssetsUpdateCommand(),
 			BackgroundAssetsVersionsCommand(),
+			BackgroundAssetsAppStoreReleasesCommand(),
+			BackgroundAssetsExternalBetaReleasesCommand(),
+			BackgroundAssetsInternalBetaReleasesCommand(),
 			BackgroundAssetsUploadFilesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {

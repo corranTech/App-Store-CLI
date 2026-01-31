@@ -152,6 +152,9 @@ type DevicesOption func(*devicesQuery)
 // ProfilesOption is a functional option for GetProfiles.
 type ProfilesOption func(*profilesQuery)
 
+// BundleIDProfilesOption is a functional option for GetBundleIDProfiles.
+type BundleIDProfilesOption func(*bundleIDProfilesQuery)
+
 // UsersOption is a functional option for GetUsers.
 type UsersOption func(*usersQuery)
 
@@ -163,6 +166,9 @@ type ProfileDevicesOption func(*profileDevicesQuery)
 
 // UserVisibleAppsOption is a functional option for GetUserVisibleApps.
 type UserVisibleAppsOption func(*userVisibleAppsQuery)
+
+// UserInvitationVisibleAppsOption is a functional option for GetUserInvitationVisibleApps.
+type UserInvitationVisibleAppsOption func(*userInvitationVisibleAppsQuery)
 
 // ActorsOption is a functional option for GetActors.
 type ActorsOption func(*actorsQuery)
@@ -224,6 +230,12 @@ type AppStoreVersionLocalizationPreviewSetsOption func(*appStoreVersionLocalizat
 // AppStoreVersionLocalizationScreenshotSetsOption is a functional option for app store version screenshot sets list endpoints.
 type AppStoreVersionLocalizationScreenshotSetsOption func(*appStoreVersionLocalizationScreenshotSetsQuery)
 
+// AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption is a functional option for treatment localization preview set list endpoints.
+type AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption func(*appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery)
+
+// AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption is a functional option for treatment localization screenshot set list endpoints.
+type AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption func(*appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery)
+
 // AppStoreVersionExperimentsOption is a functional option for app store version experiment list endpoints (v1).
 type AppStoreVersionExperimentsOption func(*appStoreVersionExperimentsQuery)
 
@@ -238,6 +250,9 @@ type AppStoreVersionExperimentTreatmentLocalizationsOption func(*appStoreVersion
 
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
+
+// EndUserLicenseAgreementTerritoriesOption is a functional option for EULA territory lists.
+type EndUserLicenseAgreementTerritoriesOption func(*endUserLicenseAgreementTerritoriesQuery)
 
 // AndroidToIosAppMappingDetailsOption is a functional option for Android-to-iOS mappings.
 type AndroidToIosAppMappingDetailsOption func(*androidToIosAppMappingDetailsQuery)
@@ -1870,6 +1885,24 @@ func WithBundleIDsNextURL(next string) BundleIDsOption {
 	}
 }
 
+// WithBundleIDProfilesLimit sets the max number of bundle ID profiles to return.
+func WithBundleIDProfilesLimit(limit int) BundleIDProfilesOption {
+	return func(q *bundleIDProfilesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBundleIDProfilesNextURL uses a next page URL directly.
+func WithBundleIDProfilesNextURL(next string) BundleIDProfilesOption {
+	return func(q *bundleIDProfilesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithBundleIDsFilterIdentifier filters bundle IDs by identifier (supports CSV).
 func WithBundleIDsFilterIdentifier(identifier string) BundleIDsOption {
 	return func(q *bundleIDsQuery) {
@@ -2462,6 +2495,24 @@ func WithUserVisibleAppsNextURL(next string) UserVisibleAppsOption {
 	}
 }
 
+// WithUserInvitationVisibleAppsLimit sets the max number of invitation-visible apps to return.
+func WithUserInvitationVisibleAppsLimit(limit int) UserInvitationVisibleAppsOption {
+	return func(q *userInvitationVisibleAppsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithUserInvitationVisibleAppsNextURL uses a next page URL directly.
+func WithUserInvitationVisibleAppsNextURL(next string) UserInvitationVisibleAppsOption {
+	return func(q *userInvitationVisibleAppsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithActorsLimit sets the max number of actors to return.
 func WithActorsLimit(limit int) ActorsOption {
 	return func(q *actorsQuery) {
@@ -2869,6 +2920,24 @@ func WithTerritoriesFields(fields []string) TerritoriesOption {
 	}
 }
 
+// WithEndUserLicenseAgreementTerritoriesLimit sets the max number of territories to return.
+func WithEndUserLicenseAgreementTerritoriesLimit(limit int) EndUserLicenseAgreementTerritoriesOption {
+	return func(q *endUserLicenseAgreementTerritoriesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithEndUserLicenseAgreementTerritoriesNextURL uses a next page URL directly.
+func WithEndUserLicenseAgreementTerritoriesNextURL(next string) EndUserLicenseAgreementTerritoriesOption {
+	return func(q *endUserLicenseAgreementTerritoriesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithAndroidToIosAppMappingDetailsLimit sets the max number of mappings to return.
 func WithAndroidToIosAppMappingDetailsLimit(limit int) AndroidToIosAppMappingDetailsOption {
 	return func(q *androidToIosAppMappingDetailsQuery) {
@@ -3139,6 +3208,42 @@ func WithAppStoreVersionLocalizationScreenshotSetsLimit(limit int) AppStoreVersi
 // WithAppStoreVersionLocalizationScreenshotSetsNextURL uses a next page URL directly.
 func WithAppStoreVersionLocalizationScreenshotSetsNextURL(next string) AppStoreVersionLocalizationScreenshotSetsOption {
 	return func(q *appStoreVersionLocalizationScreenshotSetsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit sets the max number of preview sets to return.
+func WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL uses a next page URL directly.
+func WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL(next string) AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit sets the max number of screenshot sets to return.
+func WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsNextURL uses a next page URL directly.
+func WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsNextURL(next string) AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption {
+	return func(q *appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}

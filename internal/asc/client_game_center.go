@@ -71,6 +71,22 @@ func (c *Client) GetGameCenterAchievement(ctx context.Context, achievementID str
 	return &response, nil
 }
 
+// GetGameCenterAchievementGroupAchievement retrieves the group achievement for an achievement.
+func (c *Client) GetGameCenterAchievementGroupAchievement(ctx context.Context, achievementID string) (*GameCenterAchievementResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterAchievements/%s/groupAchievement", strings.TrimSpace(achievementID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterAchievementResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterAchievement creates a new Game Center achievement.
 func (c *Client) CreateGameCenterAchievement(ctx context.Context, gcDetailID string, attrs GameCenterAchievementCreateAttributes) (*GameCenterAchievementResponse, error) {
 	payload := GameCenterAchievementCreateRequest{
@@ -175,6 +191,22 @@ func (c *Client) GetGameCenterLeaderboards(ctx context.Context, gcDetailID strin
 // GetGameCenterLeaderboard retrieves a Game Center leaderboard by ID.
 func (c *Client) GetGameCenterLeaderboard(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardResponse, error) {
 	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterLeaderboardGroupLeaderboard retrieves the group leaderboard for a leaderboard.
+func (c *Client) GetGameCenterLeaderboardGroupLeaderboard(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboards/%s/groupLeaderboard", strings.TrimSpace(leaderboardID))
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -305,6 +337,22 @@ func (c *Client) GetGameCenterLeaderboardSet(ctx context.Context, setID string) 
 	return &response, nil
 }
 
+// GetGameCenterLeaderboardSetGroupLeaderboardSet retrieves the group leaderboard set for a leaderboard set.
+func (c *Client) GetGameCenterLeaderboardSetGroupLeaderboardSet(ctx context.Context, setID string) (*GameCenterLeaderboardSetResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/groupLeaderboardSet", strings.TrimSpace(setID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardSetResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterLeaderboardSet creates a new Game Center leaderboard set.
 func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID string, attrs GameCenterLeaderboardSetCreateAttributes) (*GameCenterLeaderboardSetResponse, error) {
 	payload := GameCenterLeaderboardSetCreateRequest{
@@ -415,6 +463,22 @@ func (c *Client) GetGameCenterLeaderboardLocalization(ctx context.Context, local
 	}
 
 	var response GameCenterLeaderboardLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterLeaderboardLocalizationImage retrieves the image for a leaderboard localization.
+func (c *Client) GetGameCenterLeaderboardLocalizationImage(ctx context.Context, localizationID string) (*GameCenterLeaderboardImageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardLocalizations/%s/gameCenterLeaderboardImage", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardImageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -849,6 +913,22 @@ func (c *Client) GetGameCenterLeaderboardSetLocalization(ctx context.Context, lo
 	return &response, nil
 }
 
+// GetGameCenterLeaderboardSetLocalizationImage retrieves the image for a leaderboard set localization.
+func (c *Client) GetGameCenterLeaderboardSetLocalizationImage(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetImageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetLocalizations/%s/gameCenterLeaderboardSetImage", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardSetImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterLeaderboardSetLocalization creates a new Game Center leaderboard set localization.
 func (c *Client) CreateGameCenterLeaderboardSetLocalization(ctx context.Context, setID string, attrs GameCenterLeaderboardSetLocalizationCreateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
 	payload := GameCenterLeaderboardSetLocalizationCreateRequest{
@@ -959,6 +1039,38 @@ func (c *Client) GetGameCenterAchievementLocalization(ctx context.Context, local
 	}
 
 	var response GameCenterAchievementLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterAchievementLocalizationAchievement retrieves the achievement for a localization.
+func (c *Client) GetGameCenterAchievementLocalizationAchievement(ctx context.Context, localizationID string) (*GameCenterAchievementResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s/gameCenterAchievement", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterAchievementResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterAchievementLocalizationImage retrieves the image for a localization.
+func (c *Client) GetGameCenterAchievementLocalizationImage(ctx context.Context, localizationID string) (*GameCenterAchievementImageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s/gameCenterAchievementImage", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterAchievementImageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

@@ -143,6 +143,27 @@ func (c *Client) GetAppBetaAppReviewDetail(ctx context.Context, appID string) (*
 	return &response, nil
 }
 
+// GetAppSubscriptionGracePeriod retrieves the subscription grace period for an app.
+func (c *Client) GetAppSubscriptionGracePeriod(ctx context.Context, appID string) (*SubscriptionGracePeriodResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/subscriptionGracePeriod", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionGracePeriodResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetAppBetaTesterUsagesMetrics retrieves beta tester usage metrics for an app.
 func (c *Client) GetAppBetaTesterUsagesMetrics(ctx context.Context, appID string, opts ...BetaTesterUsagesOption) (*BetaTesterUsagesResponse, error) {
 	query := &betaTesterUsagesQuery{}
@@ -308,4 +329,21 @@ func (c *Client) SetAppSearchKeywords(ctx context.Context, appID string, keyword
 	path := fmt.Sprintf("/v1/apps/%s/relationships/searchKeywords", appID)
 	_, err = c.do(ctx, "PATCH", path, body)
 	return err
+}
+
+// GetAppCiProduct retrieves the CI product for an app.
+func (c *Client) GetAppCiProduct(ctx context.Context, appID string) (*CiProductResponse, error) {
+	appID = strings.TrimSpace(appID)
+	path := fmt.Sprintf("/v1/apps/%s/ciProduct", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CiProductResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
 }

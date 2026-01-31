@@ -234,6 +234,35 @@ func TestExtractUserIDFromNextURL_Invalid(t *testing.T) {
 	}
 }
 
+func TestExtractUserInvitationIDFromNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/userInvitations/invite-123/visibleApps?cursor=abc"
+	got, err := extractUserInvitationIDFromNextURL(next)
+	if err != nil {
+		t.Fatalf("extractUserInvitationIDFromNextURL() error: %v", err)
+	}
+	if got != "invite-123" {
+		t.Fatalf("expected invite-123, got %q", got)
+	}
+}
+
+func TestExtractUserInvitationIDFromNextURLRelationships(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/userInvitations/invite-123/relationships/visibleApps?cursor=abc"
+	got, err := extractUserInvitationIDFromNextURL(next)
+	if err != nil {
+		t.Fatalf("extractUserInvitationIDFromNextURL() error: %v", err)
+	}
+	if got != "invite-123" {
+		t.Fatalf("expected invite-123, got %q", got)
+	}
+}
+
+func TestExtractUserInvitationIDFromNextURL_Invalid(t *testing.T) {
+	_, err := extractUserInvitationIDFromNextURL("https://api.appstoreconnect.apple.com/v1/userInvitations")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
 func TestUsersCommands_DefaultOutputJSON(t *testing.T) {
 	commands := []*struct {
 		name string
@@ -247,6 +276,7 @@ func TestUsersCommands_DefaultOutputJSON(t *testing.T) {
 		{"invites list", UsersInvitesListCommand},
 		{"invites get", UsersInvitesGetCommand},
 		{"invites revoke", UsersInvitesRevokeCommand},
+		{"invites visible-apps list", UsersInvitesVisibleAppsListCommand},
 		{"visible-apps list", UsersVisibleAppsListCommand},
 		{"visible-apps get", UsersVisibleAppsGetCommand},
 	}

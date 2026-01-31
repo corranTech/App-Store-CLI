@@ -1,0 +1,345 @@
+package gamecenter
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+)
+
+// GameCenterAppVersionsCommand returns the app versions command group.
+func GameCenterAppVersionsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app-versions", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "app-versions",
+		ShortUsage: "asc game-center app-versions <subcommand> [flags]",
+		ShortHelp:  "Manage Game Center app versions.",
+		LongHelp: `Manage Game Center app versions.
+
+Examples:
+  asc game-center app-versions list --app "APP_ID"
+  asc game-center app-versions get --id "GC_APP_VERSION_ID"
+  asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"
+  asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterAppVersionsListCommand(),
+			GameCenterAppVersionsGetCommand(),
+			GameCenterAppVersionCompatibilityCommand(),
+			GameCenterAppVersionAppStoreVersionCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterAppVersionsListCommand returns the app versions list subcommand.
+func GameCenterAppVersionsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center app-versions list [flags]",
+		ShortHelp:  "List Game Center app versions.",
+		LongHelp: `List Game Center app versions.
+
+Examples:
+  asc game-center app-versions list --app "APP_ID"
+  asc game-center app-versions list --app "APP_ID" --limit 50
+  asc game-center app-versions list --app "APP_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center app-versions list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center app-versions list: %w", err)
+			}
+
+			resolvedAppID := resolveAppID(*appID)
+			nextURL := strings.TrimSpace(*next)
+			if resolvedAppID == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center app-versions list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			detailID := ""
+			if nextURL == "" {
+				var err error
+				detailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("game-center app-versions list: failed to get Game Center detail: %w", err)
+				}
+			}
+
+			opts := []asc.GCAppVersionsOption{
+				asc.WithGCAppVersionsLimit(*limit),
+				asc.WithGCAppVersionsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := []asc.GCAppVersionsOption{asc.WithGCAppVersionsNextURL(*next)}
+				if nextURL == "" {
+					paginateOpts = []asc.GCAppVersionsOption{asc.WithGCAppVersionsLimit(200)}
+				}
+				firstPage, err := client.GetGameCenterDetailGameCenterAppVersions(requestCtx, detailID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center app-versions list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.WithGCAppVersionsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center app-versions list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterDetailGameCenterAppVersions(requestCtx, detailID, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center app-versions list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAppVersionsGetCommand returns the app versions get subcommand.
+func GameCenterAppVersionsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	appVersionID := fs.String("id", "", "Game Center app version ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center app-versions get --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "Get a Game Center app version by ID.",
+		LongHelp: `Get a Game Center app version by ID.
+
+Examples:
+  asc game-center app-versions get --id "GC_APP_VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*appVersionID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center app-versions get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterAppVersion(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center app-versions get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAppVersionCompatibilityCommand returns the compatibility command group.
+func GameCenterAppVersionCompatibilityCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("compatibility", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "compatibility",
+		ShortUsage: "asc game-center app-versions compatibility list --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "List compatible Game Center app versions.",
+		LongHelp: `List compatible Game Center app versions.
+
+Examples:
+  asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterAppVersionCompatibilityListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterAppVersionCompatibilityListCommand returns the compatibility list subcommand.
+func GameCenterAppVersionCompatibilityListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	appVersionID := fs.String("id", "", "Game Center app version ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center app-versions compatibility list --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "List compatible Game Center app versions.",
+		LongHelp: `List compatible Game Center app versions.
+
+Examples:
+  asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"
+  asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID" --limit 50
+  asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center app-versions compatibility list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center app-versions compatibility list: %w", err)
+			}
+
+			id := strings.TrimSpace(*appVersionID)
+			nextURL := strings.TrimSpace(*next)
+			if id == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center app-versions compatibility list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCAppVersionsOption{
+				asc.WithGCAppVersionsLimit(*limit),
+				asc.WithGCAppVersionsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := []asc.GCAppVersionsOption{asc.WithGCAppVersionsNextURL(*next)}
+				if nextURL == "" {
+					paginateOpts = []asc.GCAppVersionsOption{asc.WithGCAppVersionsLimit(200)}
+				}
+				firstPage, err := client.GetGameCenterAppVersionCompatibilityVersions(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center app-versions compatibility list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.WithGCAppVersionsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center app-versions compatibility list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterAppVersionCompatibilityVersions(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center app-versions compatibility list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAppVersionAppStoreVersionCommand returns the app store version command group.
+func GameCenterAppVersionAppStoreVersionCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app-store-version", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "app-store-version",
+		ShortUsage: "asc game-center app-versions app-store-version get --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "Get the App Store version for a Game Center app version.",
+		LongHelp: `Get the App Store version for a Game Center app version.
+
+Examples:
+  asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterAppVersionAppStoreVersionGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterAppVersionAppStoreVersionGetCommand returns the app store version get subcommand.
+func GameCenterAppVersionAppStoreVersionGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	appVersionID := fs.String("id", "", "Game Center app version ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc game-center app-versions app-store-version get --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "Get the App Store version for a Game Center app version.",
+		LongHelp: `Get the App Store version for a Game Center app version.
+
+Examples:
+  asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*appVersionID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center app-versions app-store-version get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetGameCenterAppVersionAppStoreVersion(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center app-versions app-store-version get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}

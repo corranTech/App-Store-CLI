@@ -265,3 +265,34 @@ func (c *Client) DeleteEndUserLicenseAgreement(ctx context.Context, id string) e
 	_, err := c.do(ctx, "DELETE", path, nil)
 	return err
 }
+
+// GetEndUserLicenseAgreementTerritories retrieves territories for an EULA.
+func (c *Client) GetEndUserLicenseAgreementTerritories(ctx context.Context, id string, opts ...EndUserLicenseAgreementTerritoriesOption) (*TerritoriesResponse, error) {
+	id = strings.TrimSpace(id)
+	query := &endUserLicenseAgreementTerritoriesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/endUserLicenseAgreements/%s/territories", id)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("endUserLicenseAgreementTerritories: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildEndUserLicenseAgreementTerritoriesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response TerritoriesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
