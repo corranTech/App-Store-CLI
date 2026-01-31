@@ -58,6 +58,30 @@ func TestSanitizeURLForLog_RedactsTokenQuery(t *testing.T) {
 	}
 }
 
+func TestSanitizeURLForLog_EmptySignatureDoesNotRedactAll(t *testing.T) {
+	rawURL := "https://example.com/path?X-Amz-Signature=&foo=bar"
+	got := sanitizeURLForLog(rawURL)
+
+	if !strings.Contains(got, "foo=bar") {
+		t.Fatalf("expected non-sensitive values to remain, got %q", got)
+	}
+	if !strings.Contains(got, "REDACTED") {
+		t.Fatalf("expected signature to be redacted, got %q", got)
+	}
+}
+
+func TestSanitizeURLForLog_RedactsUserInfo(t *testing.T) {
+	rawURL := "https://user:pass@example.com/path"
+	got := sanitizeURLForLog(rawURL)
+
+	if strings.Contains(got, "user:pass") {
+		t.Fatalf("expected userinfo to be redacted, got %q", got)
+	}
+	if !strings.Contains(got, "REDACTED") {
+		t.Fatalf("expected redacted placeholder in %q", got)
+	}
+}
+
 func TestDebugLoggingRedactsSignedQuery(t *testing.T) {
 	var buf bytes.Buffer
 	originalLogger := debugLogger
