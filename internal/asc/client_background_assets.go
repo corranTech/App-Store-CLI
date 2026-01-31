@@ -363,3 +363,24 @@ func (c *Client) UpdateBackgroundAssetUploadFile(ctx context.Context, uploadFile
 
 	return &response, nil
 }
+
+// GetBackgroundAssetVersionAppStoreRelease retrieves an App Store release by ID.
+func (c *Client) GetBackgroundAssetVersionAppStoreRelease(ctx context.Context, releaseID string) (*BackgroundAssetVersionAppStoreReleaseResponse, error) {
+	_ = ctx
+	_ = releaseID
+	return nil, fmt.Errorf("GetBackgroundAssetVersionAppStoreRelease not implemented")
+}
+
+// GetBackgroundAssetVersionExternalBetaRelease retrieves an external beta release by ID.
+func (c *Client) GetBackgroundAssetVersionExternalBetaRelease(ctx context.Context, releaseID string) (*BackgroundAssetVersionExternalBetaReleaseResponse, error) {
+	_ = ctx
+	_ = releaseID
+	return nil, fmt.Errorf("GetBackgroundAssetVersionExternalBetaRelease not implemented")
+}
+
+// GetBackgroundAssetVersionInternalBetaRelease retrieves an internal beta release by ID.
+func (c *Client) GetBackgroundAssetVersionInternalBetaRelease(ctx context.Context, releaseID string) (*BackgroundAssetVersionInternalBetaReleaseResponse, error) {
+	_ = ctx
+	_ = releaseID
+	return nil, fmt.Errorf("GetBackgroundAssetVersionInternalBetaRelease not implemented")
+}

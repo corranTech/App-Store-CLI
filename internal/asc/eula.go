@@ -265,3 +265,11 @@ func (c *Client) DeleteEndUserLicenseAgreement(ctx context.Context, id string) e
 	_, err := c.do(ctx, "DELETE", path, nil)
 	return err
 }
+
+// GetEndUserLicenseAgreementTerritories retrieves territories for an EULA.
+func (c *Client) GetEndUserLicenseAgreementTerritories(ctx context.Context, id string, opts ...EndUserLicenseAgreementTerritoriesOption) (*TerritoriesResponse, error) {
+	_ = ctx
+	_ = id
+	_ = opts
+	return nil, fmt.Errorf("GetEndUserLicenseAgreementTerritories not implemented")
+}

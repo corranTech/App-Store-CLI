@@ -187,3 +187,10 @@ func (c *Client) SetAppSearchKeywords(ctx context.Context, appID string, keyword
 	_, err = c.do(ctx, "PATCH", path, body)
 	return err
 }
+
+// GetAppCiProduct retrieves the CI product for an app.
+func (c *Client) GetAppCiProduct(ctx context.Context, appID string) (*CiProductResponse, error) {
+	_ = ctx
+	_ = appID
+	return nil, fmt.Errorf("GetAppCiProduct not implemented")
+}
