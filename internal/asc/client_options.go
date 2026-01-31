@@ -2696,6 +2696,13 @@ func WithBetaRecruitmentCriterionOptionsLimit(limit int) BetaRecruitmentCriterio
 	}
 }
 
+// WithBetaRecruitmentCriterionOptionsFields sets fields for criterion options.
+func WithBetaRecruitmentCriterionOptionsFields(fields []string) BetaRecruitmentCriterionOptionsOption {
+	return func(q *betaRecruitmentCriterionOptionsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
 // WithBetaRecruitmentCriterionOptionsNextURL uses a next page URL directly.
 func WithBetaRecruitmentCriterionOptionsNextURL(next string) BetaRecruitmentCriterionOptionsOption {
 	return func(q *betaRecruitmentCriterionOptionsQuery) {

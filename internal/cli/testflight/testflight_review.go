@@ -665,7 +665,7 @@ func TestFlightRecruitmentCommand() *ffcli.Command {
 
 Examples:
   asc testflight recruitment options
-  asc testflight recruitment set --group "GROUP_ID" --criteria-id "OPTION_ID"`,
+  asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -686,6 +686,7 @@ func TestFlightRecruitmentOptionsCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	fields := fs.String("fields", "deviceFamilyOsVersions", "Fields to include: deviceFamilyOsVersions")
 
 	return &ffcli.Command{
 		Name:       "options",
@@ -705,6 +706,11 @@ Examples:
 				return fmt.Errorf("testflight recruitment options: %w", err)
 			}
 
+			fieldsValue, err := normalizeBetaRecruitmentCriterionOptionsFields(*fields)
+			if err != nil {
+				return fmt.Errorf("testflight recruitment options: %w", err)
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight recruitment options: %w", err)
@@ -714,6 +720,7 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaRecruitmentCriterionOptionsOption{
+				asc.WithBetaRecruitmentCriterionOptionsFields(fieldsValue),
 				asc.WithBetaRecruitmentCriterionOptionsLimit(*limit),
 				asc.WithBetaRecruitmentCriterionOptionsNextURL(*next),
 			}
@@ -733,18 +740,18 @@ func TestFlightRecruitmentSetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("set", flag.ExitOnError)
 
 	groupID := fs.String("group", "", "Beta group ID")
-	criteriaID := fs.String("criteria-id", "", "Comma-separated criteria option IDs")
+	filters := fs.String("os-version-filter", "", "Device family OS filters (e.g., IPHONE=26,IPAD=26)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "set",
-		ShortUsage: "asc testflight recruitment set --group GROUP_ID --criteria-id OPTION_ID[,OPTION_ID...]",
+		ShortUsage: "asc testflight recruitment set --group GROUP_ID --os-version-filter FILTERS",
 		ShortHelp:  "Set beta recruitment criteria for a group.",
 		LongHelp: `Set beta recruitment criteria for a group.
 
 Examples:
-  asc testflight recruitment set --group "GROUP_ID" --criteria-id "OPTION_ID"`,
+  asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -754,9 +761,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			optionIDs := parseCommaSeparatedIDs(*criteriaID)
-			if len(optionIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --criteria-id is required")
+			filterValues, err := parseDeviceFamilyOsVersionFilters(*filters)
+			if err != nil {
+				return fmt.Errorf("testflight recruitment set: %w", err)
+			}
+			if len(filterValues) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --os-version-filter is required")
 				return flag.ErrHelp
 			}
 
@@ -768,13 +778,108 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			criteria, err := client.CreateBetaRecruitmentCriteria(requestCtx, trimmedGroupID, optionIDs)
-			if err != nil {
-				return fmt.Errorf("testflight recruitment set: failed to set: %w", err)
+			existing, err := client.GetBetaGroupBetaRecruitmentCriteria(requestCtx, trimmedGroupID)
+			if err == nil {
+				criteriaID := strings.TrimSpace(existing.Data.ID)
+				if criteriaID == "" {
+					return fmt.Errorf("testflight recruitment set: criteria id is empty")
+				}
+				criteria, err := client.UpdateBetaRecruitmentCriteria(requestCtx, criteriaID, filterValues)
+				if err != nil {
+					return fmt.Errorf("testflight recruitment set: failed to update: %w", err)
+				}
+				return printOutput(criteria, *output, *pretty)
+			}
+
+			criteria, createErr := client.CreateBetaRecruitmentCriteria(requestCtx, trimmedGroupID, filterValues)
+			if createErr != nil {
+				return fmt.Errorf("testflight recruitment set: failed to set: %w", createErr)
 			}
 
 			return printOutput(criteria, *output, *pretty)
 		},
+	}
+}
+
+func normalizeBetaRecruitmentCriterionOptionsFields(value string) ([]string, error) {
+	fields := splitCSV(value)
+	if len(fields) == 0 {
+		return nil, nil
+	}
+
+	allowed := map[string]struct{}{
+		"deviceFamilyOsVersions": {},
+	}
+	for _, field := range fields {
+		if _, ok := allowed[field]; !ok {
+			return nil, fmt.Errorf("--fields must be one of: deviceFamilyOsVersions")
+		}
+	}
+	return fields, nil
+}
+
+func parseDeviceFamilyOsVersionFilters(value string) ([]asc.DeviceFamilyOsVersionFilter, error) {
+	entries := splitCSV(value)
+	if len(entries) == 0 {
+		return nil, nil
+	}
+
+	filters := make([]asc.DeviceFamilyOsVersionFilter, 0, len(entries))
+	for _, entry := range entries {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("--os-version-filter must use DEVICE_FAMILY=MIN_OS (e.g., IPHONE=26)")
+		}
+		familyValue := strings.TrimSpace(parts[0])
+		versionValue := strings.TrimSpace(parts[1])
+		if familyValue == "" || versionValue == "" {
+			return nil, fmt.Errorf("--os-version-filter must use DEVICE_FAMILY=MIN_OS (e.g., IPHONE=26)")
+		}
+
+		family, err := normalizeBetaRecruitmentDeviceFamily(familyValue)
+		if err != nil {
+			return nil, err
+		}
+
+		minVersion := versionValue
+		maxVersion := ""
+		if strings.Contains(versionValue, "..") {
+			rangeParts := strings.SplitN(versionValue, "..", 2)
+			minVersion = strings.TrimSpace(rangeParts[0])
+			maxVersion = strings.TrimSpace(rangeParts[1])
+			if minVersion == "" || maxVersion == "" {
+				return nil, fmt.Errorf("--os-version-filter must use DEVICE_FAMILY=MIN_OS[..MAX_OS]")
+			}
+		}
+
+		filters = append(filters, asc.DeviceFamilyOsVersionFilter{
+			DeviceFamily:       family,
+			MinimumOsInclusive: minVersion,
+			MaximumOsInclusive: maxVersion,
+		})
+	}
+
+	return filters, nil
+}
+
+func normalizeBetaRecruitmentDeviceFamily(value string) (asc.DeviceFamily, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	for _, family := range betaRecruitmentDeviceFamilyList() {
+		if normalized == family {
+			return asc.DeviceFamily(normalized), nil
+		}
+	}
+	return "", fmt.Errorf("--os-version-filter device family must be one of: %s", strings.Join(betaRecruitmentDeviceFamilyList(), ", "))
+}
+
+func betaRecruitmentDeviceFamilyList() []string {
+	return []string{
+		string(asc.DeviceFamilyIPhone),
+		string(asc.DeviceFamilyIPad),
+		string(asc.DeviceFamilyMac),
+		string(asc.DeviceFamilyVision),
+		string(asc.DeviceFamilyAppleTV),
+		string(asc.DeviceFamilyAppleWatch),
 	}
 }
 

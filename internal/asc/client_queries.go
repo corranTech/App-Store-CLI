@@ -555,6 +555,7 @@ type buildBetaDetailsQuery struct {
 
 type betaRecruitmentCriterionOptionsQuery struct {
 	listQuery
+	fields []string
 }
 
 func buildReviewQuery(opts []ReviewOption) string {
@@ -1094,6 +1095,7 @@ func buildBetaAppClipInvocationsQuery(query *betaAppClipInvocationsQuery) string
 
 func buildBetaRecruitmentCriterionOptionsQuery(query *betaRecruitmentCriterionOptionsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[betaRecruitmentCriterionOptions]", query.fields)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
