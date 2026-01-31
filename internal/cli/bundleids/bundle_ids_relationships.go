@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -135,6 +136,13 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("bundle-ids profiles list: %w", err)
 			}
+			if idValue == "" && strings.TrimSpace(*next) != "" {
+				derivedID, err := extractBundleIDFromNextURL(*next)
+				if err != nil {
+					return fmt.Errorf("bundle-ids profiles list: %w", err)
+				}
+				idValue = derivedID
+			}
 
 			client, err := getASCClient()
 			if err != nil {
@@ -178,4 +186,25 @@ Examples:
 			return printOutput(resp, *output, *pretty)
 		},
 	}
+}
+
+func extractBundleIDFromNextURL(nextURL string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(nextURL))
+	if err != nil {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) < 4 || parts[0] != "v1" || parts[1] != "bundleIds" {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	if strings.TrimSpace(parts[2]) == "" {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	if parts[3] == "profiles" {
+		return parts[2], nil
+	}
+	if len(parts) >= 5 && parts[3] == "relationships" && parts[4] == "profiles" {
+		return parts[2], nil
+	}
+	return "", fmt.Errorf("invalid --next URL")
 }
