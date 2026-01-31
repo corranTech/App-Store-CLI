@@ -45,9 +45,30 @@ var retryLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 	},
 }))
 
+var debugLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+	Level: slog.LevelInfo,
+	ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
+		if attr.Key == slog.TimeKey {
+			return slog.Attr{}
+		}
+		return attr
+	},
+}))
+
 var retryLogOverride struct {
 	mu  sync.RWMutex
 	val *bool
+}
+
+var debugOverride struct {
+	mu          sync.RWMutex
+	enabled     *bool
+	verboseHTTP *bool
+}
+
+type debugSettings struct {
+	enabled     bool
+	verboseHTTP bool
 }
 
 // SetRetryLogOverride sets an explicit retry-log override.
@@ -56,6 +77,22 @@ func SetRetryLogOverride(value *bool) {
 	retryLogOverride.mu.Lock()
 	defer retryLogOverride.mu.Unlock()
 	retryLogOverride.val = value
+}
+
+// SetDebugOverride sets an explicit debug override.
+// When set, it takes precedence over env/config. When unset (nil), behavior falls back to env/config.
+func SetDebugOverride(value *bool) {
+	debugOverride.mu.Lock()
+	defer debugOverride.mu.Unlock()
+	debugOverride.enabled = value
+}
+
+// SetDebugHTTPOverride sets an explicit HTTP-debug override.
+// When set, it takes precedence over env/config for HTTP logging only.
+func SetDebugHTTPOverride(value *bool) {
+	debugOverride.mu.Lock()
+	defer debugOverride.mu.Unlock()
+	debugOverride.verboseHTTP = value
 }
 
 // ResolveRetryLogEnabled returns whether retry logging should be enabled.
@@ -75,6 +112,64 @@ func ResolveRetryLogEnabled() bool {
 		return false
 	}
 	return strings.TrimSpace(cfg.RetryLog) != ""
+}
+
+// ResolveDebugEnabled returns whether debug logging should be enabled.
+// Precedence: explicit override > env > config.
+func ResolveDebugEnabled() bool {
+	return resolveDebugSettings().enabled
+}
+
+func resolveDebugSettings() debugSettings {
+	settings := debugSettings{}
+	if value, ok := envValue("ASC_DEBUG"); ok {
+		settings = resolveDebugValue(value)
+	} else {
+		cfg := loadConfig()
+		if cfg != nil {
+			settings = resolveDebugValue(cfg.Debug)
+		}
+	}
+
+	debugOverride.mu.RLock()
+	enabledOverride := debugOverride.enabled
+	verboseOverride := debugOverride.verboseHTTP
+	debugOverride.mu.RUnlock()
+
+	if verboseOverride != nil {
+		settings.verboseHTTP = *verboseOverride
+		if *verboseOverride {
+			settings.enabled = true
+		}
+	}
+
+	if enabledOverride != nil {
+		if !*enabledOverride {
+			return debugSettings{}
+		}
+		settings.enabled = true
+		if verboseOverride == nil {
+			settings.verboseHTTP = false
+		}
+	}
+
+	return settings
+}
+
+func resolveDebugValue(value string) debugSettings {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return debugSettings{}
+	}
+	normalized := strings.ToLower(trimmed)
+	switch normalized {
+	case "0", "false", "no":
+		return debugSettings{}
+	}
+	return debugSettings{
+		enabled:     true,
+		verboseHTTP: strings.Contains(normalized, "api"),
+	}
 }
 
 func loadConfig() *config.Config {
@@ -188,6 +283,7 @@ func ResolveRetryOptions() RetryOptions {
 // It uses exponential backoff with jitter and respects Retry-After headers.
 func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptions) (T, error) {
 	var zero T
+	debugEnabled := ResolveDebugEnabled()
 
 	// If MaxRetries is negative, use the default; if zero, fail on first error
 	if opts.MaxRetries < 0 {
@@ -243,6 +339,15 @@ func WithRetry[T any](ctx context.Context, fn func() (T, error), opts RetryOptio
 
 		if ResolveRetryLogEnabled() {
 			logRetry(delay, retryCount+1, opts.MaxRetries, err)
+		}
+
+		if debugEnabled {
+			debugLogger.Info("⟳ Retrying request",
+				"attempt", retryCount+1,
+				"max_retries", opts.MaxRetries,
+				"delay", delay.String(),
+				"error", err.Error(),
+			)
 		}
 
 		retryCount++

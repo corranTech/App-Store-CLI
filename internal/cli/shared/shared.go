@@ -61,6 +61,8 @@ var (
 	selectedProfile     string
 	strictAuth          bool
 	retryLog            OptionalBool
+	debug               OptionalBool
+	apiDebug            OptionalBool
 )
 
 var isTerminal = term.IsTerminal
@@ -71,6 +73,8 @@ func BindRootFlags(fs *flag.FlagSet) {
 	fs.StringVar(&selectedProfile, "profile", "", "Use named authentication profile")
 	fs.BoolVar(&strictAuth, "strict-auth", false, "Fail when credentials are resolved from multiple sources")
 	fs.Var(&retryLog, "retry-log", "Enable retry logging to stderr (overrides ASC_RETRY_LOG/config when set)")
+	fs.Var(&debug, "debug", "Enable debug logging to stderr")
+	fs.Var(&apiDebug, "api-debug", "Enable HTTP debug logging to stderr (redacts sensitive values)")
 }
 
 // SelectedProfile returns the current profile override.
@@ -338,6 +342,18 @@ func getASCClient() (*asc.Client, error) {
 		asc.SetRetryLogOverride(&value)
 	} else {
 		asc.SetRetryLogOverride(nil)
+	}
+	if debug.IsSet() {
+		value := debug.Value()
+		asc.SetDebugOverride(&value)
+	} else {
+		asc.SetDebugOverride(nil)
+	}
+	if apiDebug.IsSet() {
+		value := apiDebug.Value()
+		asc.SetDebugHTTPOverride(&value)
+	} else {
+		asc.SetDebugHTTPOverride(nil)
 	}
 	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
 }

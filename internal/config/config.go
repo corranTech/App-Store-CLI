@@ -137,6 +137,7 @@ type Config struct {
 	BaseDelay            string        `json:"base_delay"`
 	MaxDelay             string        `json:"max_delay"`
 	RetryLog             string        `json:"retry_log"`
+	Debug                string        `json:"debug"`
 }
 
 // ErrNotFound is returned when the config file doesn't exist
