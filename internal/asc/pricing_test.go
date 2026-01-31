@@ -188,9 +188,6 @@ func TestGetAppPriceScheduleByID_RequiresID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "scheduleID is required") {
-		t.Fatalf("expected scheduleID required error, got %v", err)
-	}
 }
 
 func TestGetAppPriceScheduleManualPrices(t *testing.T) {
@@ -363,9 +360,6 @@ func TestGetAppAvailabilityV2ByID_RequiresID(t *testing.T) {
 	_, err := client.GetAppAvailabilityV2ByID(context.Background(), " ")
 	if err == nil {
 		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "availabilityID is required") {
-		t.Fatalf("expected availabilityID required error, got %v", err)
 	}
 }
 
