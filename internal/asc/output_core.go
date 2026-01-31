@@ -933,13 +933,10 @@ func PrintTable(data interface{}) error {
 		return printCrashesTable(v)
 	case *ReviewsResponse:
 		return printReviewsTable(v)
-<<<<<<< HEAD
 	case *CustomerReviewSummarizationsResponse:
 		return printCustomerReviewSummarizationsTable(v)
-=======
 	case *CustomerReviewResponse:
 		return printReviewsTable(&ReviewsResponse{Data: []Resource[ReviewAttributes]{v.Data}})
->>>>>>> e76abb9 (Add app clip/version review parity)
 	case *AppsResponse:
 		return printAppsTable(v)
 	case *AppClipsResponse:
