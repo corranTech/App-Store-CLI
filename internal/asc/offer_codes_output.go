@@ -43,7 +43,7 @@ func printSubscriptionOfferCodeTable(resp *SubscriptionOfferCodeResponse) error 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tCustomer Eligibilities\tOffer Eligibility\tDuration\tMode\tPeriods\tTotal Codes\tProduction Codes\tSandbox Codes\tActive\tAuto Renew")
 	attrs := resp.Data.Attributes
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%t\t%t\n",
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%t\t%s\n",
 		sanitizeTerminal(resp.Data.ID),
 		compactWhitespace(attrs.Name),
 		sanitizeTerminal(formatOfferCodeCustomerEligibilities(attrs.CustomerEligibilities)),
@@ -55,7 +55,7 @@ func printSubscriptionOfferCodeTable(resp *SubscriptionOfferCodeResponse) error 
 		attrs.ProductionCodeCount,
 		attrs.SandboxCodeCount,
 		attrs.Active,
-		attrs.AutoRenewEnabled,
+		formatOptionalBool(attrs.AutoRenewEnabled),
 	)
 	return w.Flush()
 }
@@ -64,7 +64,7 @@ func printSubscriptionOfferCodeMarkdown(resp *SubscriptionOfferCodeResponse) err
 	fmt.Fprintln(os.Stdout, "| ID | Name | Customer Eligibilities | Offer Eligibility | Duration | Mode | Periods | Total Codes | Production Codes | Sandbox Codes | Active | Auto Renew |")
 	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
 	attrs := resp.Data.Attributes
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %d | %d | %d | %d | %t | %t |\n",
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %d | %d | %d | %d | %t | %s |\n",
 		escapeMarkdown(resp.Data.ID),
 		escapeMarkdown(attrs.Name),
 		escapeMarkdown(formatOfferCodeCustomerEligibilities(attrs.CustomerEligibilities)),
@@ -76,7 +76,7 @@ func printSubscriptionOfferCodeMarkdown(resp *SubscriptionOfferCodeResponse) err
 		attrs.ProductionCodeCount,
 		attrs.SandboxCodeCount,
 		attrs.Active,
-		attrs.AutoRenewEnabled,
+		formatOptionalBool(attrs.AutoRenewEnabled),
 	)
 	return nil
 }

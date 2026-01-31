@@ -207,14 +207,6 @@ Examples:
 				return fmt.Errorf("offer-codes create: %w", err)
 			}
 
-			priceData := make([]asc.ResourceData, 0, len(prices))
-			for _, priceID := range prices {
-				priceData = append(priceData, asc.ResourceData{
-					Type: asc.ResourceTypeSubscriptionOfferCodePrices,
-					ID:   priceID,
-				})
-			}
-
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes create: %w", err)
@@ -223,31 +215,17 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			req := asc.SubscriptionOfferCodeCreateRequest{
-				Data: asc.SubscriptionOfferCodeCreateData{
-					Type: asc.ResourceTypeSubscriptionOfferCodes,
-					Attributes: asc.SubscriptionOfferCodeCreateAttributes{
-						Name:                  trimmedName,
-						CustomerEligibilities: customerEligibilityValues,
-						OfferEligibility:      offerEligibilityValue,
-						Duration:              durationValue,
-						OfferMode:             offerModeValue,
-						NumberOfPeriods:       numberOfPeriods.value,
-						AutoRenewEnabled:      autoRenewEnabledValue,
-					},
-					Relationships: asc.SubscriptionOfferCodeCreateRelationships{
-						Subscription: asc.Relationship{
-							Data: asc.ResourceData{
-								Type: asc.ResourceTypeSubscriptions,
-								ID:   subscription,
-							},
-						},
-						Prices: asc.RelationshipList{Data: priceData},
-					},
-				},
+			attrs := asc.SubscriptionOfferCodeCreateAttributes{
+				Name:                  trimmedName,
+				CustomerEligibilities: customerEligibilityValues,
+				OfferEligibility:      offerEligibilityValue,
+				Duration:              durationValue,
+				OfferMode:             offerModeValue,
+				NumberOfPeriods:       numberOfPeriods.value,
+				AutoRenewEnabled:      autoRenewEnabledValue,
 			}
 
-			resp, err := client.CreateSubscriptionOfferCode(requestCtx, req)
+			resp, err := client.CreateSubscriptionOfferCode(requestCtx, subscription, attrs, prices)
 			if err != nil {
 				return fmt.Errorf("offer-codes create: failed to create: %w", err)
 			}
