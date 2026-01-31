@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ func TestGameCenterAchievementsV2ListValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"game-center", "achievements", "v2", "list"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -27,13 +28,16 @@ func TestGameCenterAchievementsV2ListValidationErrors(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
+	if !strings.Contains(stderr, "Error: --app is required (or set ASC_APP_ID)") {
+		t.Fatalf("expected missing app error, got %q", stderr)
+	}
 }
 
 func TestGameCenterAchievementVersionsV2ListValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"game-center", "achievements", "v2", "versions", "list"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -46,32 +50,41 @@ func TestGameCenterAchievementVersionsV2ListValidationErrors(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
+	if !strings.Contains(stderr, "Error: --achievement-id is required") {
+		t.Fatalf("expected missing achievement-id error, got %q", stderr)
+	}
 }
 
 func TestGameCenterAchievementLocalizationsV2CreateValidationErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "missing version-id",
-			args: []string{"game-center", "achievements", "v2", "localizations", "create", "--locale", "en-US", "--name", "Test", "--before-earned-description", "Before", "--after-earned-description", "After"},
+			name:    "missing version-id",
+			args:    []string{"game-center", "achievements", "v2", "localizations", "create", "--locale", "en-US", "--name", "Test", "--before-earned-description", "Before", "--after-earned-description", "After"},
+			wantErr: "Error: --version-id is required",
 		},
 		{
-			name: "missing locale",
-			args: []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--name", "Test", "--before-earned-description", "Before", "--after-earned-description", "After"},
+			name:    "missing locale",
+			args:    []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--name", "Test", "--before-earned-description", "Before", "--after-earned-description", "After"},
+			wantErr: "Error: --locale is required",
 		},
 		{
-			name: "missing name",
-			args: []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US", "--before-earned-description", "Before", "--after-earned-description", "After"},
+			name:    "missing name",
+			args:    []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US", "--before-earned-description", "Before", "--after-earned-description", "After"},
+			wantErr: "Error: --name is required",
 		},
 		{
-			name: "missing before",
-			args: []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US", "--name", "Test", "--after-earned-description", "After"},
+			name:    "missing before",
+			args:    []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US", "--name", "Test", "--after-earned-description", "After"},
+			wantErr: "Error: --before-earned-description is required",
 		},
 		{
-			name: "missing after",
-			args: []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US", "--name", "Test", "--before-earned-description", "Before"},
+			name:    "missing after",
+			args:    []string{"game-center", "achievements", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US", "--name", "Test", "--before-earned-description", "Before"},
+			wantErr: "Error: --after-earned-description is required",
 		},
 	}
 
@@ -80,7 +93,7 @@ func TestGameCenterAchievementLocalizationsV2CreateValidationErrors(t *testing.T
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
-			stdout, _ := captureOutput(t, func() {
+			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse(test.args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
@@ -93,6 +106,9 @@ func TestGameCenterAchievementLocalizationsV2CreateValidationErrors(t *testing.T
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }
@@ -101,7 +117,7 @@ func TestGameCenterAchievementImagesV2GetValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"game-center", "achievements", "v2", "images", "get"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -114,20 +130,26 @@ func TestGameCenterAchievementImagesV2GetValidationErrors(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
+	if !strings.Contains(stderr, "Error: --id or --localization-id is required") {
+		t.Fatalf("expected missing id/localization error, got %q", stderr)
+	}
 }
 
 func TestGameCenterAchievementImagesV2DeleteValidationErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "missing id",
-			args: []string{"game-center", "achievements", "v2", "images", "delete", "--confirm"},
+			name:    "missing id",
+			args:    []string{"game-center", "achievements", "v2", "images", "delete", "--confirm"},
+			wantErr: "Error: --id is required",
 		},
 		{
-			name: "missing confirm",
-			args: []string{"game-center", "achievements", "v2", "images", "delete", "--id", "IMAGE_ID"},
+			name:    "missing confirm",
+			args:    []string{"game-center", "achievements", "v2", "images", "delete", "--id", "IMAGE_ID"},
+			wantErr: "Error: --confirm is required",
 		},
 	}
 
@@ -136,7 +158,7 @@ func TestGameCenterAchievementImagesV2DeleteValidationErrors(t *testing.T) {
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
-			stdout, _ := captureOutput(t, func() {
+			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse(test.args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
@@ -148,6 +170,9 @@ func TestGameCenterAchievementImagesV2DeleteValidationErrors(t *testing.T) {
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
 			}
 		})
 	}

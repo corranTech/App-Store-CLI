@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ func TestGameCenterLeaderboardsV2ListValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"game-center", "leaderboards", "v2", "list"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -27,13 +28,16 @@ func TestGameCenterLeaderboardsV2ListValidationErrors(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
+	if !strings.Contains(stderr, "Error: --app is required (or set ASC_APP_ID)") {
+		t.Fatalf("expected missing app error, got %q", stderr)
+	}
 }
 
 func TestGameCenterLeaderboardVersionsV2ListValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"game-center", "leaderboards", "v2", "versions", "list"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -46,24 +50,31 @@ func TestGameCenterLeaderboardVersionsV2ListValidationErrors(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
+	if !strings.Contains(stderr, "Error: --leaderboard-id is required") {
+		t.Fatalf("expected missing leaderboard-id error, got %q", stderr)
+	}
 }
 
 func TestGameCenterLeaderboardLocalizationsV2CreateValidationErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "missing version-id",
-			args: []string{"game-center", "leaderboards", "v2", "localizations", "create", "--locale", "en-US", "--name", "Test"},
+			name:    "missing version-id",
+			args:    []string{"game-center", "leaderboards", "v2", "localizations", "create", "--locale", "en-US", "--name", "Test"},
+			wantErr: "Error: --version-id is required",
 		},
 		{
-			name: "missing locale",
-			args: []string{"game-center", "leaderboards", "v2", "localizations", "create", "--version-id", "VER_ID", "--name", "Test"},
+			name:    "missing locale",
+			args:    []string{"game-center", "leaderboards", "v2", "localizations", "create", "--version-id", "VER_ID", "--name", "Test"},
+			wantErr: "Error: --locale is required",
 		},
 		{
-			name: "missing name",
-			args: []string{"game-center", "leaderboards", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US"},
+			name:    "missing name",
+			args:    []string{"game-center", "leaderboards", "v2", "localizations", "create", "--version-id", "VER_ID", "--locale", "en-US"},
+			wantErr: "Error: --name is required",
 		},
 	}
 
@@ -72,7 +83,7 @@ func TestGameCenterLeaderboardLocalizationsV2CreateValidationErrors(t *testing.T
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
-			stdout, _ := captureOutput(t, func() {
+			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse(test.args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
@@ -85,6 +96,9 @@ func TestGameCenterLeaderboardLocalizationsV2CreateValidationErrors(t *testing.T
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }
@@ -93,7 +107,7 @@ func TestGameCenterLeaderboardImagesV2GetValidationErrors(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"game-center", "leaderboards", "v2", "images", "get"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -106,20 +120,26 @@ func TestGameCenterLeaderboardImagesV2GetValidationErrors(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
+	if !strings.Contains(stderr, "Error: --id or --localization-id is required") {
+		t.Fatalf("expected missing id/localization error, got %q", stderr)
+	}
 }
 
 func TestGameCenterLeaderboardImagesV2DeleteValidationErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "missing id",
-			args: []string{"game-center", "leaderboards", "v2", "images", "delete", "--confirm"},
+			name:    "missing id",
+			args:    []string{"game-center", "leaderboards", "v2", "images", "delete", "--confirm"},
+			wantErr: "Error: --id is required",
 		},
 		{
-			name: "missing confirm",
-			args: []string{"game-center", "leaderboards", "v2", "images", "delete", "--id", "IMAGE_ID"},
+			name:    "missing confirm",
+			args:    []string{"game-center", "leaderboards", "v2", "images", "delete", "--id", "IMAGE_ID"},
+			wantErr: "Error: --confirm is required",
 		},
 	}
 
@@ -128,7 +148,7 @@ func TestGameCenterLeaderboardImagesV2DeleteValidationErrors(t *testing.T) {
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
-			stdout, _ := captureOutput(t, func() {
+			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse(test.args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
@@ -140,6 +160,9 @@ func TestGameCenterLeaderboardImagesV2DeleteValidationErrors(t *testing.T) {
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
 			}
 		})
 	}
