@@ -42,6 +42,7 @@ Examples:
 			GameCenterGroupAchievementsCommand(),
 			GameCenterGroupLeaderboardsCommand(),
 			GameCenterGroupChallengesCommand(),
+			GameCenterGroupDetailsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -555,6 +556,110 @@ Examples:
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterChallenges, idsValue)}
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterGroupDetailsCommand returns the group details command group.
+func GameCenterGroupDetailsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("details", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "details",
+		ShortUsage: "asc game-center groups details list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List Game Center details for a group.",
+		LongHelp: `List Game Center details for a group.
+
+Examples:
+  asc game-center groups details list --group-id "GROUP_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			GameCenterGroupDetailsListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// GameCenterGroupDetailsListCommand returns the group details list subcommand.
+func GameCenterGroupDetailsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	groupID := fs.String("group-id", "", "Game Center group ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc game-center groups details list --group-id \"GROUP_ID\"",
+		ShortHelp:  "List Game Center details for a group.",
+		LongHelp: `List Game Center details for a group.
+
+Examples:
+  asc game-center groups details list --group-id "GROUP_ID"
+  asc game-center groups details list --group-id "GROUP_ID" --limit 50
+  asc game-center groups details list --group-id "GROUP_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("game-center groups details list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("game-center groups details list: %w", err)
+			}
+
+			id := strings.TrimSpace(*groupID)
+			nextURL := strings.TrimSpace(*next)
+			if id == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center groups details list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.GCDetailsOption{
+				asc.WithGCDetailsLimit(*limit),
+				asc.WithGCDetailsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := []asc.GCDetailsOption{asc.WithGCDetailsNextURL(*next)}
+				if nextURL == "" {
+					paginateOpts = []asc.GCDetailsOption{asc.WithGCDetailsLimit(200)}
+				}
+				firstPage, err := client.GetGameCenterGroupGameCenterDetails(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("game-center groups details list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetGameCenterGroupGameCenterDetails(ctx, id, asc.WithGCDetailsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("game-center groups details list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetGameCenterGroupGameCenterDetails(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("game-center groups details list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
