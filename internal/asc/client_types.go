@@ -169,6 +169,8 @@ const (
 	ResourceTypeGameCenterMatchmakingRules                      ResourceType = "gameCenterMatchmakingRules"
 	ResourceTypeGameCenterMatchmakingTeams                      ResourceType = "gameCenterMatchmakingTeams"
 	ResourceTypeGameCenterMatchmakingRuleSetTests               ResourceType = "gameCenterMatchmakingRuleSetTests"
+	ResourceTypeGameCenterLeaderboardEntrySubmissions           ResourceType = "gameCenterLeaderboardEntrySubmissions"
+	ResourceTypeGameCenterPlayerAchievementSubmissions          ResourceType = "gameCenterPlayerAchievementSubmissions"
 	ResourceTypeGameCenterMatchmakingTestRequests               ResourceType = "gameCenterMatchmakingTestRequests"
 	ResourceTypeGameCenterMatchmakingTestPlayerProperties       ResourceType = "gameCenterMatchmakingTestPlayerProperties"
 )
