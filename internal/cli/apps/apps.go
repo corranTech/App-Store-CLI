@@ -147,18 +147,20 @@ func AppsUpdateCommand() *ffcli.Command {
 	id := fs.String("id", "", "App Store Connect app ID")
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
 	primaryLocale := fs.String("primary-locale", "", "Update primary locale (e.g., en-US)")
+	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE]",
-		ShortHelp:  "Update an app's bundle ID or primary locale.",
-		LongHelp: `Update an app's bundle ID or primary locale.
+		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION]",
+		ShortHelp:  "Update an app's bundle ID, primary locale, or content rights declaration.",
+		LongHelp: `Update an app's bundle ID, primary locale, or content rights declaration.
 
 Examples:
   asc apps update --id "APP_ID" --bundle-id "com.example.app"
-  asc apps update --id "APP_ID" --primary-locale "en-US"`,
+  asc apps update --id "APP_ID" --primary-locale "en-US"
+  asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -175,8 +177,16 @@ Examples:
 			if localeValue := strings.TrimSpace(*primaryLocale); localeValue != "" {
 				attrs.PrimaryLocale = &localeValue
 			}
-			if attrs.BundleID == nil && attrs.PrimaryLocale == nil {
-				fmt.Fprintln(os.Stderr, "Error: --bundle-id or --primary-locale is required")
+			if rightsValue := strings.TrimSpace(*contentRights); rightsValue != "" {
+				// Validate content rights value
+				if rightsValue != "DOES_NOT_USE_THIRD_PARTY_CONTENT" && rightsValue != "USES_THIRD_PARTY_CONTENT" {
+					fmt.Fprintln(os.Stderr, "Error: --content-rights must be DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
+					return flag.ErrHelp
+				}
+				attrs.ContentRightsDeclaration = &rightsValue
+			}
+			if attrs.BundleID == nil && attrs.PrimaryLocale == nil && attrs.ContentRightsDeclaration == nil {
+				fmt.Fprintln(os.Stderr, "Error: --bundle-id, --primary-locale, or --content-rights is required")
 				return flag.ErrHelp
 			}
 

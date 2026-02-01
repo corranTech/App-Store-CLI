@@ -9,16 +9,18 @@ import (
 
 // AppAttributes describes an app resource.
 type AppAttributes struct {
-	Name          string `json:"name"`
-	BundleID      string `json:"bundleId"`
-	SKU           string `json:"sku"`
-	PrimaryLocale string `json:"primaryLocale,omitempty"`
+	Name                      string `json:"name"`
+	BundleID                  string `json:"bundleId"`
+	SKU                       string `json:"sku"`
+	PrimaryLocale             string `json:"primaryLocale,omitempty"`
+	ContentRightsDeclaration  string `json:"contentRightsDeclaration,omitempty"`
 }
 
 // AppUpdateAttributes describes fields for updating an app.
 type AppUpdateAttributes struct {
-	BundleID      *string `json:"bundleId,omitempty"`
-	PrimaryLocale *string `json:"primaryLocale,omitempty"`
+	BundleID                 *string `json:"bundleId,omitempty"`
+	PrimaryLocale            *string `json:"primaryLocale,omitempty"`
+	ContentRightsDeclaration *string `json:"contentRightsDeclaration,omitempty"`
 }
 
 // AppUpdateData is the data portion of an app update request.
@@ -243,7 +245,7 @@ func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAtt
 			ID:   appID,
 		},
 	}
-	if attrs.BundleID != nil || attrs.PrimaryLocale != nil {
+	if attrs.BundleID != nil || attrs.PrimaryLocale != nil || attrs.ContentRightsDeclaration != nil {
 		payload.Data.Attributes = &attrs
 	}
 
