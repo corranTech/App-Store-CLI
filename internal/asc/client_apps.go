@@ -7,20 +7,28 @@ import (
 	"strings"
 )
 
+// ContentRightsDeclaration represents an app's content rights declaration.
+type ContentRightsDeclaration string
+
+const (
+	ContentRightsDeclarationDoesNotUseThirdPartyContent ContentRightsDeclaration = "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+	ContentRightsDeclarationUsesThirdPartyContent       ContentRightsDeclaration = "USES_THIRD_PARTY_CONTENT"
+)
+
 // AppAttributes describes an app resource.
 type AppAttributes struct {
-	Name                      string `json:"name"`
-	BundleID                  string `json:"bundleId"`
-	SKU                       string `json:"sku"`
-	PrimaryLocale             string `json:"primaryLocale,omitempty"`
-	ContentRightsDeclaration  string `json:"contentRightsDeclaration,omitempty"`
+	Name                     string                    `json:"name"`
+	BundleID                 string                    `json:"bundleId"`
+	SKU                      string                    `json:"sku"`
+	PrimaryLocale            string                    `json:"primaryLocale,omitempty"`
+	ContentRightsDeclaration *ContentRightsDeclaration `json:"contentRightsDeclaration,omitempty"`
 }
 
 // AppUpdateAttributes describes fields for updating an app.
 type AppUpdateAttributes struct {
-	BundleID                 *string `json:"bundleId,omitempty"`
-	PrimaryLocale            *string `json:"primaryLocale,omitempty"`
-	ContentRightsDeclaration *string `json:"contentRightsDeclaration,omitempty"`
+	BundleID                 *string                   `json:"bundleId,omitempty"`
+	PrimaryLocale            *string                   `json:"primaryLocale,omitempty"`
+	ContentRightsDeclaration *ContentRightsDeclaration `json:"contentRightsDeclaration,omitempty"`
 }
 
 // AppUpdateData is the data portion of an app update request.

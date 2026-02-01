@@ -178,12 +178,15 @@ Examples:
 				attrs.PrimaryLocale = &localeValue
 			}
 			if rightsValue := strings.TrimSpace(*contentRights); rightsValue != "" {
-				// Validate content rights value
-				if rightsValue != "DOES_NOT_USE_THIRD_PARTY_CONTENT" && rightsValue != "USES_THIRD_PARTY_CONTENT" {
-					fmt.Fprintln(os.Stderr, "Error: --content-rights must be DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
+				normalizedRights := asc.ContentRightsDeclaration(strings.ToUpper(rightsValue))
+				switch normalizedRights {
+				case asc.ContentRightsDeclarationDoesNotUseThirdPartyContent,
+					asc.ContentRightsDeclarationUsesThirdPartyContent:
+					attrs.ContentRightsDeclaration = &normalizedRights
+				default:
+					fmt.Fprintf(os.Stderr, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
 					return flag.ErrHelp
 				}
-				attrs.ContentRightsDeclaration = &rightsValue
 			}
 			if attrs.BundleID == nil && attrs.PrimaryLocale == nil && attrs.ContentRightsDeclaration == nil {
 				fmt.Fprintln(os.Stderr, "Error: --bundle-id, --primary-locale, or --content-rights is required")
