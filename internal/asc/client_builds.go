@@ -16,7 +16,7 @@ type BuildAttributes struct {
 	ExpirationDate          string `json:"expirationDate,omitempty"`
 	ProcessingState         string `json:"processingState,omitempty"`
 	MinOSVersion            string `json:"minOsVersion,omitempty"`
-	UsesNonExemptEncryption bool   `json:"usesNonExemptEncryption,omitempty"`
+	UsesNonExemptEncryption *bool  `json:"usesNonExemptEncryption,omitempty"`
 	Expired                 bool   `json:"expired,omitempty"`
 }
 
