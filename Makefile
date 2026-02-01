@@ -72,16 +72,33 @@ test-integration:
 .PHONY: lint
 lint:
 	@echo "$(BLUE)Linting code...$(NC)"
-	@which golangci-lint > /dev/null 2>&1 && \
-		golangci-lint run ./... || \
-		$(GO) vet ./...
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run ./...; \
+	else \
+		echo "$(YELLOW)golangci-lint not found; falling back to 'go vet ./...'.$(NC)"; \
+		echo "$(YELLOW)Install with: make tools (or: $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)$(NC)"; \
+		$(GO) vet ./...; \
+	fi
 
 # Format code
 .PHONY: format
 format:
 	@echo "$(BLUE)Formatting code...$(NC)"
+	@if ! command -v gofumpt >/dev/null 2>&1; then \
+		echo "$(YELLOW)gofumpt not found; install with: make tools (or: $(GO) install mvdan.cc/gofumpt@latest)$(NC)"; \
+		exit 1; \
+	fi
 	$(GO) fmt ./...
 	gofumpt -w .
+
+# Install dev tools
+.PHONY: tools
+tools:
+	@echo "$(BLUE)Installing dev tools...$(NC)"
+	$(GO) install mvdan.cc/gofumpt@latest
+	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo "$(GREEN)✓ Tools installed$(NC)"
+	@echo "$(YELLOW)Make sure '$(GOBIN)' is on your PATH$(NC)"
 
 # Install dependencies
 .PHONY: deps
@@ -151,6 +168,7 @@ help:
 	@echo "  test-integration  Run opt-in integration tests"
 	@echo "  lint           Lint the code"
 	@echo "  format         Format code"
+	@echo "  tools          Install dev tools"
 	@echo "  deps           Install dependencies"
 	@echo "  update-deps    Update dependencies"
 	@echo "  update-openapi Update OpenAPI paths index"
