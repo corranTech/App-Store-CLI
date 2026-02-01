@@ -1973,6 +1973,69 @@ func TestReviewCommandAttachmentsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestReviewSubmissionsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	tests := []struct {
+		name     string
+		args     []string
+		wantErr  string
+		wantHelp bool
+	}{
+		{
+			name:     "review submissions-cancel missing confirm",
+			args:     []string{"review", "submissions-cancel", "--id", "SUBMISSION_ID"},
+			wantErr:  "--confirm is required to cancel",
+			wantHelp: true,
+		},
+		{
+			name:     "review submissions-cancel missing id",
+			args:     []string{"review", "submissions-cancel", "--confirm"},
+			wantErr:  "--id is required",
+			wantHelp: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if test.wantHelp {
+					if !errors.Is(err, flag.ErrHelp) {
+						t.Fatalf("expected ErrHelp, got %v", err)
+					}
+				} else {
+					if err == nil {
+						t.Fatal("expected error, got nil")
+					}
+					if errors.Is(err, flag.ErrHelp) {
+						t.Fatalf("expected non-help error, got %v", err)
+					}
+				}
+			})
+
+			if test.wantHelp {
+				if stdout != "" {
+					t.Fatalf("expected empty stdout, got %q", stdout)
+				}
+				if !strings.Contains(stderr, test.wantErr) {
+					t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+				}
+			}
+		})
+	}
+}
+
 func TestRoutingCoverageValidationErrors(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
@@ -3206,6 +3269,94 @@ func TestAppInfoValidationErrors(t *testing.T) {
 			name:    "app-info territory-age-ratings list missing id",
 			args:    []string{"app-info", "territory-age-ratings", "list"},
 			wantErr: "--id is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppInfosValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "app-infos list missing app",
+			args:    []string{"app-infos", "list"},
+			wantErr: "Error: --app is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppsUpdateValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "apps update missing id",
+			args:    []string{"apps", "update"},
+			wantErr: "Error: --id is required",
+		},
+		{
+			name:    "apps update missing fields",
+			args:    []string{"apps", "update", "--id", "APP_ID"},
+			wantErr: "Error: --bundle-id, --primary-locale, or --content-rights is required",
+		},
+		{
+			name:    "apps update invalid content rights",
+			args:    []string{"apps", "update", "--id", "APP_ID", "--content-rights", "INVALID"},
+			wantErr: "Error: --content-rights must be DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT",
 		},
 	}
 
