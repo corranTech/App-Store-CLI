@@ -68,29 +68,44 @@ type BuildExpireAllResult struct {
 	Failures            []BuildExpireAllFailure `json:"failures,omitempty"`
 }
 
+// formatEncryptionStatus formats the UsesNonExemptEncryption field for display.
+// Returns "required" if true (needs encryption declaration), "exempt" if false,
+// or "n/a" if null (no information available).
+func formatEncryptionStatus(usesNonExempt *bool) string {
+	if usesNonExempt == nil {
+		return "n/a"
+	}
+	if *usesNonExempt {
+		return "required"
+	}
+	return "exempt"
+}
+
 func printBuildsTable(resp *BuildsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Version\tUploaded\tProcessing\tExpired")
+	fmt.Fprintln(w, "Version\tUploaded\tProcessing\tExpired\tEncryption")
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%t\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%t\t%s\n",
 			item.Attributes.Version,
 			item.Attributes.UploadedDate,
 			item.Attributes.ProcessingState,
 			item.Attributes.Expired,
+			formatEncryptionStatus(item.Attributes.UsesNonExemptEncryption),
 		)
 	}
 	return w.Flush()
 }
 
 func printBuildsMarkdown(resp *BuildsResponse) error {
-	fmt.Fprintln(os.Stdout, "| Version | Uploaded | Processing | Expired |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
+	fmt.Fprintln(os.Stdout, "| Version | Uploaded | Processing | Expired | Encryption |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
 	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %t |\n",
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %t | %s |\n",
 			escapeMarkdown(item.Attributes.Version),
 			escapeMarkdown(item.Attributes.UploadedDate),
 			escapeMarkdown(item.Attributes.ProcessingState),
 			item.Attributes.Expired,
+			formatEncryptionStatus(item.Attributes.UsesNonExemptEncryption),
 		)
 	}
 	return nil
