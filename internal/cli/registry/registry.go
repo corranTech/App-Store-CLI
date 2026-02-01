@@ -121,6 +121,7 @@ func Subcommands(version string) []*ffcli.Command {
 		productpages.ProductPagesCommand(),
 		routingcoverage.RoutingCoverageCommand(),
 		apps.AppInfoCommand(),
+		apps.AppInfosCommand(),
 		eula.EULACommand(),
 		agreements.AgreementsCommand(),
 		pricing.PricingCommand(),
