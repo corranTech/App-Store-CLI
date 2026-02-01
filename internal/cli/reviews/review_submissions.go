@@ -295,6 +295,53 @@ Examples:
 	}
 }
 
+// ReviewSubmissionsCancelCommand returns the review submissions cancel subcommand.
+func ReviewSubmissionsCancelCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions-cancel", flag.ExitOnError)
+
+	submissionID := fs.String("id", "", "Review submission ID (required)")
+	confirm := fs.Bool("confirm", false, "Confirm cancellation (required)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "submissions-cancel",
+		ShortUsage: "asc review submissions-cancel [flags]",
+		ShortHelp:  "Cancel a review submission.",
+		LongHelp: `Cancel a review submission.
+
+Examples:
+  asc review submissions-cancel --id "SUBMISSION_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required to cancel")
+				return flag.ErrHelp
+			}
+			if strings.TrimSpace(*submissionID) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("review submissions-cancel: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.CancelReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
+			if err != nil {
+				return fmt.Errorf("review submissions-cancel: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // ReviewSubmissionsItemsIDsCommand returns the review submission item IDs subcommand.
 func ReviewSubmissionsItemsIDsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions-items-ids", flag.ExitOnError)

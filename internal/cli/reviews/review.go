@@ -46,6 +46,7 @@ Examples:
 			ReviewSubmissionsGetCommand(),
 			ReviewSubmissionsCreateCommand(),
 			ReviewSubmissionsSubmitCommand(),
+			ReviewSubmissionsCancelCommand(),
 			ReviewSubmissionsUpdateCommand(),
 			ReviewSubmissionsItemsIDsCommand(),
 			ReviewItemsGetCommand(),
