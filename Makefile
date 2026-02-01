@@ -84,13 +84,12 @@ lint:
 .PHONY: format
 format:
 	@echo "$(BLUE)Formatting code...$(NC)"
-	@if command -v gofumpt >/dev/null 2>&1; then \
-		gofumpt -w .; \
-	else \
-		echo "$(YELLOW)gofumpt not found; falling back to 'go fmt ./...'.$(NC)"; \
-		echo "$(YELLOW)Install with: make tools (or: $(GO) install mvdan.cc/gofumpt@latest)$(NC)"; \
-		$(GO) fmt ./...; \
+	@if ! command -v gofumpt >/dev/null 2>&1; then \
+		echo "$(YELLOW)gofumpt not found; install with: make tools (or: $(GO) install mvdan.cc/gofumpt@latest)$(NC)"; \
+		exit 1; \
 	fi
+	$(GO) fmt ./...
+	gofumpt -w .
 
 # Install dev tools
 .PHONY: tools

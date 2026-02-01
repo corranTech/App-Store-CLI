@@ -21,8 +21,9 @@ go test ./...
 
 Optional tooling:
 ```bash
+make tools   # installs gofumpt + golangci-lint
 make lint    # uses golangci-lint if installed, else go vet
-make format  # gofmt + gofumpt (if gofumpt is installed)
+make format  # gofmt + gofumpt (requires gofumpt; install with make tools)
 ```
 
 ## Integration Tests (Opt-in)

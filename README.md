@@ -841,7 +841,7 @@ make install  # Installs to /usr/local/bin
 ## How to test in <10 minutes>
 
 ```bash
-make tools   # optional: installs gofumpt + golangci-lint
+make tools   # installs gofumpt + golangci-lint (required for make format)
 make format
 make lint
 make test
