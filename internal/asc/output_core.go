@@ -483,6 +483,8 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaRecruitmentCriterionOptionsMarkdown(v)
 	case *BetaRecruitmentCriteriaResponse:
 		return printBetaRecruitmentCriteriaMarkdown(v)
+	case *BetaRecruitmentCriteriaDeleteResult:
+		return printBetaRecruitmentCriteriaDeleteResultMarkdown(v)
 	case *Response[BetaGroupMetricAttributes]:
 		return printBetaGroupMetricsMarkdown(v.Data)
 	case *SandboxTestersResponse:
@@ -1415,6 +1417,8 @@ func PrintTable(data interface{}) error {
 		return printBetaRecruitmentCriterionOptionsTable(v)
 	case *BetaRecruitmentCriteriaResponse:
 		return printBetaRecruitmentCriteriaTable(v)
+	case *BetaRecruitmentCriteriaDeleteResult:
+		return printBetaRecruitmentCriteriaDeleteResultTable(v)
 	case *Response[BetaGroupMetricAttributes]:
 		return printBetaGroupMetricsTable(v.Data)
 	case *SandboxTestersResponse:

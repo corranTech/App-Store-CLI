@@ -2711,6 +2711,16 @@ func TestTestFlightRecruitmentValidationErrors(t *testing.T) {
 			args:    []string{"testflight", "recruitment", "set", "--group", "GROUP_ID"},
 			wantErr: "--os-version-filter is required",
 		},
+		{
+			name:    "recruitment delete missing id",
+			args:    []string{"testflight", "recruitment", "delete", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "recruitment delete missing confirm",
+			args:    []string{"testflight", "recruitment", "delete", "--id", "CRITERIA_ID"},
+			wantErr: "--confirm is required",
+		},
 	}
 
 	for _, test := range tests {
