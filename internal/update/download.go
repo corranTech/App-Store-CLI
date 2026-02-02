@@ -31,7 +31,11 @@ func downloadAndReplace(ctx context.Context, opts Options, execPath string) erro
 	}
 	tempPath := tempFile.Name()
 	removeTemp := true
+	tempClosed := false
 	defer func() {
+		if !tempClosed {
+			_ = tempFile.Close()
+		}
 		if removeTemp {
 			_ = os.Remove(tempPath)
 		}
@@ -41,6 +45,7 @@ func downloadAndReplace(ctx context.Context, opts Options, execPath string) erro
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", userAgent(opts.CurrentVersion))
 	resp, err := opts.Client.Do(req)
 	if err != nil {
 		return err
@@ -80,6 +85,7 @@ func downloadAndReplace(ctx context.Context, opts Options, execPath string) erro
 	if err := tempFile.Close(); err != nil {
 		return err
 	}
+	tempClosed = true
 
 	actual := fmt.Sprintf("%x", hash.Sum(nil))
 	expected, err := fetchChecksum(ctx, opts, checksumsURL, asset)
