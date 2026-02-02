@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge" alt="Homebrew">
 </p>
 
-A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Automate your iOS app workflows from the terminal.
+A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Automate your iOS app workflows from your IDE/terminal.
 
 ## Why ASC?
 
