@@ -30,6 +30,9 @@ Examples:
   asc testflight beta-testers remove --app "APP_ID" --email "tester@example.com"
   asc testflight beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
   asc testflight beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc testflight beta-testers add-builds --id "TESTER_ID" --build "BUILD_ID"
+  asc testflight beta-testers remove-builds --id "TESTER_ID" --build "BUILD_ID" --confirm
+  asc testflight beta-testers remove-apps --id "TESTER_ID" --app "APP_ID" --confirm
   asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com"
   asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
@@ -41,6 +44,9 @@ Examples:
 			BetaTestersRemoveCommand(),
 			BetaTestersAddGroupsCommand(),
 			BetaTestersRemoveGroupsCommand(),
+			BetaTestersAddBuildsCommand(),
+			BetaTestersRemoveBuildsCommand(),
+			BetaTestersRemoveAppsCommand(),
 			BetaTestersRelationshipsCommand(),
 			BetaTestersAppsCommand(),
 			BetaTestersBetaGroupsCommand(),
@@ -440,6 +446,199 @@ Examples:
 			}
 
 			fmt.Fprintf(os.Stderr, "Successfully removed tester %s from %d group(s)\n", testerID, len(groupIDs))
+			return nil
+		},
+	}
+}
+
+// BetaTestersAddBuildsCommand returns the beta testers add-builds subcommand.
+func BetaTestersAddBuildsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("add-builds", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta tester ID")
+	builds := fs.String("build", "", "Comma-separated build IDs")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "add-builds",
+		ShortUsage: "asc testflight beta-testers add-builds --id TESTER_ID --build BUILD_ID[,BUILD_ID...]",
+		ShortHelp:  "Add builds to a beta tester.",
+		LongHelp: `Add builds to a beta tester.
+
+Examples:
+  asc testflight beta-testers add-builds --id "TESTER_ID" --build "BUILD_ID"
+  asc testflight beta-testers add-builds --id "TESTER_ID" --build "BUILD_ID1,BUILD_ID2"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			testerID := strings.TrimSpace(*id)
+			if testerID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			buildIDs := parseCommaSeparatedIDs(*builds)
+			if len(buildIDs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-testers add-builds: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.AddBuildsToBetaTester(requestCtx, testerID, buildIDs); err != nil {
+				return fmt.Errorf("beta-testers add-builds: failed to add builds: %w", err)
+			}
+
+			result := &asc.BetaTesterBuildsUpdateResult{
+				TesterID: testerID,
+				BuildIDs: buildIDs,
+				Action:   "added",
+			}
+
+			if err := printOutput(result, *output, *pretty); err != nil {
+				return err
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully added tester %s to %d build(s)\n", testerID, len(buildIDs))
+			return nil
+		},
+	}
+}
+
+// BetaTestersRemoveBuildsCommand returns the beta testers remove-builds subcommand.
+func BetaTestersRemoveBuildsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("remove-builds", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta tester ID")
+	builds := fs.String("build", "", "Comma-separated build IDs")
+	confirm := fs.Bool("confirm", false, "Confirm removal")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "remove-builds",
+		ShortUsage: "asc testflight beta-testers remove-builds --id TESTER_ID --build BUILD_ID[,BUILD_ID...] --confirm",
+		ShortHelp:  "Remove builds from a beta tester.",
+		LongHelp: `Remove builds from a beta tester.
+
+Examples:
+  asc testflight beta-testers remove-builds --id "TESTER_ID" --build "BUILD_ID" --confirm
+  asc testflight beta-testers remove-builds --id "TESTER_ID" --build "BUILD_ID1,BUILD_ID2" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			testerID := strings.TrimSpace(*id)
+			if testerID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			buildIDs := parseCommaSeparatedIDs(*builds)
+			if len(buildIDs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-testers remove-builds: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.RemoveBuildsFromBetaTester(requestCtx, testerID, buildIDs); err != nil {
+				return fmt.Errorf("beta-testers remove-builds: failed to remove builds: %w", err)
+			}
+
+			result := &asc.BetaTesterBuildsUpdateResult{
+				TesterID: testerID,
+				BuildIDs: buildIDs,
+				Action:   "removed",
+			}
+
+			if err := printOutput(result, *output, *pretty); err != nil {
+				return err
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully removed tester %s from %d build(s)\n", testerID, len(buildIDs))
+			return nil
+		},
+	}
+}
+
+// BetaTestersRemoveAppsCommand returns the beta testers remove-apps subcommand.
+func BetaTestersRemoveAppsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("remove-apps", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta tester ID")
+	apps := fs.String("app", "", "Comma-separated app IDs")
+	confirm := fs.Bool("confirm", false, "Confirm removal")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "remove-apps",
+		ShortUsage: "asc testflight beta-testers remove-apps --id TESTER_ID --app APP_ID[,APP_ID...] --confirm",
+		ShortHelp:  "Remove apps from a beta tester.",
+		LongHelp: `Remove apps from a beta tester.
+
+Examples:
+  asc testflight beta-testers remove-apps --id "TESTER_ID" --app "APP_ID" --confirm
+  asc testflight beta-testers remove-apps --id "TESTER_ID" --app "APP_ID1,APP_ID2" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			testerID := strings.TrimSpace(*id)
+			if testerID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			appIDs := parseCommaSeparatedIDs(*apps)
+			if len(appIDs) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --app is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("beta-testers remove-apps: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.RemoveBetaTesterFromApps(requestCtx, testerID, appIDs); err != nil {
+				return fmt.Errorf("beta-testers remove-apps: failed to remove apps: %w", err)
+			}
+
+			result := &asc.BetaTesterAppsUpdateResult{
+				TesterID: testerID,
+				AppIDs:   appIDs,
+				Action:   "removed",
+			}
+
+			if err := printOutput(result, *output, *pretty); err != nil {
+				return err
+			}
+
+			fmt.Fprintf(os.Stderr, "Successfully removed tester %s from %d app(s)\n", testerID, len(appIDs))
 			return nil
 		},
 	}

@@ -49,6 +49,18 @@ func (c *Client) GetBetaFeedbackCrashSubmission(ctx context.Context, submissionI
 	return &response, nil
 }
 
+// DeleteBetaFeedbackCrashSubmission deletes a beta feedback crash submission by ID.
+func (c *Client) DeleteBetaFeedbackCrashSubmission(ctx context.Context, submissionID string) error {
+	submissionID = strings.TrimSpace(submissionID)
+	if submissionID == "" {
+		return fmt.Errorf("submissionID is required")
+	}
+
+	path := fmt.Sprintf("/v1/betaFeedbackCrashSubmissions/%s", submissionID)
+	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
+}
+
 // GetBetaFeedbackCrashSubmissionCrashLog retrieves the crash log for a beta feedback crash submission.
 func (c *Client) GetBetaFeedbackCrashSubmissionCrashLog(ctx context.Context, submissionID string) (*BetaCrashLogResponse, error) {
 	submissionID = strings.TrimSpace(submissionID)
@@ -89,4 +101,16 @@ func (c *Client) GetBetaFeedbackScreenshotSubmission(ctx context.Context, submis
 	}
 
 	return &response, nil
+}
+
+// DeleteBetaFeedbackScreenshotSubmission deletes a beta feedback screenshot submission by ID.
+func (c *Client) DeleteBetaFeedbackScreenshotSubmission(ctx context.Context, submissionID string) error {
+	submissionID = strings.TrimSpace(submissionID)
+	if submissionID == "" {
+		return fmt.Errorf("submissionID is required")
+	}
+
+	path := fmt.Sprintf("/v1/betaFeedbackScreenshotSubmissions/%s", submissionID)
+	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
 }

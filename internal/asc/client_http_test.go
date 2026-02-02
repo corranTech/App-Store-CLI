@@ -1883,6 +1883,40 @@ func TestDeleteBetaTester_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestDeleteBetaFeedbackCrashSubmission_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaFeedbackCrashSubmissions/sub-1" {
+			t.Fatalf("expected path /v1/betaFeedbackCrashSubmissions/sub-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteBetaFeedbackCrashSubmission(context.Background(), "sub-1"); err != nil {
+		t.Fatalf("DeleteBetaFeedbackCrashSubmission() error: %v", err)
+	}
+}
+
+func TestDeleteBetaFeedbackScreenshotSubmission_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaFeedbackScreenshotSubmissions/sub-1" {
+			t.Fatalf("expected path /v1/betaFeedbackScreenshotSubmissions/sub-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteBetaFeedbackScreenshotSubmission(context.Background(), "sub-1"); err != nil {
+		t.Fatalf("DeleteBetaFeedbackScreenshotSubmission() error: %v", err)
+	}
+}
+
 func TestAddBetaTesterToGroups_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, ``)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1948,6 +1982,142 @@ func TestRemoveBetaTesterFromGroups_SendsRequest(t *testing.T) {
 
 	if err := client.RemoveBetaTesterFromGroups(context.Background(), "bt-1", []string{"group-1", "group-2"}); err != nil {
 		t.Fatalf("RemoveBetaTesterFromGroups() error: %v", err)
+	}
+}
+
+func TestRemoveBetaTesterFromApps_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/apps" {
+			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/apps, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload RelationshipList
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 app relationships, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeApps {
+			t.Fatalf("expected type apps, got %q", payload.Data[0].Type)
+		}
+		if payload.Data[0].ID != "app-1" {
+			t.Fatalf("expected app-1, got %q", payload.Data[0].ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.RemoveBetaTesterFromApps(context.Background(), "bt-1", []string{"app-1", "app-2"}); err != nil {
+		t.Fatalf("RemoveBetaTesterFromApps() error: %v", err)
+	}
+}
+
+func TestAddBuildsToBetaTester_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/builds" {
+			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/builds, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload RelationshipList
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 build relationships, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeBuilds {
+			t.Fatalf("expected type builds, got %q", payload.Data[0].Type)
+		}
+		if payload.Data[0].ID != "build-1" {
+			t.Fatalf("expected build-1, got %q", payload.Data[0].ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.AddBuildsToBetaTester(context.Background(), "bt-1", []string{"build-1", "build-2"}); err != nil {
+		t.Fatalf("AddBuildsToBetaTester() error: %v", err)
+	}
+}
+
+func TestRemoveBuildsFromBetaTester_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/builds" {
+			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/builds, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload RelationshipList
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 build relationships, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeBuilds {
+			t.Fatalf("expected type builds, got %q", payload.Data[0].Type)
+		}
+		if payload.Data[1].ID != "build-2" {
+			t.Fatalf("expected build-2, got %q", payload.Data[1].ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.RemoveBuildsFromBetaTester(context.Background(), "bt-1", []string{"build-1", "build-2"}); err != nil {
+		t.Fatalf("RemoveBuildsFromBetaTester() error: %v", err)
+	}
+}
+
+func TestRemoveBetaTestersFromApp_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/relationships/betaTesters" {
+			t.Fatalf("expected path /v1/apps/app-1/relationships/betaTesters, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload RelationshipRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 beta tester relationships, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeBetaTesters {
+			t.Fatalf("expected type betaTesters, got %q", payload.Data[0].Type)
+		}
+		if payload.Data[0].ID != "tester-1" {
+			t.Fatalf("expected tester-1, got %q", payload.Data[0].ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.RemoveBetaTestersFromApp(context.Background(), "app-1", []string{"tester-1", "tester-2"}); err != nil {
+		t.Fatalf("RemoveBetaTestersFromApp() error: %v", err)
 	}
 }
 

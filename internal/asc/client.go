@@ -908,6 +908,135 @@ func (c *Client) RemoveBetaTesterFromGroups(ctx context.Context, testerID string
 	return nil
 }
 
+// RemoveBetaTesterFromApps removes a tester from multiple apps.
+func (c *Client) RemoveBetaTesterFromApps(ctx context.Context, testerID string, appIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	appIDs = normalizeList(appIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(appIDs) == 0 {
+		return fmt.Errorf("app IDs are required")
+	}
+
+	relData := make([]ResourceData, 0, len(appIDs))
+	for _, appID := range appIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeApps,
+			ID:   appID,
+		})
+	}
+
+	payload := RelationshipList{Data: relData}
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/apps", testerID)
+	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+// AddBuildsToBetaTester adds builds to a beta tester.
+func (c *Client) AddBuildsToBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	buildIDs = normalizeList(buildIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(buildIDs) == 0 {
+		return fmt.Errorf("build IDs are required")
+	}
+
+	relData := make([]ResourceData, 0, len(buildIDs))
+	for _, buildID := range buildIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBuilds,
+			ID:   buildID,
+		})
+	}
+
+	payload := RelationshipList{Data: relData}
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID)
+	if _, err := c.do(ctx, "POST", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RemoveBuildsFromBetaTester removes builds from a beta tester.
+func (c *Client) RemoveBuildsFromBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
+	testerID = strings.TrimSpace(testerID)
+	buildIDs = normalizeList(buildIDs)
+	if testerID == "" {
+		return fmt.Errorf("tester ID is required")
+	}
+	if len(buildIDs) == 0 {
+		return fmt.Errorf("build IDs are required")
+	}
+
+	relData := make([]ResourceData, 0, len(buildIDs))
+	for _, buildID := range buildIDs {
+		relData = append(relData, ResourceData{
+			Type: ResourceTypeBuilds,
+			ID:   buildID,
+		})
+	}
+
+	payload := RelationshipList{Data: relData}
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID)
+	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RemoveBetaTestersFromApp removes beta testers from an app.
+func (c *Client) RemoveBetaTestersFromApp(ctx context.Context, appID string, testerIDs []string) error {
+	appID = strings.TrimSpace(appID)
+	testerIDs = normalizeList(testerIDs)
+	if appID == "" {
+		return fmt.Errorf("app ID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("tester IDs are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/relationships/betaTesters", appID)
+	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
 // DeleteBetaTester deletes a beta tester by ID.
 func (c *Client) DeleteBetaTester(ctx context.Context, testerID string) error {
 	path := fmt.Sprintf("/v1/betaTesters/%s", testerID)

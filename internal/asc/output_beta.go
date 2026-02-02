@@ -29,6 +29,33 @@ type BetaTesterGroupsUpdateResult struct {
 	Action   string   `json:"action"`
 }
 
+// BetaTesterAppsUpdateResult represents CLI output for beta tester app updates.
+type BetaTesterAppsUpdateResult struct {
+	TesterID string   `json:"testerId"`
+	AppIDs   []string `json:"appIds"`
+	Action   string   `json:"action"`
+}
+
+// BetaTesterBuildsUpdateResult represents CLI output for beta tester build updates.
+type BetaTesterBuildsUpdateResult struct {
+	TesterID string   `json:"testerId"`
+	BuildIDs []string `json:"buildIds"`
+	Action   string   `json:"action"`
+}
+
+// AppBetaTestersUpdateResult represents CLI output for app beta tester updates.
+type AppBetaTestersUpdateResult struct {
+	AppID     string   `json:"appId"`
+	TesterIDs []string `json:"testerIds"`
+	Action    string   `json:"action"`
+}
+
+// BetaFeedbackSubmissionDeleteResult represents CLI output for beta feedback deletions.
+type BetaFeedbackSubmissionDeleteResult struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
 func printBetaGroupsTable(resp *BetaGroupsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tInternal\tPublic Link Enabled\tPublic Link")
@@ -156,6 +183,92 @@ func printBetaTesterGroupsUpdateResultMarkdown(result *BetaTesterGroupsUpdateRes
 		escapeMarkdown(result.TesterID),
 		escapeMarkdown(strings.Join(result.GroupIDs, ",")),
 		escapeMarkdown(result.Action),
+	)
+	return nil
+}
+
+func printBetaTesterAppsUpdateResultTable(result *BetaTesterAppsUpdateResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Tester ID\tApp IDs\tAction")
+	fmt.Fprintf(w, "%s\t%s\t%s\n",
+		result.TesterID,
+		strings.Join(result.AppIDs, ","),
+		result.Action,
+	)
+	return w.Flush()
+}
+
+func printBetaTesterAppsUpdateResultMarkdown(result *BetaTesterAppsUpdateResult) error {
+	fmt.Fprintln(os.Stdout, "| Tester ID | App IDs | Action |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+		escapeMarkdown(result.TesterID),
+		escapeMarkdown(strings.Join(result.AppIDs, ",")),
+		escapeMarkdown(result.Action),
+	)
+	return nil
+}
+
+func printBetaTesterBuildsUpdateResultTable(result *BetaTesterBuildsUpdateResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Tester ID\tBuild IDs\tAction")
+	fmt.Fprintf(w, "%s\t%s\t%s\n",
+		result.TesterID,
+		strings.Join(result.BuildIDs, ","),
+		result.Action,
+	)
+	return w.Flush()
+}
+
+func printBetaTesterBuildsUpdateResultMarkdown(result *BetaTesterBuildsUpdateResult) error {
+	fmt.Fprintln(os.Stdout, "| Tester ID | Build IDs | Action |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+		escapeMarkdown(result.TesterID),
+		escapeMarkdown(strings.Join(result.BuildIDs, ",")),
+		escapeMarkdown(result.Action),
+	)
+	return nil
+}
+
+func printAppBetaTestersUpdateResultTable(result *AppBetaTestersUpdateResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "App ID\tTester IDs\tAction")
+	fmt.Fprintf(w, "%s\t%s\t%s\n",
+		result.AppID,
+		strings.Join(result.TesterIDs, ","),
+		result.Action,
+	)
+	return w.Flush()
+}
+
+func printAppBetaTestersUpdateResultMarkdown(result *AppBetaTestersUpdateResult) error {
+	fmt.Fprintln(os.Stdout, "| App ID | Tester IDs | Action |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+		escapeMarkdown(result.AppID),
+		escapeMarkdown(strings.Join(result.TesterIDs, ",")),
+		escapeMarkdown(result.Action),
+	)
+	return nil
+}
+
+func printBetaFeedbackSubmissionDeleteResultTable(result *BetaFeedbackSubmissionDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n",
+		result.ID,
+		result.Deleted,
+	)
+	return w.Flush()
+}
+
+func printBetaFeedbackSubmissionDeleteResultMarkdown(result *BetaFeedbackSubmissionDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Deleted,
 	)
 	return nil
 }

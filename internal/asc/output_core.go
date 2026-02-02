@@ -801,6 +801,14 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaTesterDeleteResultMarkdown(v)
 	case *BetaTesterGroupsUpdateResult:
 		return printBetaTesterGroupsUpdateResultMarkdown(v)
+	case *BetaTesterAppsUpdateResult:
+		return printBetaTesterAppsUpdateResultMarkdown(v)
+	case *BetaTesterBuildsUpdateResult:
+		return printBetaTesterBuildsUpdateResultMarkdown(v)
+	case *AppBetaTestersUpdateResult:
+		return printAppBetaTestersUpdateResultMarkdown(v)
+	case *BetaFeedbackSubmissionDeleteResult:
+		return printBetaFeedbackSubmissionDeleteResultMarkdown(v)
 	case *AppStoreVersionLocalizationDeleteResult:
 		return printAppStoreVersionLocalizationDeleteResultMarkdown(v)
 	case *BetaAppLocalizationDeleteResult:
@@ -1735,6 +1743,14 @@ func PrintTable(data interface{}) error {
 		return printBetaTesterDeleteResultTable(v)
 	case *BetaTesterGroupsUpdateResult:
 		return printBetaTesterGroupsUpdateResultTable(v)
+	case *BetaTesterAppsUpdateResult:
+		return printBetaTesterAppsUpdateResultTable(v)
+	case *BetaTesterBuildsUpdateResult:
+		return printBetaTesterBuildsUpdateResultTable(v)
+	case *AppBetaTestersUpdateResult:
+		return printAppBetaTestersUpdateResultTable(v)
+	case *BetaFeedbackSubmissionDeleteResult:
+		return printBetaFeedbackSubmissionDeleteResultTable(v)
 	case *AppStoreVersionLocalizationDeleteResult:
 		return printAppStoreVersionLocalizationDeleteResultTable(v)
 	case *BetaAppLocalizationDeleteResult:
