@@ -182,18 +182,19 @@ func BuildsIndividualTestersRemoveCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	testers := fs.String("tester", "", "Comma-separated tester IDs")
+	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "remove",
-		ShortUsage: "asc builds individual-testers remove --build \"BUILD_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortUsage: "asc builds individual-testers remove --build \"BUILD_ID\" --tester \"TESTER_ID[,TESTER_ID...]\" --confirm",
 		ShortHelp:  "Remove individual testers from a build.",
 		LongHelp: `Remove individual testers from a build.
 
 Examples:
-  asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID"
-  asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+  asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID" --confirm
+  asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -206,6 +207,10 @@ Examples:
 			testerIDs := parseCommaSeparatedIDs(*testers)
 			if len(testerIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --tester is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return flag.ErrHelp
 			}
 

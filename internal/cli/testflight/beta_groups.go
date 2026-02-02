@@ -435,16 +435,17 @@ func BetaGroupsRemoveTestersCommand() *ffcli.Command {
 
 	group := fs.String("group", "", "Beta group ID")
 	tester := fs.String("tester", "", "Beta tester ID(s), comma-separated")
+	confirm := fs.Bool("confirm", false, "Confirm removal")
 
 	return &ffcli.Command{
 		Name:       "remove-testers",
-		ShortUsage: "asc testflight beta-groups remove-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortUsage: "asc testflight beta-groups remove-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\" --confirm",
 		ShortHelp:  "Remove beta testers from a beta group.",
 		LongHelp: `Remove beta testers from a beta group.
 
 Examples:
-  asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
-  asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+  asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID" --confirm
+  asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -457,6 +458,10 @@ Examples:
 			testerIDs := parseCommaSeparatedIDs(*tester)
 			if len(testerIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --tester is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return flag.ErrHelp
 			}
 

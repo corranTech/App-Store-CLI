@@ -75,18 +75,19 @@ func BuildsRemoveGroupsCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
+	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "remove-groups",
-		ShortUsage: "asc builds remove-groups --build BUILD_ID --group GROUP_ID[,GROUP_ID...]",
+		ShortUsage: "asc builds remove-groups --build BUILD_ID --group GROUP_ID[,GROUP_ID...] --confirm",
 		ShortHelp:  "Remove beta groups from a build.",
 		LongHelp: `Remove beta groups from a build.
 
 Examples:
-  asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
-  asc builds remove-groups --build "BUILD_ID" --group "GROUP1,GROUP2"`,
+  asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID" --confirm
+  asc builds remove-groups --build "BUILD_ID" --group "GROUP1,GROUP2" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -99,6 +100,10 @@ Examples:
 			groupIDs := parseCommaSeparatedIDs(*groups)
 			if len(groupIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --group is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return flag.ErrHelp
 			}
 

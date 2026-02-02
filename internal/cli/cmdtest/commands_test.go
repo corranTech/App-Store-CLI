@@ -420,6 +420,92 @@ func TestBuildsGroupValidationErrors(t *testing.T) {
 			args:    []string{"builds", "remove-groups", "--build", "BUILD_123"},
 			wantErr: "Error: --group is required",
 		},
+		{
+			name:    "builds remove-groups missing confirm",
+			args:    []string{"builds", "remove-groups", "--build", "BUILD_123", "--group", "GROUP_123"},
+			wantErr: "Error: --confirm is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestBuildsExpireValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "builds expire missing build",
+			args:    []string{"builds", "expire"},
+			wantErr: "Error: --build is required",
+		},
+		{
+			name:    "builds expire missing confirm",
+			args:    []string{"builds", "expire", "--build", "BUILD_ID"},
+			wantErr: "Error: --confirm is required to expire build",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestBuildsIndividualTestersValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "builds individual-testers remove missing confirm",
+			args:    []string{"builds", "individual-testers", "remove", "--build", "BUILD_ID", "--tester", "TESTER_ID"},
+			wantErr: "Error: --confirm is required",
+		},
 	}
 
 	for _, test := range tests {
@@ -586,6 +672,11 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			wantErr: "--group is required",
 		},
 		{
+			name:    "beta-testers remove-groups missing confirm",
+			args:    []string{"testflight", "beta-testers", "remove-groups", "--id", "TESTER_ID", "--group", "GROUP_ID"},
+			wantErr: "Error: --confirm is required",
+		},
+		{
 			name:    "beta-testers invite missing app",
 			args:    []string{"testflight", "beta-testers", "invite", "--email", "tester@example.com"},
 			wantErr: "--app is required",
@@ -639,6 +730,11 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			name:    "beta-groups remove-testers missing tester",
 			args:    []string{"testflight", "beta-groups", "remove-testers", "--group", "GROUP_ID"},
 			wantErr: "--tester is required",
+		},
+		{
+			name:    "beta-groups remove-testers missing confirm",
+			args:    []string{"testflight", "beta-groups", "remove-testers", "--group", "GROUP_ID", "--tester", "TESTER_ID"},
+			wantErr: "Error: --confirm is required",
 		},
 		{
 			name:    "beta-groups delete missing id",
@@ -3431,6 +3527,8 @@ func TestAppsAppEncryptionDeclarationsValidationErrors(t *testing.T) {
 }
 
 func TestAppSetupInfoSetValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string
