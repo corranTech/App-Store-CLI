@@ -145,7 +145,7 @@ Examples:
 				attrs.SandboxOptIn = &value
 			}
 			if durationValue != "" {
-				value := string(durationValue)
+				value := durationValue
 				attrs.Duration = &value
 			}
 			if renewalTypeValue != "" {

@@ -33,13 +33,13 @@ var subscriptionGracePeriodDurationValues = []string{
 	string(asc.SubscriptionGracePeriodDurationTwentyEightDays),
 }
 
-var subscriptionGracePeriodDurationMap = map[string]asc.SubscriptionGracePeriodDuration{
-	string(asc.SubscriptionGracePeriodDurationThreeDays):      asc.SubscriptionGracePeriodDurationThreeDays,
-	string(asc.SubscriptionGracePeriodDurationSixteenDays):    asc.SubscriptionGracePeriodDurationSixteenDays,
-	string(asc.SubscriptionGracePeriodDurationTwentyEightDays): asc.SubscriptionGracePeriodDurationTwentyEightDays,
-	"DAY_3":  asc.SubscriptionGracePeriodDurationThreeDays,
-	"DAY_16": asc.SubscriptionGracePeriodDurationSixteenDays,
-	"DAY_28": asc.SubscriptionGracePeriodDurationTwentyEightDays,
+var subscriptionGracePeriodDurationMap = map[string]string{
+	string(asc.SubscriptionGracePeriodDurationThreeDays):      string(asc.SubscriptionGracePeriodDurationThreeDays),
+	string(asc.SubscriptionGracePeriodDurationSixteenDays):    string(asc.SubscriptionGracePeriodDurationSixteenDays),
+	string(asc.SubscriptionGracePeriodDurationTwentyEightDays): string(asc.SubscriptionGracePeriodDurationTwentyEightDays),
+	"DAY_3":  "DAY_3",
+	"DAY_16": "DAY_16",
+	"DAY_28": "DAY_28",
 }
 
 var subscriptionGracePeriodRenewalTypeValues = []string{
@@ -136,7 +136,7 @@ func normalizeSubscriptionPeriod(value string, required bool) (asc.SubscriptionP
 	return "", fmt.Errorf("--subscription-period must be one of: %s", strings.Join(subscriptionPeriodValues, ", "))
 }
 
-func normalizeSubscriptionGracePeriodDuration(value string, required bool) (asc.SubscriptionGracePeriodDuration, error) {
+func normalizeSubscriptionGracePeriodDuration(value string, required bool) (string, error) {
 	normalized := strings.ToUpper(strings.TrimSpace(value))
 	if normalized == "" {
 		if required {
