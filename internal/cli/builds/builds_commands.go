@@ -567,24 +567,29 @@ func BuildsExpireCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds expire", flag.ExitOnError)
 
 	buildID := fs.String("build", "", "Build ID")
+	confirm := fs.Bool("confirm", false, "Confirm expiration")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "expire",
-		ShortUsage: "asc builds expire [flags]",
+		ShortUsage: "asc builds expire --build BUILD_ID --confirm [flags]",
 		ShortHelp:  "Expire a build for TestFlight.",
 		LongHelp: `Expire a build for TestFlight.
 
 This action is irreversible for the specified build.
 
 Examples:
-  asc builds expire --build "BUILD_ID"`,
+  asc builds expire --build "BUILD_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*buildID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required to expire build")
 				return flag.ErrHelp
 			}
 

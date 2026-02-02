@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -20,6 +21,7 @@ var (
 	lookupNpx      = exec.LookPath
 	runCommand     = defaultRunCommand
 	errNpxNotFound = errors.New("npx not found")
+	validPackage   = regexp.MustCompile(`^[A-Za-z0-9@._/-]+$`)
 )
 
 // InstallCommand returns the install command factory.
@@ -79,6 +81,9 @@ func installSkills(ctx context.Context, pkg string) error {
 	if pkg == "" {
 		return fmt.Errorf("--package is required")
 	}
+	if err := validatePackageName(pkg); err != nil {
+		return err
+	}
 
 	path, err := lookupNpx("npx")
 	if err != nil {
@@ -86,6 +91,16 @@ func installSkills(ctx context.Context, pkg string) error {
 	}
 
 	return runCommand(ctx, path, "--yes", "add-skill", pkg)
+}
+
+func validatePackageName(pkg string) error {
+	if strings.HasPrefix(pkg, "-") {
+		return fmt.Errorf("--package must not start with '-'")
+	}
+	if !validPackage.MatchString(pkg) {
+		return fmt.Errorf("--package must be a valid npm package or repo (letters, numbers, @, ., _, -, /)")
+	}
+	return nil
 }
 
 func defaultRunCommand(ctx context.Context, name string, args ...string) error {
