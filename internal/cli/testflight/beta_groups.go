@@ -386,7 +386,6 @@ func BetaGroupsAddTestersCommand() *ffcli.Command {
 
 	group := fs.String("group", "", "Beta group ID")
 	tester := fs.String("tester", "", "Beta tester ID(s), comma-separated")
-	confirm := fs.Bool("confirm", false, "Confirm removal")
 
 	return &ffcli.Command{
 		Name:       "add-testers",
@@ -436,6 +435,7 @@ func BetaGroupsRemoveTestersCommand() *ffcli.Command {
 
 	group := fs.String("group", "", "Beta group ID")
 	tester := fs.String("tester", "", "Beta tester ID(s), comma-separated")
+	confirm := fs.Bool("confirm", false, "Confirm removal")
 
 	return &ffcli.Command{
 		Name:       "remove-testers",

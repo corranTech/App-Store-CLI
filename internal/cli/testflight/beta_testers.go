@@ -324,7 +324,6 @@ func BetaTestersAddGroupsCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta tester ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
-	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -386,6 +385,7 @@ func BetaTestersRemoveGroupsCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta tester ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
+	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
