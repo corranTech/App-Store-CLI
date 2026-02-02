@@ -6,15 +6,15 @@
   <img src="https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge" alt="Homebrew">
 </p>
 
-A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect. Ship iOS apps with zero friction.
+A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Automate your iOS app workflows from the terminal.
 
 ## Why ASC?
 
 | Problem | Solution |
 |---------|----------|
 | Manual App Store Connect work | Automate everything from CLI |
-| Slow, heavy tooling | Go binary, fast startup |
-| Not AI-agent friendly | JSON output, explicit flags, clean exit codes |
+| Slow, heavy tooling | Single Go binary, instant startup |
+| Poor scripting support | JSON output, explicit flags, clean exit codes |
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect
   - [Install](#install)
   - [Authenticate](#authenticate)
 - [Commands](#commands)
-  - [Agent Quickstart](#agent-quickstart)
+  - [Scripting Tips](#scripting-tips)
   - [TestFlight](#testflight)
   - [Beta Groups](#beta-groups)
   - [Beta Testers](#beta-testers)
@@ -52,7 +52,7 @@ A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect
   - [Authentication](#authentication)
 - [Design Philosophy](#design-philosophy)
   - [Explicit Over Cryptic](#explicit-over-cryptic)
-  - [AI-Agent Friendly](#ai-agent-friendly)
+  - [JSON-First Output](#json-first-output)
   - [No Interactive Prompts](#no-interactive-prompts)
 - [Installation](#installation)
 - [Documentation](#documentation)
@@ -216,10 +216,10 @@ Config.json keys (same semantics, snake_case):
 
 ## Commands
 
-### Agent Quickstart
+### Scripting Tips
 
-- JSON output is default for machine parsing; add `--pretty` when debugging.
-- Use `--paginate` to automatically fetch all pages (recommended for AI agents).
+- JSON output is default for easy parsing; add `--pretty` when debugging.
+- Use `--paginate` to automatically fetch all pages.
 - `--paginate` works on list commands including apps, builds list, app-tags list, app-tags territories, promo codes list, devices list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, game-center achievements/leaderboards/leaderboard-sets lists (including localizations/releases/members), and Xcode Cloud workflows/build-runs.
 - Use `--limit` + `--next "<links.next>"` for manual pagination control.
 - Sort with `--sort` (prefix `-` for descending):
@@ -231,7 +231,7 @@ Config.json keys (same semantics, snake_case):
 ### TestFlight
 
 ```bash
-# List beta feedback (JSON - best for AI agents)
+# List beta feedback (JSON output)
 asc feedback --app "123456789"
 
 # Filter feedback by device model and OS version
@@ -240,7 +240,7 @@ asc feedback --app "123456789" --device-model "iPhone15,3" --os-version "17.2"
 # Filter feedback by platform/build/tester
 asc feedback --app "123456789" --app-platform IOS --device-platform IOS --build "BUILD_ID" --tester "TESTER_ID"
 
-# Fetch all feedback pages automatically (AI agents)
+# Fetch all feedback pages automatically
 asc feedback --app "123456789" --paginate
 
 # Get crash reports (table format - for humans)
@@ -255,7 +255,7 @@ asc crashes --app "123456789" --limit 25
 # Sort crashes by created date (newest first)
 asc crashes --app "123456789" --sort -createdDate --limit 5
 
-# Fetch all crash pages automatically (AI agents)
+# Fetch all crash pages automatically
 asc crashes --app "123456789" --paginate
 
 # List TestFlight apps
@@ -338,7 +338,7 @@ asc devices update --id "DEVICE_ID" --status DISABLED
 ### App Store
 
 ```bash
-# List customer reviews (JSON - best for AI agents)
+# List customer reviews (JSON output)
 asc reviews --app "123456789"
 
 # Filter by stars (table format - for humans)
@@ -350,7 +350,7 @@ asc reviews --app "123456789" --territory US --output markdown
 # Sort reviews by created date (newest first)
 asc reviews --app "123456789" --sort -createdDate --limit 5
 
-# Fetch all reviews pages automatically (AI agents)
+# Fetch all reviews pages automatically
 asc reviews --app "123456789" --paginate
 
 # Respond to a customer review
@@ -901,9 +901,9 @@ asc --version
 
 | Format | Flag | Use Case |
 |--------|------|----------|
-| JSON (minified) | default | AI agents, scripting |
-| Table | `--output table` | Humans in terminal |
-| Markdown | `--output markdown` | Humans, documentation |
+| JSON (minified) | default | Scripting, automation |
+| Table | `--output table` | Terminal display |
+| Markdown | `--output markdown` | Documentation |
 
 Note: When using `--paginate`, the response `links` field is cleared to avoid confusion about additional pages.
 
@@ -936,22 +936,22 @@ asc reviews --app "MyApp" --stars 1
 # asc reviews -a "MyApp" -s 1
 ```
 
-### AI-Agent Friendly
+### JSON-First Output
 
-All commands output minified JSON by default for easy parsing by AI agents:
+All commands output minified JSON by default for easy parsing:
 
 ```bash
 asc feedback --app "123456789" | jq '.data[].attributes.comment'
 ```
 
-JSON output is minified (one line per response) by default. Use `--output table` or `--output markdown` for human-readable output.
+JSON is minified (one line) by default. Use `--output table` or `--output markdown` for human-readable output.
 
 ### No Interactive Prompts
 
 Everything is flag-based for automation:
 
 ```bash
-# Non-interactive (good for CI/CD and AI)
+# Non-interactive (good for CI/CD and scripts)
 asc feedback --app "123456789"
 
 # No prompts, no waiting
