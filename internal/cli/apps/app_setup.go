@@ -55,7 +55,8 @@ func AppSetupInfoCommand() *ffcli.Command {
 Examples:
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --bundle-id "com.example.app"
   asc app-setup info set --app "APP_ID" --locale "en-US" --name "My App" --subtitle "Great app"
-  asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"`,
+  asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"
+  asc app-setup info set --app "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupInfoSetCommand(),
@@ -80,6 +81,7 @@ func AppSetupInfoSetCommand() *ffcli.Command {
 	privacyPolicyURL := fs.String("privacy-policy-url", "", "Localized privacy policy URL")
 	privacyChoicesURL := fs.String("privacy-choices-url", "", "Localized privacy choices URL")
 	privacyPolicyText := fs.String("privacy-policy-text", "", "Localized privacy policy text")
+	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -92,7 +94,8 @@ func AppSetupInfoSetCommand() *ffcli.Command {
 Examples:
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --bundle-id "com.example.app"
   asc app-setup info set --app "APP_ID" --locale "en-US" --name "My App" --subtitle "Great app"
-  asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"`,
+  asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"
+  asc app-setup info set --app "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -115,8 +118,9 @@ Examples:
 			privacyPolicyURLValue := strings.TrimSpace(*privacyPolicyURL)
 			privacyChoicesURLValue := strings.TrimSpace(*privacyChoicesURL)
 			privacyPolicyTextValue := strings.TrimSpace(*privacyPolicyText)
+			contentRightsValue := strings.TrimSpace(*contentRights)
 
-			hasAppUpdate := bundleIDValue != "" || primaryLocaleValue != ""
+			hasAppUpdate := bundleIDValue != "" || primaryLocaleValue != "" || contentRightsValue != ""
 			hasLocalization := nameValue != "" ||
 				subtitleValue != "" ||
 				privacyPolicyURLValue != "" ||
@@ -158,6 +162,17 @@ Examples:
 				}
 				if primaryLocaleValue != "" {
 					attrs.PrimaryLocale = &primaryLocaleValue
+				}
+				if contentRightsValue != "" {
+					normalizedRights := asc.ContentRightsDeclaration(strings.ToUpper(contentRightsValue))
+					switch normalizedRights {
+					case asc.ContentRightsDeclarationDoesNotUseThirdPartyContent,
+						asc.ContentRightsDeclarationUsesThirdPartyContent:
+						attrs.ContentRightsDeclaration = &normalizedRights
+					default:
+						fmt.Fprintf(os.Stderr, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
+						return flag.ErrHelp
+					}
 				}
 				appResp, err = client.UpdateApp(requestCtx, appIDValue, attrs)
 				if err != nil {
