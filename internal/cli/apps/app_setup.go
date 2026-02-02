@@ -146,6 +146,19 @@ Examples:
 				}
 			}
 
+			var normalizedContentRights *asc.ContentRightsDeclaration
+			if contentRightsValue != "" {
+				normalizedRights := asc.ContentRightsDeclaration(strings.ToUpper(contentRightsValue))
+				switch normalizedRights {
+				case asc.ContentRightsDeclarationDoesNotUseThirdPartyContent,
+					asc.ContentRightsDeclarationUsesThirdPartyContent:
+					normalizedContentRights = &normalizedRights
+				default:
+					fmt.Fprintf(os.Stderr, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
+					return flag.ErrHelp
+				}
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("app-setup info set: %w", err)
@@ -163,16 +176,8 @@ Examples:
 				if primaryLocaleValue != "" {
 					attrs.PrimaryLocale = &primaryLocaleValue
 				}
-				if contentRightsValue != "" {
-					normalizedRights := asc.ContentRightsDeclaration(strings.ToUpper(contentRightsValue))
-					switch normalizedRights {
-					case asc.ContentRightsDeclarationDoesNotUseThirdPartyContent,
-						asc.ContentRightsDeclarationUsesThirdPartyContent:
-						attrs.ContentRightsDeclaration = &normalizedRights
-					default:
-						fmt.Fprintf(os.Stderr, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
-						return flag.ErrHelp
-					}
+				if normalizedContentRights != nil {
+					attrs.ContentRightsDeclaration = normalizedContentRights
 				}
 				appResp, err = client.UpdateApp(requestCtx, appIDValue, attrs)
 				if err != nil {
