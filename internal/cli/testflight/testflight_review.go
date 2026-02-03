@@ -922,6 +922,8 @@ Examples:
 					return fmt.Errorf("testflight recruitment set: failed to update: %w", err)
 				}
 				return printOutput(criteria, *output, *pretty)
+			} else if !asc.IsNotFound(err) {
+				return fmt.Errorf("testflight recruitment set: failed to fetch existing criteria: %w", err)
 			}
 
 			criteria, createErr := client.CreateBetaRecruitmentCriteria(requestCtx, trimmedGroupID, filterValues)
