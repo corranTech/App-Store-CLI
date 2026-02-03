@@ -417,6 +417,26 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
+			name:    "beta-feedback crash-submissions delete missing id",
+			args:    []string{"testflight", "beta-feedback", "crash-submissions", "delete", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-feedback crash-submissions delete missing confirm",
+			args:    []string{"testflight", "beta-feedback", "crash-submissions", "delete", "--id", "SUBMISSION_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "beta-feedback screenshot-submissions delete missing id",
+			args:    []string{"testflight", "beta-feedback", "screenshot-submissions", "delete", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-feedback screenshot-submissions delete missing confirm",
+			args:    []string{"testflight", "beta-feedback", "screenshot-submissions", "delete", "--id", "SUBMISSION_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
 			name:    "beta-app-localizations app get missing id",
 			args:    []string{"beta-app-localizations", "app", "get"},
 			wantErr: "--id is required",

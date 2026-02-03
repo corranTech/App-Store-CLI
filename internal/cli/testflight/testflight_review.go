@@ -27,6 +27,7 @@ Examples:
   asc testflight review update --id "DETAIL_ID" --contact-email "dev@example.com"
   asc testflight review submit --build "BUILD_ID" --confirm
   asc testflight review app get --id "DETAIL_ID"
+  asc testflight review submissions list --build "BUILD_ID"
   asc testflight review submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
@@ -329,15 +330,94 @@ func TestFlightReviewSubmissionsCommand() *ffcli.Command {
 
 Examples:
   asc testflight review submissions get --id "SUBMISSION_ID"
-  asc testflight review submissions build --id "SUBMISSION_ID"`,
+  asc testflight review submissions build --id "SUBMISSION_ID"
+  asc testflight review submissions list --build "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			TestFlightReviewSubmissionsListCommand(),
 			TestFlightReviewSubmissionsGetCommand(),
 			TestFlightReviewSubmissionsBuildCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightReviewSubmissionsListCommand lists beta app review submissions.
+func TestFlightReviewSubmissionsListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions list", flag.ExitOnError)
+
+	buildID := fs.String("build", "", "Build ID to filter")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: "asc testflight review submissions list --build \"BUILD_ID\" [flags]",
+		ShortHelp:  "List beta app review submissions.",
+		LongHelp: `List beta app review submissions.
+
+Examples:
+  asc testflight review submissions list --build "BUILD_ID"
+  asc testflight review submissions list --build "BUILD_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			buildValue := strings.TrimSpace(*buildID)
+			if buildValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				return flag.ErrHelp
+			}
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("testflight review submissions list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("testflight review submissions list: %w", err)
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight review submissions list: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.BetaAppReviewSubmissionsOption{
+				asc.WithBetaAppReviewSubmissionsLimit(*limit),
+				asc.WithBetaAppReviewSubmissionsNextURL(*next),
+			}
+
+			opts = append(opts, asc.WithBetaAppReviewSubmissionsBuildIDs([]string{buildValue}))
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithBetaAppReviewSubmissionsLimit(200))
+				firstPage, err := client.GetBetaAppReviewSubmissions(requestCtx, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("testflight review submissions list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBetaAppReviewSubmissions(ctx, asc.WithBetaAppReviewSubmissionsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("testflight review submissions list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetBetaAppReviewSubmissions(requestCtx, opts...)
+			if err != nil {
+				return fmt.Errorf("testflight review submissions list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -671,9 +751,62 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			TestFlightRecruitmentOptionsCommand(),
 			TestFlightRecruitmentSetCommand(),
+			TestFlightRecruitmentDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// TestFlightRecruitmentDeleteCommand deletes beta recruitment criteria by ID.
+func TestFlightRecruitmentDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta recruitment criteria ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc testflight recruitment delete --id \"CRITERIA_ID\" --confirm",
+		ShortHelp:  "Delete beta recruitment criteria.",
+		LongHelp: `Delete beta recruitment criteria.
+
+Examples:
+  asc testflight recruitment delete --id "CRITERIA_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			criteriaID := strings.TrimSpace(*id)
+			if criteriaID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight recruitment delete: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.DeleteBetaRecruitmentCriteria(requestCtx, criteriaID); err != nil {
+				return fmt.Errorf("testflight recruitment delete: failed to delete: %w", err)
+			}
+
+			result := &asc.BetaRecruitmentCriteriaDeleteResult{
+				ID:      criteriaID,
+				Deleted: true,
+			}
+
+			return printOutput(result, *output, *pretty)
 		},
 	}
 }

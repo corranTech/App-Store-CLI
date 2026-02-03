@@ -193,6 +193,26 @@ func printBetaRecruitmentCriteriaMarkdown(resp *BetaRecruitmentCriteriaResponse)
 	return nil
 }
 
+func printBetaRecruitmentCriteriaDeleteResultTable(result *BetaRecruitmentCriteriaDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n",
+		result.ID,
+		result.Deleted,
+	)
+	return w.Flush()
+}
+
+func printBetaRecruitmentCriteriaDeleteResultMarkdown(result *BetaRecruitmentCriteriaDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
+		escapeMarkdown(result.ID),
+		result.Deleted,
+	)
+	return nil
+}
+
 func formatDeviceFamilyOsVersions(items []BetaRecruitmentCriterionOptionDeviceFamily) string {
 	if len(items) == 0 {
 		return ""

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // BetaFeedbackCommand returns the beta-feedback command group.
@@ -48,11 +50,13 @@ func BetaFeedbackCrashSubmissionsCommand() *ffcli.Command {
 		LongHelp: `Fetch beta feedback crash submission details.
 
 Examples:
-  asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"`,
+  asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"
+  asc testflight beta-feedback crash-submissions delete --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaFeedbackCrashSubmissionsGetCommand(),
+			BetaFeedbackCrashSubmissionsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -114,14 +118,68 @@ func BetaFeedbackScreenshotSubmissionsCommand() *ffcli.Command {
 		LongHelp: `Fetch beta feedback screenshot submission details.
 
 Examples:
-  asc testflight beta-feedback screenshot-submissions get --id "SUBMISSION_ID"`,
+  asc testflight beta-feedback screenshot-submissions get --id "SUBMISSION_ID"
+  asc testflight beta-feedback screenshot-submissions delete --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaFeedbackScreenshotSubmissionsGetCommand(),
+			BetaFeedbackScreenshotSubmissionsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// BetaFeedbackCrashSubmissionsDeleteCommand deletes a beta feedback crash submission by ID.
+func BetaFeedbackCrashSubmissionsDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("crash-submissions delete", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta feedback crash submission ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc testflight beta-feedback crash-submissions delete --id \"SUBMISSION_ID\" --confirm",
+		ShortHelp:  "Delete a beta feedback crash submission by ID.",
+		LongHelp: `Delete a beta feedback crash submission by ID.
+
+Examples:
+  asc testflight beta-feedback crash-submissions delete --id "SUBMISSION_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight beta-feedback crash-submissions delete: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.DeleteBetaFeedbackCrashSubmission(requestCtx, idValue); err != nil {
+				return fmt.Errorf("testflight beta-feedback crash-submissions delete: failed to delete: %w", err)
+			}
+
+			result := &asc.BetaFeedbackSubmissionDeleteResult{
+				ID:      idValue,
+				Deleted: true,
+			}
+
+			return printOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -165,6 +223,58 @@ Examples:
 			}
 
 			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// BetaFeedbackScreenshotSubmissionsDeleteCommand deletes a beta feedback screenshot submission by ID.
+func BetaFeedbackScreenshotSubmissionsDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("screenshot-submissions delete", flag.ExitOnError)
+
+	id := fs.String("id", "", "Beta feedback screenshot submission ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc testflight beta-feedback screenshot-submissions delete --id \"SUBMISSION_ID\" --confirm",
+		ShortHelp:  "Delete a beta feedback screenshot submission by ID.",
+		LongHelp: `Delete a beta feedback screenshot submission by ID.
+
+Examples:
+  asc testflight beta-feedback screenshot-submissions delete --id "SUBMISSION_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("testflight beta-feedback screenshot-submissions delete: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.DeleteBetaFeedbackScreenshotSubmission(requestCtx, idValue); err != nil {
+				return fmt.Errorf("testflight beta-feedback screenshot-submissions delete: failed to delete: %w", err)
+			}
+
+			result := &asc.BetaFeedbackSubmissionDeleteResult{
+				ID:      idValue,
+				Deleted: true,
+			}
+
+			return printOutput(result, *output, *pretty)
 		},
 	}
 }

@@ -677,6 +677,46 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 			wantErr: "Error: --confirm is required",
 		},
 		{
+			name:    "beta-testers add-builds missing id",
+			args:    []string{"testflight", "beta-testers", "add-builds", "--build", "BUILD_ID"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-testers add-builds missing build",
+			args:    []string{"testflight", "beta-testers", "add-builds", "--id", "TESTER_ID"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "beta-testers remove-builds missing id",
+			args:    []string{"testflight", "beta-testers", "remove-builds", "--build", "BUILD_ID", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-testers remove-builds missing build",
+			args:    []string{"testflight", "beta-testers", "remove-builds", "--id", "TESTER_ID", "--confirm"},
+			wantErr: "--build is required",
+		},
+		{
+			name:    "beta-testers remove-builds missing confirm",
+			args:    []string{"testflight", "beta-testers", "remove-builds", "--id", "TESTER_ID", "--build", "BUILD_ID"},
+			wantErr: "Error: --confirm is required",
+		},
+		{
+			name:    "beta-testers remove-apps missing id",
+			args:    []string{"testflight", "beta-testers", "remove-apps", "--app", "APP_ID", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "beta-testers remove-apps missing app",
+			args:    []string{"testflight", "beta-testers", "remove-apps", "--id", "TESTER_ID", "--confirm"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "beta-testers remove-apps missing confirm",
+			args:    []string{"testflight", "beta-testers", "remove-apps", "--id", "TESTER_ID", "--app", "APP_ID"},
+			wantErr: "Error: --confirm is required",
+		},
+		{
 			name:    "beta-testers invite missing app",
 			args:    []string{"testflight", "beta-testers", "invite", "--email", "tester@example.com"},
 			wantErr: "--app is required",
@@ -2710,6 +2750,16 @@ func TestTestFlightRecruitmentValidationErrors(t *testing.T) {
 			name:    "recruitment set missing criteria",
 			args:    []string{"testflight", "recruitment", "set", "--group", "GROUP_ID"},
 			wantErr: "--os-version-filter is required",
+		},
+		{
+			name:    "recruitment delete missing id",
+			args:    []string{"testflight", "recruitment", "delete", "--confirm"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "recruitment delete missing confirm",
+			args:    []string{"testflight", "recruitment", "delete", "--id", "CRITERIA_ID"},
+			wantErr: "--confirm is required",
 		},
 	}
 

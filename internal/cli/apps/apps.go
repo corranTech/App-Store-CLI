@@ -57,6 +57,7 @@ Examples:
 			AppsGetCommand(),
 			AppsCIProductCommand(),
 			AppsUpdateCommand(),
+			AppsRemoveBetaTestersCommand(),
 			AppsSubscriptionGracePeriodCommand(),
 			AppsSearchKeywordsCommand(),
 			AppEncryptionDeclarationsCommand(),

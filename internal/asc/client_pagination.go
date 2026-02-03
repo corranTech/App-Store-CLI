@@ -200,6 +200,8 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaBuildLocalizationsResponse{Links: Links{}}
 	case *BetaLicenseAgreementsResponse:
 		result = &BetaLicenseAgreementsResponse{Links: Links{}}
+	case *BetaAppReviewSubmissionsResponse:
+		result = &BetaAppReviewSubmissionsResponse{Links: Links{}}
 	case *AppInfoLocalizationsResponse:
 		result = &AppInfoLocalizationsResponse{Links: Links{}}
 	case *InAppPurchaseLocalizationsResponse:
@@ -538,6 +540,8 @@ func typeOf(p PaginatedResponse) string {
 		return "BetaBuildLocalizationsResponse"
 	case *BetaLicenseAgreementsResponse:
 		return "BetaLicenseAgreementsResponse"
+	case *BetaAppReviewSubmissionsResponse:
+		return "BetaAppReviewSubmissionsResponse"
 	case *AppInfoLocalizationsResponse:
 		return "AppInfoLocalizationsResponse"
 	case *InAppPurchaseLocalizationsResponse:
