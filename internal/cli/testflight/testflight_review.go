@@ -358,17 +358,21 @@ func TestFlightReviewSubmissionsListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc testflight review submissions list [flags]",
+		ShortUsage: "asc testflight review submissions list --build \"BUILD_ID\" [flags]",
 		ShortHelp:  "List beta app review submissions.",
 		LongHelp: `List beta app review submissions.
 
 Examples:
-  asc testflight review submissions list
   asc testflight review submissions list --build "BUILD_ID"
   asc testflight review submissions list --build "BUILD_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			buildValue := strings.TrimSpace(*buildID)
+			if buildValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				return flag.ErrHelp
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight review submissions list: --limit must be between 1 and 200")
 			}
@@ -389,9 +393,7 @@ Examples:
 				asc.WithBetaAppReviewSubmissionsNextURL(*next),
 			}
 
-			if buildValue := strings.TrimSpace(*buildID); buildValue != "" {
-				opts = append(opts, asc.WithBetaAppReviewSubmissionsBuildIDs([]string{buildValue}))
-			}
+			opts = append(opts, asc.WithBetaAppReviewSubmissionsBuildIDs([]string{buildValue}))
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithBetaAppReviewSubmissionsLimit(200))

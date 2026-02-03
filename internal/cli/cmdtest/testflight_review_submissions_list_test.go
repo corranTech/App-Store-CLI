@@ -2,12 +2,36 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestTestFlightReviewSubmissionsListMissingBuild(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "review", "submissions", "list"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --build is required") {
+		t.Fatalf("expected error %q, got %q", "Error: --build is required", stderr)
+	}
+}
 
 func TestTestFlightReviewSubmissionsListOutputTable(t *testing.T) {
 	setupAuth(t)
