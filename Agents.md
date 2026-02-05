@@ -85,4 +85,3 @@ Detailed guidance on specific topics (only read when needed):
 - **Git workflow, CLI structure, adding features**: `docs/CONTRIBUTING.md`
 - **API quirks (analytics, finance, sandbox)**: `docs/API_NOTES.md`
 - **Development setup, PRs**: `CONTRIBUTING.md` (root)
-- **Release automation skill**: `skills/asc-release-successor/SKILL.md`

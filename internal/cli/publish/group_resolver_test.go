@@ -2,30 +2,77 @@ package publish
 
 import (
 	"context"
-	"errors"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-type stubPublishBetaGroupsClient struct {
-	responses []*asc.BetaGroupsResponse
-	err       error
-	calls     int
+// --- helpers ---------------------------------------------------------------
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
-func (s *stubPublishBetaGroupsClient) GetBetaGroups(ctx context.Context, appID string, opts ...asc.BetaGroupsOption) (*asc.BetaGroupsResponse, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
-	if s.calls >= len(s.responses) {
-		return &asc.BetaGroupsResponse{}, nil
-	}
-	resp := s.responses[s.calls]
-	s.calls++
-	return resp, nil
+func setupTestAuth(t *testing.T) {
+	t.Helper()
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeTestECDSAPEM(t, keyPath)
+	t.Setenv("ASC_KEY_ID", "TEST_KEY")
+	t.Setenv("ASC_ISSUER_ID", "TEST_ISSUER")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 }
+
+func writeTestECDSAPEM(t *testing.T, path string) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate ECDSA key: %v", err)
+	}
+	der, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal ECDSA key: %v", err)
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		t.Fatalf("create key file: %v", err)
+	}
+	defer f.Close()
+	if err := pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: der}); err != nil {
+		t.Fatalf("encode PEM: %v", err)
+	}
+}
+
+func swapTransport(t *testing.T, rt http.RoundTripper) {
+	t.Helper()
+	orig := http.DefaultTransport
+	http.DefaultTransport = rt
+	t.Cleanup(func() { http.DefaultTransport = orig })
+}
+
+func jsonResponse(status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+	}
+}
+
+// --- resolvePublishBetaGroupIDsFromList (pure unit tests) ------------------
 
 func TestResolvePublishBetaGroupIDsFromList_ResolvesByNameAndID(t *testing.T) {
 	groups := &asc.BetaGroupsResponse{
@@ -97,47 +144,370 @@ func TestResolvePublishBetaGroupIDsFromList_NoGroupsReturned(t *testing.T) {
 	}
 }
 
-func TestListAllPublishBetaGroups_Paginates(t *testing.T) {
-	client := &stubPublishBetaGroupsClient{
-		responses: []*asc.BetaGroupsResponse{
-			{
-				Data: []asc.Resource[asc.BetaGroupAttributes]{
-					{ID: "GROUP_A", Attributes: asc.BetaGroupAttributes{Name: "Alpha"}},
-				},
-				Links: asc.Links{
-					Next: "https://api.appstoreconnect.apple.com/v1/apps/APP_ID/betaGroups?cursor=NEXT",
-				},
-			},
-			{
-				Data: []asc.Resource[asc.BetaGroupAttributes]{
-					{ID: "GROUP_B", Attributes: asc.BetaGroupAttributes{Name: "Beta"}},
-				},
-			},
+func TestResolvePublishBetaGroupIDsFromList_SingleNameResolves(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "G1", Attributes: asc.BetaGroupAttributes{Name: "Alpha"}},
+			{ID: "G2", Attributes: asc.BetaGroupAttributes{Name: "Beta"}},
 		},
 	}
 
-	got, err := listAllPublishBetaGroups(context.Background(), client, "APP_ID")
+	got, err := resolvePublishBetaGroupIDsFromList([]string{"beta"}, groups)
 	if err != nil {
-		t.Fatalf("listAllPublishBetaGroups() error = %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if client.calls != 2 {
-		t.Fatalf("expected 2 GetBetaGroups calls, got %d", client.calls)
-	}
-	if len(got.Data) != 2 {
-		t.Fatalf("expected 2 beta groups, got %d", len(got.Data))
-	}
-	if got.Data[0].ID != "GROUP_A" || got.Data[1].ID != "GROUP_B" {
-		t.Fatalf("unexpected group IDs: %#v", got.Data)
+	if len(got) != 1 || got[0] != "G2" {
+		t.Fatalf("expected [G2], got %v", got)
 	}
 }
 
-func TestListAllPublishBetaGroups_FirstPageError(t *testing.T) {
-	client := &stubPublishBetaGroupsClient{err: errors.New("boom")}
-	_, err := listAllPublishBetaGroups(context.Background(), client, "APP_ID")
-	if err == nil {
-		t.Fatal("expected error")
+func TestResolvePublishBetaGroupIDsFromList_EmptyDataList(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{},
 	}
-	if !strings.Contains(err.Error(), "boom") {
+
+	_, err := resolvePublishBetaGroupIDsFromList([]string{"anything"}, groups)
+	if err == nil {
+		t.Fatal("expected error when data list is empty")
+	}
+	if !strings.Contains(err.Error(), `beta group "anything" not found`) {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestResolvePublishBetaGroupIDsFromList_AllWhitespaceInputs(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "G1", Attributes: asc.BetaGroupAttributes{Name: "Alpha"}},
+		},
+	}
+
+	_, err := resolvePublishBetaGroupIDsFromList([]string{"  ", "\t", ""}, groups)
+	if err == nil {
+		t.Fatal("expected error when all inputs are whitespace")
+	}
+	if !strings.Contains(err.Error(), "at least one beta group is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestResolvePublishBetaGroupIDsFromList_IDsTakePriorityOverNames(t *testing.T) {
+	// A group whose name happens to be a valid ID of another group.
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "ABC123", Attributes: asc.BetaGroupAttributes{Name: "DEF456"}},
+			{ID: "DEF456", Attributes: asc.BetaGroupAttributes{Name: "Other"}},
+		},
+	}
+
+	// "DEF456" should resolve as an ID (exact match), not by name.
+	got, err := resolvePublishBetaGroupIDsFromList([]string{"DEF456"}, groups)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0] != "DEF456" {
+		t.Fatalf("expected [DEF456], got %v", got)
+	}
+}
+
+func TestResolvePublishBetaGroupIDsFromList_SkipsGroupsWithEmptyIDOrName(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "", Attributes: asc.BetaGroupAttributes{Name: "Ghost"}},     // empty ID, skipped
+			{ID: "G1", Attributes: asc.BetaGroupAttributes{Name: ""}},        // empty name, but valid ID
+			{ID: "G2", Attributes: asc.BetaGroupAttributes{Name: "Visible"}},
+		},
+	}
+
+	// Resolve by ID: G1 should still be found even though its name is empty.
+	got, err := resolvePublishBetaGroupIDsFromList([]string{"G1"}, groups)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0] != "G1" {
+		t.Fatalf("expected [G1], got %v", got)
+	}
+
+	// Resolve by name "Ghost" should fail because the resource with that name
+	// had an empty ID and was skipped.
+	_, err = resolvePublishBetaGroupIDsFromList([]string{"Ghost"}, groups)
+	if err == nil {
+		t.Fatal("expected error for group with empty ID")
+	}
+}
+
+func TestResolvePublishBetaGroupIDsFromList_DeduplicatesNameAndID(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "G1", Attributes: asc.BetaGroupAttributes{Name: "Alpha"}},
+		},
+	}
+
+	// Pass the same group by ID and by name: should resolve to just one entry.
+	got, err := resolvePublishBetaGroupIDsFromList([]string{"G1", "alpha"}, groups)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 || got[0] != "G1" {
+		t.Fatalf("expected [G1], got %v", got)
+	}
+}
+
+// --- resolvePublishBetaGroupIDs (HTTP integration tests) -------------------
+
+func TestResolvePublishBetaGroupIDs_SinglePage(t *testing.T) {
+	setupTestAuth(t)
+
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/apps/APP1/betaGroups" {
+			t.Fatalf("unexpected path: %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "200" {
+			t.Fatalf("expected limit=200, got %q", req.URL.Query().Get("limit"))
+		}
+		body := `{
+			"data": [
+				{"type":"betaGroups","id":"G1","attributes":{"name":"Alpha"}},
+				{"type":"betaGroups","id":"G2","attributes":{"name":"Beta"}}
+			]
+		}`
+		return jsonResponse(http.StatusOK, body), nil
+	}))
+
+	client, err := getASCClient()
+	if err != nil {
+		t.Fatalf("getASCClient: %v", err)
+	}
+
+	got, err := resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"Alpha", "G2"})
+	if err != nil {
+		t.Fatalf("resolvePublishBetaGroupIDs() error = %v", err)
+	}
+
+	want := []string{"G1", "G2"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("index %d: expected %q, got %q", i, want[i], got[i])
+		}
+	}
+}
+
+func TestResolvePublishBetaGroupIDs_APIError(t *testing.T) {
+	setupTestAuth(t)
+
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		body := `{"errors":[{"status":"403","title":"Forbidden"}]}`
+		return jsonResponse(http.StatusForbidden, body), nil
+	}))
+
+	client, err := getASCClient()
+	if err != nil {
+		t.Fatalf("getASCClient: %v", err)
+	}
+
+	_, err = resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"Alpha"})
+	if err == nil {
+		t.Fatal("expected error from API failure")
+	}
+	if !strings.Contains(err.Error(), "failed to list beta groups") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestResolvePublishBetaGroupIDs_NameNotFound(t *testing.T) {
+	setupTestAuth(t)
+
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		body := `{
+			"data": [
+				{"type":"betaGroups","id":"G1","attributes":{"name":"Alpha"}}
+			]
+		}`
+		return jsonResponse(http.StatusOK, body), nil
+	}))
+
+	client, err := getASCClient()
+	if err != nil {
+		t.Fatalf("getASCClient: %v", err)
+	}
+
+	_, err = resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"NonExistent"})
+	if err == nil {
+		t.Fatal("expected error for non-existent group name")
+	}
+	if !strings.Contains(err.Error(), `beta group "NonExistent" not found`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- listAllPublishBetaGroups (pagination tests) ---------------------------
+
+func TestListAllPublishBetaGroups_SinglePage(t *testing.T) {
+	setupTestAuth(t)
+
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		body := `{
+			"data": [
+				{"type":"betaGroups","id":"G1","attributes":{"name":"Alpha"}},
+				{"type":"betaGroups","id":"G2","attributes":{"name":"Beta"}}
+			]
+		}`
+		return jsonResponse(http.StatusOK, body), nil
+	}))
+
+	client, err := getASCClient()
+	if err != nil {
+		t.Fatalf("getASCClient: %v", err)
+	}
+
+	resp, err := listAllPublishBetaGroups(context.Background(), client, "APP1")
+	if err != nil {
+		t.Fatalf("listAllPublishBetaGroups() error = %v", err)
+	}
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 groups, got %d", len(resp.Data))
+	}
+}
+
+func TestListAllPublishBetaGroups_Paginated(t *testing.T) {
+	setupTestAuth(t)
+
+	callCount := 0
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		switch callCount {
+		case 1:
+			// First page with a next link.
+			if req.URL.Path != "/v1/apps/APP1/betaGroups" {
+				t.Fatalf("page 1: unexpected path: %s", req.URL.Path)
+			}
+			body := fmt.Sprintf(`{
+				"data": [
+					{"type":"betaGroups","id":"G1","attributes":{"name":"Page1-A"}},
+					{"type":"betaGroups","id":"G2","attributes":{"name":"Page1-B"}}
+				],
+				"links": {"next": "%s/v1/apps/APP1/betaGroups?cursor=page2"}
+			}`, asc.BaseURL)
+			return jsonResponse(http.StatusOK, body), nil
+		case 2:
+			// Second (final) page.
+			if !strings.Contains(req.URL.String(), "cursor=page2") {
+				t.Fatalf("page 2: expected cursor=page2 in URL, got %s", req.URL.String())
+			}
+			body := `{
+				"data": [
+					{"type":"betaGroups","id":"G3","attributes":{"name":"Page2-A"}}
+				]
+			}`
+			return jsonResponse(http.StatusOK, body), nil
+		default:
+			t.Fatalf("unexpected request count %d", callCount)
+			return nil, nil
+		}
+	}))
+
+	client, err := getASCClient()
+	if err != nil {
+		t.Fatalf("getASCClient: %v", err)
+	}
+
+	resp, err := listAllPublishBetaGroups(context.Background(), client, "APP1")
+	if err != nil {
+		t.Fatalf("listAllPublishBetaGroups() error = %v", err)
+	}
+	if len(resp.Data) != 3 {
+		t.Fatalf("expected 3 groups across 2 pages, got %d", len(resp.Data))
+	}
+	if callCount != 2 {
+		t.Fatalf("expected 2 HTTP calls, got %d", callCount)
+	}
+
+	// Verify all groups are present in order.
+	wantIDs := []string{"G1", "G2", "G3"}
+	for i, want := range wantIDs {
+		if resp.Data[i].ID != want {
+			t.Fatalf("index %d: expected ID %q, got %q", i, want, resp.Data[i].ID)
+		}
+	}
+}
+
+func TestListAllPublishBetaGroups_PaginationAPIError(t *testing.T) {
+	setupTestAuth(t)
+
+	callCount := 0
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		switch callCount {
+		case 1:
+			body := fmt.Sprintf(`{
+				"data": [{"type":"betaGroups","id":"G1","attributes":{"name":"A"}}],
+				"links": {"next": "%s/v1/apps/APP1/betaGroups?cursor=page2"}
+			}`, asc.BaseURL)
+			return jsonResponse(http.StatusOK, body), nil
+		case 2:
+			body := `{"errors":[{"status":"500","title":"Internal Server Error"}]}`
+			return jsonResponse(http.StatusInternalServerError, body), nil
+		default:
+			t.Fatalf("unexpected request count %d", callCount)
+			return nil, nil
+		}
+	}))
+
+	client, err := getASCClient()
+	if err != nil {
+		t.Fatalf("getASCClient: %v", err)
+	}
+
+	_, err = listAllPublishBetaGroups(context.Background(), client, "APP1")
+	if err == nil {
+		t.Fatal("expected error from second page failure")
+	}
+}
+
+// --- end-to-end: resolve names through paginated API -----------------------
+
+func TestResolvePublishBetaGroupIDs_PaginatedNameResolution(t *testing.T) {
+	setupTestAuth(t)
+
+	callCount := 0
+	swapTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		switch callCount {
+		case 1:
+			body := fmt.Sprintf(`{
+				"data": [
+					{"type":"betaGroups","id":"G1","attributes":{"name":"Internal Team"}}
+				],
+				"links": {"next": "%s/v1/apps/APP1/betaGroups?cursor=page2"}
+			}`, asc.BaseURL)
+			return jsonResponse(http.StatusOK, body), nil
+		case 2:
+			body := `{
+				"data": [
+					{"type":"betaGroups","id":"G2","attributes":{"name":"External Testers"}}
+				]
+			}`
+			return jsonResponse(http.StatusOK, body), nil
+		default:
+			t.Fatalf("unexpected request count %d", callCount)
+			return nil, nil
+		}
+	}))
+
+	client, err := getASCClient()
+	if err != nil {
+		t.Fatalf("getASCClient: %v", err)
+	}
+
+	// Resolve a name that only exists on page 2.
+	got, err := resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"External Testers"})
+	if err != nil {
+		t.Fatalf("resolvePublishBetaGroupIDs() error = %v", err)
+	}
+	if len(got) != 1 || got[0] != "G2" {
+		t.Fatalf("expected [G2], got %v", got)
 	}
 }
