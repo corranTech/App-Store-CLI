@@ -51,7 +51,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 	version := fs.String("version", "", "CFBundleShortVersionString (auto-extracted from IPA if not provided)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
-	groupIDs := fs.String("group", "", "Beta group ID(s), comma-separated")
+	groupIDs := fs.String("group", "", "Beta group ID(s) or name(s), comma-separated")
 	notify := fs.Bool("notify", false, "Notify testers after adding to groups")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and build discovery")
@@ -75,6 +75,7 @@ Steps:
 
 Examples:
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID"
+  asc publish testflight --app "123" --ipa app.ipa --group "External Testers"
   asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID" --test-notes "Test instructions" --locale "en-US" --wait`,
 		FlagSet:   fs,
@@ -143,6 +144,11 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 			defer cancel()
 
+			resolvedGroupIDs, err := resolvePublishBetaGroupIDs(requestCtx, client, resolvedAppID, parsedGroupIDs)
+			if err != nil {
+				return fmt.Errorf("publish testflight: %w", err)
+			}
+
 			platformValue := asc.Platform(normalizedPlatform)
 			timeoutOverride := *timeout > 0
 			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue, timeoutOverride)
@@ -164,7 +170,7 @@ Examples:
 				}
 			}
 
-			if err := client.AddBetaGroupsToBuildWithNotify(requestCtx, buildResp.Data.ID, parsedGroupIDs, *notify); err != nil {
+			if err := client.AddBetaGroupsToBuildWithNotify(requestCtx, buildResp.Data.ID, resolvedGroupIDs, *notify); err != nil {
 				return fmt.Errorf("publish testflight: failed to add groups: %w", err)
 			}
 
@@ -172,7 +178,7 @@ Examples:
 				BuildID:         buildResp.Data.ID,
 				BuildVersion:    uploadResult.Version,
 				BuildNumber:     uploadResult.BuildNumber,
-				GroupIDs:        parsedGroupIDs,
+				GroupIDs:        resolvedGroupIDs,
 				Uploaded:        true,
 				ProcessingState: buildResp.Data.Attributes.ProcessingState,
 				Notified:        *notify,
