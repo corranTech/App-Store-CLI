@@ -149,11 +149,11 @@ Examples:
 			defer uploadCancel()
 
 			creds := asc.S3Credentials{
-				AccessKeyID:    submitResp.Data.Attributes.AwsAccessKeyID,
+				AccessKeyID:     submitResp.Data.Attributes.AwsAccessKeyID,
 				SecretAccessKey: submitResp.Data.Attributes.AwsSecretAccessKey,
-				SessionToken:   submitResp.Data.Attributes.AwsSessionToken,
-				Bucket:         submitResp.Data.Attributes.Bucket,
-				Object:         submitResp.Data.Attributes.Object,
+				SessionToken:    submitResp.Data.Attributes.AwsSessionToken,
+				Bucket:          submitResp.Data.Attributes.Bucket,
+				Object:          submitResp.Data.Attributes.Object,
 			}
 
 			if err := asc.UploadToS3(uploadCtx, creds, bytes.NewReader(fileData)); err != nil {

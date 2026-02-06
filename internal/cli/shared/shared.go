@@ -66,8 +66,10 @@ var (
 	noUpdate            bool
 )
 
-var isTerminal = term.IsTerminal
-var noProgress bool
+var (
+	isTerminal = term.IsTerminal
+	noProgress bool
+)
 
 // BindRootFlags registers root-level flags that affect shared CLI behavior.
 func BindRootFlags(fs *flag.FlagSet) {

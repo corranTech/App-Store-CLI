@@ -47,7 +47,7 @@ func writeTestECDSAPEM(t *testing.T, path string) {
 	if err != nil {
 		t.Fatalf("marshal ECDSA key: %v", err)
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		t.Fatalf("create key file: %v", err)
 	}
@@ -213,8 +213,8 @@ func TestResolvePublishBetaGroupIDsFromList_IDsTakePriorityOverNames(t *testing.
 func TestResolvePublishBetaGroupIDsFromList_SkipsGroupsWithEmptyIDOrName(t *testing.T) {
 	groups := &asc.BetaGroupsResponse{
 		Data: []asc.Resource[asc.BetaGroupAttributes]{
-			{ID: "", Attributes: asc.BetaGroupAttributes{Name: "Ghost"}},     // empty ID, skipped
-			{ID: "G1", Attributes: asc.BetaGroupAttributes{Name: ""}},        // empty name, but valid ID
+			{ID: "", Attributes: asc.BetaGroupAttributes{Name: "Ghost"}}, // empty ID, skipped
+			{ID: "G1", Attributes: asc.BetaGroupAttributes{Name: ""}},    // empty name, but valid ID
 			{ID: "G2", Attributes: asc.BetaGroupAttributes{Name: "Visible"}},
 		},
 	}

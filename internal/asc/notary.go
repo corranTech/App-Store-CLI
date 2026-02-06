@@ -107,7 +107,7 @@ type NotarySubmissionLogsResponse struct {
 // S3Credentials holds the temporary AWS credentials for uploading to S3.
 type S3Credentials struct {
 	AccessKeyID     string
-	SecretAccessKey  string
+	SecretAccessKey string
 	SessionToken    string
 	Bucket          string
 	Object          string

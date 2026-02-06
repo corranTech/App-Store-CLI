@@ -7,24 +7,28 @@ package asc
 import "github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc/types"
 
 // Core types — aliases to types package.
-type ResourceType = types.ResourceType
-type Links = types.Links
-type Platform = types.Platform
-type ChecksumAlgorithm = types.ChecksumAlgorithm
-type AssetType = types.AssetType
-type UTI = types.UTI
-type Relationship = types.Relationship
-type RelationshipList = types.RelationshipList
-type RelationshipRequest = types.RelationshipRequest
-type RelationshipData = types.RelationshipData
-type ResourceData = types.ResourceData
+type (
+	ResourceType        = types.ResourceType
+	Links               = types.Links
+	Platform            = types.Platform
+	ChecksumAlgorithm   = types.ChecksumAlgorithm
+	AssetType           = types.AssetType
+	UTI                 = types.UTI
+	Relationship        = types.Relationship
+	RelationshipList    = types.RelationshipList
+	RelationshipRequest = types.RelationshipRequest
+	RelationshipData    = types.RelationshipData
+	ResourceData        = types.ResourceData
+)
 
 // Generic resource types — aliases to types package.
-type Resource[T any] = types.Resource[T]
-type Response[T any] = types.Response[T]
-type SingleResponse[T any] = types.SingleResponse[T]
-type LinkagesResponse = types.LinkagesResponse
-type SingleResourceResponse[T any] = types.SingleResourceResponse[T]
+type (
+	Resource[T any]               = types.Resource[T]
+	Response[T any]               = types.Response[T]
+	SingleResponse[T any]         = types.SingleResponse[T]
+	LinkagesResponse              = types.LinkagesResponse
+	SingleResourceResponse[T any] = types.SingleResourceResponse[T]
+)
 
 // Pagination interface — alias to types package.
 type PaginatedResponse = types.PaginatedResponse

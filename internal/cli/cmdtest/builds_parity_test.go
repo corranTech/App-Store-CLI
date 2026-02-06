@@ -13,7 +13,8 @@ func runValidationTests(t *testing.T, tests []struct {
 	name    string
 	args    []string
 	wantErr string
-}) {
+},
+) {
 	t.Helper()
 
 	for _, test := range tests {
