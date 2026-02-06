@@ -1,7 +1,6 @@
 package asc
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -10,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -24,6 +24,8 @@ const (
 	notarySubmissionsPath = "/notary/v2/submissions"
 	// notaryS3Region is the AWS region for the notary S3 bucket.
 	notaryS3Region = "us-west-2"
+	// notaryS3MaxSingleUploadBytes is the max size for a single PutObject upload.
+	notaryS3MaxSingleUploadBytes = 5 * 1024 * 1024 * 1024
 )
 
 // NotarySubmissionStatus represents the status of a notarization submission.
@@ -305,34 +307,44 @@ func ComputeFileSHA256(path string) (string, error) {
 
 // UploadToS3 uploads file data to the S3 bucket using AWS Signature V4 authentication.
 // This is a minimal implementation for the single PutObject operation needed by the Notary API.
-func UploadToS3(ctx context.Context, creds S3Credentials, data io.ReadSeeker) error {
+func UploadToS3(ctx context.Context, creds S3Credentials, data io.Reader, payloadHash string, contentLength int64, contentType string) error {
 	if creds.Bucket == "" || creds.Object == "" {
 		return fmt.Errorf("S3 bucket and object are required")
 	}
-
-	// Read all data for signing
-	bodyBytes, err := io.ReadAll(data)
-	if err != nil {
-		return fmt.Errorf("read upload data: %w", err)
+	payloadHash = strings.TrimSpace(payloadHash)
+	if payloadHash == "" {
+		return fmt.Errorf("payload hash is required")
+	}
+	if contentLength <= 0 {
+		return fmt.Errorf("content length must be positive")
+	}
+	if contentLength > notaryS3MaxSingleUploadBytes {
+		return fmt.Errorf("file is too large for single-part upload (%d bytes)", contentLength)
+	}
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "application/octet-stream"
 	}
 
-	// Compute payload hash
-	payloadHash := sha256Hex(bodyBytes)
+	encodedPath, err := encodeS3ObjectPath(creds.Object)
+	if err != nil {
+		return fmt.Errorf("encode S3 object key: %w", err)
+	}
 
 	// Build the S3 URL
 	host := fmt.Sprintf("%s.s3.%s.amazonaws.com", creds.Bucket, notaryS3Region)
-	url := fmt.Sprintf("https://%s/%s", host, creds.Object)
+	url := fmt.Sprintf("https://%s%s", host, encodedPath)
 
 	now := time.Now().UTC()
 	dateStamp := now.Format("20060102")
 	amzDate := now.Format("20060102T150405Z")
 
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(bodyBytes))
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, data)
 	if err != nil {
 		return fmt.Errorf("create S3 request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/zip")
+	req.ContentLength = contentLength
+	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Host", host)
 	req.Header.Set("X-Amz-Date", amzDate)
 	req.Header.Set("X-Amz-Content-Sha256", payloadHash)
@@ -345,17 +357,17 @@ func UploadToS3(ctx context.Context, creds S3Credentials, data io.ReadSeeker) er
 
 	// Canonical request
 	canonicalHeaders := fmt.Sprintf("content-type:%s\nhost:%s\nx-amz-content-sha256:%s\nx-amz-date:%s\n",
-		"application/zip", host, payloadHash, amzDate)
+		contentType, host, payloadHash, amzDate)
 	signedHeaders := "content-type;host;x-amz-content-sha256;x-amz-date"
 	if creds.SessionToken != "" {
 		canonicalHeaders = fmt.Sprintf("content-type:%s\nhost:%s\nx-amz-content-sha256:%s\nx-amz-date:%s\nx-amz-security-token:%s\n",
-			"application/zip", host, payloadHash, amzDate, creds.SessionToken)
+			contentType, host, payloadHash, amzDate, creds.SessionToken)
 		signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token"
 	}
 
 	canonicalRequest := strings.Join([]string{
 		"PUT",
-		"/" + creds.Object,
+		encodedPath,
 		"", // query string (empty)
 		canonicalHeaders,
 		signedHeaders,
@@ -415,4 +427,18 @@ func deriveSigningKey(secretKey, dateStamp, region, service string) []byte {
 	kService := hmacSHA256(kRegion, []byte(service))
 	kSigning := hmacSHA256(kService, []byte("aws4_request"))
 	return kSigning
+}
+
+func encodeS3ObjectPath(object string) (string, error) {
+	object = strings.TrimPrefix(strings.TrimSpace(object), "/")
+	if object == "" {
+		return "", fmt.Errorf("object key is required")
+	}
+
+	segments := strings.Split(object, "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+
+	return "/" + strings.Join(segments, "/"), nil
 }

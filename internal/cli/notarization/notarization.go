@@ -1,11 +1,11 @@
 package notarization
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -140,10 +140,11 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Uploading %s to Apple...\n", submissionName)
 			}
 
-			fileData, err := os.ReadFile(pathValue)
+			fileHandle, err := os.Open(pathValue)
 			if err != nil {
-				return fmt.Errorf("notarization submit: failed to read file: %w", err)
+				return fmt.Errorf("notarization submit: failed to open file: %w", err)
 			}
+			defer fileHandle.Close()
 
 			uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
 			defer uploadCancel()
@@ -156,7 +157,8 @@ Examples:
 				Object:          submitResp.Data.Attributes.Object,
 			}
 
-			if err := asc.UploadToS3(uploadCtx, creds, bytes.NewReader(fileData)); err != nil {
+			contentType := notaryContentType(pathValue)
+			if err := asc.UploadToS3(uploadCtx, creds, fileHandle, sha256Hash, info.Size(), contentType); err != nil {
 				return fmt.Errorf("notarization submit: upload failed: %w", err)
 			}
 
@@ -166,13 +168,21 @@ Examples:
 
 			// If not waiting, print the submission response and exit
 			if !*wait {
-				result := &notarizationSubmitResult{
-					SubmissionID: submissionID,
-					Status:       string(asc.NotaryStatusInProgress),
-					Name:         submissionName,
-					Message:      "Successfully submitted for notarization. Use 'asc notarization status --id " + submissionID + "' to check progress.",
+				if shared.ProgressEnabled() {
+					fmt.Fprintf(os.Stderr, "Use 'asc notarization status --id %s' to check progress.\n", submissionID)
 				}
-				return printOutput(result, *output, *pretty)
+				resp := &asc.NotarySubmissionStatusResponse{
+					Data: asc.NotarySubmissionStatusData{
+						ID:   submissionID,
+						Type: "submissions",
+						Attributes: asc.NotarySubmissionStatusAttributes{
+							Status:      asc.NotaryStatusInProgress,
+							Name:        submissionName,
+							CreatedDate: "",
+						},
+					},
+				}
+				return printOutput(resp, *output, *pretty)
 			}
 
 			// Wait for notarization to complete
@@ -188,14 +198,7 @@ Examples:
 				return fmt.Errorf("notarization submit: %w", err)
 			}
 
-			result := &notarizationSubmitResult{
-				SubmissionID: submissionID,
-				Status:       string(statusResp.Data.Attributes.Status),
-				Name:         string(statusResp.Data.Attributes.Name),
-				CreatedDate:  statusResp.Data.Attributes.CreatedDate,
-			}
-
-			if err := printOutput(result, *output, *pretty); err != nil {
+			if err := printOutput(statusResp, *output, *pretty); err != nil {
 				return err
 			}
 
@@ -348,15 +351,6 @@ Examples:
 	}
 }
 
-// notarizationSubmitResult is the CLI output for a notarization submission.
-type notarizationSubmitResult struct {
-	SubmissionID string `json:"submissionId"`
-	Status       string `json:"status"`
-	Name         string `json:"name"`
-	CreatedDate  string `json:"createdDate,omitempty"`
-	Message      string `json:"message,omitempty"`
-}
-
 // waitForNotarization polls the notarization status until it completes or the context is cancelled.
 func waitForNotarization(ctx context.Context, client *asc.Client, submissionID string, pollInterval time.Duration) (*asc.NotarySubmissionStatusResponse, error) {
 	ticker := time.NewTicker(pollInterval)
@@ -387,5 +381,18 @@ func waitForNotarization(ctx context.Context, client *asc.Client, submissionID s
 			return nil, fmt.Errorf("timed out waiting for notarization: %w", ctx.Err())
 		case <-ticker.C:
 		}
+	}
+}
+
+func notaryContentType(path string) string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".zip":
+		return "application/zip"
+	case ".dmg":
+		return "application/x-apple-diskimage"
+	case ".pkg":
+		return "application/octet-stream"
+	default:
+		return "application/octet-stream"
 	}
 }

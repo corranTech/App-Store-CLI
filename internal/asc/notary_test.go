@@ -410,21 +410,7 @@ func TestComputeFileSHA256_EmptyFile(t *testing.T) {
 	}
 }
 
-func TestUploadToS3_MockServer(t *testing.T) {
-	var receivedBody []byte
-	var receivedContentType string
-	var receivedAuth string
-	var receivedMethod string
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedMethod = r.Method
-		receivedContentType = r.Header.Get("Content-Type")
-		receivedAuth = r.Header.Get("Authorization")
-		receivedBody, _ = io.ReadAll(r.Body)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
+func TestUploadToS3Helpers(t *testing.T) {
 	// We can't easily test UploadToS3 against a mock since it builds URLs from bucket/object,
 	// but we can test the crypto helpers and validation.
 
@@ -456,15 +442,24 @@ func TestUploadToS3_MockServer(t *testing.T) {
 		t.Fatal("different keys should produce different MACs")
 	}
 
-	_ = receivedBody
-	_ = receivedContentType
-	_ = receivedAuth
-	_ = receivedMethod
+	encoded, err := encodeS3ObjectPath("AROARQRX7CZS3PRF6ZA5L:22390004-2418-4edc-bb06-661cca8cf6e0")
+	if err != nil {
+		t.Fatalf("encodeS3ObjectPath() error: %v", err)
+	}
+	if !strings.Contains(encoded, "%3A") {
+		t.Fatalf("expected encoded path to contain %%3A, got %q", encoded)
+	}
+	if !strings.HasPrefix(encoded, "/") {
+		t.Fatalf("expected encoded path to start with '/', got %q", encoded)
+	}
+	if strings.Contains(encoded, "//") {
+		t.Fatalf("unexpected double slash in encoded path: %q", encoded)
+	}
 }
 
 func TestUploadToS3_Validation(t *testing.T) {
 	// Empty credentials
-	err := UploadToS3(context.Background(), S3Credentials{}, strings.NewReader("data"))
+	err := UploadToS3(context.Background(), S3Credentials{}, strings.NewReader("data"), "hash", 4, "application/octet-stream")
 	if err == nil {
 		t.Fatal("expected error for empty credentials")
 	}
@@ -474,7 +469,7 @@ func TestUploadToS3_Validation(t *testing.T) {
 		AccessKeyID:     "key",
 		SecretAccessKey: "secret",
 		Object:          "obj",
-	}, strings.NewReader("data"))
+	}, strings.NewReader("data"), "hash", 4, "application/octet-stream")
 	if err == nil {
 		t.Fatal("expected error for empty bucket")
 	}
@@ -484,9 +479,31 @@ func TestUploadToS3_Validation(t *testing.T) {
 		AccessKeyID:     "key",
 		SecretAccessKey: "secret",
 		Bucket:          "bucket",
-	}, strings.NewReader("data"))
+	}, strings.NewReader("data"), "hash", 4, "application/octet-stream")
 	if err == nil {
 		t.Fatal("expected error for empty object")
+	}
+
+	// Empty payload hash
+	err = UploadToS3(context.Background(), S3Credentials{
+		AccessKeyID:     "key",
+		SecretAccessKey: "secret",
+		Bucket:          "bucket",
+		Object:          "object",
+	}, strings.NewReader("data"), "", 4, "application/octet-stream")
+	if err == nil {
+		t.Fatal("expected error for empty payload hash")
+	}
+
+	// Invalid content length
+	err = UploadToS3(context.Background(), S3Credentials{
+		AccessKeyID:     "key",
+		SecretAccessKey: "secret",
+		Bucket:          "bucket",
+		Object:          "object",
+	}, strings.NewReader("data"), "hash", 0, "application/octet-stream")
+	if err == nil {
+		t.Fatal("expected error for invalid content length")
 	}
 }
 
