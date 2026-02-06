@@ -985,6 +985,12 @@ func PrintMarkdown(data interface{}) error {
 		return printDiagnosticLogsMarkdown(v)
 	case *PerformanceDownloadResult:
 		return printPerformanceDownloadResultMarkdown(v)
+	case *NotarySubmissionStatusResponse:
+		return printNotarySubmissionStatusMarkdown(v)
+	case *NotarySubmissionsListResponse:
+		return printNotarySubmissionsListMarkdown(v)
+	case *NotarySubmissionLogsResponse:
+		return printNotarySubmissionLogsMarkdown(v)
 	default:
 		return PrintJSON(data)
 	}
@@ -1929,6 +1935,12 @@ func PrintTable(data interface{}) error {
 		return printDiagnosticLogsTable(v)
 	case *PerformanceDownloadResult:
 		return printPerformanceDownloadResultTable(v)
+	case *NotarySubmissionStatusResponse:
+		return printNotarySubmissionStatusTable(v)
+	case *NotarySubmissionsListResponse:
+		return printNotarySubmissionsListTable(v)
+	case *NotarySubmissionLogsResponse:
+		return printNotarySubmissionLogsTable(v)
 	default:
 		return PrintJSON(data)
 	}
