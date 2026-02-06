@@ -28,13 +28,13 @@ Examples:
   asc notarization submit --file ./MyApp.zip --wait
   asc notarization status --id "SUBMISSION_ID"
   asc notarization log --id "SUBMISSION_ID"
-  asc notarization history`,
+  asc notarization list`,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			submitCommand(),
 			statusCommand(),
 			logCommand(),
-			historyCommand(),
+			listCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -319,28 +319,28 @@ Examples:
 	}
 }
 
-// historyCommand returns the history subcommand.
-func historyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notarization history", flag.ExitOnError)
+// listCommand returns the list subcommand.
+func listCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("notarization list", flag.ExitOnError)
 
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "history",
-		ShortUsage: "asc notarization history [flags]",
+		Name:       "list",
+		ShortUsage: "asc notarization list [flags]",
 		ShortHelp:  "List previous notarization submissions.",
 		LongHelp: `List previous notarization submissions.
 
 Examples:
-  asc notarization history
-  asc notarization history --output table`,
+  asc notarization list
+  asc notarization list --output table`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("notarization history: %w", err)
+				return fmt.Errorf("notarization list: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -348,7 +348,7 @@ Examples:
 
 			resp, err := client.ListNotarizations(requestCtx)
 			if err != nil {
-				return fmt.Errorf("notarization history: failed to fetch: %w", err)
+				return fmt.Errorf("notarization list: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)

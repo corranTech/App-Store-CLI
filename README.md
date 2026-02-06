@@ -608,8 +608,8 @@ asc notarization status --id "SUBMISSION_ID"
 asc notarization log --id "SUBMISSION_ID"
 
 # List previous notarization submissions
-asc notarization history
-asc notarization history --output table
+asc notarization list
+asc notarization list --output table
 ```
 
 Notes:
