@@ -195,20 +195,25 @@ Examples:
 				CreatedDate:  statusResp.Data.Attributes.CreatedDate,
 			}
 
+			if err := printOutput(result, *output, *pretty); err != nil {
+				return err
+			}
+
 			switch statusResp.Data.Attributes.Status {
 			case asc.NotaryStatusAccepted:
 				if shared.ProgressEnabled() {
 					fmt.Fprintln(os.Stderr, "Notarization complete! Status: Accepted")
 				}
+				return nil
 			case asc.NotaryStatusInvalid, asc.NotaryStatusRejected:
 				if shared.ProgressEnabled() {
 					fmt.Fprintf(os.Stderr, "Notarization failed. Status: %s\n", statusResp.Data.Attributes.Status)
 					fmt.Fprintf(os.Stderr, "Run 'asc notarization log --id %s' for details.\n", submissionID)
 				}
-				result.Message = "Notarization failed. Run 'asc notarization log --id " + submissionID + "' for details."
+				return shared.NewReportedError(fmt.Errorf("notarization %s: %s", submissionID, statusResp.Data.Attributes.Status))
+			default:
+				return nil
 			}
-
-			return printOutput(result, *output, *pretty)
 		},
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -135,6 +136,31 @@ func TestNotarizationSubmitDirectory(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "is a directory") {
 			t.Fatalf("expected directory error, got: %v", err)
+		}
+	})
+}
+
+func TestNotarizationSubmitEmptyFile(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	dir := t.TempDir()
+	emptyFile := filepath.Join(dir, "empty.zip")
+	if err := os.WriteFile(emptyFile, []byte{}, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	captureOutput(t, func() {
+		if err := root.Parse([]string{"notarization", "submit", "--file", emptyFile}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error for empty file, got nil")
+		}
+		if !strings.Contains(err.Error(), "must not be empty") {
+			t.Fatalf("expected empty file error, got: %v", err)
 		}
 	})
 }
