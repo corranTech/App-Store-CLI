@@ -203,7 +203,6 @@ func TestPaginateAll_NilFirstPage(t *testing.T) {
 	result, err := PaginateAll(context.Background(), nil, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
 		return nil, fmt.Errorf("should not be called")
 	})
-
 	if err != nil {
 		t.Fatalf("expected nil error, got: %v", err)
 	}
@@ -222,7 +221,6 @@ func TestPaginateAll_TypedNilFirstPage(t *testing.T) {
 	result, err := PaginateAll(context.Background(), firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
 		return nil, fmt.Errorf("should not be called")
 	})
-
 	// Should succeed and return an empty result (no data, no links to follow)
 	if err != nil {
 		t.Fatalf("expected nil error, got: %v", err)

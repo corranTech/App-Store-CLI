@@ -42,6 +42,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/merchantids"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/migrate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/nominations"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/notarization"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/notify"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/offercodes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/passtypeids"
@@ -135,6 +136,7 @@ func Subcommands(version string) []*ffcli.Command {
 		betabuildlocalizations.BetaBuildLocalizationsCommand(),
 		sandbox.SandboxCommand(),
 		signing.SigningCommand(),
+		notarization.NotarizationCommand(),
 		iap.IAPCommand(),
 		app_events.Command(),
 		subscriptions.SubscriptionsCommand(),

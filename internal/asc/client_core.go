@@ -424,10 +424,11 @@ func resolveTimeoutWithDefaultAndEnv(defaultTimeout time.Duration, durationEnv, 
 
 // Client is an App Store Connect API client
 type Client struct {
-	httpClient *http.Client
-	keyID      string
-	issuerID   string
-	privateKey *ecdsa.PrivateKey
+	httpClient    *http.Client
+	keyID         string
+	issuerID      string
+	privateKey    *ecdsa.PrivateKey
+	notaryBaseURL string // override for testing; empty uses NotaryBaseURL constant
 }
 
 // NewClient creates a new ASC client

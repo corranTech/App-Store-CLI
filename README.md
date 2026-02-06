@@ -36,6 +36,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Autom
   - [Finance Reports](#finance-reports)
   - [Sandbox Testers](#sandbox-testers)
   - [Xcode Cloud](#xcode-cloud)
+  - [Notarization](#notarization)
   - [Game Center](#game-center)
   - [Apps & Builds](#apps--builds)
 - [App Setup](#app-setup)
@@ -587,6 +588,36 @@ Notes:
 - When using `--wait`, the command polls until the build completes (or times out)
 - Exit code is non-zero if the build fails, errors, or is canceled
 - Use `ASC_TIMEOUT` env var or `--timeout` flag for long-running builds
+
+### Notarization
+
+```bash
+# Submit a file for macOS notarization
+asc notarization submit --file ./MyApp.zip
+
+# Submit and wait for notarization to complete
+asc notarization submit --file ./MyApp.zip --wait
+
+# Submit with custom polling interval and timeout
+asc notarization submit --file ./MyApp.zip --wait --poll-interval 30s --timeout 1h
+
+# Check notarization status
+asc notarization status --id "SUBMISSION_ID"
+
+# Get the developer log URL for a submission
+asc notarization log --id "SUBMISSION_ID"
+
+# List previous notarization submissions
+asc notarization list
+asc notarization list --output table
+```
+
+Notes:
+- Supported file formats: zip, dmg, pkg
+- The submit command computes the SHA-256 hash, creates a submission, and uploads the file to Apple
+- Use `--wait` to poll until notarization completes (default timeout: 30 minutes)
+- If notarization fails, use `asc notarization log --id` to retrieve the developer log URL with detailed results
+- Uses the Apple Notary API v2 (`appstoreconnect.apple.com/notary/v2`)
 
 ### Game Center
 

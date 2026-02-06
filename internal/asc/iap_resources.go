@@ -49,8 +49,10 @@ type InAppPurchaseImageAttributes struct {
 	State              string            `json:"state,omitempty"`
 }
 
-type InAppPurchaseImagesResponse = Response[InAppPurchaseImageAttributes]
-type InAppPurchaseImageResponse = SingleResponse[InAppPurchaseImageAttributes]
+type (
+	InAppPurchaseImagesResponse = Response[InAppPurchaseImageAttributes]
+	InAppPurchaseImageResponse  = SingleResponse[InAppPurchaseImageAttributes]
+)
 
 type InAppPurchaseImageCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
@@ -243,8 +245,10 @@ type InAppPurchaseOfferCodeAttributes struct {
 	Active                bool     `json:"active,omitempty"`
 }
 
-type InAppPurchaseOfferCodesResponse = Response[InAppPurchaseOfferCodeAttributes]
-type InAppPurchaseOfferCodeResponse = SingleResponse[InAppPurchaseOfferCodeAttributes]
+type (
+	InAppPurchaseOfferCodesResponse = Response[InAppPurchaseOfferCodeAttributes]
+	InAppPurchaseOfferCodeResponse  = SingleResponse[InAppPurchaseOfferCodeAttributes]
+)
 
 type InAppPurchaseOfferCodeCreateAttributes struct {
 	Name                  string
@@ -316,8 +320,10 @@ type InAppPurchaseOfferCodeCustomCodeAttributes struct {
 	Active         bool   `json:"active,omitempty"`
 }
 
-type InAppPurchaseOfferCodeCustomCodesResponse = Response[InAppPurchaseOfferCodeCustomCodeAttributes]
-type InAppPurchaseOfferCodeCustomCodeResponse = SingleResponse[InAppPurchaseOfferCodeCustomCodeAttributes]
+type (
+	InAppPurchaseOfferCodeCustomCodesResponse = Response[InAppPurchaseOfferCodeCustomCodeAttributes]
+	InAppPurchaseOfferCodeCustomCodeResponse  = SingleResponse[InAppPurchaseOfferCodeCustomCodeAttributes]
+)
 
 type InAppPurchaseOfferCodeOneTimeUseCodeAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
@@ -327,8 +333,10 @@ type InAppPurchaseOfferCodeOneTimeUseCodeAttributes struct {
 	Environment    string `json:"environment,omitempty"`
 }
 
-type InAppPurchaseOfferCodeOneTimeUseCodesResponse = Response[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]
-type InAppPurchaseOfferCodeOneTimeUseCodeResponse = SingleResponse[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]
+type (
+	InAppPurchaseOfferCodeOneTimeUseCodesResponse = Response[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]
+	InAppPurchaseOfferCodeOneTimeUseCodeResponse  = SingleResponse[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]
+)
 
 // In-app purchase submissions.
 type InAppPurchaseSubmissionResponse = SingleResponse[InAppPurchaseSubmissionAttributes]
