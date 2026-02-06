@@ -136,6 +136,19 @@ func GenerateNotaryJWT(keyID, issuerID string, privateKey interface{}) (string, 
 	return signedToken, nil
 }
 
+// SetNotaryBaseURL overrides the Notary API base URL (for testing).
+func (c *Client) SetNotaryBaseURL(url string) {
+	c.notaryBaseURL = url
+}
+
+// resolveNotaryBaseURL returns the effective Notary base URL.
+func (c *Client) resolveNotaryBaseURL() string {
+	if c.notaryBaseURL != "" {
+		return c.notaryBaseURL
+	}
+	return NotaryBaseURL
+}
+
 // newNotaryRequest creates a new HTTP request targeting the Notary API.
 func (c *Client) newNotaryRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	token, err := GenerateNotaryJWT(c.keyID, c.issuerID, c.privateKey)
@@ -145,7 +158,7 @@ func (c *Client) newNotaryRequest(ctx context.Context, method, path string, body
 
 	url := path
 	if !strings.HasPrefix(path, "http://") && !strings.HasPrefix(path, "https://") {
-		url = NotaryBaseURL + path
+		url = c.resolveNotaryBaseURL() + path
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {

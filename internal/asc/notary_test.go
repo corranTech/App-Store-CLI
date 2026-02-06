@@ -23,12 +23,16 @@ func newTestNotaryClient(t *testing.T, serverURL string) *Client {
 	if err != nil {
 		t.Fatalf("generate key: %v", err)
 	}
-	return &Client{
+	c := &Client{
 		httpClient: &http.Client{},
 		keyID:      "TEST_KEY",
 		issuerID:   "TEST_ISSUER",
 		privateKey: key,
 	}
+	if serverURL != "" {
+		c.SetNotaryBaseURL(serverURL)
+	}
+	return c
 }
 
 func TestGenerateNotaryJWT(t *testing.T) {
@@ -53,7 +57,7 @@ func TestGenerateNotaryJWT(t *testing.T) {
 	}
 }
 
-func TestSubmitNotarization(t *testing.T) {
+func TestSubmitNotarization_SendsRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
@@ -62,16 +66,22 @@ func TestSubmitNotarization(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 
+		// Verify Authorization header is present
+		auth := r.Header.Get("Authorization")
+		if !strings.HasPrefix(auth, "Bearer ") {
+			t.Errorf("expected Bearer auth, got %q", auth)
+		}
+
 		body, _ := io.ReadAll(r.Body)
 		var req NotarySubmissionRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			t.Errorf("parse request: %v", err)
 		}
-		if req.Sha256 != "abc123" {
-			t.Errorf("expected sha256 abc123, got %s", req.Sha256)
+		if req.Sha256 != "abc123def456" {
+			t.Errorf("expected sha256 abc123def456, got %s", req.Sha256)
 		}
-		if req.SubmissionName != "test.zip" {
-			t.Errorf("expected name test.zip, got %s", req.SubmissionName)
+		if req.SubmissionName != "MyApp.zip" {
+			t.Errorf("expected name MyApp.zip, got %s", req.SubmissionName)
 		}
 
 		resp := NotarySubmissionResponse{
@@ -93,54 +103,47 @@ func TestSubmitNotarization(t *testing.T) {
 	defer server.Close()
 
 	client := newTestNotaryClient(t, server.URL)
-	// Override the notary request to point to test server
-	origNewNotaryReq := client.newNotaryRequest
-	_ = origNewNotaryReq // just using the method on client
-
-	// We need to override the URL the client uses. Since newNotaryRequest
-	// uses NotaryBaseURL, we'll test via a wrapper approach.
-	// Instead, let's create a custom doNotary that uses the test server URL.
 	ctx := context.Background()
 
-	// Use the test server by making a direct HTTP call to verify the types are correct
-	payload := NotarySubmissionRequest{
-		Sha256:         "abc123",
-		SubmissionName: "test.zip",
-	}
-	body, err := BuildRequestBody(payload)
+	resp, err := client.SubmitNotarization(ctx, "abc123def456", "MyApp.zip")
 	if err != nil {
-		t.Fatalf("build body: %v", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, "POST", server.URL+notarySubmissionsPath, body)
-	if err != nil {
-		t.Fatalf("create request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("do request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	var response NotarySubmissionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		t.Fatalf("parse response: %v", err)
+		t.Fatalf("SubmitNotarization() error: %v", err)
 	}
 
-	if response.Data.ID != "sub-123" {
-		t.Errorf("expected ID sub-123, got %s", response.Data.ID)
+	if resp.Data.ID != "sub-123" {
+		t.Errorf("expected ID sub-123, got %s", resp.Data.ID)
 	}
-	if response.Data.Attributes.AwsAccessKeyID != "AKID" {
-		t.Errorf("expected AKID, got %s", response.Data.Attributes.AwsAccessKeyID)
+	if resp.Data.Attributes.AwsAccessKeyID != "AKID" {
+		t.Errorf("expected AKID, got %s", resp.Data.Attributes.AwsAccessKeyID)
 	}
-	if response.Data.Attributes.Bucket != "notary-submissions-prod" {
-		t.Errorf("expected bucket notary-submissions-prod, got %s", response.Data.Attributes.Bucket)
+	if resp.Data.Attributes.Bucket != "notary-submissions-prod" {
+		t.Errorf("expected bucket notary-submissions-prod, got %s", resp.Data.Attributes.Bucket)
+	}
+	if resp.Data.Attributes.Object != "obj-key" {
+		t.Errorf("expected object obj-key, got %s", resp.Data.Attributes.Object)
 	}
 }
 
-func TestGetNotarizationStatus(t *testing.T) {
+func TestSubmitNotarization_ErrorResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"errors": []map[string]string{
+				{"code": "FORBIDDEN", "title": "Forbidden", "detail": "Invalid credentials"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := newTestNotaryClient(t, server.URL)
+	_, err := client.SubmitNotarization(context.Background(), "abc123", "test.zip")
+	if err == nil {
+		t.Fatal("expected error for 403 response")
+	}
+}
+
+func TestGetNotarizationStatus_SendsRequest(t *testing.T) {
 	tests := []struct {
 		name   string
 		status NotarySubmissionStatus
@@ -177,35 +180,40 @@ func TestGetNotarizationStatus(t *testing.T) {
 			}))
 			defer server.Close()
 
-			ctx := context.Background()
-			req, err := http.NewRequestWithContext(ctx, "GET", server.URL+"/notary/v2/submissions/sub-456", nil)
+			client := newTestNotaryClient(t, server.URL)
+			resp, err := client.GetNotarizationStatus(context.Background(), "sub-456")
 			if err != nil {
-				t.Fatalf("create request: %v", err)
+				t.Fatalf("GetNotarizationStatus() error: %v", err)
 			}
 
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				t.Fatalf("do request: %v", err)
+			if resp.Data.Attributes.Status != tt.status {
+				t.Errorf("expected status %s, got %s", tt.status, resp.Data.Attributes.Status)
 			}
-			defer resp.Body.Close()
-
-			data, _ := io.ReadAll(resp.Body)
-			var response NotarySubmissionStatusResponse
-			if err := json.Unmarshal(data, &response); err != nil {
-				t.Fatalf("parse response: %v", err)
+			if resp.Data.ID != "sub-456" {
+				t.Errorf("expected ID sub-456, got %s", resp.Data.ID)
 			}
-
-			if response.Data.Attributes.Status != tt.status {
-				t.Errorf("expected status %s, got %s", tt.status, response.Data.Attributes.Status)
-			}
-			if response.Data.ID != "sub-456" {
-				t.Errorf("expected ID sub-456, got %s", response.Data.ID)
+			if resp.Data.Attributes.Name != "test.zip" {
+				t.Errorf("expected name test.zip, got %s", resp.Data.Attributes.Name)
 			}
 		})
 	}
 }
 
-func TestGetNotarizationLogs(t *testing.T) {
+func TestGetNotarizationStatus_ErrorResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"Submission not found"}]}`))
+	}))
+	defer server.Close()
+
+	client := newTestNotaryClient(t, server.URL)
+	_, err := client.GetNotarizationStatus(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for 404 response")
+	}
+}
+
+func TestGetNotarizationLogs_SendsRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			t.Errorf("expected GET, got %s", r.Method)
@@ -219,7 +227,7 @@ func TestGetNotarizationLogs(t *testing.T) {
 				ID:   "sub-789",
 				Type: "submissionsLog",
 				Attributes: NotarySubmissionLogsAttributes{
-					DeveloperLogURL: "https://example.com/logs/sub-789",
+					DeveloperLogURL: "https://example.com/logs/sub-789.json",
 				},
 			},
 		}
@@ -228,33 +236,41 @@ func TestGetNotarizationLogs(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", server.URL+"/notary/v2/submissions/sub-789/logs", nil)
+	client := newTestNotaryClient(t, server.URL)
+	resp, err := client.GetNotarizationLogs(context.Background(), "sub-789")
 	if err != nil {
-		t.Fatalf("create request: %v", err)
+		t.Fatalf("GetNotarizationLogs() error: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("do request: %v", err)
+	if resp.Data.Attributes.DeveloperLogURL != "https://example.com/logs/sub-789.json" {
+		t.Errorf("unexpected log URL: %s", resp.Data.Attributes.DeveloperLogURL)
 	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	var response NotarySubmissionLogsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		t.Fatalf("parse response: %v", err)
-	}
-
-	if response.Data.Attributes.DeveloperLogURL != "https://example.com/logs/sub-789" {
-		t.Errorf("unexpected log URL: %s", response.Data.Attributes.DeveloperLogURL)
+	if resp.Data.ID != "sub-789" {
+		t.Errorf("unexpected ID: %s", resp.Data.ID)
 	}
 }
 
-func TestListNotarizations(t *testing.T) {
+func TestGetNotarizationLogs_ErrorResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"Logs not available"}]}`))
+	}))
+	defer server.Close()
+
+	client := newTestNotaryClient(t, server.URL)
+	_, err := client.GetNotarizationLogs(context.Background(), "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for 404 response")
+	}
+}
+
+func TestListNotarizations_SendsRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if !strings.HasSuffix(r.URL.Path, "/notary/v2/submissions") {
+			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 
 		resp := NotarySubmissionsListResponse{
@@ -284,32 +300,61 @@ func TestListNotarizations(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, "GET", server.URL+notarySubmissionsPath, nil)
+	client := newTestNotaryClient(t, server.URL)
+	resp, err := client.ListNotarizations(context.Background())
 	if err != nil {
-		t.Fatalf("create request: %v", err)
+		t.Fatalf("ListNotarizations() error: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 submissions, got %d", len(resp.Data))
+	}
+	if resp.Data[0].ID != "sub-1" {
+		t.Errorf("expected ID sub-1, got %s", resp.Data[0].ID)
+	}
+	if resp.Data[0].Attributes.Status != NotaryStatusAccepted {
+		t.Errorf("expected Accepted, got %s", resp.Data[0].Attributes.Status)
+	}
+	if resp.Data[1].ID != "sub-2" {
+		t.Errorf("expected ID sub-2, got %s", resp.Data[1].ID)
+	}
+	if resp.Data[1].Attributes.Status != NotaryStatusInProgress {
+		t.Errorf("expected In Progress, got %s", resp.Data[1].Attributes.Status)
+	}
+}
+
+func TestListNotarizations_EmptyResult(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := NotarySubmissionsListResponse{
+			Data: []NotarySubmissionStatusData{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := newTestNotaryClient(t, server.URL)
+	resp, err := client.ListNotarizations(context.Background())
 	if err != nil {
-		t.Fatalf("do request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	data, _ := io.ReadAll(resp.Body)
-	var response NotarySubmissionsListResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		t.Fatalf("parse response: %v", err)
+		t.Fatalf("ListNotarizations() error: %v", err)
 	}
 
-	if len(response.Data) != 2 {
-		t.Fatalf("expected 2 submissions, got %d", len(response.Data))
+	if len(resp.Data) != 0 {
+		t.Errorf("expected empty list, got %d items", len(resp.Data))
 	}
-	if response.Data[0].ID != "sub-1" {
-		t.Errorf("expected ID sub-1, got %s", response.Data[0].ID)
-	}
-	if response.Data[1].Attributes.Status != NotaryStatusInProgress {
-		t.Errorf("expected In Progress, got %s", response.Data[1].Attributes.Status)
+}
+
+func TestListNotarizations_ErrorResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"errors":[{"code":"UNAUTHORIZED","title":"Unauthorized"}]}`))
+	}))
+	defer server.Close()
+
+	client := newTestNotaryClient(t, server.URL)
+	_, err := client.ListNotarizations(context.Background())
+	if err == nil {
+		t.Fatal("expected error for 401 response")
 	}
 }
 
@@ -365,28 +410,23 @@ func TestComputeFileSHA256_EmptyFile(t *testing.T) {
 	}
 }
 
-func TestUploadToS3(t *testing.T) {
+func TestUploadToS3_MockServer(t *testing.T) {
 	var receivedBody []byte
 	var receivedContentType string
 	var receivedAuth string
+	var receivedMethod string
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "PUT" {
-			t.Errorf("expected PUT, got %s", r.Method)
-		}
-
+		receivedMethod = r.Method
 		receivedContentType = r.Header.Get("Content-Type")
 		receivedAuth = r.Header.Get("Authorization")
 		receivedBody, _ = io.ReadAll(r.Body)
-
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	// Parse the test server URL to extract host for the mock
-	// We'll test with a custom S3 URL by using the server directly
-	// Since UploadToS3 constructs the URL from bucket/object, we need a different approach
-	// for testing. Let's test the SigV4 helpers directly and do a basic PUT test.
+	// We can't easily test UploadToS3 against a mock since it builds URLs from bucket/object,
+	// but we can test the crypto helpers and validation.
 
 	// Test sha256Hex
 	data := []byte("test data")
@@ -410,15 +450,44 @@ func TestUploadToS3(t *testing.T) {
 		t.Fatal("hmacSHA256 not deterministic")
 	}
 
-	// Test UploadToS3 validation
-	err := UploadToS3(context.Background(), S3Credentials{}, strings.NewReader("data"))
-	if err == nil {
-		t.Fatal("expected error for empty credentials")
+	// Test different keys produce different MACs
+	mac3 := hmacSHA256([]byte("other-key"), []byte("data"))
+	if hex.EncodeToString(mac1) == hex.EncodeToString(mac3) {
+		t.Fatal("different keys should produce different MACs")
 	}
 
 	_ = receivedBody
 	_ = receivedContentType
 	_ = receivedAuth
+	_ = receivedMethod
+}
+
+func TestUploadToS3_Validation(t *testing.T) {
+	// Empty credentials
+	err := UploadToS3(context.Background(), S3Credentials{}, strings.NewReader("data"))
+	if err == nil {
+		t.Fatal("expected error for empty credentials")
+	}
+
+	// Empty bucket
+	err = UploadToS3(context.Background(), S3Credentials{
+		AccessKeyID:     "key",
+		SecretAccessKey: "secret",
+		Object:          "obj",
+	}, strings.NewReader("data"))
+	if err == nil {
+		t.Fatal("expected error for empty bucket")
+	}
+
+	// Empty object
+	err = UploadToS3(context.Background(), S3Credentials{
+		AccessKeyID:     "key",
+		SecretAccessKey: "secret",
+		Bucket:          "bucket",
+	}, strings.NewReader("data"))
+	if err == nil {
+		t.Fatal("expected error for empty object")
+	}
 }
 
 func TestSubmitNotarization_EmptyInputs(t *testing.T) {
@@ -456,7 +525,6 @@ func TestGetNotarizationLogs_EmptyID(t *testing.T) {
 }
 
 func TestNotarySubmissionStatusConstants(t *testing.T) {
-	// Verify status constants match expected strings
 	if NotaryStatusAccepted != "Accepted" {
 		t.Errorf("unexpected Accepted value: %s", NotaryStatusAccepted)
 	}
@@ -518,8 +586,17 @@ func TestNotarySubmissionResponseJSON(t *testing.T) {
 	if resp.Data.ID != "sub-abc" {
 		t.Errorf("unexpected ID: %s", resp.Data.ID)
 	}
+	if resp.Data.Type != "newSubmissions" {
+		t.Errorf("unexpected type: %s", resp.Data.Type)
+	}
 	if resp.Data.Attributes.AwsAccessKeyID != "AKID" {
 		t.Errorf("unexpected access key: %s", resp.Data.Attributes.AwsAccessKeyID)
+	}
+	if resp.Data.Attributes.AwsSecretAccessKey != "SECRET" {
+		t.Errorf("unexpected secret: %s", resp.Data.Attributes.AwsSecretAccessKey)
+	}
+	if resp.Data.Attributes.AwsSessionToken != "TOKEN" {
+		t.Errorf("unexpected token: %s", resp.Data.Attributes.AwsSessionToken)
 	}
 	if resp.Data.Attributes.Bucket != "my-bucket" {
 		t.Errorf("unexpected bucket: %s", resp.Data.Attributes.Bucket)
@@ -553,6 +630,9 @@ func TestNotaryStatusResponseJSON(t *testing.T) {
 	if resp.Data.Attributes.Name != "myapp.zip" {
 		t.Errorf("unexpected name: %s", resp.Data.Attributes.Name)
 	}
+	if resp.Data.Attributes.CreatedDate != "2026-01-15T10:30:00Z" {
+		t.Errorf("unexpected date: %s", resp.Data.Attributes.CreatedDate)
+	}
 }
 
 func TestNotaryLogsResponseJSON(t *testing.T) {
@@ -571,7 +651,71 @@ func TestNotaryLogsResponseJSON(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
+	if resp.Data.ID != "sub-log" {
+		t.Errorf("unexpected ID: %s", resp.Data.ID)
+	}
+	if resp.Data.Type != "submissionsLog" {
+		t.Errorf("unexpected type: %s", resp.Data.Type)
+	}
 	if resp.Data.Attributes.DeveloperLogURL != "https://example.com/log.json" {
 		t.Errorf("unexpected log URL: %s", resp.Data.Attributes.DeveloperLogURL)
+	}
+}
+
+func TestNotaryListResponseJSON(t *testing.T) {
+	raw := `{
+		"data": [
+			{
+				"id": "sub-1",
+				"type": "submissions",
+				"attributes": {
+					"status": "Accepted",
+					"name": "first.zip",
+					"createdDate": "2026-01-10T08:00:00Z"
+				}
+			},
+			{
+				"id": "sub-2",
+				"type": "submissions",
+				"attributes": {
+					"status": "Rejected",
+					"name": "second.zip",
+					"createdDate": "2026-01-12T12:00:00Z"
+				}
+			}
+		]
+	}`
+
+	var resp NotarySubmissionsListResponse
+	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if len(resp.Data) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(resp.Data))
+	}
+	if resp.Data[0].ID != "sub-1" {
+		t.Errorf("unexpected ID: %s", resp.Data[0].ID)
+	}
+	if resp.Data[0].Attributes.Status != NotaryStatusAccepted {
+		t.Errorf("unexpected status: %s", resp.Data[0].Attributes.Status)
+	}
+	if resp.Data[1].Attributes.Status != NotaryStatusRejected {
+		t.Errorf("unexpected status: %s", resp.Data[1].Attributes.Status)
+	}
+}
+
+func TestResolveNotaryBaseURL(t *testing.T) {
+	client := newTestNotaryClient(t, "")
+
+	// Default should be NotaryBaseURL
+	if got := client.resolveNotaryBaseURL(); got != NotaryBaseURL {
+		t.Errorf("expected %s, got %s", NotaryBaseURL, got)
+	}
+
+	// Override
+	client.SetNotaryBaseURL("http://localhost:9999")
+	if got := client.resolveNotaryBaseURL(); got != "http://localhost:9999" {
+		t.Errorf("expected http://localhost:9999, got %s", got)
 	}
 }
