@@ -165,6 +165,26 @@ func TestNotarizationSubmitEmptyFile(t *testing.T) {
 	})
 }
 
+func TestNotarizationListNegativeLimit(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	captureOutput(t, func() {
+		if err := root.Parse([]string{"notarization", "list", "--limit", "-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error for negative limit, got nil")
+		}
+		if !strings.Contains(err.Error(), "--limit must not be negative") {
+			t.Fatalf("expected negative limit error, got: %v", err)
+		}
+	})
+}
+
 func TestNotarizationSubmitUnsupportedExtension(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	dir := t.TempDir()

@@ -323,6 +323,7 @@ Examples:
 func listCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("notarization list", flag.ExitOnError)
 
+	limit := fs.Int("limit", 0, "Maximum number of results to display (0 = all)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -334,10 +335,15 @@ func listCommand() *ffcli.Command {
 
 Examples:
   asc notarization list
+  asc notarization list --limit 5
   asc notarization list --output table`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if *limit < 0 {
+				return fmt.Errorf("notarization list: --limit must not be negative")
+			}
+
 			client, err := getASCClient()
 			if err != nil {
 				return fmt.Errorf("notarization list: %w", err)
@@ -349,6 +355,10 @@ Examples:
 			resp, err := client.ListNotarizations(requestCtx)
 			if err != nil {
 				return fmt.Errorf("notarization list: failed to fetch: %w", err)
+			}
+
+			if *limit > 0 && len(resp.Data) > *limit {
+				resp.Data = resp.Data[:*limit]
 			}
 
 			return printOutput(resp, *output, *pretty)
