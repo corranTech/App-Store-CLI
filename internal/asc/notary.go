@@ -671,10 +671,26 @@ func encodeS3ObjectPath(object string) (string, error) {
 
 	segments := strings.Split(object, "/")
 	for i, segment := range segments {
-		segments[i] = url.PathEscape(segment)
+		segments[i] = escapePathSegment(segment)
 	}
 
 	return "/" + strings.Join(segments, "/"), nil
+}
+
+func escapePathSegment(value string) string {
+	var builder strings.Builder
+	for i := 0; i < len(value); i++ {
+		b := value[i]
+		if (b >= 'A' && b <= 'Z') ||
+			(b >= 'a' && b <= 'z') ||
+			(b >= '0' && b <= '9') ||
+			b == '-' || b == '_' || b == '.' || b == '~' {
+			builder.WriteByte(b)
+			continue
+		}
+		builder.WriteString(fmt.Sprintf("%%%02X", b))
+	}
+	return builder.String()
 }
 
 func encodeS3Query(values url.Values) string {
