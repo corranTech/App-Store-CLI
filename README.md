@@ -1,5 +1,7 @@
 # Unofficial App Store Connect CLI
 
+**Canonical repository:** https://github.com/rudrankriyam/App-Store-Connect-CLI
+
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
