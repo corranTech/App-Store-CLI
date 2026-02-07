@@ -44,9 +44,11 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points list", flag.ExitOnError)
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
+	territory := fs.String("territory", "", "Filter by territory (e.g., USA) to reduce results")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	stream := fs.Bool("stream", false, "Stream pages as NDJSON (one JSON object per page, requires --paginate)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -56,9 +58,19 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 		ShortHelp:  "List price points for a subscription.",
 		LongHelp: `List price points for a subscription.
 
+Use --territory to filter by a specific territory. Without it, all territories
+are returned (140K+ results for subscriptions). Filtering by territory reduces
+results to ~800 and completes in seconds instead of 20+ minutes.
+
+Use --stream with --paginate to emit each page as a separate JSON line (NDJSON)
+instead of buffering all pages in memory. This gives immediate feedback and
+reduces memory usage for very large result sets.
+
 Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID"
-  asc subscriptions price-points list --subscription-id "SUB_ID" --paginate`,
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA"
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate
+  asc subscriptions price-points list --subscription-id "SUB_ID" --paginate --stream`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -67,6 +79,10 @@ Examples:
 			}
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
+			}
+			if *stream && !*paginate {
+				fmt.Fprintln(os.Stderr, "Error: --stream requires --paginate")
+				return flag.ErrHelp
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
@@ -84,19 +100,58 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionPricePointsOption{
+				asc.WithSubscriptionPricePointsTerritory(*territory),
 				asc.WithSubscriptionPricePointsLimit(*limit),
 				asc.WithSubscriptionPricePointsNextURL(*next),
 			}
 
-			if *paginate {
+			if *paginate && *stream {
+				// Streaming mode: emit each page as a separate JSON line
 				paginateOpts := append(opts, asc.WithSubscriptionPricePointsLimit(200))
-				firstPage, err := client.GetSubscriptionPricePoints(requestCtx, id, paginateOpts...)
+				firstPageCtx, firstPageCancel := contextWithTimeout(ctx)
+				page, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
+				firstPageCancel()
 				if err != nil {
 					return fmt.Errorf("subscriptions price-points list: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionPricePoints(ctx, id, asc.WithSubscriptionPricePointsNextURL(nextURL))
+				seenNext := make(map[string]struct{})
+				for {
+					if err := printStreamPage(page); err != nil {
+						return fmt.Errorf("subscriptions price-points list: write stream page: %w", err)
+					}
+
+					if page.Links.Next == "" {
+						break
+					}
+					if _, exists := seenNext[page.Links.Next]; exists {
+						return fmt.Errorf("subscriptions price-points list: %w", asc.ErrRepeatedPaginationURL)
+					}
+					seenNext[page.Links.Next] = struct{}{}
+
+					pageCtx, pageCancel := contextWithTimeout(ctx)
+					page, err = client.GetSubscriptionPricePoints(pageCtx, id, asc.WithSubscriptionPricePointsNextURL(page.Links.Next))
+					pageCancel()
+					if err != nil {
+						return fmt.Errorf("subscriptions price-points list: %w", err)
+					}
+				}
+				return nil
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithSubscriptionPricePointsLimit(200))
+				firstPageCtx, firstPageCancel := contextWithTimeout(ctx)
+				firstPage, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
+				firstPageCancel()
+				if err != nil {
+					return fmt.Errorf("subscriptions price-points list: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					pageCtx, pageCancel := contextWithTimeout(ctx)
+					defer pageCancel()
+					return client.GetSubscriptionPricePoints(pageCtx, id, asc.WithSubscriptionPricePointsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions price-points list: %w", err)

@@ -757,6 +757,30 @@ func TestGetSubscriptionPricePoints_WithLimit(t *testing.T) {
 	}
 }
 
+func TestGetSubscriptionPricePoints_WithTerritoryFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"price-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/pricePoints" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/pricePoints, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("filter[territory]") != "USA" {
+			t.Fatalf("expected filter[territory]=USA, got %q", req.URL.Query().Get("filter[territory]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionPricePoints(
+		context.Background(),
+		"sub-1",
+		WithSubscriptionPricePointsTerritory("USA"),
+	); err != nil {
+		t.Fatalf("GetSubscriptionPricePoints() error: %v", err)
+	}
+}
+
 func TestGetSubscriptionPricePoint(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPricePoints","id":"price-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
