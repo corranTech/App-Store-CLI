@@ -1,5 +1,8 @@
 # Unofficial App Store Connect CLI
 
+**Companion skills pack:** https://github.com/rudrankriyam/app-store-connect-cli-skills
+**Summary:** Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing.
+
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
