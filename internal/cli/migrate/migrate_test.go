@@ -274,6 +274,39 @@ func TestSelectBestAppInfoID_FallsBackToNonReadyForSale(t *testing.T) {
 	}
 }
 
+func TestSelectBestAppInfoID_EmptyInput(t *testing.T) {
+	if got := selectBestAppInfoID(nil); got != "" {
+		t.Fatalf("expected empty appInfoID for nil input, got %q", got)
+	}
+
+	if got := selectBestAppInfoID(&asc.AppInfosResponse{}); got != "" {
+		t.Fatalf("expected empty appInfoID for empty input, got %q", got)
+	}
+}
+
+func TestSelectBestAppInfoID_UsesStateWhenAppStoreStateMissing(t *testing.T) {
+	appInfos := &asc.AppInfosResponse{
+		Data: []types.Resource[asc.AppInfoAttributes]{
+			{
+				ID: "live",
+				Attributes: asc.AppInfoAttributes{
+					"state": "READY_FOR_DISTRIBUTION",
+				},
+			},
+			{
+				ID: "editable",
+				Attributes: asc.AppInfoAttributes{
+					"state": "IN_REVIEW",
+				},
+			},
+		},
+	}
+
+	if got := selectBestAppInfoID(appInfos); got != "editable" {
+		t.Fatalf("expected appInfoID %q, got %q", "editable", got)
+	}
+}
+
 func TestReadFastlaneMetadata_EmptyDirectory(t *testing.T) {
 	dir := t.TempDir()
 
