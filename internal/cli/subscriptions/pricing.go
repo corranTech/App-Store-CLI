@@ -9,13 +9,17 @@ import (
 	"strings"
 	"sync"
 	"text/tabwriter"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-const defaultSubscriptionPricingWorkers = 4
+const (
+	defaultSubscriptionPricingWorkers = 4
+	subscriptionPricingDateLayout     = "2006-01-02"
+)
 
 type subWithGroup struct {
 	Sub       asc.Resource[asc.SubscriptionAttributes]
@@ -279,8 +283,45 @@ func resolveSubscriptionPriceSummary(
 		currency = territoryToCurrency(territory)
 	}
 
-	// Match the price to the included price point
-	for _, price := range pricesResp.Data {
+	if value, ok := selectCurrentSubscriptionPriceValue(pricesResp.Data, pricePointValues, time.Now().UTC()); ok {
+		if value.CustomerPrice != "" {
+			summary.CurrentPrice = &subMoney{Amount: value.CustomerPrice, Currency: currency}
+		}
+		if value.Proceeds != "" {
+			summary.Proceeds = &subMoney{Amount: value.Proceeds, Currency: currency}
+		}
+		if value.ProceedsYear2 != "" {
+			summary.ProceedsYear2 = &subMoney{Amount: value.ProceedsYear2, Currency: currency}
+		}
+	}
+
+	return summary, nil
+}
+
+type subscriptionPricePointValue struct {
+	CustomerPrice string
+	Proceeds      string
+	ProceedsYear2 string
+}
+
+type subscriptionPriceCandidate struct {
+	value     subscriptionPricePointValue
+	startAt   *time.Time
+	preserved bool
+}
+
+func selectCurrentSubscriptionPriceValue(
+	prices []asc.Resource[asc.SubscriptionPriceAttributes],
+	pricePointValues map[string]subscriptionPricePointValue,
+	now time.Time,
+) (subscriptionPricePointValue, bool) {
+	asOf := dateOnlyUTC(now)
+
+	var bestCurrent *subscriptionPriceCandidate
+	var bestFuture *subscriptionPriceCandidate
+	var bestUndated *subscriptionPriceCandidate
+
+	for _, price := range prices {
 		ppID := extractSubscriptionPricePointID(price)
 		if ppID == "" {
 			continue
@@ -291,25 +332,61 @@ func resolveSubscriptionPriceSummary(
 			continue
 		}
 
-		if value.CustomerPrice != "" {
-			summary.CurrentPrice = &subMoney{Amount: value.CustomerPrice, Currency: currency}
+		candidate := subscriptionPriceCandidate{
+			value:     value,
+			startAt:   parseSubscriptionPricingDate(price.Attributes.StartDate),
+			preserved: price.Attributes.Preserved,
 		}
-		if value.Proceeds != "" {
-			summary.Proceeds = &subMoney{Amount: value.Proceeds, Currency: currency}
+
+		if candidate.startAt == nil {
+			if bestUndated == nil || (!candidate.preserved && bestUndated.preserved) {
+				copyCandidate := candidate
+				bestUndated = &copyCandidate
+			}
+			continue
 		}
-		if value.ProceedsYear2 != "" {
-			summary.ProceedsYear2 = &subMoney{Amount: value.ProceedsYear2, Currency: currency}
+
+		if candidate.startAt.After(asOf) {
+			if bestFuture == nil || candidate.startAt.Before(*bestFuture.startAt) || (candidate.startAt.Equal(*bestFuture.startAt) && !candidate.preserved && bestFuture.preserved) {
+				copyCandidate := candidate
+				bestFuture = &copyCandidate
+			}
+			continue
 		}
-		break // we only need the first matching price for this territory
+
+		if bestCurrent == nil || candidate.startAt.After(*bestCurrent.startAt) || (candidate.startAt.Equal(*bestCurrent.startAt) && !candidate.preserved && bestCurrent.preserved) {
+			copyCandidate := candidate
+			bestCurrent = &copyCandidate
+		}
 	}
 
-	return summary, nil
+	switch {
+	case bestCurrent != nil:
+		return bestCurrent.value, true
+	case bestUndated != nil:
+		return bestUndated.value, true
+	case bestFuture != nil:
+		return bestFuture.value, true
+	default:
+		return subscriptionPricePointValue{}, false
+	}
 }
 
-type subscriptionPricePointValue struct {
-	CustomerPrice string
-	Proceeds      string
-	ProceedsYear2 string
+func parseSubscriptionPricingDate(value string) *time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	parsed, err := time.Parse(subscriptionPricingDateLayout, value)
+	if err != nil {
+		return nil
+	}
+	normalized := dateOnlyUTC(parsed.UTC())
+	return &normalized
+}
+
+func dateOnlyUTC(value time.Time) time.Time {
+	return time.Date(value.UTC().Year(), value.UTC().Month(), value.UTC().Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func parseSubscriptionPricesIncluded(raw json.RawMessage) (map[string]subscriptionPricePointValue, map[string]string) {
