@@ -281,6 +281,17 @@ func resolveIAPPriceSummary(
 		if err != nil {
 			return iapPriceSummary{}, err
 		}
+		if _, ok := pointValues[currentEntry.PricePointID]; !ok {
+			fallbackValues, fallbackCurrency, fallbackErr := fetchManualSchedulePricePointValues(ctx, client, scheduleResp.Data.ID, targetTerritory)
+			if fallbackErr == nil {
+				for key, value := range fallbackValues {
+					pointValues[key] = value
+				}
+				if currency == "" {
+					currency = fallbackCurrency
+				}
+			}
+		}
 		if currency == "" {
 			currency = territoryCurrencies[targetTerritory]
 		}
@@ -435,6 +446,138 @@ func fetchIAPPricePointValues(
 
 	currency := territoryCurrencyFromIncluded(resp.Included, territoryID)
 	return values, currency, nil
+}
+
+func fetchManualSchedulePricePointValues(
+	ctx context.Context,
+	client *asc.Client,
+	scheduleID string,
+	territoryID string,
+) (map[string]iapPricePointValue, string, error) {
+	page, err := client.GetInAppPurchasePriceScheduleManualPrices(
+		ctx,
+		scheduleID,
+		asc.WithIAPPriceSchedulePricesInclude([]string{"inAppPurchasePricePoint", "territory"}),
+		asc.WithIAPPriceSchedulePricesFields([]string{"manual", "inAppPurchasePricePoint", "territory"}),
+		asc.WithIAPPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
+		asc.WithIAPPriceSchedulePricesTerritoryFields([]string{"currency"}),
+		asc.WithIAPPriceSchedulePricesLimit(200),
+	)
+	if err != nil {
+		return nil, "", fmt.Errorf("fetch manual schedule price point values: %w", err)
+	}
+
+	values := make(map[string]iapPricePointValue)
+	currency := ""
+	seenNext := make(map[string]struct{})
+
+	for {
+		pageValues, pageCurrency, err := parseManualSchedulePricePointValues(page.Included, territoryID)
+		if err != nil {
+			return nil, "", err
+		}
+		for key, value := range pageValues {
+			values[key] = value
+		}
+		if currency == "" && pageCurrency != "" {
+			currency = pageCurrency
+		}
+
+		if page.Links.Next == "" {
+			break
+		}
+		if _, exists := seenNext[page.Links.Next]; exists {
+			return nil, "", fmt.Errorf("paginate manual schedule price point values: %w", asc.ErrRepeatedPaginationURL)
+		}
+		seenNext[page.Links.Next] = struct{}{}
+
+		page, err = client.GetInAppPurchasePriceScheduleManualPrices(
+			ctx,
+			scheduleID,
+			asc.WithIAPPriceSchedulePricesNextURL(page.Links.Next),
+		)
+		if err != nil {
+			return nil, "", fmt.Errorf("paginate manual schedule price point values: %w", err)
+		}
+	}
+
+	return values, currency, nil
+}
+
+func parseManualSchedulePricePointValues(
+	raw json.RawMessage,
+	territoryID string,
+) (map[string]iapPricePointValue, string, error) {
+	if len(raw) == 0 {
+		return map[string]iapPricePointValue{}, "", nil
+	}
+
+	var included []struct {
+		Type          string          `json:"type"`
+		ID            string          `json:"id"`
+		Attributes    json.RawMessage `json:"attributes"`
+		Relationships json.RawMessage `json:"relationships"`
+	}
+	if err := json.Unmarshal(raw, &included); err != nil {
+		return nil, "", fmt.Errorf("parse manual schedule included resources: %w", err)
+	}
+
+	targetTerritory := strings.ToUpper(strings.TrimSpace(territoryID))
+	values := make(map[string]iapPricePointValue)
+	currencies := make(map[string]string)
+
+	for _, item := range included {
+		switch item.Type {
+		case string(asc.ResourceTypeTerritories):
+			var attrs struct {
+				Currency string `json:"currency"`
+			}
+			if err := json.Unmarshal(item.Attributes, &attrs); err != nil {
+				continue
+			}
+			currency := strings.TrimSpace(attrs.Currency)
+			if currency == "" {
+				continue
+			}
+			currencies[strings.ToUpper(strings.TrimSpace(item.ID))] = currency
+		case string(asc.ResourceTypeInAppPurchasePricePoints):
+			var attrs struct {
+				CustomerPrice string `json:"customerPrice"`
+				Proceeds      string `json:"proceeds"`
+			}
+			if err := json.Unmarshal(item.Attributes, &attrs); err != nil {
+				continue
+			}
+
+			decodedTerritoryID, decodedPricePointID, decoded := decodeIAPPriceResourceID(item.ID)
+			pointTerritory := decodedTerritoryID
+			if pointTerritory == "" {
+				relTerritoryID, relErr := relationshipID(item.Relationships, "territory")
+				if relErr == nil {
+					pointTerritory = relTerritoryID
+				}
+			}
+			pointTerritory = strings.ToUpper(strings.TrimSpace(pointTerritory))
+			if targetTerritory != "" && pointTerritory != targetTerritory {
+				continue
+			}
+
+			value := iapPricePointValue{
+				CustomerPrice: strings.TrimSpace(attrs.CustomerPrice),
+				Proceeds:      strings.TrimSpace(attrs.Proceeds),
+			}
+			if value.CustomerPrice == "" && value.Proceeds == "" {
+				continue
+			}
+
+			values[item.ID] = value
+			if decoded && strings.TrimSpace(decodedPricePointID) != "" {
+				values[decodedPricePointID] = value
+			}
+		}
+	}
+
+	return values, currencies[targetTerritory], nil
 }
 
 func parseIAPPriceScheduleIncluded(raw json.RawMessage) ([]iapPriceEntry, map[string]string, error) {

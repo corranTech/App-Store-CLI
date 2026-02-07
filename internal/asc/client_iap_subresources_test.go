@@ -480,6 +480,47 @@ func TestGetInAppPurchasePriceScheduleManualPrices_WithLimit(t *testing.T) {
 	}
 }
 
+func TestGetInAppPurchasePriceScheduleManualPrices_WithQueryOptions(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices" {
+			t.Fatalf("expected path /v1/inAppPurchasePriceSchedules/schedule-1/manualPrices, got %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		if query.Get("include") != "inAppPurchasePricePoint,territory" {
+			t.Fatalf("expected include query, got %q", query.Get("include"))
+		}
+		if query.Get("fields[inAppPurchasePrices]") != "manual,inAppPurchasePricePoint,territory" {
+			t.Fatalf("expected fields[inAppPurchasePrices], got %q", query.Get("fields[inAppPurchasePrices]"))
+		}
+		if query.Get("fields[inAppPurchasePricePoints]") != "customerPrice,proceeds,territory" {
+			t.Fatalf("expected fields[inAppPurchasePricePoints], got %q", query.Get("fields[inAppPurchasePricePoints]"))
+		}
+		if query.Get("fields[territories]") != "currency" {
+			t.Fatalf("expected fields[territories], got %q", query.Get("fields[territories]"))
+		}
+		if query.Get("limit") != "200" {
+			t.Fatalf("expected limit=200, got %q", query.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchasePriceScheduleManualPrices(
+		context.Background(),
+		"schedule-1",
+		WithIAPPriceSchedulePricesInclude([]string{"inAppPurchasePricePoint", "territory"}),
+		WithIAPPriceSchedulePricesFields([]string{"manual", "inAppPurchasePricePoint", "territory"}),
+		WithIAPPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
+		WithIAPPriceSchedulePricesTerritoryFields([]string{"currency"}),
+		WithIAPPriceSchedulePricesLimit(200),
+	); err != nil {
+		t.Fatalf("GetInAppPurchasePriceScheduleManualPrices() error: %v", err)
+	}
+}
+
 func TestGetInAppPurchasePriceScheduleAutomaticPrices_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {

@@ -75,3 +75,33 @@ func TestResolveIAPPriceSummaries_ContextCancelledReturnsError(t *testing.T) {
 		t.Fatalf("expected nil summaries on cancelled context, got %#v", summaries)
 	}
 }
+
+func TestParseManualSchedulePricePointValues_DecodesLegacyPricePointIDs(t *testing.T) {
+	raw := []byte(`[
+		{
+			"type":"inAppPurchasePricePoints",
+			"id":"eyJzIjoiMTU1OTI5NDEzOSIsInQiOiJVU0EiLCJwIjoiMyJ9",
+			"attributes":{"customerPrice":"2.99","proceeds":"2.54"}
+		},
+		{
+			"type":"territories",
+			"id":"USA",
+			"attributes":{"currency":"USD"}
+		}
+	]`)
+
+	values, currency, err := parseManualSchedulePricePointValues(raw, "USA")
+	if err != nil {
+		t.Fatalf("parseManualSchedulePricePointValues returned error: %v", err)
+	}
+	if currency != "USD" {
+		t.Fatalf("expected currency USD, got %q", currency)
+	}
+	value, ok := values["3"]
+	if !ok {
+		t.Fatalf("expected decoded point id 3 in values map")
+	}
+	if value.CustomerPrice != "2.99" || value.Proceeds != "2.54" {
+		t.Fatalf("unexpected value: %#v", value)
+	}
+}

@@ -52,6 +52,10 @@ type iapAvailabilityTerritoriesQuery struct {
 
 type iapPriceSchedulePricesQuery struct {
 	listQuery
+	include          []string
+	priceFields      []string
+	pricePointFields []string
+	territoryFields  []string
 }
 
 type iapPriceScheduleQuery struct {
@@ -217,6 +221,30 @@ func WithIAPPriceSchedulePricesNextURL(next string) IAPPriceSchedulePricesOption
 	}
 }
 
+func WithIAPPriceSchedulePricesInclude(include []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func WithIAPPriceSchedulePricesFields(fields []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.priceFields = normalizeList(fields)
+	}
+}
+
+func WithIAPPriceSchedulePricesPricePointFields(fields []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.pricePointFields = normalizeList(fields)
+	}
+}
+
+func WithIAPPriceSchedulePricesTerritoryFields(fields []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
 func WithIAPPriceScheduleInclude(include []string) IAPPriceScheduleOption {
 	return func(q *iapPriceScheduleQuery) {
 		q.include = normalizeList(include)
@@ -307,6 +335,10 @@ func buildIAPAvailabilityTerritoriesQuery(query *iapAvailabilityTerritoriesQuery
 
 func buildIAPPriceSchedulePricesQuery(query *iapPriceSchedulePricesQuery) string {
 	values := url.Values{}
+	addCSV(values, "include", query.include)
+	addCSV(values, "fields[inAppPurchasePrices]", query.priceFields)
+	addCSV(values, "fields[inAppPurchasePricePoints]", query.pricePointFields)
+	addCSV(values, "fields[territories]", query.territoryFields)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

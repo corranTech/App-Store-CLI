@@ -395,6 +395,149 @@ func TestIAPPricesFetchesAllScheduleEntriesWhenIncludedHitsLimit(t *testing.T) {
 	}
 }
 
+func TestIAPPricesResolvesLegacyManualPricePointValues(t *testing.T) {
+	setupAuth(t)
+
+	const legacyPriceResourceID = "eyJzIjoiMTU1OTI5NDEzOSIsInQiOiJVU0EiLCJwIjoiMyIsInNkIjowLjAsImVkIjowLjB9"
+	const legacyPricePointResourceID = "eyJzIjoiMTU1OTI5NDEzOSIsInQiOiJVU0EiLCJwIjoiMyJ9"
+	const canonicalUSAResourceID = "eyJzIjoiMTU1OTI5NDEzOSIsInQiOiJVU0EiLCJwIjoiMTAwMzYifQ"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	manualFallbackCalls := 0
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v2/inAppPurchases/iap-legacy":
+			body := `{"data":{"type":"inAppPurchases","id":"iap-legacy","attributes":{"name":"Legacy Tip","productId":"com.example.legacy.tip","inAppPurchaseType":"CONSUMABLE"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v2/inAppPurchases/iap-legacy/iapPriceSchedule":
+			body := `{
+				"data":{
+					"type":"inAppPurchasePriceSchedules",
+					"id":"schedule-legacy",
+					"relationships":{"baseTerritory":{"data":{"type":"territories","id":"USA"}}}
+				},
+				"included":[
+					{
+						"type":"inAppPurchasePrices",
+						"id":"` + legacyPriceResourceID + `",
+						"attributes":{"manual":true}
+					},
+					{
+						"type":"territories",
+						"id":"USA",
+						"attributes":{"currency":"USD"}
+					}
+				]
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v2/inAppPurchases/iap-legacy/pricePoints":
+			body := `{
+				"data":[
+					{
+						"type":"inAppPurchasePricePoints",
+						"id":"` + canonicalUSAResourceID + `",
+						"attributes":{"customerPrice":"2.99","proceeds":"2.54"}
+					}
+				],
+				"included":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/inAppPurchasePriceSchedules/schedule-legacy/manualPrices":
+			manualFallbackCalls++
+			query := req.URL.Query()
+			if query.Get("include") != "inAppPurchasePricePoint,territory" {
+				t.Fatalf("unexpected include query: %q", query.Get("include"))
+			}
+			if query.Get("fields[inAppPurchasePrices]") != "manual,inAppPurchasePricePoint,territory" {
+				t.Fatalf("unexpected fields[inAppPurchasePrices]: %q", query.Get("fields[inAppPurchasePrices]"))
+			}
+			if query.Get("fields[inAppPurchasePricePoints]") != "customerPrice,proceeds,territory" {
+				t.Fatalf("unexpected fields[inAppPurchasePricePoints]: %q", query.Get("fields[inAppPurchasePricePoints]"))
+			}
+			if query.Get("fields[territories]") != "currency" {
+				t.Fatalf("unexpected fields[territories]: %q", query.Get("fields[territories]"))
+			}
+			body := `{
+				"data":[
+					{
+						"type":"inAppPurchasePrices",
+						"id":"` + legacyPriceResourceID + `",
+						"attributes":{"manual":true},
+						"relationships":{
+							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"` + legacyPricePointResourceID + `"}},
+							"territory":{"data":{"type":"territories","id":"USA"}}
+						}
+					}
+				],
+				"included":[
+					{
+						"type":"inAppPurchasePricePoints",
+						"id":"` + legacyPricePointResourceID + `",
+						"attributes":{"customerPrice":"2.99","proceeds":"2.54"}
+					},
+					{
+						"type":"territories",
+						"id":"USA",
+						"attributes":{"currency":"USD"}
+					}
+				],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected path: %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"iap", "prices", "--iap-id", "iap-legacy"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if manualFallbackCalls == 0 {
+		t.Fatalf("expected manual schedule fallback endpoint to be called")
+	}
+	if !strings.Contains(stdout, `"currentPrice":{"amount":"2.99","currency":"USD"}`) {
+		t.Fatalf("expected current price from manual fallback, got %q", stdout)
+	}
+	if !strings.Contains(stdout, `"estimatedProceeds":{"amount":"2.54","currency":"USD"}`) {
+		t.Fatalf("expected proceeds from manual fallback, got %q", stdout)
+	}
+}
+
 func buildIAPPriceScheduleWithAutomaticIncludedCount(automaticCount int) string {
 	included := make([]string, 0, automaticCount+2)
 	for i := 0; i < automaticCount; i++ {
