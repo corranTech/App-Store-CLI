@@ -1,5 +1,7 @@
 # AGENTS.md
 
+**Canonical repository:** https://github.com/rudrankriyam/App-Store-Connect-CLI
+
 A fast, lightweight, AI-agent-friendly CLI for App Store Connect. Built in Go with [ffcli](https://github.com/peterbourgon/ff).
 
 ## Core Principles
