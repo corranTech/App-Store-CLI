@@ -13,30 +13,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-func pickEditableAppInfoID(appInfos *asc.AppInfosResponse) string {
-	if appInfos == nil || len(appInfos.Data) == 0 {
-		return ""
-	}
-
-	// Prefer the draft app info record. Apps commonly have both a live AppInfo
-	// (READY_FOR_DISTRIBUTION) and a draft AppInfo (PREPARE_FOR_SUBMISSION).
-	for _, info := range appInfos.Data {
-		if appInfoAttrString(info.Attributes, "appStoreState") == "PREPARE_FOR_SUBMISSION" {
-			return info.ID
-		}
-	}
-
-	// Fallback: pick the first non-live state if present.
-	for _, info := range appInfos.Data {
-		state := appInfoAttrString(info.Attributes, "appStoreState")
-		if state != "" && state != "READY_FOR_DISTRIBUTION" {
-			return info.ID
-		}
-	}
-
-	return appInfos.Data[0].ID
-}
-
 // MigrateCommand returns the migrate command with subcommands.
 func MigrateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("migrate", flag.ExitOnError)
@@ -360,7 +336,7 @@ Examples:
 			// Export App Info localizations (name, subtitle)
 			appInfos, err := client.GetAppInfos(requestCtx, resolvedAppID)
 			if err == nil && len(appInfos.Data) > 0 {
-				appInfoID := pickEditableAppInfoID(appInfos)
+				appInfoID := selectBestAppInfoID(appInfos)
 				if strings.TrimSpace(appInfoID) == "" {
 					return fmt.Errorf("migrate export: failed to select app info for app")
 				}
@@ -762,12 +738,16 @@ func validateVersionLocalization(loc FastlaneLocalization) []ValidationIssue {
 }
 
 func selectBestAppInfoID(appInfos *asc.AppInfosResponse) string {
+	if appInfos == nil || len(appInfos.Data) == 0 {
+		return ""
+	}
+
 	// Some apps have multiple appInfos (e.g. READY_FOR_SALE plus PREPARE_FOR_SUBMISSION).
 	// Updating name/subtitle is only allowed in certain states, so prefer the one that is
 	// actively editable for a submission.
 	const target = "PREPARE_FOR_SUBMISSION"
 
-	var firstNonReadyForSale string
+	var firstNonLive string
 	for _, info := range appInfos.Data {
 		state := strings.ToUpper(appInfoAttrString(info.Attributes, "state"))
 		appStoreState := strings.ToUpper(appInfoAttrString(info.Attributes, "appStoreState"))
@@ -775,14 +755,33 @@ func selectBestAppInfoID(appInfos *asc.AppInfosResponse) string {
 		if state == target || appStoreState == target {
 			return info.ID
 		}
-		if firstNonReadyForSale == "" && appStoreState != "" && appStoreState != "READY_FOR_SALE" {
-			firstNonReadyForSale = info.ID
+		if firstNonLive == "" && isNonLiveAppInfoState(state, appStoreState) {
+			firstNonLive = info.ID
 		}
 	}
-	if firstNonReadyForSale != "" {
-		return firstNonReadyForSale
+	if firstNonLive != "" {
+		return firstNonLive
 	}
 	return appInfos.Data[0].ID
+}
+
+func isNonLiveAppInfoState(state, appStoreState string) bool {
+	isLive := func(value string) bool {
+		switch value {
+		case "READY_FOR_DISTRIBUTION", "READY_FOR_SALE":
+			return true
+		default:
+			return false
+		}
+	}
+
+	if state != "" && !isLive(state) {
+		return true
+	}
+	if appStoreState != "" && !isLive(appStoreState) {
+		return true
+	}
+	return false
 }
 
 func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
