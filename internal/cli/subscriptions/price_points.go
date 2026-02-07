@@ -44,6 +44,7 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points list", flag.ExitOnError)
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
+	territory := fs.String("territory", "", "Filter by territory (e.g., USA) to reduce results")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -56,9 +57,14 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 		ShortHelp:  "List price points for a subscription.",
 		LongHelp: `List price points for a subscription.
 
+Use --territory to filter by a specific territory. Without it, all territories
+are returned (140K+ results for subscriptions). Filtering by territory reduces
+results to ~800 and completes in seconds instead of 20+ minutes.
+
 Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID"
-  asc subscriptions price-points list --subscription-id "SUB_ID" --paginate`,
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA"
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -84,6 +90,7 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionPricePointsOption{
+				asc.WithSubscriptionPricePointsTerritory(*territory),
 				asc.WithSubscriptionPricePointsLimit(*limit),
 				asc.WithSubscriptionPricePointsNextURL(*next),
 			}

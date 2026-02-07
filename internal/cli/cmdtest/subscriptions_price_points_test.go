@@ -91,3 +91,53 @@ func TestSubscriptionsPricePointsListPaginateUsesPerPageTimeout(t *testing.T) {
 		t.Fatalf("expected aggregated paginated output, got %q", stdout)
 	}
 }
+
+func TestSubscriptionsPricePointsListTerritoryFilter(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/subscriptions/sub-1/pricePoints" {
+			t.Fatalf("unexpected path: %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		if query.Get("filter[territory]") != "USA" {
+			t.Fatalf("expected filter[territory]=USA, got %q", query.Get("filter[territory]"))
+		}
+
+		body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}],"links":{}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "price-points", "list",
+			"--subscription-id", "sub-1",
+			"--territory", "USA",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"pp-usa"`) {
+		t.Fatalf("expected filtered output, got %q", stdout)
+	}
+}
