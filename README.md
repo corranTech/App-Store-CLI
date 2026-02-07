@@ -1,8 +1,5 @@
 # Unofficial App Store Connect CLI
 
-**Companion skills pack:** https://github.com/rudrankriyam/app-store-connect-cli-skills
-**Summary:** Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing.
-
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
@@ -19,9 +16,14 @@ A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Autom
 | Slow, heavy tooling | Single Go binary, instant startup |
 | Poor scripting support | JSON output, explicit flags, clean exit codes |
 
+## ASC Skills
+
+Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills
+
 ## Table of Contents
 
 - [Why ASC?](#why-asc)
+- [ASC Skills](#asc-skills)
 - [Quick Start](#quick-start)
   - [Install](#install)
   - [Authenticate](#authenticate)
