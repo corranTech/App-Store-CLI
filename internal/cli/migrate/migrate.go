@@ -13,6 +13,46 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
+	if attrs == nil {
+		return ""
+	}
+	value, ok := attrs[key]
+	if !ok || value == nil {
+		return ""
+	}
+	switch typed := value.(type) {
+	case string:
+		return typed
+	default:
+		return fmt.Sprintf("%v", typed)
+	}
+}
+
+func pickEditableAppInfoID(appInfos *asc.AppInfosResponse) string {
+	if appInfos == nil || len(appInfos.Data) == 0 {
+		return ""
+	}
+
+	// Prefer the draft app info record. Apps commonly have both a live AppInfo
+	// (READY_FOR_DISTRIBUTION) and a draft AppInfo (PREPARE_FOR_SUBMISSION).
+	for _, info := range appInfos.Data {
+		if appInfoAttrString(info.Attributes, "appStoreState") == "PREPARE_FOR_SUBMISSION" {
+			return info.ID
+		}
+	}
+
+	// Fallback: pick the first non-live state if present.
+	for _, info := range appInfos.Data {
+		state := appInfoAttrString(info.Attributes, "appStoreState")
+		if state != "" && state != "READY_FOR_DISTRIBUTION" {
+			return info.ID
+		}
+	}
+
+	return appInfos.Data[0].ID
+}
+
 // MigrateCommand returns the migrate command with subcommands.
 func MigrateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("migrate", flag.ExitOnError)
@@ -189,7 +229,10 @@ Examples:
 				if len(appInfos.Data) == 0 {
 					return fmt.Errorf("migrate import: no app info found for app")
 				}
-				appInfoID := appInfos.Data[0].ID
+				appInfoID := pickEditableAppInfoID(appInfos)
+				if strings.TrimSpace(appInfoID) == "" {
+					return fmt.Errorf("migrate import: failed to select app info for app")
+				}
 
 				// Get existing App Info localizations
 				existingAppInfoLocs, err := client.GetAppInfoLocalizations(requestCtx, appInfoID)
@@ -333,7 +376,10 @@ Examples:
 			// Export App Info localizations (name, subtitle)
 			appInfos, err := client.GetAppInfos(requestCtx, resolvedAppID)
 			if err == nil && len(appInfos.Data) > 0 {
-				appInfoID := appInfos.Data[0].ID
+				appInfoID := pickEditableAppInfoID(appInfos)
+				if strings.TrimSpace(appInfoID) == "" {
+					return fmt.Errorf("migrate export: failed to select app info for app")
+				}
 				appInfoLocs, err := client.GetAppInfoLocalizations(requestCtx, appInfoID)
 				if err == nil {
 					for _, loc := range appInfoLocs.Data {

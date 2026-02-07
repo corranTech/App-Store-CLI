@@ -1168,6 +1168,9 @@ func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionI
 
 // UpdateAppStoreVersionLocalization updates a localization for an app store version.
 func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localizationID string, attributes AppStoreVersionLocalizationAttributes) (*AppStoreVersionLocalizationResponse, error) {
+	// "locale" is immutable on App Store Connect; PATCH requests must not include it.
+	attributes.Locale = ""
+
 	payload := AppStoreVersionLocalizationUpdateRequest{
 		Data: AppStoreVersionLocalizationUpdateData{
 			Type:       ResourceTypeAppStoreVersionLocalizations,
@@ -1412,6 +1415,9 @@ func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string
 
 // UpdateAppInfoLocalization updates a localization for an app info resource.
 func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID string, attributes AppInfoLocalizationAttributes) (*AppInfoLocalizationResponse, error) {
+	// "locale" is immutable on App Store Connect; PATCH requests must not include it.
+	attributes.Locale = ""
+
 	payload := AppInfoLocalizationUpdateRequest{
 		Data: AppInfoLocalizationUpdateData{
 			Type:       ResourceTypeAppInfoLocalizations,
