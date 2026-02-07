@@ -13,22 +13,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
-	if attrs == nil {
-		return ""
-	}
-	value, ok := attrs[key]
-	if !ok || value == nil {
-		return ""
-	}
-	switch typed := value.(type) {
-	case string:
-		return typed
-	default:
-		return fmt.Sprintf("%v", typed)
-	}
-}
-
 func pickEditableAppInfoID(appInfos *asc.AppInfosResponse) string {
 	if appInfos == nil || len(appInfos.Data) == 0 {
 		return ""
@@ -229,7 +213,7 @@ Examples:
 				if len(appInfos.Data) == 0 {
 					return fmt.Errorf("migrate import: no app info found for app")
 				}
-				appInfoID := pickEditableAppInfoID(appInfos)
+				appInfoID := selectBestAppInfoID(appInfos)
 				if strings.TrimSpace(appInfoID) == "" {
 					return fmt.Errorf("migrate import: failed to select app info for app")
 				}
@@ -775,6 +759,46 @@ func validateVersionLocalization(loc FastlaneLocalization) []ValidationIssue {
 	}
 
 	return issues
+}
+
+func selectBestAppInfoID(appInfos *asc.AppInfosResponse) string {
+	// Some apps have multiple appInfos (e.g. READY_FOR_SALE plus PREPARE_FOR_SUBMISSION).
+	// Updating name/subtitle is only allowed in certain states, so prefer the one that is
+	// actively editable for a submission.
+	const target = "PREPARE_FOR_SUBMISSION"
+
+	var firstNonReadyForSale string
+	for _, info := range appInfos.Data {
+		state := strings.ToUpper(appInfoAttrString(info.Attributes, "state"))
+		appStoreState := strings.ToUpper(appInfoAttrString(info.Attributes, "appStoreState"))
+
+		if state == target || appStoreState == target {
+			return info.ID
+		}
+		if firstNonReadyForSale == "" && appStoreState != "" && appStoreState != "READY_FOR_SALE" {
+			firstNonReadyForSale = info.ID
+		}
+	}
+	if firstNonReadyForSale != "" {
+		return firstNonReadyForSale
+	}
+	return appInfos.Data[0].ID
+}
+
+func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
+	if attrs == nil {
+		return ""
+	}
+	v, ok := attrs[key]
+	if !ok || v == nil {
+		return ""
+	}
+	switch t := v.(type) {
+	case string:
+		return strings.TrimSpace(t)
+	default:
+		return strings.TrimSpace(fmt.Sprint(t))
+	}
 }
 
 // validateAppInfoLocalization checks app-level metadata for issues.

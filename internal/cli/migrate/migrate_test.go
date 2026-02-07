@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc/types"
 )
 
 func TestReadFileIfExists_FileExists(t *testing.T) {
@@ -220,6 +223,54 @@ func TestReadFastlaneMetadata_SkipsFiles(t *testing.T) {
 
 	if len(locs) != 1 {
 		t.Errorf("expected 1 localization (file skipped), got %d", len(locs))
+	}
+}
+
+func TestSelectBestAppInfoID_PrefersPrepareForSubmission(t *testing.T) {
+	appInfos := &asc.AppInfosResponse{
+		Data: []types.Resource[asc.AppInfoAttributes]{
+			{
+				ID: "ready",
+				Attributes: asc.AppInfoAttributes{
+					"state":         "READY_FOR_DISTRIBUTION",
+					"appStoreState": "READY_FOR_SALE",
+				},
+			},
+			{
+				ID: "prep",
+				Attributes: asc.AppInfoAttributes{
+					"state":         "PREPARE_FOR_SUBMISSION",
+					"appStoreState": "PREPARE_FOR_SUBMISSION",
+				},
+			},
+		},
+	}
+
+	if got := selectBestAppInfoID(appInfos); got != "prep" {
+		t.Fatalf("expected appInfoID %q, got %q", "prep", got)
+	}
+}
+
+func TestSelectBestAppInfoID_FallsBackToNonReadyForSale(t *testing.T) {
+	appInfos := &asc.AppInfosResponse{
+		Data: []types.Resource[asc.AppInfoAttributes]{
+			{
+				ID: "ready",
+				Attributes: asc.AppInfoAttributes{
+					"appStoreState": "READY_FOR_SALE",
+				},
+			},
+			{
+				ID: "not-ready",
+				Attributes: asc.AppInfoAttributes{
+					"appStoreState": "DEVELOPER_REMOVED_FROM_SALE",
+				},
+			},
+		},
+	}
+
+	if got := selectBestAppInfoID(appInfos); got != "not-ready" {
+		t.Fatalf("expected appInfoID %q, got %q", "not-ready", got)
 	}
 }
 
