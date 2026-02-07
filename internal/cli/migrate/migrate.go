@@ -189,7 +189,7 @@ Examples:
 				if len(appInfos.Data) == 0 {
 					return fmt.Errorf("migrate import: no app info found for app")
 				}
-				appInfoID := appInfos.Data[0].ID
+				appInfoID := selectBestAppInfoID(appInfos)
 
 				// Get existing App Info localizations
 				existingAppInfoLocs, err := client.GetAppInfoLocalizations(requestCtx, appInfoID)
@@ -729,6 +729,46 @@ func validateVersionLocalization(loc FastlaneLocalization) []ValidationIssue {
 	}
 
 	return issues
+}
+
+func selectBestAppInfoID(appInfos *asc.AppInfosResponse) string {
+	// Some apps have multiple appInfos (e.g. READY_FOR_SALE plus PREPARE_FOR_SUBMISSION).
+	// Updating name/subtitle is only allowed in certain states, so prefer the one that is
+	// actively editable for a submission.
+	const target = "PREPARE_FOR_SUBMISSION"
+
+	var firstNonReadyForSale string
+	for _, info := range appInfos.Data {
+		state := strings.ToUpper(appInfoAttrString(info.Attributes, "state"))
+		appStoreState := strings.ToUpper(appInfoAttrString(info.Attributes, "appStoreState"))
+
+		if state == target || appStoreState == target {
+			return info.ID
+		}
+		if firstNonReadyForSale == "" && appStoreState != "" && appStoreState != "READY_FOR_SALE" {
+			firstNonReadyForSale = info.ID
+		}
+	}
+	if firstNonReadyForSale != "" {
+		return firstNonReadyForSale
+	}
+	return appInfos.Data[0].ID
+}
+
+func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
+	if attrs == nil {
+		return ""
+	}
+	v, ok := attrs[key]
+	if !ok || v == nil {
+		return ""
+	}
+	switch t := v.(type) {
+	case string:
+		return strings.TrimSpace(t)
+	default:
+		return strings.TrimSpace(fmt.Sprint(t))
+	}
 }
 
 // validateAppInfoLocalization checks app-level metadata for issues.

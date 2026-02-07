@@ -2258,20 +2258,26 @@ func TestUpdateAppStoreVersionLocalization_SendsRequest(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read body error: %v", err)
 		}
-		var payload AppStoreVersionLocalizationUpdateRequest
-		if err := json.Unmarshal(body, &payload); err != nil {
+		var envelope map[string]any
+		if err := json.Unmarshal(body, &envelope); err != nil {
 			t.Fatalf("decode body error: %v", err)
 		}
-		if payload.Data.Type != ResourceTypeAppStoreVersionLocalizations {
-			t.Fatalf("expected type appStoreVersionLocalizations, got %q", payload.Data.Type)
+		data, _ := envelope["data"].(map[string]any)
+		if data["type"] != string(ResourceTypeAppStoreVersionLocalizations) {
+			t.Fatalf("expected type appStoreVersionLocalizations, got %v", data["type"])
 		}
-		if payload.Data.ID != "loc-1" {
-			t.Fatalf("expected id loc-1, got %q", payload.Data.ID)
+		if data["id"] != "loc-1" {
+			t.Fatalf("expected id loc-1, got %v", data["id"])
+		}
+		attrs, _ := data["attributes"].(map[string]any)
+		if _, ok := attrs["locale"]; ok {
+			t.Fatalf("expected locale to be omitted from PATCH payload")
 		}
 		assertAuthorized(t, req)
 	}, response)
 
 	attrs := AppStoreVersionLocalizationAttributes{
+		Locale:      "en-US", // should be ignored/omitted on update
 		Description: "Updated",
 	}
 	if _, err := client.UpdateAppStoreVersionLocalization(context.Background(), "loc-1", attrs); err != nil {
@@ -2659,21 +2665,27 @@ func TestUpdateAppInfoLocalization_SendsRequest(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read body error: %v", err)
 		}
-		var payload AppInfoLocalizationUpdateRequest
-		if err := json.Unmarshal(body, &payload); err != nil {
+		var envelope map[string]any
+		if err := json.Unmarshal(body, &envelope); err != nil {
 			t.Fatalf("decode body error: %v", err)
 		}
-		if payload.Data.Type != ResourceTypeAppInfoLocalizations {
-			t.Fatalf("expected type appInfoLocalizations, got %q", payload.Data.Type)
+		data, _ := envelope["data"].(map[string]any)
+		if data["type"] != string(ResourceTypeAppInfoLocalizations) {
+			t.Fatalf("expected type appInfoLocalizations, got %v", data["type"])
 		}
-		if payload.Data.ID != "loc-1" {
-			t.Fatalf("expected id loc-1, got %q", payload.Data.ID)
+		if data["id"] != "loc-1" {
+			t.Fatalf("expected id loc-1, got %v", data["id"])
+		}
+		attrs, _ := data["attributes"].(map[string]any)
+		if _, ok := attrs["locale"]; ok {
+			t.Fatalf("expected locale to be omitted from PATCH payload")
 		}
 		assertAuthorized(t, req)
 	}, response)
 
 	attrs := AppInfoLocalizationAttributes{
-		Name: "Updated",
+		Locale: "en-US", // should be ignored/omitted on update
+		Name:   "Updated",
 	}
 	if _, err := client.UpdateAppInfoLocalization(context.Background(), "loc-1", attrs); err != nil {
 		t.Fatalf("UpdateAppInfoLocalization() error: %v", err)
