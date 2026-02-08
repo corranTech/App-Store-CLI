@@ -43,7 +43,7 @@ Examples:
   asc performance download --build "BUILD_ID" --output ./metrics.json
   asc performance download --diagnostic-id "SIGNATURE_ID" --output ./diagnostic.json --decompress`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appFlag := strings.TrimSpace(*appID)
 			trimmedBuildID := strings.TrimSpace(*buildID)
@@ -60,7 +60,7 @@ Examples:
 				selectionCount++
 			}
 			if selectionCount == 0 {
-				appFlag = resolveAppID(*appID)
+				appFlag = shared.ResolveAppID(*appID)
 				if appFlag == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app, --build, or --diagnostic-id is required")
 					return flag.ErrHelp
@@ -80,21 +80,21 @@ Examples:
 				return fmt.Errorf("performance download: --limit is only valid with --diagnostic-id")
 			}
 
-			platforms, err := normalizePerfPowerMetricPlatforms(splitCSVUpper(*platform), "--platform")
+			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
 				return fmt.Errorf("performance download: %w", err)
 			}
-			metricTypes, err := normalizePerfPowerMetricTypes(splitCSVUpper(*metricType))
-			if err != nil {
-				return fmt.Errorf("performance download: %w", err)
-			}
-
-			client, err := getASCClient()
+			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {
 				return fmt.Errorf("performance download: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("performance download: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			switch {
@@ -137,14 +137,14 @@ Examples:
 					DecompressedSize:      decompressedSize,
 				}
 
-				return printOutput(result, *outputFormat, *pretty)
+				return shared.PrintOutput(result, *outputFormat, *pretty)
 			case trimmedBuildID != "":
 				defaultOutput := fmt.Sprintf("perf_power_metrics_%s.json", trimmedBuildID)
 
 				download, err := client.DownloadPerfPowerMetricsForBuild(requestCtx, trimmedBuildID,
 					asc.WithPerfPowerMetricsPlatforms(platforms),
 					asc.WithPerfPowerMetricsMetricTypes(metricTypes),
-					asc.WithPerfPowerMetricsDeviceTypes(splitCSV(*deviceType)),
+					asc.WithPerfPowerMetricsDeviceTypes(shared.SplitCSV(*deviceType)),
 				)
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
@@ -181,14 +181,14 @@ Examples:
 					DecompressedSize: decompressedSize,
 				}
 
-				return printOutput(result, *outputFormat, *pretty)
+				return shared.PrintOutput(result, *outputFormat, *pretty)
 			default:
 				defaultOutput := fmt.Sprintf("perf_power_metrics_%s.json", appFlag)
 
 				download, err := client.DownloadPerfPowerMetricsForApp(requestCtx, appFlag,
 					asc.WithPerfPowerMetricsPlatforms(platforms),
 					asc.WithPerfPowerMetricsMetricTypes(metricTypes),
-					asc.WithPerfPowerMetricsDeviceTypes(splitCSV(*deviceType)),
+					asc.WithPerfPowerMetricsDeviceTypes(shared.SplitCSV(*deviceType)),
 				)
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
@@ -225,7 +225,7 @@ Examples:
 					DecompressedSize: decompressedSize,
 				}
 
-				return printOutput(result, *outputFormat, *pretty)
+				return shared.PrintOutput(result, *outputFormat, *pretty)
 			}
 		},
 	}

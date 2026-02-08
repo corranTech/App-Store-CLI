@@ -30,7 +30,7 @@ Examples:
   asc product-pages custom-pages update --custom-page-id "PAGE_ID" --name "Updated"
   asc product-pages custom-pages delete --custom-page-id "PAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			CustomPagesListCommand(),
 			CustomPagesGetCommand(),
@@ -68,27 +68,27 @@ Examples:
   asc product-pages custom-pages list --app "APP_ID" --limit 50
   asc product-pages custom-pages list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("custom-pages list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("custom-pages list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCustomProductPagesOption{
@@ -110,7 +110,7 @@ Examples:
 					return fmt.Errorf("custom-pages list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetAppCustomProductPages(requestCtx, resolvedAppID, opts...)
@@ -118,7 +118,7 @@ Examples:
 				return fmt.Errorf("custom-pages list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -140,7 +140,7 @@ func CustomPagesGetCommand() *ffcli.Command {
 Examples:
   asc product-pages custom-pages get --custom-page-id "PAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
@@ -148,12 +148,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCustomProductPage(requestCtx, trimmedID)
@@ -161,7 +161,7 @@ Examples:
 				return fmt.Errorf("custom-pages get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -184,9 +184,9 @@ func CustomPagesCreateCommand() *ffcli.Command {
 Examples:
   asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -198,12 +198,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppCustomProductPage(requestCtx, resolvedAppID, nameValue)
@@ -211,7 +211,7 @@ Examples:
 				return fmt.Errorf("custom-pages create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -237,7 +237,7 @@ Examples:
   asc product-pages custom-pages update --custom-page-id "PAGE_ID" --name "Updated"
   asc product-pages custom-pages update --custom-page-id "PAGE_ID" --visible true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
@@ -258,12 +258,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppCustomProductPage(requestCtx, trimmedID, attrs)
@@ -271,7 +271,7 @@ Examples:
 				return fmt.Errorf("custom-pages update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -294,7 +294,7 @@ func CustomPagesDeleteCommand() *ffcli.Command {
 Examples:
   asc product-pages custom-pages delete --custom-page-id "PAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
@@ -306,12 +306,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppCustomProductPage(requestCtx, trimmedID); err != nil {
@@ -319,7 +319,7 @@ Examples:
 			}
 
 			result := &asc.AppCustomProductPageDeleteResult{ID: trimmedID, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func VersionsCommand() *ffcli.Command {
@@ -18,7 +19,7 @@ func VersionsCommand() *ffcli.Command {
 		ShortUsage: "asc versions <subcommand> [flags]",
 		ShortHelp:  "Manage App Store versions.",
 		LongHelp:   `Manage App Store versions.`,
-		UsageFunc:  DefaultUsageFunc,
+		UsageFunc:  shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			VersionsListCommand(),
 			VersionsGetCommand(),
@@ -65,42 +66,42 @@ Examples:
   asc versions list --app "123456789" --platform IOS --state READY_FOR_REVIEW
   asc versions list --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("versions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("versions list: %w", err)
 			}
 
-			platforms, err := normalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("versions list: %w", err)
 			}
-			states, err := normalizeAppStoreVersionStates(splitCSVUpper(*state))
+			states, err := shared.NormalizeAppStoreVersionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
 				return fmt.Errorf("versions list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionsOption{
 				asc.WithAppStoreVersionsLimit(*limit),
 				asc.WithAppStoreVersionsPlatforms(platforms),
-				asc.WithAppStoreVersionsVersionStrings(splitCSV(*version)),
+				asc.WithAppStoreVersionsVersionStrings(shared.SplitCSV(*version)),
 				asc.WithAppStoreVersionsStates(states),
 				asc.WithAppStoreVersionsNextURL(*next),
 			}
@@ -121,7 +122,7 @@ Examples:
 					return fmt.Errorf("versions list: %w", err)
 				}
 
-				return printOutput(versions, *output, *pretty)
+				return shared.PrintOutput(versions, *output, *pretty)
 			}
 
 			versions, err := client.GetAppStoreVersions(requestCtx, resolvedAppID, opts...)
@@ -129,7 +130,7 @@ Examples:
 				return fmt.Errorf("versions list: %w", err)
 			}
 
-			return printOutput(versions, *output, *pretty)
+			return shared.PrintOutput(versions, *output, *pretty)
 		},
 	}
 }
@@ -155,7 +156,7 @@ Examples:
   asc versions get --version-id "VERSION_ID" --include-build --include-submission
   asc versions get --version-id "VERSION_ID" --include "ageRatingDeclaration,appStoreReviewDetail"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
@@ -163,12 +164,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			includeValues, err := normalizeAppStoreVersionInclude(*include)
@@ -184,7 +185,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("versions get: %w", err)
 				}
-				return printOutput(versionResp, *output, *pretty)
+				return shared.PrintOutput(versionResp, *output, *pretty)
 			}
 
 			versionResp, err := client.GetAppStoreVersion(requestCtx, trimmedID)
@@ -196,7 +197,7 @@ Examples:
 				ID:            versionResp.Data.ID,
 				VersionString: versionResp.Data.Attributes.VersionString,
 				Platform:      string(versionResp.Data.Attributes.Platform),
-				State:         resolveAppStoreVersionState(versionResp.Data.Attributes),
+				State:         shared.ResolveAppStoreVersionState(versionResp.Data.Attributes),
 			}
 
 			if *includeBuild {
@@ -220,7 +221,7 @@ Examples:
 				}
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -247,30 +248,30 @@ Examples:
   asc versions create --app "123456789" --version "2.0.0" --platform IOS
   asc versions create --app "123456789" --version "2.0.0" --copyright "2026 My Company" --release-type MANUAL`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionString) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version is required")
 				return flag.ErrHelp
 			}
 
-			normalizedPlatform, err := normalizeSubmitPlatform(*platform)
+			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
 				return fmt.Errorf("versions create: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.AppStoreVersionCreateAttributes{
@@ -293,10 +294,10 @@ Examples:
 				ID:            resp.Data.ID,
 				VersionString: resp.Data.Attributes.VersionString,
 				Platform:      string(resp.Data.Attributes.Platform),
-				State:         resolveAppStoreVersionState(resp.Data.Attributes),
+				State:         shared.ResolveAppStoreVersionState(resp.Data.Attributes),
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -324,7 +325,7 @@ Examples:
   asc versions update --version-id "VERSION_ID" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
   asc versions update --version-id "VERSION_ID" --version "1.0.1"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -337,12 +338,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.AppStoreVersionUpdateAttributes{}
@@ -369,10 +370,10 @@ Examples:
 				ID:            resp.Data.ID,
 				VersionString: resp.Data.Attributes.VersionString,
 				Platform:      string(resp.Data.Attributes.Platform),
-				State:         resolveAppStoreVersionState(resp.Data.Attributes),
+				State:         shared.ResolveAppStoreVersionState(resp.Data.Attributes),
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -396,7 +397,7 @@ Only versions in PREPARE_FOR_SUBMISSION state can be deleted.
 Examples:
   asc versions delete --version-id "VERSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -407,12 +408,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppStoreVersion(requestCtx, strings.TrimSpace(*versionID)); err != nil {
@@ -424,7 +425,7 @@ Examples:
 				"deleted":   true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -446,7 +447,7 @@ func VersionsAttachBuildCommand() *ffcli.Command {
 Examples:
   asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -457,12 +458,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions attach-build: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.AttachBuildToVersion(requestCtx, strings.TrimSpace(*versionID), strings.TrimSpace(*buildID)); err != nil {
@@ -475,7 +476,7 @@ Examples:
 				Attached:  true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

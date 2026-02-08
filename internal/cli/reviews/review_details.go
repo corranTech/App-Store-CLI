@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ReviewDetailsGetCommand returns the review details get subcommand.
@@ -29,7 +30,7 @@ func ReviewDetailsGetCommand() *ffcli.Command {
 Examples:
   asc review details-get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
@@ -37,12 +38,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review details-get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreReviewDetail(requestCtx, detailValue)
@@ -50,7 +51,7 @@ Examples:
 				return fmt.Errorf("review details-get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -72,7 +73,7 @@ func ReviewDetailsForVersionCommand() *ffcli.Command {
 Examples:
   asc review details-for-version --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
@@ -80,12 +81,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review details-for-version: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, versionValue)
@@ -93,7 +94,7 @@ Examples:
 				return fmt.Errorf("review details-for-version: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -124,7 +125,7 @@ Examples:
   asc review details-create --version-id "VERSION_ID" --contact-email "dev@example.com"
   asc review details-create --version-id "VERSION_ID" --notes "Review notes"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
@@ -175,12 +176,12 @@ Examples:
 				attrsPtr = &attrs
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review details-create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreReviewDetail(requestCtx, versionValue, attrsPtr)
@@ -188,7 +189,7 @@ Examples:
 				return fmt.Errorf("review details-create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -219,7 +220,7 @@ Examples:
   asc review details-update --id "DETAIL_ID" --contact-email "dev@example.com"
   asc review details-update --id "DETAIL_ID" --notes "Updated review notes"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
@@ -271,12 +272,12 @@ Examples:
 				attrs.Notes = &value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review details-update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppStoreReviewDetail(requestCtx, detailValue, attrs)
@@ -284,7 +285,7 @@ Examples:
 				return fmt.Errorf("review details-update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

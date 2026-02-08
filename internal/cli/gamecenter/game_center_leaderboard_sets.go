@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterLeaderboardSetsCommand returns the leaderboard-sets command group.
@@ -41,7 +42,7 @@ Examples:
   asc game-center leaderboard-sets images upload --localization-id "LOC_ID" --file path/to/image.png
   asc game-center leaderboard-sets images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetsListCommand(),
 			GameCenterLeaderboardSetsGetCommand(),
@@ -80,7 +81,7 @@ Examples:
   asc game-center leaderboard-sets localizations delete --id "LOC_ID" --confirm
   asc game-center leaderboard-sets localizations image get --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetLocalizationsListCommand(),
 			GameCenterLeaderboardSetLocalizationsGetCommand(),
@@ -117,12 +118,12 @@ Examples:
   asc game-center leaderboard-sets localizations list --set-id "SET_ID" --limit 50
   asc game-center leaderboard-sets localizations list --set-id "SET_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboard-sets localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations list: %w", err)
 			}
 
@@ -132,12 +133,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetLocalizationsOption{
@@ -159,7 +160,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboard-sets localizations list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardSetLocalizations(requestCtx, id, opts...)
@@ -167,7 +168,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -189,7 +190,7 @@ func GameCenterLeaderboardSetLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets localizations get --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -197,12 +198,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardSetLocalization(requestCtx, id)
@@ -210,7 +211,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -235,7 +236,7 @@ Examples:
   asc game-center leaderboard-sets localizations create --set-id "SET_ID" --locale en-US --name "Season 1"
   asc game-center leaderboard-sets localizations create --set-id "SET_ID" --locale de-DE --name "Staffel 1"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
@@ -255,12 +256,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.GameCenterLeaderboardSetLocalizationCreateAttributes{
@@ -273,7 +274,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -296,7 +297,7 @@ func GameCenterLeaderboardSetLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets localizations update --id "LOC_ID" --name "New Name"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -318,12 +319,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterLeaderboardSetLocalization(requestCtx, id, attrs)
@@ -331,7 +332,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -354,7 +355,7 @@ func GameCenterLeaderboardSetLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets localizations delete --id "LOC_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -366,12 +367,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterLeaderboardSetLocalization(requestCtx, id); err != nil {
@@ -383,7 +384,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -410,28 +411,28 @@ Examples:
   asc game-center leaderboard-sets list --app "APP_ID" --limit 50
   asc game-center leaderboard-sets list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboard-sets list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboard-sets list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			gcDetailID := ""
@@ -463,7 +464,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboard-sets list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardSets(requestCtx, gcDetailID, opts...)
@@ -471,7 +472,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -493,7 +494,7 @@ func GameCenterLeaderboardSetsGetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets get --id "SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
@@ -501,12 +502,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardSet(requestCtx, id)
@@ -514,7 +515,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -539,9 +540,9 @@ Examples:
   asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
   asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Weekly Challenge" --vendor-id "com.example.weekly"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -559,12 +560,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			// Get Game Center detail ID first
@@ -583,7 +584,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -606,7 +607,7 @@ func GameCenterLeaderboardSetsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets update --id "SET_ID" --reference-name "Season 1 - Updated"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
@@ -628,12 +629,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterLeaderboardSet(requestCtx, id, attrs)
@@ -641,7 +642,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -664,7 +665,7 @@ func GameCenterLeaderboardSetsDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets delete --id "SET_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
@@ -676,12 +677,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterLeaderboardSet(requestCtx, id); err != nil {
@@ -693,7 +694,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -715,7 +716,7 @@ Examples:
   asc game-center leaderboard-sets releases create --app "APP_ID" --set-id "SET_ID"
   asc game-center leaderboard-sets releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetReleasesListCommand(),
 			GameCenterLeaderboardSetReleasesCreateCommand(),
@@ -749,12 +750,12 @@ Examples:
   asc game-center leaderboard-sets releases list --set-id "SET_ID" --limit 50
   asc game-center leaderboard-sets releases list --set-id "SET_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboard-sets releases list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboard-sets releases list: %w", err)
 			}
 
@@ -764,12 +765,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets releases list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetReleasesOption{
@@ -791,7 +792,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboard-sets releases list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardSetReleases(requestCtx, id, opts...)
@@ -799,7 +800,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets releases list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -824,9 +825,9 @@ This associates the leaderboard set with the app's Game Center detail.
 Examples:
   asc game-center leaderboard-sets releases create --app "APP_ID" --set-id "SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -838,12 +839,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets releases create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			// Get Game Center detail ID first
@@ -857,7 +858,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets releases create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -880,7 +881,7 @@ func GameCenterLeaderboardSetReleasesDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*releaseID)
 			if id == "" {
@@ -892,12 +893,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets releases delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterLeaderboardSetRelease(requestCtx, id); err != nil {
@@ -909,7 +910,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -927,7 +928,7 @@ func GameCenterLeaderboardSetGroupLeaderboardSetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets group-leaderboard-set get --id "SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetGroupLeaderboardSetGetCommand(),
 		},
@@ -954,7 +955,7 @@ func GameCenterLeaderboardSetGroupLeaderboardSetGetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets group-leaderboard-set get --id "SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
@@ -962,12 +963,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets group-leaderboard-set get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardSetGroupLeaderboardSet(requestCtx, id)
@@ -975,7 +976,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets group-leaderboard-set get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -993,7 +994,7 @@ func GameCenterLeaderboardSetLocalizationImageCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets localizations image get --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetLocalizationImageGetCommand(),
 		},
@@ -1020,7 +1021,7 @@ func GameCenterLeaderboardSetLocalizationImageGetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets localizations image get --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -1028,12 +1029,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets localizations image get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardSetLocalizationImage(requestCtx, id)
@@ -1041,7 +1042,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets localizations image get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1062,7 +1063,7 @@ Examples:
   asc game-center leaderboard-sets member-localizations leaderboard get --id "LOCALIZATION_ID"
   asc game-center leaderboard-sets member-localizations leaderboard-set get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetMemberLocalizationsListCommand(),
 			GameCenterLeaderboardSetMemberLocalizationsGetCommand(),
@@ -1098,12 +1099,12 @@ Examples:
   asc game-center leaderboard-sets member-localizations list --set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID" --limit 50
   asc game-center leaderboard-sets member-localizations list --set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboard-sets member-localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboard-sets member-localizations list: %w", err)
 			}
 
@@ -1120,12 +1121,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets member-localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetMemberLocalizationsOption{
@@ -1153,7 +1154,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboard-sets member-localizations list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardSetMemberLocalizations(requestCtx, opts...)
@@ -1161,7 +1162,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets member-localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1183,7 +1184,7 @@ func GameCenterLeaderboardSetMemberLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets member-localizations get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -1191,12 +1192,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets member-localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardSetMemberLocalization(requestCtx, id)
@@ -1204,7 +1205,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets member-localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1222,7 +1223,7 @@ func GameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand() *ffcli.Comm
 Examples:
   asc game-center leaderboard-sets member-localizations leaderboard get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand(),
 		},
@@ -1249,7 +1250,7 @@ func GameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand() *ffcli.C
 Examples:
   asc game-center leaderboard-sets member-localizations leaderboard get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -1257,12 +1258,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets member-localizations leaderboard get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardSetMemberLocalizationLeaderboard(requestCtx, id)
@@ -1270,7 +1271,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets member-localizations leaderboard get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1288,7 +1289,7 @@ func GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand() *ffcli.C
 Examples:
   asc game-center leaderboard-sets member-localizations leaderboard-set get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand(),
 		},
@@ -1315,7 +1316,7 @@ func GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand() *ffcl
 Examples:
   asc game-center leaderboard-sets member-localizations leaderboard-set get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -1323,12 +1324,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets member-localizations leaderboard-set get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet(requestCtx, id)
@@ -1336,7 +1337,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets member-localizations leaderboard-set get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

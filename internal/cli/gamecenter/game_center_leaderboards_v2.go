@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterLeaderboardsV2Command returns the leaderboards v2 command group.
@@ -28,7 +29,7 @@ Examples:
   asc game-center leaderboards v2 localizations list --version-id "VER_ID"
   asc game-center leaderboards v2 images upload --localization-id "LOC_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardsV2ListCommand(),
 			GameCenterLeaderboardVersionsV2Command(),
@@ -64,12 +65,12 @@ Examples:
   asc game-center leaderboards v2 list --group-id "GROUP_ID"
   asc game-center leaderboards v2 list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboards v2 list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboards v2 list: %w", err)
 			}
 
@@ -79,19 +80,19 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if group == "" && resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			gcDetailID := ""
@@ -122,7 +123,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboards v2 list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardsV2(requestCtx, gcDetailID, group, opts...)
@@ -130,7 +131,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -150,7 +151,7 @@ Examples:
   asc game-center leaderboards v2 versions get --id "VERSION_ID"
   asc game-center leaderboards v2 versions create --leaderboard-id "LB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardVersionsV2ListCommand(),
 			GameCenterLeaderboardVersionsV2GetCommand(),
@@ -183,12 +184,12 @@ Examples:
   asc game-center leaderboards v2 versions list --leaderboard-id "LB_ID"
   asc game-center leaderboards v2 versions list --leaderboard-id "LB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboards v2 versions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboards v2 versions list: %w", err)
 			}
 
@@ -198,12 +199,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardVersionsOption{
@@ -225,7 +226,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboards v2 versions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardVersions(requestCtx, id, opts...)
@@ -233,7 +234,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -255,7 +256,7 @@ func GameCenterLeaderboardVersionsV2GetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards v2 versions get --id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -263,12 +264,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 versions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardVersion(requestCtx, id)
@@ -276,7 +277,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 versions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -298,7 +299,7 @@ func GameCenterLeaderboardVersionsV2CreateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards v2 versions create --leaderboard-id "LB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
@@ -306,12 +307,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 versions create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterLeaderboardVersion(requestCtx, id)
@@ -319,7 +320,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 versions create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -338,7 +339,7 @@ Examples:
   asc game-center leaderboards v2 localizations list --version-id "VER_ID"
   asc game-center leaderboards v2 localizations create --version-id "VER_ID" --locale en-US --name "High Score"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardLocalizationsV2ListCommand(),
 			GameCenterLeaderboardLocalizationsV2GetCommand(),
@@ -373,12 +374,12 @@ Examples:
   asc game-center leaderboards v2 localizations list --version-id "VER_ID"
   asc game-center leaderboards v2 localizations list --version-id "VER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboards v2 localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboards v2 localizations list: %w", err)
 			}
 
@@ -388,12 +389,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardLocalizationsOption{
@@ -415,7 +416,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboards v2 localizations list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardVersionLocalizations(requestCtx, id, opts...)
@@ -423,7 +424,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -445,7 +446,7 @@ func GameCenterLeaderboardLocalizationsV2GetCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards v2 localizations get --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -453,12 +454,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterLeaderboardLocalizationV2(requestCtx, id)
@@ -466,7 +467,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -495,7 +496,7 @@ Examples:
   asc game-center leaderboards v2 localizations create --version-id "VER_ID" --locale en-US --name "High Score"
   asc game-center leaderboards v2 localizations create --version-id "VER_ID" --locale de-DE --name "Highscore" --formatter-suffix " Punkte"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -544,12 +545,12 @@ Examples:
 				Description:             descriptionVal,
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterLeaderboardLocalizationV2(requestCtx, id, attrs)
@@ -557,7 +558,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -585,7 +586,7 @@ Examples:
   asc game-center leaderboards v2 localizations update --id "LOC_ID" --name "Top Score"
   asc game-center leaderboards v2 localizations update --id "LOC_ID" --formatter-suffix " pts"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -631,12 +632,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterLeaderboardLocalizationV2(requestCtx, id, attrs)
@@ -644,7 +645,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -667,7 +668,7 @@ func GameCenterLeaderboardLocalizationsV2DeleteCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards v2 localizations delete --id "LOC_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -679,12 +680,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterLeaderboardLocalizationV2(requestCtx, id); err != nil {
@@ -696,7 +697,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -717,7 +718,7 @@ Examples:
   asc game-center leaderboards v2 images get --localization-id "LOC_ID"
   asc game-center leaderboards v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardImagesV2UploadCommand(),
 			GameCenterLeaderboardImagesV2GetCommand(),
@@ -749,7 +750,7 @@ This command performs the full upload flow: reserves the upload, uploads the fil
 Examples:
   asc game-center leaderboards v2 images upload --localization-id "LOC_ID" --file leaderboard.png`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -763,12 +764,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 images upload: %w", err)
 			}
 
-			requestCtx, cancel := contextWithUploadTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadGameCenterLeaderboardImageV2(requestCtx, locID, file)
@@ -776,7 +777,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 images upload: %w", err)
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -800,7 +801,7 @@ Examples:
   asc game-center leaderboards v2 images get --id "IMAGE_ID"
   asc game-center leaderboards v2 images get --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			locID := strings.TrimSpace(*localizationID)
@@ -813,12 +814,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 images get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if locID != "" {
@@ -826,7 +827,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards v2 images get: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardImageV2(requestCtx, id)
@@ -834,7 +835,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 images get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -857,7 +858,7 @@ func GameCenterLeaderboardImagesV2DeleteCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
@@ -869,12 +870,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards v2 images delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterLeaderboardImageV2(requestCtx, id); err != nil {
@@ -886,7 +887,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

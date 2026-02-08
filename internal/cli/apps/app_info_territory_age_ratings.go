@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppInfoTerritoryAgeRatingsCommand returns the app-info territory-age-ratings command group.
@@ -26,7 +27,7 @@ Examples:
   asc app-info territory-age-ratings list --id "APP_INFO_ID"
   asc app-info territory-age-ratings list --id "APP_INFO_ID" --include territory --territory-fields currency`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppInfoTerritoryAgeRatingsListCommand(),
 		},
@@ -61,12 +62,12 @@ Examples:
   asc app-info territory-age-ratings list --id "APP_INFO_ID" --include territory --territory-fields currency
   asc app-info territory-age-ratings list --id "APP_INFO_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-info territory-age-ratings list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-info territory-age-ratings list: %w", err)
 			}
 
@@ -93,12 +94,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-info territory-age-ratings list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.TerritoryAgeRatingsOption{
@@ -121,7 +122,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-info territory-age-ratings list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppInfoTerritoryAgeRatings(requestCtx, idValue, opts...)
@@ -129,13 +130,13 @@ Examples:
 				return fmt.Errorf("app-info territory-age-ratings list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
 
 func normalizeTerritoryAgeRatingFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -154,7 +155,7 @@ func normalizeTerritoryAgeRatingFields(value string) ([]string, error) {
 }
 
 func normalizeTerritoryAgeRatingInclude(value string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

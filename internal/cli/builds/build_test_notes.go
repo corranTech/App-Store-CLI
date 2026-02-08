@@ -30,7 +30,7 @@ Examples:
   asc builds test-notes update --id "LOCALIZATION_ID" --whats-new "Updated instructions"
   asc builds test-notes delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsTestNotesListCommand(),
 			BuildsTestNotesGetCommand(),
@@ -67,12 +67,12 @@ Examples:
   asc builds test-notes list --build "BUILD_ID" --locale "en-US,ja"
   asc builds test-notes list --build "BUILD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds test-notes list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("builds test-notes list: %w", err)
 			}
 
@@ -82,17 +82,17 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
 				return fmt.Errorf("builds test-notes list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds test-notes list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaBuildLocalizationsOption{
@@ -116,14 +116,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds test-notes list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBetaBuildLocalizations(requestCtx, build, opts...)
 			if err != nil {
 				return fmt.Errorf("builds test-notes list: failed to fetch: %w", err)
 			}
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -145,7 +145,7 @@ func BuildsTestNotesGetCommand() *ffcli.Command {
 Examples:
   asc builds test-notes get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -153,12 +153,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds test-notes get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaBuildLocalization(requestCtx, id)
@@ -166,7 +166,7 @@ Examples:
 				return fmt.Errorf("builds test-notes get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -190,7 +190,7 @@ func BuildsTestNotesCreateCommand() *ffcli.Command {
 Examples:
   asc builds test-notes create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			build := strings.TrimSpace(*buildID)
 			if build == "" {
@@ -213,12 +213,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.BetaBuildLocalizationAttributes{
@@ -231,7 +231,7 @@ Examples:
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -254,7 +254,7 @@ func BuildsTestNotesUpdateCommand() *ffcli.Command {
 Examples:
   asc builds test-notes update --id "LOCALIZATION_ID" --whats-new "Updated notes"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -268,12 +268,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds test-notes update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.BetaBuildLocalizationAttributes{
@@ -285,7 +285,7 @@ Examples:
 				return fmt.Errorf("builds test-notes update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -308,7 +308,7 @@ func BuildsTestNotesDeleteCommand() *ffcli.Command {
 Examples:
   asc builds test-notes delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -320,12 +320,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaBuildLocalization(requestCtx, id); err != nil {
@@ -337,7 +337,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

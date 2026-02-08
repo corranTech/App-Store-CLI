@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SubscriptionsLocalizationsCommand returns the subscription localizations command group.
@@ -26,7 +27,7 @@ Examples:
   asc subscriptions localizations list --subscription-id "SUB_ID"
   asc subscriptions localizations create --subscription-id "SUB_ID" --locale "en-US" --name "Pro"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsLocalizationsListCommand(),
 			SubscriptionsLocalizationsGetCommand(),
@@ -61,12 +62,12 @@ Examples:
   asc subscriptions localizations list --subscription-id "SUB_ID"
   asc subscriptions localizations list --subscription-id "SUB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions localizations list: %w", err)
 			}
 
@@ -76,12 +77,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionLocalizationsOption{
@@ -103,7 +104,7 @@ Examples:
 					return fmt.Errorf("subscriptions localizations list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionLocalizations(requestCtx, id, opts...)
@@ -111,7 +112,7 @@ Examples:
 				return fmt.Errorf("subscriptions localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -133,7 +134,7 @@ func SubscriptionsLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions localizations get --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -141,12 +142,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionLocalization(requestCtx, id)
@@ -154,7 +155,7 @@ Examples:
 				return fmt.Errorf("subscriptions localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -179,7 +180,7 @@ func SubscriptionsLocalizationsCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions localizations create --subscription-id "SUB_ID" --locale "en-US" --name "Pro"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -199,12 +200,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionLocalizationCreateAttributes{
@@ -220,7 +221,7 @@ Examples:
 				return fmt.Errorf("subscriptions localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -244,7 +245,7 @@ func SubscriptionsLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions localizations update --id "LOC_ID" --name "Pro+"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -259,12 +260,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionLocalizationUpdateAttributes{}
@@ -280,7 +281,7 @@ Examples:
 				return fmt.Errorf("subscriptions localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -303,7 +304,7 @@ func SubscriptionsLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc subscriptions localizations delete --id "LOC_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -315,12 +316,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteSubscriptionLocalization(requestCtx, id); err != nil {
@@ -328,7 +329,7 @@ Examples:
 			}
 
 			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

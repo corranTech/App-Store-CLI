@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipInvocationLocalizationsCommand returns the invocations localizations command group.
@@ -26,7 +27,7 @@ Examples:
   asc app-clips invocations localizations list --invocation-id "INVOCATION_ID"
   asc app-clips invocations localizations create --invocation-id "INVOCATION_ID" --locale "en-US" --title "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipInvocationLocalizationsListCommand(),
 			AppClipInvocationLocalizationsCreateCommand(),
@@ -57,7 +58,7 @@ func AppClipInvocationLocalizationsListCommand() *ffcli.Command {
 Examples:
   asc app-clips invocations localizations list --invocation-id "INVOCATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-clips invocations localizations list: --limit must be between 1 and 200")
@@ -69,24 +70,24 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips invocations localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaAppClipInvocationLocalizations(requestCtx, invocationValue, *limit)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.BetaAppClipInvocationLocalizationsResponse{Data: []asc.Resource[asc.BetaAppClipInvocationLocalizationAttributes]{}}
-					return printOutput(empty, *output, *pretty)
+					return shared.PrintOutput(empty, *output, *pretty)
 				}
 				return fmt.Errorf("app-clips invocations localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -110,7 +111,7 @@ func AppClipInvocationLocalizationsCreateCommand() *ffcli.Command {
 Examples:
   asc app-clips invocations localizations create --invocation-id "INVOCATION_ID" --locale "en-US" --title "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
@@ -130,12 +131,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips invocations localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.BetaAppClipInvocationLocalizationCreateAttributes{
@@ -148,7 +149,7 @@ Examples:
 				return fmt.Errorf("app-clips invocations localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -171,7 +172,7 @@ func AppClipInvocationLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc app-clips invocations localizations update --localization-id "LOC_ID" --title "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
@@ -191,12 +192,12 @@ Examples:
 			titleValue := strings.TrimSpace(*title)
 			attrs := &asc.BetaAppClipInvocationLocalizationUpdateAttributes{Title: &titleValue}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips invocations localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateBetaAppClipInvocationLocalization(requestCtx, locValue, attrs)
@@ -204,7 +205,7 @@ Examples:
 				return fmt.Errorf("app-clips invocations localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -227,7 +228,7 @@ func AppClipInvocationLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc app-clips invocations localizations delete --localization-id "LOC_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
@@ -239,12 +240,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips invocations localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaAppClipInvocationLocalization(requestCtx, locValue); err != nil {
@@ -256,7 +257,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

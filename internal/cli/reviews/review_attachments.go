@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ReviewDetailsAttachmentsListCommand returns the review attachments list subcommand.
@@ -38,12 +39,12 @@ Examples:
   asc review attachments-list --review-detail "REVIEW_DETAIL_ID" --fields "fileName,fileSize" --limit 50
   asc review attachments-list --review-detail "REVIEW_DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("review attachments-list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("review attachments-list: %w", err)
 			}
 
@@ -66,12 +67,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review attachments-list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreReviewAttachmentsOption{
@@ -96,7 +97,7 @@ Examples:
 					return fmt.Errorf("review attachments-list: %w", err)
 				}
 
-				return printOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreReviewAttachmentsForReviewDetail(requestCtx, reviewDetailValue, opts...)
@@ -104,7 +105,7 @@ Examples:
 				return fmt.Errorf("review attachments-list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -130,7 +131,7 @@ Examples:
   asc review attachments-get --id "ATTACHMENT_ID"
   asc review attachments-get --id "ATTACHMENT_ID" --fields "fileName,fileSize"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
@@ -151,12 +152,12 @@ Examples:
 				return fmt.Errorf("review attachments-get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review attachments-get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreReviewAttachment(requestCtx, attachmentValue,
@@ -168,7 +169,7 @@ Examples:
 				return fmt.Errorf("review attachments-get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -191,7 +192,7 @@ func ReviewDetailsAttachmentsUploadCommand() *ffcli.Command {
 Examples:
   asc review attachments-upload --review-detail "REVIEW_DETAIL_ID" --file ./review-doc.pdf`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" {
@@ -219,12 +220,12 @@ Examples:
 				return fmt.Errorf("review attachments-upload: file size must be greater than 0")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review attachments-upload: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreReviewAttachment(requestCtx, reviewDetailValue, filepath.Base(pathValue), info.Size())
@@ -235,7 +236,7 @@ Examples:
 				return fmt.Errorf("review attachments-upload: no upload operations returned")
 			}
 
-			uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
 			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
 			uploadCancel()
 			if err != nil {
@@ -253,14 +254,14 @@ Examples:
 				Uploaded:           &uploaded,
 			}
 
-			commitCtx, commitCancel := contextWithUploadTimeout(ctx)
+			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
 			commitResp, err := client.UpdateAppStoreReviewAttachment(commitCtx, resp.Data.ID, updateAttrs)
 			commitCancel()
 			if err != nil {
 				return fmt.Errorf("review attachments-upload: failed to commit upload: %w", err)
 			}
 
-			return printOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output, *pretty)
 		},
 	}
 }
@@ -283,7 +284,7 @@ func ReviewDetailsAttachmentsDeleteCommand() *ffcli.Command {
 Examples:
   asc review attachments-delete --id "ATTACHMENT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
@@ -295,12 +296,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review attachments-delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppStoreReviewAttachment(requestCtx, attachmentValue); err != nil {
@@ -312,13 +313,13 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
 
 func normalizeReviewAttachmentFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -335,7 +336,7 @@ func normalizeReviewAttachmentFields(value string) ([]string, error) {
 }
 
 func normalizeReviewDetailFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -352,7 +353,7 @@ func normalizeReviewDetailFields(value string) ([]string, error) {
 }
 
 func normalizeReviewAttachmentInclude(value string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

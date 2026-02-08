@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type betaTesterUsagesPage struct {
@@ -46,13 +47,13 @@ Examples:
   asc testflight metrics beta-tester-usages --app "APP_ID" --period "P30D"
   asc testflight metrics beta-tester-usages --app "APP_ID" --filter-tester "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight metrics beta-tester-usages: %w", err)
 			}
 
@@ -62,19 +63,19 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextValue := strings.TrimSpace(*next)
 			if nextValue == "" && resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight metrics beta-tester-usages: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaTesterUsagesOption{
@@ -97,7 +98,7 @@ Examples:
 					return fmt.Errorf("testflight metrics beta-tester-usages: %w", err)
 				}
 
-				return printOutput(combined, *output, *pretty)
+				return shared.PrintOutput(combined, *output, *pretty)
 			}
 
 			resp, err := client.GetAppBetaTesterUsagesMetrics(requestCtx, resolvedAppID, opts...)
@@ -105,7 +106,7 @@ Examples:
 				return fmt.Errorf("testflight metrics beta-tester-usages: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // DevicesCommand returns the devices command with subcommands.
@@ -31,7 +32,7 @@ Examples:
   asc devices register --name "iPhone 15" --udid "UDID" --platform IOS
   asc devices update --id "DEVICE_ID" --status DISABLED`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			DevicesListCommand(),
 			DevicesGetCommand(),
@@ -77,19 +78,19 @@ Examples:
   asc devices list --limit 50
   asc devices list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("devices list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("devices list: %w", err)
 			}
-			if err := validateSort(*sort, "id", "-id", "name", "-name", "platform", "-platform", "status", "-status", "udid", "-udid"); err != nil {
+			if err := shared.ValidateSort(*sort, "id", "-id", "name", "-name", "platform", "-platform", "status", "-status", "udid", "-udid"); err != nil {
 				return fmt.Errorf("devices list: %w", err)
 			}
 
-			platformValues, err := normalizeDevicePlatforms(splitCSV(*platform))
+			platformValues, err := normalizeDevicePlatforms(shared.SplitCSV(*platform))
 			if err != nil {
 				return fmt.Errorf("devices list: %w", err)
 			}
@@ -104,18 +105,18 @@ Examples:
 				return fmt.Errorf("devices list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("devices list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.DevicesOption{
-				asc.WithDevicesNames(splitCSV(*name)),
-				asc.WithDevicesUDIDs(splitCSV(*udid)),
-				asc.WithDevicesIDs(splitCSV(*ids)),
+				asc.WithDevicesNames(shared.SplitCSV(*name)),
+				asc.WithDevicesUDIDs(shared.SplitCSV(*udid)),
+				asc.WithDevicesIDs(shared.SplitCSV(*ids)),
 				asc.WithDevicesLimit(*limit),
 				asc.WithDevicesNextURL(*next),
 			}
@@ -146,7 +147,7 @@ Examples:
 					return fmt.Errorf("devices list: %w", err)
 				}
 
-				return printOutput(devices, *output, *pretty)
+				return shared.PrintOutput(devices, *output, *pretty)
 			}
 
 			devices, err := client.GetDevices(requestCtx, opts...)
@@ -154,7 +155,7 @@ Examples:
 				return fmt.Errorf("devices list: failed to fetch: %w", err)
 			}
 
-			return printOutput(devices, *output, *pretty)
+			return shared.PrintOutput(devices, *output, *pretty)
 		},
 	}
 }
@@ -178,7 +179,7 @@ Examples:
   asc devices get --id "DEVICE_ID"
   asc devices get --id "DEVICE_ID" --fields "name,udid,platform,status"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -191,12 +192,12 @@ Examples:
 				return fmt.Errorf("devices get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("devices get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			device, err := client.GetDevice(requestCtx, idValue, fieldsValue)
@@ -204,7 +205,7 @@ Examples:
 				return fmt.Errorf("devices get: failed to fetch: %w", err)
 			}
 
-			return printOutput(device, *output, *pretty)
+			return shared.PrintOutput(device, *output, *pretty)
 		},
 	}
 }
@@ -226,7 +227,7 @@ Examples:
   asc devices local-udid
   asc devices local-udid --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			localUDID, err := localMacUDID()
 			if err != nil {
@@ -238,7 +239,7 @@ Examples:
 				Platform: "MAC_OS",
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -264,7 +265,7 @@ Examples:
   asc devices register --name "iPhone 15" --udid "UDID" --platform IOS
   asc devices register --name "My Mac" --udid-from-system --platform MAC_OS`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
@@ -307,12 +308,12 @@ Examples:
 				return fmt.Errorf("devices register: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("devices register: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.DeviceCreateAttributes{
@@ -326,7 +327,7 @@ Examples:
 				return fmt.Errorf("devices register: failed to register: %w", err)
 			}
 
-			return printOutput(device, *output, *pretty)
+			return shared.PrintOutput(device, *output, *pretty)
 		},
 	}
 }
@@ -351,7 +352,7 @@ Examples:
   asc devices update --id "DEVICE_ID" --name "My iPhone"
   asc devices update --id "DEVICE_ID" --status DISABLED`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -371,12 +372,12 @@ Examples:
 				return fmt.Errorf("devices update: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("devices update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.DeviceUpdateAttributes{}
@@ -393,7 +394,7 @@ Examples:
 				return fmt.Errorf("devices update: failed to update: %w", err)
 			}
 
-			return printOutput(device, *output, *pretty)
+			return shared.PrintOutput(device, *output, *pretty)
 		},
 	}
 }
@@ -448,7 +449,7 @@ func normalizeDeviceStatus(value string) (string, error) {
 }
 
 func normalizeDeviceFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}

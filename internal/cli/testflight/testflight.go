@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // TestFlightCommand returns the testflight command with subcommands.
@@ -32,7 +33,7 @@ Examples:
   asc testflight metrics beta-tester-usages --app "APP_ID"
   asc testflight beta-crash-logs get --id "CRASH_LOG_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightAppsCommand(),
 			BetaGroupsCommand(),
@@ -67,7 +68,7 @@ Examples:
   asc testflight apps list --sort name
   asc testflight apps get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightAppsListCommand(),
 			TestFlightAppsGetCommand(),
@@ -108,30 +109,30 @@ Examples:
   asc testflight apps list --next "<links.next>"
   asc testflight apps list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight apps list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight apps list: %w", err)
 			}
-			if err := validateSort(*sort, "name", "-name", "bundleId", "-bundleId"); err != nil {
+			if err := shared.ValidateSort(*sort, "name", "-name", "bundleId", "-bundleId"); err != nil {
 				return fmt.Errorf("testflight apps list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight apps list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppsOption{
-				asc.WithAppsBundleIDs(splitCSV(*bundleID)),
-				asc.WithAppsNames(splitCSV(*name)),
-				asc.WithAppsSKUs(splitCSV(*sku)),
+				asc.WithAppsBundleIDs(shared.SplitCSV(*bundleID)),
+				asc.WithAppsNames(shared.SplitCSV(*name)),
+				asc.WithAppsSKUs(shared.SplitCSV(*sku)),
 				asc.WithAppsLimit(*limit),
 				asc.WithAppsNextURL(*next),
 			}
@@ -155,7 +156,7 @@ Examples:
 					return fmt.Errorf("testflight apps list: %w", err)
 				}
 
-				return printOutput(apps, *output, *pretty)
+				return shared.PrintOutput(apps, *output, *pretty)
 			}
 
 			apps, err := client.GetApps(requestCtx, opts...)
@@ -163,7 +164,7 @@ Examples:
 				return fmt.Errorf("testflight apps list: failed to fetch: %w", err)
 			}
 
-			return printOutput(apps, *output, *pretty)
+			return shared.PrintOutput(apps, *output, *pretty)
 		},
 	}
 }
@@ -185,7 +186,7 @@ func TestFlightAppsGetCommand() *ffcli.Command {
 Examples:
   asc testflight apps get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(*appID)
 			if resolvedAppID == "" {
@@ -193,12 +194,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight apps get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			app, err := client.GetApp(requestCtx, resolvedAppID)
@@ -206,7 +207,7 @@ Examples:
 				return fmt.Errorf("testflight apps get: failed to fetch: %w", err)
 			}
 
-			return printOutput(app, *output, *pretty)
+			return shared.PrintOutput(app, *output, *pretty)
 		},
 	}
 }

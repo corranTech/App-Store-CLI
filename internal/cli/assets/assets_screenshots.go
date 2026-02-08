@@ -28,7 +28,7 @@ Examples:
   asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
   asc assets screenshots delete --id "SCREENSHOT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AssetsScreenshotsListCommand(),
 			AssetsScreenshotsUploadCommand(),
@@ -57,7 +57,7 @@ func AssetsScreenshotsListCommand() *ffcli.Command {
 Examples:
   asc assets screenshots list --version-localization "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -65,12 +65,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("assets screenshots list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			setsResp, err := client.GetAppScreenshotSets(requestCtx, locID)
@@ -94,7 +94,7 @@ Examples:
 				})
 			}
 
-			return printOutput(&result, *output, *pretty)
+			return shared.PrintOutput(&result, *output, *pretty)
 		},
 	}
 }
@@ -119,7 +119,7 @@ Examples:
   asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
   asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -147,7 +147,7 @@ Examples:
 				return fmt.Errorf("assets screenshots upload: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("assets screenshots upload: %w", err)
 			}
@@ -176,7 +176,7 @@ Examples:
 				Results:               results,
 			}
 
-			return printOutput(&result, *output, *pretty)
+			return shared.PrintOutput(&result, *output, *pretty)
 		},
 	}
 }
@@ -199,7 +199,7 @@ func AssetsScreenshotsDeleteCommand() *ffcli.Command {
 Examples:
   asc assets screenshots delete --id "SCREENSHOT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			assetID := strings.TrimSpace(*id)
 			if assetID == "" {
@@ -211,12 +211,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("assets screenshots delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppScreenshot(requestCtx, assetID); err != nil {
@@ -228,7 +228,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(&result, *output, *pretty)
+			return shared.PrintOutput(&result, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // TestFlightReviewCommand returns the testflight review command with subcommands.
@@ -30,7 +31,7 @@ Examples:
   asc testflight review submissions list --build "BUILD_ID"
   asc testflight review submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightReviewGetCommand(),
 			TestFlightReviewAppCommand(),
@@ -63,27 +64,27 @@ func TestFlightReviewGetCommand() *ffcli.Command {
 Examples:
   asc testflight review get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight review get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight review get: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight review get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaAppReviewDetailsOption{
@@ -96,7 +97,7 @@ Examples:
 				return fmt.Errorf("testflight review get: failed to fetch: %w", err)
 			}
 
-			return printOutput(details, *output, *pretty)
+			return shared.PrintOutput(details, *output, *pretty)
 		},
 	}
 }
@@ -127,7 +128,7 @@ Examples:
   asc testflight review update --id "DETAIL_ID" --contact-email "dev@example.com"
   asc testflight review update --id "DETAIL_ID" --notes "Updated review notes"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailID := strings.TrimSpace(*id)
 			if detailID == "" {
@@ -187,12 +188,12 @@ Examples:
 				attrs.Notes = &value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight review update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			detail, err := client.UpdateBetaAppReviewDetail(requestCtx, detailID, attrs)
@@ -200,7 +201,7 @@ Examples:
 				return fmt.Errorf("testflight review update: failed to update: %w", err)
 			}
 
-			return printOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output, *pretty)
 		},
 	}
 }
@@ -223,7 +224,7 @@ func TestFlightReviewSubmitCommand() *ffcli.Command {
 Examples:
   asc testflight review submit --build "BUILD_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*buildID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
@@ -234,12 +235,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight review submit: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			submission, err := client.CreateBetaAppReviewSubmission(requestCtx, strings.TrimSpace(*buildID))
@@ -247,7 +248,7 @@ Examples:
 				return fmt.Errorf("testflight review submit: failed to submit: %w", err)
 			}
 
-			return printOutput(submission, *output, *pretty)
+			return shared.PrintOutput(submission, *output, *pretty)
 		},
 	}
 }
@@ -265,7 +266,7 @@ func TestFlightReviewAppCommand() *ffcli.Command {
 Examples:
   asc testflight review app get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightReviewAppGetCommand(),
 		},
@@ -292,7 +293,7 @@ func TestFlightReviewAppGetCommand() *ffcli.Command {
 Examples:
   asc testflight review app get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -300,12 +301,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight review app get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaAppReviewDetailApp(requestCtx, idValue)
@@ -313,7 +314,7 @@ Examples:
 				return fmt.Errorf("testflight review app get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -333,7 +334,7 @@ Examples:
   asc testflight review submissions build --id "SUBMISSION_ID"
   asc testflight review submissions list --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightReviewSubmissionsListCommand(),
 			TestFlightReviewSubmissionsGetCommand(),
@@ -366,7 +367,7 @@ Examples:
   asc testflight review submissions list --build "BUILD_ID"
   asc testflight review submissions list --build "BUILD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
@@ -376,16 +377,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight review submissions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight review submissions list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight review submissions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaAppReviewSubmissionsOption{
@@ -409,7 +410,7 @@ Examples:
 					return fmt.Errorf("testflight review submissions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBetaAppReviewSubmissions(requestCtx, opts...)
@@ -417,7 +418,7 @@ Examples:
 				return fmt.Errorf("testflight review submissions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -439,7 +440,7 @@ func TestFlightReviewSubmissionsGetCommand() *ffcli.Command {
 Examples:
   asc testflight review submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -447,12 +448,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight review submissions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaAppReviewSubmission(requestCtx, idValue)
@@ -460,7 +461,7 @@ Examples:
 				return fmt.Errorf("testflight review submissions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -482,7 +483,7 @@ func TestFlightReviewSubmissionsBuildCommand() *ffcli.Command {
 Examples:
   asc testflight review submissions build --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -490,12 +491,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight review submissions build: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaAppReviewSubmissionBuild(requestCtx, idValue)
@@ -503,7 +504,7 @@ Examples:
 				return fmt.Errorf("testflight review submissions build: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -522,7 +523,7 @@ Examples:
   asc testflight beta-details get --build "BUILD_ID"
   asc testflight beta-details update --id "DETAIL_ID" --auto-notify`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightBetaDetailsGetCommand(),
 			TestFlightBetaDetailsBuildCommand(),
@@ -553,12 +554,12 @@ func TestFlightBetaDetailsGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-details get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight beta-details get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-details get: %w", err)
 			}
 
@@ -568,12 +569,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-details get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildBetaDetailsOption{
@@ -587,7 +588,7 @@ Examples:
 				return fmt.Errorf("testflight beta-details get: failed to fetch: %w", err)
 			}
 
-			return printOutput(details, *output, *pretty)
+			return shared.PrintOutput(details, *output, *pretty)
 		},
 	}
 }
@@ -605,7 +606,7 @@ func TestFlightBetaDetailsBuildCommand() *ffcli.Command {
 Examples:
   asc testflight beta-details build get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightBetaDetailsBuildGetCommand(),
 		},
@@ -632,7 +633,7 @@ func TestFlightBetaDetailsBuildGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-details build get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -640,12 +641,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-details build get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildBetaDetailBuild(requestCtx, idValue)
@@ -653,7 +654,7 @@ Examples:
 				return fmt.Errorf("testflight beta-details build get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -683,7 +684,7 @@ Examples:
   asc testflight beta-details update --id "DETAIL_ID" --auto-notify
   asc testflight beta-details update --id "DETAIL_ID" --external-testing true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailID := strings.TrimSpace(*id)
 			if detailID == "" {
@@ -715,12 +716,12 @@ Examples:
 				attrs.ExternalBuildState = &state
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-details update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			detail, err := client.UpdateBuildBetaDetail(requestCtx, detailID, attrs)
@@ -728,7 +729,7 @@ Examples:
 				return fmt.Errorf("testflight beta-details update: failed to update: %w", err)
 			}
 
-			return printOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output, *pretty)
 		},
 	}
 }
@@ -747,7 +748,7 @@ Examples:
   asc testflight recruitment options
   asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightRecruitmentOptionsCommand(),
 			TestFlightRecruitmentSetCommand(),
@@ -777,7 +778,7 @@ func TestFlightRecruitmentDeleteCommand() *ffcli.Command {
 Examples:
   asc testflight recruitment delete --id "CRITERIA_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			criteriaID := strings.TrimSpace(*id)
 			if criteriaID == "" {
@@ -789,12 +790,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight recruitment delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaRecruitmentCriteria(requestCtx, criteriaID); err != nil {
@@ -806,7 +807,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -830,12 +831,12 @@ func TestFlightRecruitmentOptionsCommand() *ffcli.Command {
 Examples:
   asc testflight recruitment options`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight recruitment options: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight recruitment options: %w", err)
 			}
 
@@ -844,12 +845,12 @@ Examples:
 				return fmt.Errorf("testflight recruitment options: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight recruitment options: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaRecruitmentCriterionOptionsOption{
@@ -863,7 +864,7 @@ Examples:
 				return fmt.Errorf("testflight recruitment options: failed to fetch: %w", err)
 			}
 
-			return printOutput(options, *output, *pretty)
+			return shared.PrintOutput(options, *output, *pretty)
 		},
 	}
 }
@@ -886,7 +887,7 @@ func TestFlightRecruitmentSetCommand() *ffcli.Command {
 Examples:
   asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			if trimmedGroupID == "" {
@@ -903,12 +904,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight recruitment set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			existing, err := client.GetBetaGroupBetaRecruitmentCriteria(requestCtx, trimmedGroupID)
@@ -921,7 +922,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight recruitment set: failed to update: %w", err)
 				}
-				return printOutput(criteria, *output, *pretty)
+				return shared.PrintOutput(criteria, *output, *pretty)
 			} else if !asc.IsNotFound(err) {
 				return fmt.Errorf("testflight recruitment set: failed to fetch existing criteria: %w", err)
 			}
@@ -931,13 +932,13 @@ Examples:
 				return fmt.Errorf("testflight recruitment set: failed to set: %w", createErr)
 			}
 
-			return printOutput(criteria, *output, *pretty)
+			return shared.PrintOutput(criteria, *output, *pretty)
 		},
 	}
 }
 
 func normalizeBetaRecruitmentCriterionOptionsFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -954,7 +955,7 @@ func normalizeBetaRecruitmentCriterionOptionsFields(value string) ([]string, err
 }
 
 func parseDeviceFamilyOsVersionFilters(value string) ([]asc.DeviceFamilyOsVersionFilter, error) {
-	entries := splitCSV(value)
+	entries := shared.SplitCSV(value)
 	if len(entries) == 0 {
 		return nil, nil
 	}
@@ -1033,7 +1034,7 @@ Examples:
   asc testflight metrics testers --group "GROUP_ID"
   asc testflight metrics beta-tester-usages --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightMetricsPublicLinkCommand(),
 			TestFlightMetricsTestersCommand(),
@@ -1062,7 +1063,7 @@ func TestFlightMetricsPublicLinkCommand() *ffcli.Command {
 Examples:
   asc testflight metrics public-link --group "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			if trimmedGroupID == "" {
@@ -1070,12 +1071,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight metrics public-link: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			metrics, err := client.GetBetaGroupPublicLinkUsages(requestCtx, trimmedGroupID)
@@ -1083,7 +1084,7 @@ Examples:
 				return fmt.Errorf("testflight metrics public-link: failed to fetch: %w", err)
 			}
 
-			return printOutput(metrics, *output, *pretty)
+			return shared.PrintOutput(metrics, *output, *pretty)
 		},
 	}
 }
@@ -1105,7 +1106,7 @@ func TestFlightMetricsTestersCommand() *ffcli.Command {
 Examples:
   asc testflight metrics testers --group "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			if trimmedGroupID == "" {
@@ -1113,12 +1114,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight metrics testers: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			metrics, err := client.GetBetaGroupTesterUsages(requestCtx, trimmedGroupID)
@@ -1126,7 +1127,7 @@ Examples:
 				return fmt.Errorf("testflight metrics testers: failed to fetch: %w", err)
 			}
 
-			return printOutput(metrics, *output, *pretty)
+			return shared.PrintOutput(metrics, *output, *pretty)
 		},
 	}
 }

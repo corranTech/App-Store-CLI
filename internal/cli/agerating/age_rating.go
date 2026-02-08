@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var ageRatingLevelValues = []string{
@@ -39,7 +40,7 @@ Examples:
   asc age-rating get --app-info-id APP_INFO_ID
   asc age-rating set --app APP_ID --kids-age-band FIVE_AND_UNDER --gambling false`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AgeRatingGetCommand(),
 			AgeRatingSetCommand(),
@@ -71,11 +72,11 @@ Examples:
   asc age-rating get --app-info-id APP_INFO_ID
   asc age-rating get --version-id VERSION_ID`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appInfoValue := strings.TrimSpace(*appInfoID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(resolveAppID(strings.TrimSpace(*appID)))
+			appValue := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
 
 			if appInfoValue != "" && versionValue != "" {
 				return fmt.Errorf("age-rating get: only one of --app-info-id or --version-id is allowed")
@@ -85,12 +86,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("age-rating get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := fetchAgeRatingDeclaration(requestCtx, client, appValue, appInfoValue, versionValue)
@@ -98,7 +99,7 @@ Examples:
 				return fmt.Errorf("age-rating get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -142,12 +143,12 @@ Examples:
   asc age-rating set --id DECLARATION_ID --gambling false --kids-age-band FIVE_AND_UNDER
   asc age-rating set --app APP_ID --violence-realistic FREQUENT_OR_INTENSE --unrestricted-web-access true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appInfoValue := strings.TrimSpace(*appInfoID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(resolveAppID(strings.TrimSpace(*appID)))
+			appValue := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
 
 			if idValue == "" {
 				if appInfoValue != "" && versionValue != "" {
@@ -185,12 +186,12 @@ Examples:
 				return fmt.Errorf("age-rating set: at least one update flag is required")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("age-rating set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if idValue == "" {
@@ -205,7 +206,7 @@ Examples:
 				return fmt.Errorf("age-rating set: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -247,14 +248,14 @@ func resolveAgeRatingDeclarationID(ctx context.Context, client *asc.Client, appI
 func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclarationAttributes, error) {
 	var attrs asc.AgeRatingDeclarationAttributes
 
-	gambling, err := parseOptionalBoolFlag("--gambling", values["gambling"])
+	gambling, err := shared.ParseOptionalBoolFlag("--gambling", values["gambling"])
 	if err != nil {
 		return attrs, err
 	}
 	if strings.TrimSpace(values["seventeen-plus"]) != "" {
 		return attrs, fmt.Errorf("--seventeen-plus is not supported by the App Store Connect API")
 	}
-	unrestrictedWebAccess, err := parseOptionalBoolFlag("--unrestricted-web-access", values["unrestricted-web-access"])
+	unrestrictedWebAccess, err := shared.ParseOptionalBoolFlag("--unrestricted-web-access", values["unrestricted-web-access"])
 	if err != nil {
 		return attrs, err
 	}

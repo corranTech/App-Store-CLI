@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildBundlesCommand returns the build-bundles command with subcommands.
@@ -29,7 +30,7 @@ Examples:
   asc build-bundles app-clip debug-status get --id "BUILD_BUNDLE_ID"
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildBundlesListCommand(),
 			BuildBundleFileSizesCommand(),
@@ -60,7 +61,7 @@ Examples:
   asc build-bundles list --build "BUILD_ID"
   asc build-bundles list --build "BUILD_ID" --limit 10`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 50) {
 				return fmt.Errorf("build-bundles list: --limit must be between 1 and 50")
@@ -72,12 +73,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-bundles list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildBundlesOption{}
@@ -90,7 +91,7 @@ Examples:
 				return fmt.Errorf("build-bundles list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -109,7 +110,7 @@ Examples:
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID"
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildBundleFileSizesListCommand(),
 		},
@@ -141,12 +142,12 @@ Examples:
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID" --limit 100
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("build-bundles file-sizes list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("build-bundles file-sizes list: %w", err)
 			}
 
@@ -156,12 +157,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-bundles file-sizes list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildBundleFileSizesOption{
@@ -183,7 +184,7 @@ Examples:
 					return fmt.Errorf("build-bundles file-sizes list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBuildBundleFileSizes(requestCtx, buildBundleValue, opts...)
@@ -191,7 +192,7 @@ Examples:
 				return fmt.Errorf("build-bundles file-sizes list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -211,7 +212,7 @@ Examples:
   asc build-bundles app-clip debug-status get --id "BUILD_BUNDLE_ID"
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildBundlesAppClipCacheStatusCommand(),
 			BuildBundlesAppClipDebugStatusCommand(),
@@ -236,7 +237,7 @@ func BuildBundlesAppClipCacheStatusCommand() *ffcli.Command {
 Examples:
   asc build-bundles app-clip cache-status get --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildBundlesAppClipCacheStatusGetCommand(),
 		},
@@ -263,7 +264,7 @@ func BuildBundlesAppClipCacheStatusGetCommand() *ffcli.Command {
 Examples:
   asc build-bundles app-clip cache-status get --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
@@ -271,25 +272,25 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-bundles app-clip cache-status get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildBundleAppClipDomainCacheStatus(requestCtx, buildBundleValue)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return printOutput(result, *output, *pretty)
+					return shared.PrintOutput(result, *output, *pretty)
 				}
 				return fmt.Errorf("build-bundles app-clip cache-status get: failed to fetch: %w", err)
 			}
 
 			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -307,7 +308,7 @@ func BuildBundlesAppClipDebugStatusCommand() *ffcli.Command {
 Examples:
   asc build-bundles app-clip debug-status get --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildBundlesAppClipDebugStatusGetCommand(),
 		},
@@ -334,7 +335,7 @@ func BuildBundlesAppClipDebugStatusGetCommand() *ffcli.Command {
 Examples:
   asc build-bundles app-clip debug-status get --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
@@ -342,25 +343,25 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-bundles app-clip debug-status get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildBundleAppClipDomainDebugStatus(requestCtx, buildBundleValue)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return printOutput(result, *output, *pretty)
+					return shared.PrintOutput(result, *output, *pretty)
 				}
 				return fmt.Errorf("build-bundles app-clip debug-status get: failed to fetch: %w", err)
 			}
 
 			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -379,7 +380,7 @@ Examples:
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID"
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildBundlesAppClipInvocationsListCommand(),
 		},
@@ -411,12 +412,12 @@ Examples:
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID" --limit 50
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("build-bundles app-clip invocations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("build-bundles app-clip invocations list: %w", err)
 			}
 
@@ -426,12 +427,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-bundles app-clip invocations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaAppClipInvocationsOption{
@@ -445,7 +446,7 @@ Examples:
 				if err != nil {
 					if asc.IsNotFound(err) {
 						empty := &asc.BetaAppClipInvocationsResponse{Data: []asc.Resource[asc.BetaAppClipInvocationAttributes]{}}
-						return printOutput(empty, *output, *pretty)
+						return shared.PrintOutput(empty, *output, *pretty)
 					}
 					return fmt.Errorf("build-bundles app-clip invocations list: failed to fetch: %w", err)
 				}
@@ -457,19 +458,19 @@ Examples:
 					return fmt.Errorf("build-bundles app-clip invocations list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBuildBundleBetaAppClipInvocations(requestCtx, buildBundleValue, opts...)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.BetaAppClipInvocationsResponse{Data: []asc.Resource[asc.BetaAppClipInvocationAttributes]{}}
-					return printOutput(empty, *output, *pretty)
+					return shared.PrintOutput(empty, *output, *pretty)
 				}
 				return fmt.Errorf("build-bundles app-clip invocations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

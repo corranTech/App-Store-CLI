@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BetaFeedbackCommand returns the beta-feedback command group.
@@ -27,7 +28,7 @@ Examples:
   asc testflight beta-feedback screenshot-submissions get --id "SUBMISSION_ID"
   asc testflight beta-feedback crash-log get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaFeedbackCrashSubmissionsCommand(),
 			BetaFeedbackScreenshotSubmissionsCommand(),
@@ -53,7 +54,7 @@ Examples:
   asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"
   asc testflight beta-feedback crash-submissions delete --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaFeedbackCrashSubmissionsGetCommand(),
 			BetaFeedbackCrashSubmissionsDeleteCommand(),
@@ -81,7 +82,7 @@ func BetaFeedbackCrashSubmissionsGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -89,12 +90,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-feedback crash-submissions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaFeedbackCrashSubmission(requestCtx, idValue)
@@ -102,7 +103,7 @@ Examples:
 				return fmt.Errorf("testflight beta-feedback crash-submissions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -121,7 +122,7 @@ Examples:
   asc testflight beta-feedback screenshot-submissions get --id "SUBMISSION_ID"
   asc testflight beta-feedback screenshot-submissions delete --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaFeedbackScreenshotSubmissionsGetCommand(),
 			BetaFeedbackScreenshotSubmissionsDeleteCommand(),
@@ -150,7 +151,7 @@ func BetaFeedbackCrashSubmissionsDeleteCommand() *ffcli.Command {
 Examples:
   asc testflight beta-feedback crash-submissions delete --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -162,12 +163,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-feedback crash-submissions delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaFeedbackCrashSubmission(requestCtx, idValue); err != nil {
@@ -179,7 +180,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -201,7 +202,7 @@ func BetaFeedbackScreenshotSubmissionsGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-feedback screenshot-submissions get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -209,12 +210,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-feedback screenshot-submissions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaFeedbackScreenshotSubmission(requestCtx, idValue)
@@ -222,7 +223,7 @@ Examples:
 				return fmt.Errorf("testflight beta-feedback screenshot-submissions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -245,7 +246,7 @@ func BetaFeedbackScreenshotSubmissionsDeleteCommand() *ffcli.Command {
 Examples:
   asc testflight beta-feedback screenshot-submissions delete --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -257,12 +258,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-feedback screenshot-submissions delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaFeedbackScreenshotSubmission(requestCtx, idValue); err != nil {
@@ -274,7 +275,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -292,7 +293,7 @@ func BetaFeedbackCrashLogCommand() *ffcli.Command {
 Examples:
   asc testflight beta-feedback crash-log get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaFeedbackCrashLogGetCommand(),
 		},
@@ -319,7 +320,7 @@ func BetaFeedbackCrashLogGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-feedback crash-log get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -327,12 +328,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-feedback crash-log get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaFeedbackCrashSubmissionCrashLog(requestCtx, idValue)
@@ -340,7 +341,7 @@ Examples:
 				return fmt.Errorf("testflight beta-feedback crash-log get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

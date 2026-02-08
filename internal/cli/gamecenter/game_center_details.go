@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterDetailsCommand returns the details command group.
@@ -31,7 +32,7 @@ Examples:
   asc game-center details leaderboard-releases list --id "DETAIL_ID"
   asc game-center details metrics classic-matchmaking --id "DETAIL_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsListCommand(),
 			GameCenterDetailsGetCommand(),
@@ -72,7 +73,7 @@ Examples:
   asc game-center details list --app "APP_ID"
   asc game-center details list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nextURL := strings.TrimSpace(*next)
 			if nextURL != "" {
@@ -85,18 +86,18 @@ Examples:
 				return fmt.Errorf("game-center details list: --limit is not supported")
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			detailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
@@ -116,7 +117,7 @@ Examples:
 				Meta:     detail.Meta,
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -138,7 +139,7 @@ func GameCenterDetailsGetCommand() *ffcli.Command {
 Examples:
   asc game-center details get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*detailID)
 			if id == "" {
@@ -146,12 +147,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterDetail(requestCtx, id)
@@ -159,7 +160,7 @@ Examples:
 				return fmt.Errorf("game-center details get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -177,7 +178,7 @@ func GameCenterDetailsAppVersionsCommand() *ffcli.Command {
 Examples:
   asc game-center details app-versions list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsAppVersionsListCommand(),
 		},
@@ -209,12 +210,12 @@ Examples:
   asc game-center details app-versions list --id "DETAIL_ID" --limit 50
   asc game-center details app-versions list --id "DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center details app-versions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center details app-versions list: %w", err)
 			}
 
@@ -225,12 +226,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details app-versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCAppVersionsOption{
@@ -255,7 +256,7 @@ Examples:
 					return fmt.Errorf("game-center details app-versions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailGameCenterAppVersions(requestCtx, id, opts...)
@@ -263,7 +264,7 @@ Examples:
 				return fmt.Errorf("game-center details app-versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -281,7 +282,7 @@ func GameCenterDetailsGroupCommand() *ffcli.Command {
 Examples:
   asc game-center details group get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsGroupGetCommand(),
 		},
@@ -308,7 +309,7 @@ func GameCenterDetailsGroupGetCommand() *ffcli.Command {
 Examples:
   asc game-center details group get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*detailID)
 			if id == "" {
@@ -316,12 +317,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details group get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterDetailGameCenterGroup(requestCtx, id)
@@ -329,7 +330,7 @@ Examples:
 				return fmt.Errorf("game-center details group get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -347,7 +348,7 @@ func GameCenterDetailsAchievementsV2Command() *ffcli.Command {
 Examples:
   asc game-center details achievements-v2 list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsAchievementsV2ListCommand(),
 		},
@@ -379,12 +380,12 @@ Examples:
   asc game-center details achievements-v2 list --id "DETAIL_ID" --limit 50
   asc game-center details achievements-v2 list --id "DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center details achievements-v2 list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center details achievements-v2 list: %w", err)
 			}
 
@@ -394,12 +395,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details achievements-v2 list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCAchievementsOption{
@@ -421,7 +422,7 @@ Examples:
 					return fmt.Errorf("game-center details achievements-v2 list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailsAchievementsV2(requestCtx, id, opts...)
@@ -429,7 +430,7 @@ Examples:
 				return fmt.Errorf("game-center details achievements-v2 list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -447,7 +448,7 @@ func GameCenterDetailsLeaderboardsV2Command() *ffcli.Command {
 Examples:
   asc game-center details leaderboards-v2 list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsLeaderboardsV2ListCommand(),
 		},
@@ -479,12 +480,12 @@ Examples:
   asc game-center details leaderboards-v2 list --id "DETAIL_ID" --limit 50
   asc game-center details leaderboards-v2 list --id "DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center details leaderboards-v2 list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center details leaderboards-v2 list: %w", err)
 			}
 
@@ -494,12 +495,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details leaderboards-v2 list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardsOption{
@@ -521,7 +522,7 @@ Examples:
 					return fmt.Errorf("game-center details leaderboards-v2 list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailsLeaderboardsV2(requestCtx, id, opts...)
@@ -529,7 +530,7 @@ Examples:
 				return fmt.Errorf("game-center details leaderboards-v2 list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -547,7 +548,7 @@ func GameCenterDetailsLeaderboardSetsV2Command() *ffcli.Command {
 Examples:
   asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsLeaderboardSetsV2ListCommand(),
 		},
@@ -579,12 +580,12 @@ Examples:
   asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID" --limit 50
   asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center details leaderboard-sets-v2 list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center details leaderboard-sets-v2 list: %w", err)
 			}
 
@@ -594,12 +595,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details leaderboard-sets-v2 list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetsOption{
@@ -621,7 +622,7 @@ Examples:
 					return fmt.Errorf("game-center details leaderboard-sets-v2 list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailsLeaderboardSetsV2(requestCtx, id, opts...)
@@ -629,7 +630,7 @@ Examples:
 				return fmt.Errorf("game-center details leaderboard-sets-v2 list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -647,7 +648,7 @@ func GameCenterDetailsAchievementReleasesCommand() *ffcli.Command {
 Examples:
   asc game-center details achievement-releases list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsAchievementReleasesListCommand(),
 		},
@@ -679,12 +680,12 @@ Examples:
   asc game-center details achievement-releases list --id "DETAIL_ID" --limit 50
   asc game-center details achievement-releases list --id "DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center details achievement-releases list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center details achievement-releases list: %w", err)
 			}
 
@@ -694,12 +695,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details achievement-releases list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCAchievementReleasesOption{
@@ -721,7 +722,7 @@ Examples:
 					return fmt.Errorf("game-center details achievement-releases list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailsAchievementReleases(requestCtx, id, opts...)
@@ -729,7 +730,7 @@ Examples:
 				return fmt.Errorf("game-center details achievement-releases list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -747,7 +748,7 @@ func GameCenterDetailsLeaderboardReleasesCommand() *ffcli.Command {
 Examples:
   asc game-center details leaderboard-releases list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsLeaderboardReleasesListCommand(),
 		},
@@ -779,12 +780,12 @@ Examples:
   asc game-center details leaderboard-releases list --id "DETAIL_ID" --limit 50
   asc game-center details leaderboard-releases list --id "DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center details leaderboard-releases list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center details leaderboard-releases list: %w", err)
 			}
 
@@ -794,12 +795,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details leaderboard-releases list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardReleasesOption{
@@ -821,7 +822,7 @@ Examples:
 					return fmt.Errorf("game-center details leaderboard-releases list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailsLeaderboardReleases(requestCtx, id, opts...)
@@ -829,7 +830,7 @@ Examples:
 				return fmt.Errorf("game-center details leaderboard-releases list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -847,7 +848,7 @@ func GameCenterDetailsLeaderboardSetReleasesCommand() *ffcli.Command {
 Examples:
   asc game-center details leaderboard-set-releases list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsLeaderboardSetReleasesListCommand(),
 		},
@@ -879,12 +880,12 @@ Examples:
   asc game-center details leaderboard-set-releases list --id "DETAIL_ID" --limit 50
   asc game-center details leaderboard-set-releases list --id "DETAIL_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center details leaderboard-set-releases list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center details leaderboard-set-releases list: %w", err)
 			}
 
@@ -894,12 +895,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center details leaderboard-set-releases list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetReleasesOption{
@@ -921,7 +922,7 @@ Examples:
 					return fmt.Errorf("game-center details leaderboard-set-releases list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailsLeaderboardSetReleases(requestCtx, id, opts...)
@@ -929,7 +930,7 @@ Examples:
 				return fmt.Errorf("game-center details leaderboard-set-releases list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -948,7 +949,7 @@ Examples:
   asc game-center details metrics classic-matchmaking --id "DETAIL_ID" --granularity P1D
   asc game-center details metrics rule-based-matchmaking --id "DETAIL_ID" --granularity P1D --group-by result`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsClassicMatchmakingCommand(),
 			GameCenterDetailsRuleBasedMatchmakingCommand(),
@@ -1009,7 +1010,7 @@ func detailsMetricsCommand(name string, fs *flag.FlagSet, detailID *string, gran
 Examples:
   asc game-center details metrics ` + name + ` --id "DETAIL_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runDetailsMetrics(ctx, name, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output, pretty, fetch)
 		},
@@ -1020,7 +1021,7 @@ func runDetailsMetrics(ctx context.Context, name string, detailID *string, granu
 	if *limit != 0 && (*limit < 1 || *limit > 200) {
 		return fmt.Errorf("game-center details metrics %s: --limit must be between 1 and 200", name)
 	}
-	if err := validateNextURL(*next); err != nil {
+	if err := shared.ValidateNextURL(*next); err != nil {
 		return fmt.Errorf("game-center details metrics %s: %w", name, err)
 	}
 
@@ -1035,14 +1036,14 @@ func runDetailsMetrics(ctx context.Context, name string, detailID *string, granu
 		return flag.ErrHelp
 	}
 
-	requestCtx, cancel := contextWithTimeout(ctx)
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	opts := []asc.GCMatchmakingMetricsOption{
 		asc.WithGCMatchmakingMetricsGranularity(gran),
-		asc.WithGCMatchmakingMetricsGroupBy(splitCSV(*groupBy)),
+		asc.WithGCMatchmakingMetricsGroupBy(shared.SplitCSV(*groupBy)),
 		asc.WithGCMatchmakingMetricsFilterResult(strings.TrimSpace(*filterResult)),
-		asc.WithGCMatchmakingMetricsSort(splitCSV(*sort)),
+		asc.WithGCMatchmakingMetricsSort(shared.SplitCSV(*sort)),
 		asc.WithGCMatchmakingMetricsLimit(*limit),
 		asc.WithGCMatchmakingMetricsNextURL(*next),
 	}
@@ -1061,7 +1062,7 @@ func runDetailsMetrics(ctx context.Context, name string, detailID *string, granu
 			return fmt.Errorf("game-center details metrics %s: %w", name, err)
 		}
 
-		return printOutput(resp, *output, *pretty)
+		return shared.PrintOutput(resp, *output, *pretty)
 	}
 
 	resp, err := fetch(requestCtx, id, opts...)
@@ -1069,5 +1070,5 @@ func runDetailsMetrics(ctx context.Context, name string, detailID *string, granu
 		return fmt.Errorf("game-center details metrics %s: failed to fetch: %w", name, err)
 	}
 
-	return printOutput(resp, *output, *pretty)
+	return shared.PrintOutput(resp, *output, *pretty)
 }

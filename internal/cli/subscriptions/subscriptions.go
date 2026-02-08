@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SubscriptionsCommand returns the subscriptions command group.
@@ -31,7 +32,7 @@ Examples:
   asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsGroupsCommand(),
 			SubscriptionsPricingCommand(),
@@ -76,7 +77,7 @@ Examples:
   asc subscriptions groups get --id "GROUP_ID"
   asc subscriptions groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsGroupsListCommand(),
 			SubscriptionsGroupsCreateCommand(),
@@ -113,27 +114,27 @@ Examples:
   asc subscriptions groups list --app "APP_ID"
   asc subscriptions groups list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions groups list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions groups list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionGroupsOption{
@@ -155,7 +156,7 @@ Examples:
 					return fmt.Errorf("subscriptions groups list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionGroups(requestCtx, resolvedAppID, opts...)
@@ -163,7 +164,7 @@ Examples:
 				return fmt.Errorf("subscriptions groups list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -186,9 +187,9 @@ func SubscriptionsGroupsCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions groups create --app "APP_ID" --reference-name "Premium"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -200,12 +201,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionGroupCreateAttributes{
@@ -217,7 +218,7 @@ Examples:
 				return fmt.Errorf("subscriptions groups create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -239,7 +240,7 @@ func SubscriptionsGroupsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions groups get --id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -247,12 +248,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionGroup(requestCtx, id)
@@ -260,7 +261,7 @@ Examples:
 				return fmt.Errorf("subscriptions groups get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -283,7 +284,7 @@ func SubscriptionsGroupsUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions groups update --id "GROUP_ID" --reference-name "Premium"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -297,12 +298,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionGroupUpdateAttributes{
@@ -314,7 +315,7 @@ Examples:
 				return fmt.Errorf("subscriptions groups update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -337,7 +338,7 @@ func SubscriptionsGroupsDeleteCommand() *ffcli.Command {
 Examples:
   asc subscriptions groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -349,12 +350,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteSubscriptionGroup(requestCtx, id); err != nil {
@@ -366,7 +367,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -392,12 +393,12 @@ Examples:
   asc subscriptions list --group "GROUP_ID"
   asc subscriptions list --group "GROUP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions list: %w", err)
 			}
 
@@ -407,12 +408,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionsOption{
@@ -434,7 +435,7 @@ Examples:
 					return fmt.Errorf("subscriptions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptions(requestCtx, id, opts...)
@@ -442,7 +443,7 @@ Examples:
 				return fmt.Errorf("subscriptions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -468,7 +469,7 @@ Examples:
   asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly"
   asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly" --subscription-period ONE_MONTH`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group == "" {
@@ -494,12 +495,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionCreateAttributes{
@@ -515,7 +516,7 @@ Examples:
 				return fmt.Errorf("subscriptions create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -537,7 +538,7 @@ func SubscriptionsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions get --id "SUB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
@@ -545,12 +546,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscription(requestCtx, id)
@@ -558,7 +559,7 @@ Examples:
 				return fmt.Errorf("subscriptions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -583,7 +584,7 @@ Examples:
   asc subscriptions update --id "SUB_ID" --ref-name "New Name"
   asc subscriptions update --id "SUB_ID" --subscription-period ONE_YEAR`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
@@ -602,12 +603,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionUpdateAttributes{}
@@ -624,7 +625,7 @@ Examples:
 				return fmt.Errorf("subscriptions update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -647,7 +648,7 @@ func SubscriptionsDeleteCommand() *ffcli.Command {
 Examples:
   asc subscriptions delete --id "SUB_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
@@ -659,12 +660,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteSubscription(requestCtx, id); err != nil {
@@ -676,7 +677,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -696,7 +697,7 @@ Examples:
   asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions prices delete --price-id "PRICE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsPricesListCommand(),
 			SubscriptionsPricesAddCommand(),
@@ -729,12 +730,12 @@ Examples:
   asc subscriptions prices list --id "SUB_ID"
   asc subscriptions prices list --id "SUB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions prices list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions prices list: %w", err)
 			}
 
@@ -744,12 +745,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionPricesOption{
@@ -771,7 +772,7 @@ Examples:
 					return fmt.Errorf("subscriptions prices list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionPrices(requestCtx, id, opts...)
@@ -779,7 +780,7 @@ Examples:
 				return fmt.Errorf("subscriptions prices list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -806,7 +807,7 @@ Examples:
   asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "USA"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
@@ -820,12 +821,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionPriceCreateAttributes{
@@ -841,7 +842,7 @@ Examples:
 				return fmt.Errorf("subscriptions prices add: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -864,7 +865,7 @@ func SubscriptionsPricesDeleteCommand() *ffcli.Command {
 Examples:
   asc subscriptions prices delete --price-id "PRICE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*priceID)
 			if id == "" {
@@ -876,12 +877,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteSubscriptionPrice(requestCtx, id); err != nil {
@@ -893,7 +894,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -913,7 +914,7 @@ Examples:
   asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"
   asc subscriptions availability available-territories --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsAvailabilityGetCommand(),
 			SubscriptionsAvailabilityAvailableTerritoriesCommand(),
@@ -944,7 +945,7 @@ Examples:
   asc subscriptions availability get --id "AVAILABILITY_ID"
   asc subscriptions availability get --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			availabilityValue := strings.TrimSpace(*availabilityID)
 			subscriptionValue := strings.TrimSpace(*subscriptionID)
@@ -957,12 +958,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions availability get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if availabilityValue != "" {
@@ -970,7 +971,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("subscriptions availability get: failed to fetch: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionAvailabilityForSubscription(requestCtx, subscriptionValue)
@@ -978,7 +979,7 @@ Examples:
 				return fmt.Errorf("subscriptions availability get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1004,12 +1005,12 @@ Examples:
   asc subscriptions availability available-territories --id "AVAILABILITY_ID"
   asc subscriptions availability available-territories --id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions availability available-territories: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions availability available-territories: %w", err)
 			}
 
@@ -1019,12 +1020,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions availability available-territories: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
@@ -1046,7 +1047,7 @@ Examples:
 					return fmt.Errorf("subscriptions availability available-territories: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, id, opts...)
@@ -1054,7 +1055,7 @@ Examples:
 				return fmt.Errorf("subscriptions availability available-territories: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1078,7 +1079,7 @@ func SubscriptionsAvailabilitySetCommand() *ffcli.Command {
 Examples:
   asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
@@ -1086,18 +1087,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			territoryIDs := parseCommaSeparatedIDs(*territories)
+			territoryIDs := shared.SplitCSV(*territories)
 			if len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territory is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions availability set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionAvailabilityAttributes{
@@ -1109,7 +1110,7 @@ Examples:
 				return fmt.Errorf("subscriptions availability set: failed to set: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

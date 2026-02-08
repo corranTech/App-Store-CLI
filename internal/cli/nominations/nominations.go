@@ -31,7 +31,7 @@ Examples:
   asc nominations update --id "NOMINATION_ID" --notes "Updated notes"
   asc nominations delete --id "NOMINATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			NominationsListCommand(),
 			NominationsGetCommand(),
@@ -76,15 +76,15 @@ Examples:
   asc nominations list --app "APP_ID" --status SUBMITTED --output table
   asc nominations list --include relatedApps --related-apps-limit 10`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("nominations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("nominations list: %w", err)
 			}
-			if err := validateSort(*sort, nominationSortList()...); err != nil {
+			if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {
 				return fmt.Errorf("nominations list: %w", err)
 			}
 			if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
@@ -97,7 +97,7 @@ Examples:
 				return fmt.Errorf("nominations list: --supported-territories-limit must be between 1 and 200")
 			}
 
-			statusValues, err := normalizeNominationStates(splitCSVUpper(*status))
+			statusValues, err := normalizeNominationStates(shared.SplitCSVUpper(*status))
 			if err != nil {
 				return fmt.Errorf("nominations list: %w", err)
 			}
@@ -106,7 +106,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			typeValues, err := normalizeNominationTypes(splitCSVUpper(*nomType))
+			typeValues, err := normalizeNominationTypes(shared.SplitCSVUpper(*nomType))
 			if err != nil {
 				return fmt.Errorf("nominations list: %w", err)
 			}
@@ -134,18 +134,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.NominationsOption{
 				asc.WithNominationsTypes(typeValues),
 				asc.WithNominationsStates(statusValues),
-				asc.WithNominationsRelatedApps(splitCSV(*appIDs)),
+				asc.WithNominationsRelatedApps(shared.SplitCSV(*appIDs)),
 				asc.WithNominationsLimit(*limit),
 				asc.WithNominationsNextURL(*next),
 			}
@@ -182,7 +182,7 @@ Examples:
 					return fmt.Errorf("nominations list: %w", err)
 				}
 
-				return printOutput(nominations, *output, *pretty)
+				return shared.PrintOutput(nominations, *output, *pretty)
 			}
 
 			resp, err := client.GetNominations(requestCtx, opts...)
@@ -190,7 +190,7 @@ Examples:
 				return fmt.Errorf("nominations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -218,7 +218,7 @@ Examples:
   asc nominations get --id "NOMINATION_ID"
   asc nominations get --id "NOMINATION_ID" --include relatedApps`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {
@@ -258,12 +258,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.NominationsOption{}
@@ -288,7 +288,7 @@ Examples:
 				return fmt.Errorf("nominations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -326,14 +326,14 @@ Examples:
   asc nominations create --app "APP_ID" --name "Launch" --type APP_LAUNCH --description "New launch" --submitted=false --publish-start-date "2026-02-01T08:00:00Z"
   asc nominations create --app "APP_ID" --name "Update" --type APP_ENHANCEMENTS --description "Major update" --submitted=true --publish-start-date "2026-03-01T08:00:00Z" --publish-end-date "2026-04-01T08:00:00Z"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true
 			})
 
-			relatedApps := splitCSV(resolveAppID(*appID))
+			relatedApps := shared.SplitCSV(shared.ResolveAppID(*appID))
 			if len(relatedApps) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -373,7 +373,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			deviceFamilyValues, err := normalizeNominationDeviceFamilies(splitCSVUpper(*deviceFamilies))
+			deviceFamilyValues, err := normalizeNominationDeviceFamilies(shared.SplitCSVUpper(*deviceFamilies))
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
@@ -385,12 +385,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.NominationCreateAttributes{
@@ -406,10 +406,10 @@ Examples:
 			if len(deviceFamilyValues) > 0 {
 				attrs.DeviceFamilies = normalizeNominationDeviceFamilyAttributes(deviceFamilyValues)
 			}
-			if localesValue := splitCSV(*locales); len(localesValue) > 0 {
+			if localesValue := shared.SplitCSV(*locales); len(localesValue) > 0 {
 				attrs.Locales = localesValue
 			}
-			if supplementalValue := splitCSV(*supplementalMaterialsURIs); len(supplementalValue) > 0 {
+			if supplementalValue := shared.SplitCSV(*supplementalMaterialsURIs); len(supplementalValue) > 0 {
 				attrs.SupplementalMaterialsURIs = supplementalValue
 			}
 			if visited["has-in-app-events"] {
@@ -432,10 +432,10 @@ Examples:
 			relationships := asc.NominationRelationships{
 				RelatedApps: buildNominationRelationshipList(asc.ResourceTypeApps, relatedApps),
 			}
-			if inAppEventIDs := splitCSV(*inAppEvents); len(inAppEventIDs) > 0 {
+			if inAppEventIDs := shared.SplitCSV(*inAppEvents); len(inAppEventIDs) > 0 {
 				relationships.InAppEvents = buildNominationRelationshipList(asc.ResourceTypeAppEvents, inAppEventIDs)
 			}
-			if territoryIDs := splitCSV(*supportedTerritories); len(territoryIDs) > 0 {
+			if territoryIDs := shared.SplitCSV(*supportedTerritories); len(territoryIDs) > 0 {
 				relationships.SupportedTerritories = buildNominationRelationshipList(asc.ResourceTypeTerritories, territoryIDs)
 			}
 
@@ -444,7 +444,7 @@ Examples:
 				return fmt.Errorf("nominations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -487,7 +487,7 @@ Examples:
   asc nominations update --id "NOMINATION_ID" --type NEW_CONTENT --publish-start-date "2026-03-01T08:00:00Z"
   asc nominations update --id "NOMINATION_ID" --archived=true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {
@@ -574,7 +574,7 @@ Examples:
 					attrsValue.PublishEndDate = &normalized
 				}
 				if visited["device-families"] {
-					deviceFamilyValues, err := normalizeNominationDeviceFamilies(splitCSVUpper(*deviceFamilies))
+					deviceFamilyValues, err := normalizeNominationDeviceFamilies(shared.SplitCSVUpper(*deviceFamilies))
 					if err != nil {
 						fmt.Fprintln(os.Stderr, "Error:", err)
 						return flag.ErrHelp
@@ -585,14 +585,14 @@ Examples:
 					attrsValue.DeviceFamilies = normalizeNominationDeviceFamilyAttributes(deviceFamilyValues)
 				}
 				if visited["locales"] {
-					localesValue := splitCSV(*locales)
+					localesValue := shared.SplitCSV(*locales)
 					if len(localesValue) == 0 {
 						return fmt.Errorf("nominations update: --locales is required")
 					}
 					attrsValue.Locales = localesValue
 				}
 				if visited["supplemental-materials-uris"] {
-					supplementalValue := splitCSV(*supplementalMaterialsURIs)
+					supplementalValue := shared.SplitCSV(*supplementalMaterialsURIs)
 					if len(supplementalValue) == 0 {
 						return fmt.Errorf("nominations update: --supplemental-materials-uris is required")
 					}
@@ -621,21 +621,21 @@ Examples:
 			if hasRelationshipUpdates {
 				relationshipValue := asc.NominationRelationships{}
 				if visited["app"] {
-					appValues := splitCSV(*appIDs)
+					appValues := shared.SplitCSV(*appIDs)
 					if len(appValues) == 0 {
 						return fmt.Errorf("nominations update: --app is required")
 					}
 					relationshipValue.RelatedApps = buildNominationRelationshipList(asc.ResourceTypeApps, appValues)
 				}
 				if visited["in-app-events"] {
-					eventValues := splitCSV(*inAppEvents)
+					eventValues := shared.SplitCSV(*inAppEvents)
 					if len(eventValues) == 0 {
 						return fmt.Errorf("nominations update: --in-app-events is required")
 					}
 					relationshipValue.InAppEvents = buildNominationRelationshipList(asc.ResourceTypeAppEvents, eventValues)
 				}
 				if visited["supported-territories"] {
-					territoryValues := splitCSV(*supportedTerritories)
+					territoryValues := shared.SplitCSV(*supportedTerritories)
 					if len(territoryValues) == 0 {
 						return fmt.Errorf("nominations update: --supported-territories is required")
 					}
@@ -644,12 +644,12 @@ Examples:
 				relationships = &relationshipValue
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateNomination(requestCtx, trimmedID, attrs, relationships)
@@ -657,7 +657,7 @@ Examples:
 				return fmt.Errorf("nominations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -680,7 +680,7 @@ func NominationsDeleteCommand() *ffcli.Command {
 Examples:
   asc nominations delete --id "NOMINATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {
@@ -692,12 +692,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("nominations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteNomination(requestCtx, trimmedID); err != nil {
@@ -709,7 +709,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -750,7 +750,7 @@ func normalizeNominationStates(values []string) ([]string, error) {
 }
 
 func normalizeNominationFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -769,7 +769,7 @@ func normalizeNominationFields(value string) ([]string, error) {
 }
 
 func normalizeNominationInclude(value string) ([]string, error) {
-	values := splitCSV(value)
+	values := shared.SplitCSV(value)
 	if len(values) == 0 {
 		return nil, nil
 	}

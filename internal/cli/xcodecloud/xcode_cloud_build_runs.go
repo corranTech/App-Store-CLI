@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func xcodeCloudBuildRunsListFlags(fs *flag.FlagSet) (workflowID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
@@ -41,7 +42,7 @@ Examples:
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --limit 50
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudBuildRunsListCommand(),
 			XcodeCloudBuildRunsBuildsCommand(),
@@ -68,7 +69,7 @@ Examples:
   asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID" --limit 50
   asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudBuildRunsList(ctx, *workflowID, *limit, *next, *paginate, *output, *pretty)
 		},
@@ -97,12 +98,12 @@ Examples:
   asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --limit 50
   asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud build-runs builds: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 			}
 
@@ -112,7 +113,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 			}
@@ -139,7 +140,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiBuildRunBuilds(requestCtx, runIDValue, opts...)
@@ -147,7 +148,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -156,7 +157,7 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, 
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return fmt.Errorf("xcode-cloud build-runs: --limit must be between 1 and 200")
 	}
-	if err := validateNextURL(next); err != nil {
+	if err := shared.ValidateNextURL(next); err != nil {
 		return fmt.Errorf("xcode-cloud build-runs: %w", err)
 	}
 
@@ -166,7 +167,7 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, 
 		return flag.ErrHelp
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud build-runs: %w", err)
 	}
@@ -193,7 +194,7 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, 
 			return fmt.Errorf("xcode-cloud build-runs: %w", err)
 		}
 
-		return printOutput(resp, output, pretty)
+		return shared.PrintOutput(resp, output, pretty)
 	}
 
 	resp, err := client.GetCiBuildRuns(requestCtx, resolvedWorkflowID, opts...)
@@ -201,5 +202,5 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, 
 		return fmt.Errorf("xcode-cloud build-runs: %w", err)
 	}
 
-	return printOutput(resp, output, pretty)
+	return shared.PrintOutput(resp, output, pretty)
 }

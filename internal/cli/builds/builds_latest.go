@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildsLatestCommand returns the builds latest subcommand.
@@ -55,9 +56,9 @@ Examples:
   # Human-readable output
   asc builds latest --app "123456789" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -83,12 +84,12 @@ Examples:
 
 			normalizedVersion := strings.TrimSpace(*version)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds latest: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			// Determine which preReleaseVersion(s) to filter by
@@ -182,7 +183,7 @@ Examples:
 				}
 			}
 
-			return printOutput(latestBuild, *output, *pretty)
+			return shared.PrintOutput(latestBuild, *output, *pretty)
 		},
 	}
 }

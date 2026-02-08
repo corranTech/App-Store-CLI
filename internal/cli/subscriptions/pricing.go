@@ -14,6 +14,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const (
@@ -72,11 +73,11 @@ Examples:
   asc subscriptions pricing --subscription-id "SUB_ID"
   asc subscriptions pricing --app "APP_ID" --territory "USA" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedSubID := strings.TrimSpace(*subscriptionID)
 			requestedAppID := strings.TrimSpace(*appID)
-			if requestedSubID == "" && resolveAppID(requestedAppID) == "" {
+			if requestedSubID == "" && shared.ResolveAppID(requestedAppID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --subscription-id is required")
 				return flag.ErrHelp
 			}
@@ -90,7 +91,7 @@ Examples:
 				territoryFilter = "USA"
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing: %w", err)
 			}
@@ -98,7 +99,7 @@ Examples:
 			var subs []subWithGroup
 
 			if requestedSubID != "" {
-				subCtx, subCancel := contextWithTimeout(ctx)
+				subCtx, subCancel := shared.ContextWithTimeout(ctx)
 				resp, err := client.GetSubscription(subCtx, requestedSubID)
 				subCancel()
 				if err != nil {
@@ -106,9 +107,9 @@ Examples:
 				}
 				subs = []subWithGroup{{Sub: resp.Data, GroupName: ""}}
 			} else {
-				resolvedAppID := resolveAppID(requestedAppID)
+				resolvedAppID := shared.ResolveAppID(requestedAppID)
 
-				groupsCtx, groupsCancel := contextWithTimeout(ctx)
+				groupsCtx, groupsCancel := shared.ContextWithTimeout(ctx)
 				groupsResp, err := client.GetSubscriptionGroups(groupsCtx, resolvedAppID, asc.WithSubscriptionGroupsLimit(200))
 				groupsCancel()
 				if err != nil {
@@ -116,7 +117,7 @@ Examples:
 				}
 
 				paginatedGroups, err := asc.PaginateAll(ctx, groupsResp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					pageCtx, pageCancel := contextWithTimeout(ctx)
+					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 					defer pageCancel()
 					return client.GetSubscriptionGroups(pageCtx, resolvedAppID, asc.WithSubscriptionGroupsNextURL(nextURL))
 				})
@@ -130,7 +131,7 @@ Examples:
 				}
 
 				for _, group := range groups.Data {
-					subsCtx, subsCancel := contextWithTimeout(ctx)
+					subsCtx, subsCancel := shared.ContextWithTimeout(ctx)
 					subsResp, err := client.GetSubscriptions(subsCtx, group.ID, asc.WithSubscriptionsLimit(200))
 					subsCancel()
 					if err != nil {
@@ -138,7 +139,7 @@ Examples:
 					}
 
 					paginatedSubs, err := asc.PaginateAll(ctx, subsResp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						pageCtx, pageCancel := contextWithTimeout(ctx)
+						pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 						defer pageCancel()
 						return client.GetSubscriptions(pageCtx, group.ID, asc.WithSubscriptionsNextURL(nextURL))
 					})
@@ -259,7 +260,7 @@ func resolveSubscriptionPriceSummary(
 	// Use the subscription prices endpoint with include=subscriptionPricePoint,territory
 	// and filter[territory]=<territory>. This returns just the current price assignment
 	// for the target territory with the price point data included -- one API call total.
-	pricesCtx, pricesCancel := contextWithTimeout(ctx)
+	pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
 	pricesResp, err := client.GetSubscriptionPrices(
 		pricesCtx,
 		sub.Sub.ID,
@@ -483,7 +484,7 @@ func territoryToCurrency(territory string) string {
 func printSubscriptionPricingResult(result *subscriptionPricingResult, format string, pretty bool) error {
 	switch strings.ToLower(strings.TrimSpace(format)) {
 	case "json":
-		return printOutput(result, "json", pretty)
+		return shared.PrintOutput(result, "json", pretty)
 	case "table":
 		if pretty {
 			return fmt.Errorf("--pretty is only valid with JSON output")

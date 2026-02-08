@@ -30,7 +30,7 @@ Examples:
   asc app-info get --app "APP_ID" --version "1.2.3" --platform IOS
   asc app-info set --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppInfoGetCommand(),
 			AppInfoSetCommand(),
@@ -78,19 +78,19 @@ Examples:
   asc app-info get --app "APP_ID" --include "ageRatingDeclaration,territoryAgeRatings"
   asc app-info get --app "APP_ID" --locale "en-US" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-info get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-info get: %w", err)
 			}
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
 				return fmt.Errorf("app-info get: --version and --version-id are mutually exclusive")
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" && strings.TrimSpace(*appInfoID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --app-info is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -105,11 +105,11 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			platforms, err := shared.NormalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("app-info get: %w", err)
 			}
-			states, err := shared.NormalizeAppStoreVersionStates(splitCSVUpper(*state))
+			states, err := shared.NormalizeAppStoreVersionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
 				return fmt.Errorf("app-info get: %w", err)
 			}
@@ -132,12 +132,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-info get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if len(includeValues) > 0 {
@@ -151,7 +151,7 @@ Examples:
 					return fmt.Errorf("app-info get: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			versionResource, err := resolveAppStoreVersionForAppInfo(
@@ -171,7 +171,7 @@ Examples:
 				asc.WithAppStoreVersionLocalizationsLimit(*limit),
 				asc.WithAppStoreVersionLocalizationsNextURL(*next),
 			}
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 			if len(locales) > 0 {
 				opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
 			}
@@ -189,7 +189,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-info get: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResource.ID, opts...)
@@ -197,7 +197,7 @@ Examples:
 				return fmt.Errorf("app-info get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -231,23 +231,23 @@ Examples:
   asc app-info set --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"
   asc app-info set --app "APP_ID" --version "1.2.3" --platform IOS --locale "en-US" --description "New release"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
 				return fmt.Errorf("app-info set: --version and --version-id are mutually exclusive")
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			platforms, err := shared.NormalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("app-info set: %w", err)
 			}
-			states, err := shared.NormalizeAppStoreVersionStates(splitCSVUpper(*state))
+			states, err := shared.NormalizeAppStoreVersionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
 				return fmt.Errorf("app-info set: %w", err)
 			}
@@ -281,12 +281,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-info set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			versionResource, err := resolveAppStoreVersionForAppInfo(
@@ -337,7 +337,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-info set: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			localizationID := strings.TrimSpace(localizations.Data[0].ID)
@@ -348,7 +348,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("app-info set: %w", err)
 			}
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

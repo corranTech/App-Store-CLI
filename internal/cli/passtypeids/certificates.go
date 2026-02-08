@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PassTypeIDCertificatesCommand returns the certificates subcommand group.
@@ -26,7 +27,7 @@ Examples:
   asc pass-type-ids certificates list --pass-type-id "PASS_ID"
   asc pass-type-ids certificates get --pass-type-id "PASS_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PassTypeIDCertificatesListCommand(),
 			PassTypeIDCertificatesGetCommand(),
@@ -64,7 +65,7 @@ Examples:
   asc pass-type-ids certificates list --pass-type-id "PASS_ID"
   asc pass-type-ids certificates list --pass-type-id "PASS_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
@@ -74,10 +75,10 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pass-type-ids certificates list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pass-type-ids certificates list: %w", err)
 			}
-			if err := validateSort(*sort, passTypeIDCertificatesSortList()...); err != nil {
+			if err := shared.ValidateSort(*sort, passTypeIDCertificatesSortList()...); err != nil {
 				return fmt.Errorf("pass-type-ids certificates list: %w", err)
 			}
 
@@ -86,31 +87,31 @@ Examples:
 				return fmt.Errorf("pass-type-ids certificates list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids certificates list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.PassTypeIDCertificatesOption{
 				asc.WithPassTypeIDCertificatesLimit(*limit),
 				asc.WithPassTypeIDCertificatesNextURL(*next),
 			}
-			displayNameValues := splitCSV(*displayName)
+			displayNameValues := shared.SplitCSV(*displayName)
 			if len(displayNameValues) > 0 {
 				opts = append(opts, asc.WithPassTypeIDCertificatesFilterDisplayNames(displayNameValues))
 			}
-			certificateTypes := splitCSVUpper(*certificateType)
+			certificateTypes := shared.SplitCSVUpper(*certificateType)
 			if len(certificateTypes) > 0 {
 				opts = append(opts, asc.WithPassTypeIDCertificatesFilterCertificateTypes(certificateTypes))
 			}
-			serialNumbers := splitCSV(*serialNumber)
+			serialNumbers := shared.SplitCSV(*serialNumber)
 			if len(serialNumbers) > 0 {
 				opts = append(opts, asc.WithPassTypeIDCertificatesFilterSerialNumbers(serialNumbers))
 			}
-			idsValue := splitCSV(*ids)
+			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) > 0 {
 				opts = append(opts, asc.WithPassTypeIDCertificatesFilterIDs(idsValue))
 			}
@@ -135,7 +136,7 @@ Examples:
 					return fmt.Errorf("pass-type-ids certificates list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetPassTypeIDCertificates(requestCtx, passTypeIDValue, opts...)
@@ -143,7 +144,7 @@ Examples:
 				return fmt.Errorf("pass-type-ids certificates list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -169,7 +170,7 @@ Examples:
   asc pass-type-ids certificates get --pass-type-id "PASS_ID"
   asc pass-type-ids certificates get --pass-type-id "PASS_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
@@ -179,16 +180,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pass-type-ids certificates get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pass-type-ids certificates get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids certificates get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -210,7 +211,7 @@ Examples:
 					return fmt.Errorf("pass-type-ids certificates get: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetPassTypeIDCertificatesRelationships(requestCtx, passTypeIDValue, opts...)
@@ -218,7 +219,7 @@ Examples:
 				return fmt.Errorf("pass-type-ids certificates get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterLeaderboardSetImagesCommand returns the images command group for leaderboard sets.
@@ -26,7 +27,7 @@ Examples:
   asc game-center leaderboard-sets images upload --localization-id "LOC_ID" --file path/to/image.png
   asc game-center leaderboard-sets images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetImagesUploadCommand(),
 			GameCenterLeaderboardSetImagesDeleteCommand(),
@@ -57,7 +58,7 @@ The upload process reserves an upload slot, uploads the image file, and commits 
 Examples:
   asc game-center leaderboard-sets images upload --localization-id "LOC_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -71,12 +72,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets images upload: %w", err)
 			}
 
-			requestCtx, cancel := contextWithUploadTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadGameCenterLeaderboardSetImage(requestCtx, locID, file)
@@ -84,7 +85,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets images upload: %w", err)
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -107,7 +108,7 @@ func GameCenterLeaderboardSetImagesDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
@@ -119,12 +120,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets images delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterLeaderboardSetImage(requestCtx, id); err != nil {
@@ -136,7 +137,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

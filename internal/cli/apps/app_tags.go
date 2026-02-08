@@ -31,7 +31,7 @@ Examples:
   asc app-tags territories --id "TAG_ID"
   asc app-tags relationships --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppTagsListCommand(),
 			AppTagsGetCommand(),
@@ -77,15 +77,15 @@ Examples:
   asc app-tags list --next "<links.next>"
   asc app-tags list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-tags list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-tags list: %w", err)
 			}
-			if err := validateSort(*sort, "name", "-name"); err != nil {
+			if err := shared.ValidateSort(*sort, "name", "-name"); err != nil {
 				return fmt.Errorf("app-tags list: %w", err)
 			}
 			if *territoryLimit != 0 && (*territoryLimit < 1 || *territoryLimit > 50) {
@@ -121,18 +121,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-tags list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppTagsOption{
@@ -170,7 +170,7 @@ Examples:
 					return fmt.Errorf("app-tags list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetAppTags(requestCtx, resolvedAppID, opts...)
@@ -178,7 +178,7 @@ Examples:
 				return fmt.Errorf("app-tags list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -207,7 +207,7 @@ This command searches the app's tags for the specified ID.
 Examples:
   asc app-tags get --app "APP_ID" --id "TAG_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" {
@@ -215,7 +215,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -250,12 +250,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-tags get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppTagsOption{}
@@ -301,7 +301,7 @@ Examples:
 				}
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -326,7 +326,7 @@ Examples:
   asc app-tags update --id "TAG_ID" --visible-in-app-store --confirm
   asc app-tags update --id "TAG_ID" --visible-in-app-store=false --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" {
@@ -347,12 +347,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-tags update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.AppTagUpdateAttributes{}
@@ -365,7 +365,7 @@ Examples:
 				return fmt.Errorf("app-tags update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -393,7 +393,7 @@ Examples:
   asc app-tags territories --id "TAG_ID" --fields currency
   asc app-tags territories --id "TAG_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
@@ -403,7 +403,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-tags territories: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-tags territories: %w", err)
 			}
 
@@ -412,12 +412,12 @@ Examples:
 				return fmt.Errorf("app-tags territories: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-tags territories: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.TerritoriesOption{
@@ -442,7 +442,7 @@ Examples:
 					return fmt.Errorf("app-tags territories: %w", err)
 				}
 
-				return printOutput(territories, *output, *pretty)
+				return shared.PrintOutput(territories, *output, *pretty)
 			}
 
 			resp, err := client.GetAppTagTerritories(requestCtx, trimmedID, opts...)
@@ -450,7 +450,7 @@ Examples:
 				return fmt.Errorf("app-tags territories: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -476,7 +476,7 @@ Examples:
   asc app-tags territories-relationships --id "TAG_ID"
   asc app-tags territories-relationships --id "TAG_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
@@ -486,16 +486,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-tags territories-relationships: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-tags territories-relationships: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-tags territories-relationships: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -517,7 +517,7 @@ Examples:
 					return fmt.Errorf("app-tags territories-relationships: %w", err)
 				}
 
-				return printOutput(linkages, *output, *pretty)
+				return shared.PrintOutput(linkages, *output, *pretty)
 			}
 
 			resp, err := client.GetAppTagTerritoriesRelationships(requestCtx, trimmedID, opts...)
@@ -525,7 +525,7 @@ Examples:
 				return fmt.Errorf("app-tags territories-relationships: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -551,27 +551,27 @@ Examples:
   asc app-tags relationships --app "APP_ID"
   asc app-tags relationships --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-tags relationships: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-tags relationships: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-tags relationships: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -593,7 +593,7 @@ Examples:
 					return fmt.Errorf("app-tags relationships: %w", err)
 				}
 
-				return printOutput(linkages, *output, *pretty)
+				return shared.PrintOutput(linkages, *output, *pretty)
 			}
 
 			resp, err := client.GetAppTagsRelationshipsForApp(requestCtx, resolvedAppID, opts...)
@@ -601,13 +601,13 @@ Examples:
 				return fmt.Errorf("app-tags relationships: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
 
 func normalizeAppTagVisibilityFilter(value string) ([]string, error) {
-	values := splitCSV(value)
+	values := shared.SplitCSV(value)
 	if len(values) == 0 {
 		return nil, nil
 	}
@@ -627,7 +627,7 @@ func normalizeAppTagVisibilityFilter(value string) ([]string, error) {
 }
 
 func normalizeAppTagFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -646,7 +646,7 @@ func normalizeAppTagFields(value string) ([]string, error) {
 }
 
 func normalizeAppTagInclude(value string) ([]string, error) {
-	values := splitCSV(value)
+	values := shared.SplitCSV(value)
 	if len(values) == 0 {
 		return nil, nil
 	}
@@ -665,7 +665,7 @@ func normalizeAppTagInclude(value string) ([]string, error) {
 }
 
 func normalizeTerritoryFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}

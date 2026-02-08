@@ -27,7 +27,7 @@ Examples:
   asc subscriptions review-screenshots get --id "SHOT_ID"
   asc subscriptions review-screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsReviewScreenshotsGetCommand(),
 			SubscriptionsReviewScreenshotsCreateCommand(),
@@ -57,7 +57,7 @@ func SubscriptionsReviewScreenshotsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions review-screenshots get --id "SHOT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
@@ -65,12 +65,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionAppStoreReviewScreenshot(requestCtx, id)
@@ -78,7 +78,7 @@ Examples:
 				return fmt.Errorf("subscriptions review-screenshots get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -101,7 +101,7 @@ func SubscriptionsReviewScreenshotsCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions review-screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -121,12 +121,12 @@ Examples:
 			}
 			defer file.Close()
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithUploadTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateSubscriptionAppStoreReviewScreenshot(requestCtx, id, info.Name(), info.Size())
@@ -157,10 +157,10 @@ Examples:
 				return fmt.Errorf("subscriptions review-screenshots create: failed to commit upload: %w", err)
 			}
 			if commitResp != nil {
-				return printOutput(commitResp, *output, *pretty)
+				return shared.PrintOutput(commitResp, *output, *pretty)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -185,7 +185,7 @@ func SubscriptionsReviewScreenshotsUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions review-screenshots update --id "SHOT_ID" --uploaded true --checksum "HASH"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
@@ -199,12 +199,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionAppStoreReviewScreenshotUpdateAttributes{}
@@ -221,7 +221,7 @@ Examples:
 				return fmt.Errorf("subscriptions review-screenshots update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -244,7 +244,7 @@ func SubscriptionsReviewScreenshotsDeleteCommand() *ffcli.Command {
 Examples:
   asc subscriptions review-screenshots delete --id "SHOT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
@@ -256,12 +256,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteSubscriptionAppStoreReviewScreenshot(requestCtx, id); err != nil {
@@ -269,7 +269,7 @@ Examples:
 			}
 
 			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

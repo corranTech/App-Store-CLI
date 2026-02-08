@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var appClipActions = map[string]asc.AppClipAction{
@@ -99,7 +100,7 @@ func normalizeAppClipAction(value string) (asc.AppClipAction, error) {
 }
 
 func normalizeAppClipActionList(value string) ([]string, error) {
-	items := splitCSVUpper(value)
+	items := shared.SplitCSVUpper(value)
 	if len(items) == 0 {
 		return nil, nil
 	}
@@ -136,7 +137,7 @@ func normalizeAppClipLanguage(value string) (asc.AppClipAdvancedExperienceLangua
 }
 
 func normalizeAppClipDefaultExperienceInclude(value string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

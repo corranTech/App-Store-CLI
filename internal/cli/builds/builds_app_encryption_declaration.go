@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildsAppEncryptionDeclarationCommand returns the builds app-encryption-declaration command group.
@@ -23,7 +24,7 @@ func BuildsAppEncryptionDeclarationCommand() *ffcli.Command {
 Examples:
   asc builds app-encryption-declaration get --id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsAppEncryptionDeclarationGetCommand(),
 		},
@@ -50,7 +51,7 @@ func BuildsAppEncryptionDeclarationGetCommand() *ffcli.Command {
 Examples:
   asc builds app-encryption-declaration get --id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
@@ -58,12 +59,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds app-encryption-declaration get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildAppEncryptionDeclaration(requestCtx, buildValue)
@@ -71,7 +72,7 @@ Examples:
 				return fmt.Errorf("builds app-encryption-declaration get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

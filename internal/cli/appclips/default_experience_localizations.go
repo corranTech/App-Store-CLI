@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipDefaultExperienceLocalizationsCommand returns the localizations command group.
@@ -26,7 +27,7 @@ Examples:
   asc app-clips default-experiences localizations list --experience-id "EXP_ID"
   asc app-clips default-experiences localizations create --experience-id "EXP_ID" --locale "en-US" --subtitle "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipDefaultExperienceLocalizationsListCommand(),
 			AppClipDefaultExperienceLocalizationsGetCommand(),
@@ -63,12 +64,12 @@ Examples:
   asc app-clips default-experiences localizations list --experience-id "EXP_ID"
   asc app-clips default-experiences localizations list --experience-id "EXP_ID" --locale "en-US"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-clips default-experiences localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-clips default-experiences localizations list: %w", err)
 			}
 
@@ -78,18 +79,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppClipDefaultExperienceLocalizationsOption{
 				asc.WithAppClipDefaultExperienceLocalizationsLimit(*limit),
 				asc.WithAppClipDefaultExperienceLocalizationsNextURL(*next),
-				asc.WithAppClipDefaultExperienceLocalizationsLocales(splitCSV(*locale)),
+				asc.WithAppClipDefaultExperienceLocalizationsLocales(shared.SplitCSV(*locale)),
 			}
 
 			if *paginate {
@@ -98,7 +99,7 @@ Examples:
 				if err != nil {
 					if asc.IsNotFound(err) {
 						empty := &asc.AppClipDefaultExperienceLocalizationsResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}}
-						return printOutput(empty, *output, *pretty)
+						return shared.PrintOutput(empty, *output, *pretty)
 					}
 					return fmt.Errorf("app-clips default-experiences localizations list: failed to fetch: %w", err)
 				}
@@ -110,19 +111,19 @@ Examples:
 					return fmt.Errorf("app-clips default-experiences localizations list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppClipDefaultExperienceLocalizations(requestCtx, experienceValue, opts...)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.AppClipDefaultExperienceLocalizationsResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}}
-					return printOutput(empty, *output, *pretty)
+					return shared.PrintOutput(empty, *output, *pretty)
 				}
 				return fmt.Errorf("app-clips default-experiences localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -144,7 +145,7 @@ func AppClipDefaultExperienceLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences localizations get --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
@@ -152,12 +153,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipDefaultExperienceLocalization(requestCtx, locValue)
@@ -165,7 +166,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -189,7 +190,7 @@ func AppClipDefaultExperienceLocalizationsCreateCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences localizations create --experience-id "EXP_ID" --locale "en-US" --subtitle "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -209,12 +210,12 @@ Examples:
 				subtitleValue = &value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.AppClipDefaultExperienceLocalizationCreateAttributes{
@@ -227,7 +228,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -250,7 +251,7 @@ func AppClipDefaultExperienceLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences localizations update --localization-id "LOC_ID" --subtitle "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
@@ -276,12 +277,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppClipDefaultExperienceLocalization(requestCtx, locValue, attrs)
@@ -289,7 +290,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -312,7 +313,7 @@ func AppClipDefaultExperienceLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences localizations delete --localization-id "LOC_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
@@ -324,12 +325,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppClipDefaultExperienceLocalization(requestCtx, locValue); err != nil {
@@ -341,7 +342,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -363,7 +364,7 @@ func AppClipDefaultExperienceLocalizationHeaderImageRelationshipCommand() *ffcli
 Examples:
   asc app-clips default-experiences localizations header-image-relationship --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
@@ -371,12 +372,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences localizations header-image-relationship: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(requestCtx, locValue)
@@ -384,7 +385,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences localizations header-image-relationship: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

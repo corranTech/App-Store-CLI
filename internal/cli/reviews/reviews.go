@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ReviewsCommand returns the reviews command with subcommands.
@@ -52,7 +53,7 @@ Examples:
   asc reviews response delete --id "RESPONSE_ID" --confirm
   asc reviews response for-review --review-id "REVIEW_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ReviewsListCommand(),
 			ReviewsGetCommand(),
@@ -63,7 +64,7 @@ Examples:
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			// If no flags are set and no args, show help
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -102,9 +103,9 @@ Examples:
   asc reviews list --next "<links.next>"
   asc reviews list --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -122,19 +123,19 @@ func executeReviewsList(ctx context.Context, appID, output string, pretty bool, 
 	if stars != 0 && (stars < 1 || stars > 5) {
 		return fmt.Errorf("reviews: --stars must be between 1 and 5")
 	}
-	if err := validateNextURL(next); err != nil {
+	if err := shared.ValidateNextURL(next); err != nil {
 		return fmt.Errorf("reviews: %w", err)
 	}
-	if err := validateSort(sort, "rating", "-rating", "createdDate", "-createdDate"); err != nil {
+	if err := shared.ValidateSort(sort, "rating", "-rating", "createdDate", "-createdDate"); err != nil {
 		return fmt.Errorf("reviews: %w", err)
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("reviews: %w", err)
 	}
 
-	requestCtx, cancel := contextWithTimeout(ctx)
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	opts := []asc.ReviewOption{
@@ -163,7 +164,7 @@ func executeReviewsList(ctx context.Context, appID, output string, pretty bool, 
 			return fmt.Errorf("reviews: %w", err)
 		}
 
-		return printOutput(reviews, output, pretty)
+		return shared.PrintOutput(reviews, output, pretty)
 	}
 
 	reviews, err := client.GetReviews(requestCtx, appID, opts...)
@@ -171,5 +172,5 @@ func executeReviewsList(ctx context.Context, appID, output string, pretty bool, 
 		return fmt.Errorf("reviews: failed to fetch: %w", err)
 	}
 
-	return printOutput(reviews, output, pretty)
+	return shared.PrintOutput(reviews, output, pretty)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var validPhasedReleaseStates = map[string]asc.PhasedReleaseState{
@@ -43,7 +44,7 @@ Examples:
   asc versions phased-release create --version-id "VERSION_ID"
   asc versions phased-release update --id "PHASED_ID" --state PAUSED
   asc versions phased-release delete --id "PHASED_ID" --confirm`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PhasedReleaseGetCommand(),
 			PhasedReleaseCreateCommand(),
@@ -73,7 +74,7 @@ func PhasedReleaseGetCommand() *ffcli.Command {
 Examples:
   asc versions phased-release get --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
@@ -81,12 +82,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("phased-release get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreVersionPhasedRelease(requestCtx, version)
@@ -94,7 +95,7 @@ Examples:
 				return fmt.Errorf("phased-release get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -121,7 +122,7 @@ Examples:
   asc versions phased-release create --version-id "VERSION_ID"
   asc versions phased-release create --version-id "VERSION_ID" --state ACTIVE`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
@@ -140,12 +141,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("phased-release create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionPhasedRelease(requestCtx, version, phasedState)
@@ -153,7 +154,7 @@ Examples:
 				return fmt.Errorf("phased-release create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -183,7 +184,7 @@ Examples:
   asc versions phased-release update --id "PHASED_ID" --state ACTIVE
   asc versions phased-release update --id "PHASED_ID" --state COMPLETE`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*phasedID)
 			if id == "" {
@@ -203,12 +204,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("phased-release update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppStoreVersionPhasedRelease(requestCtx, id, phasedState)
@@ -216,7 +217,7 @@ Examples:
 				return fmt.Errorf("phased-release update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -242,7 +243,7 @@ immediately when it goes live (no gradual rollout).
 Examples:
   asc versions phased-release delete --id "PHASED_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*phasedID)
 			if id == "" {
@@ -255,12 +256,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("phased-release delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppStoreVersionPhasedRelease(requestCtx, id); err != nil {
@@ -272,7 +273,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

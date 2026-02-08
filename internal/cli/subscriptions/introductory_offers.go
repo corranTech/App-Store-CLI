@@ -27,7 +27,7 @@ Examples:
   asc subscriptions introductory-offers list --subscription-id "SUB_ID"
   asc subscriptions introductory-offers create --subscription-id "SUB_ID" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsIntroductoryOffersListCommand(),
 			SubscriptionsIntroductoryOffersGetCommand(),
@@ -62,12 +62,12 @@ Examples:
   asc subscriptions introductory-offers list --subscription-id "SUB_ID"
   asc subscriptions introductory-offers list --subscription-id "SUB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions introductory-offers list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions introductory-offers list: %w", err)
 			}
 
@@ -77,12 +77,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionIntroductoryOffersOption{
@@ -104,7 +104,7 @@ Examples:
 					return fmt.Errorf("subscriptions introductory-offers list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionIntroductoryOffers(requestCtx, id, opts...)
@@ -112,7 +112,7 @@ Examples:
 				return fmt.Errorf("subscriptions introductory-offers list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -134,7 +134,7 @@ func SubscriptionsIntroductoryOffersGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions introductory-offers get --id "OFFER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerID)
 			if id == "" {
@@ -142,12 +142,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionIntroductoryOffer(requestCtx, id)
@@ -155,7 +155,7 @@ Examples:
 				return fmt.Errorf("subscriptions introductory-offers get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -184,7 +184,7 @@ func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions introductory-offers create --subscription-id "SUB_ID" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -227,12 +227,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionIntroductoryOfferCreateAttributes{
@@ -258,7 +258,7 @@ Examples:
 				return fmt.Errorf("subscriptions introductory-offers create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -281,7 +281,7 @@ func SubscriptionsIntroductoryOffersUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions introductory-offers update --id "OFFER_ID" --end-date "2026-02-01"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerID)
 			if id == "" {
@@ -299,12 +299,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionIntroductoryOfferUpdateAttributes{
@@ -316,7 +316,7 @@ Examples:
 				return fmt.Errorf("subscriptions introductory-offers update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -339,7 +339,7 @@ func SubscriptionsIntroductoryOffersDeleteCommand() *ffcli.Command {
 Examples:
   asc subscriptions introductory-offers delete --id "OFFER_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerID)
 			if id == "" {
@@ -351,12 +351,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteSubscriptionIntroductoryOffer(requestCtx, id); err != nil {
@@ -364,7 +364,7 @@ Examples:
 			}
 
 			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

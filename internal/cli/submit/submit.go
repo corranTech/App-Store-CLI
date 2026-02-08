@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func SubmitCommand() *ffcli.Command {
@@ -18,7 +19,7 @@ func SubmitCommand() *ffcli.Command {
 		ShortUsage: "asc submit <subcommand> [flags]",
 		ShortHelp:  "Submit builds for App Store review.",
 		LongHelp:   `Submit builds for App Store review.`,
-		UsageFunc:  DefaultUsageFunc,
+		UsageFunc:  shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubmitCreateCommand(),
 			SubmitStatusCommand(),
@@ -52,7 +53,7 @@ Examples:
   asc submit create --app "123456789" --version "1.0.0" --build "BUILD_ID" --confirm
   asc submit create --app "123456789" --version-id "VERSION_ID" --build "BUILD_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit for review")
@@ -70,28 +71,28 @@ Examples:
 				return fmt.Errorf("submit create: --version and --version-id are mutually exclusive")
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			normalizedPlatform, err := normalizeSubmitPlatform(*platform)
+			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
 				return fmt.Errorf("submit create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("submit create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resolvedVersionID := strings.TrimSpace(*versionID)
 			if resolvedVersionID == "" {
-				resolvedVersionID, err = resolveAppStoreVersionID(requestCtx, client, resolvedAppID, strings.TrimSpace(*version), normalizedPlatform)
+				resolvedVersionID, err = shared.ResolveAppStoreVersionID(requestCtx, client, resolvedAppID, strings.TrimSpace(*version), normalizedPlatform)
 				if err != nil {
 					return fmt.Errorf("submit create: %w", err)
 				}
@@ -133,7 +134,7 @@ Examples:
 				CreatedDate:  createdDatePtr,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -156,7 +157,7 @@ Examples:
   asc submit status --id "SUBMISSION_ID"
   asc submit status --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --version-id is required")
@@ -166,12 +167,12 @@ Examples:
 				return fmt.Errorf("submit status: --id and --version-id are mutually exclusive")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("submit status: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var submissionResp *asc.AppStoreVersionSubmissionResourceResponse
@@ -209,10 +210,10 @@ Examples:
 				}
 				result.VersionString = versionResp.Data.Attributes.VersionString
 				result.Platform = string(versionResp.Data.Attributes.Platform)
-				result.State = resolveAppStoreVersionState(versionResp.Data.Attributes)
+				result.State = shared.ResolveAppStoreVersionState(versionResp.Data.Attributes)
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -236,7 +237,7 @@ Examples:
   asc submit cancel --id "SUBMISSION_ID" --confirm
   asc submit cancel --version-id "VERSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to cancel a submission")
@@ -250,12 +251,12 @@ Examples:
 				return fmt.Errorf("submit cancel: --id and --version-id are mutually exclusive")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("submit cancel: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resolvedSubmissionID := strings.TrimSpace(*submissionID)
@@ -296,7 +297,7 @@ Examples:
 				Cancelled: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

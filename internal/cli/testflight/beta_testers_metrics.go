@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var betaTesterUsagePeriods = map[string]struct{}{
@@ -42,13 +43,13 @@ Examples:
   asc testflight beta-testers metrics --tester-id "TESTER_ID" --app "APP_ID"
   asc testflight beta-testers metrics --tester-id "TESTER_ID" --app "APP_ID" --period "P30D"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-testers metrics: %w", err)
 			}
 
@@ -66,7 +67,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextValue := strings.TrimSpace(*next)
 			if nextValue == "" && testerValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
@@ -77,12 +78,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-testers metrics: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaTesterUsagesOption{
@@ -97,7 +98,7 @@ Examples:
 				return fmt.Errorf("testflight beta-testers metrics: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

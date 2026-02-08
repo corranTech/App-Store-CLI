@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BetaGroupsAppCommand returns the beta-groups app command group.
@@ -23,7 +24,7 @@ func BetaGroupsAppCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups app get --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaGroupsAppGetCommand(),
 		},
@@ -51,7 +52,7 @@ func BetaGroupsAppGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups app get --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupValue := strings.TrimSpace(*groupID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -65,12 +66,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-groups app get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaGroupApp(requestCtx, groupValue)
@@ -78,7 +79,7 @@ Examples:
 				return fmt.Errorf("testflight beta-groups app get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -96,7 +97,7 @@ func BetaGroupsRecruitmentCriteriaCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups beta-recruitment-criteria get --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaGroupsRecruitmentCriteriaGetCommand(),
 		},
@@ -124,7 +125,7 @@ func BetaGroupsRecruitmentCriteriaGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups beta-recruitment-criteria get --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupValue := strings.TrimSpace(*groupID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -138,12 +139,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-groups beta-recruitment-criteria get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaGroupBetaRecruitmentCriteria(requestCtx, groupValue)
@@ -151,7 +152,7 @@ Examples:
 				return fmt.Errorf("testflight beta-groups beta-recruitment-criteria get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -169,7 +170,7 @@ func BetaGroupsRecruitmentCriterionCompatibleBuildCheckCommand() *ffcli.Command 
 Examples:
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check get --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand(),
 		},
@@ -197,7 +198,7 @@ func BetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand() *ffcli.Comma
 Examples:
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check get --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupValue := strings.TrimSpace(*groupID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -211,12 +212,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-groups beta-recruitment-criterion-compatible-build-check get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck(requestCtx, groupValue)
@@ -224,7 +225,7 @@ Examples:
 				return fmt.Errorf("testflight beta-groups beta-recruitment-criterion-compatible-build-check get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

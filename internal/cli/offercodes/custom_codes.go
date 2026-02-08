@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // OfferCodeCustomCodesCommand returns the custom codes command group.
@@ -28,7 +29,7 @@ Examples:
   asc offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --code "SPRING2026" --quantity 10
   asc offer-codes custom-codes update --custom-code-id "CUSTOM_CODE_ID" --active false`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			OfferCodeCustomCodesListCommand(),
 			OfferCodeCustomCodesGetCommand(),
@@ -63,12 +64,12 @@ Examples:
   asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID" --limit 50
   asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > offerCodesMaxLimit) {
 				return fmt.Errorf("offer-codes custom-codes list: --limit must be between 1 and %d", offerCodesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("offer-codes custom-codes list: %w", err)
 			}
 
@@ -78,12 +79,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes custom-codes list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodeCustomCodesOption{
@@ -105,7 +106,7 @@ Examples:
 					return fmt.Errorf("offer-codes custom-codes list: %w", err)
 				}
 
-				return printOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionOfferCodeCustomCodes(requestCtx, trimmedOfferCodeID, opts...)
@@ -113,7 +114,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -135,7 +136,7 @@ func OfferCodeCustomCodesGetCommand() *ffcli.Command {
 Examples:
   asc offer-codes custom-codes get --custom-code-id "CUSTOM_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customCodeID)
 			if trimmedID == "" {
@@ -143,12 +144,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes custom-codes get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionOfferCodeCustomCode(requestCtx, trimmedID)
@@ -156,7 +157,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -182,7 +183,7 @@ Examples:
   asc offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --code "SPRING2026" --quantity 10
   asc offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --code "SPRING2026" --quantity 10 --expiration-date "2026-02-01"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedOfferCodeID := strings.TrimSpace(*offerCodeID)
 			if trimmedOfferCodeID == "" {
@@ -211,12 +212,12 @@ Examples:
 				normalizedExpiration = &normalized
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes custom-codes create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			req := asc.SubscriptionOfferCodeCustomCodeCreateRequest{
@@ -243,7 +244,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -266,7 +267,7 @@ func OfferCodeCustomCodesUpdateCommand() *ffcli.Command {
 Examples:
   asc offer-codes custom-codes update --custom-code-id "CUSTOM_CODE_ID" --active false`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customCodeID)
 			if trimmedID == "" {
@@ -274,7 +275,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			activeValue, err := parseOptionalBoolFlag("--active", *active)
+			activeValue, err := shared.ParseOptionalBoolFlag("--active", *active)
 			if err != nil {
 				return fmt.Errorf("offer-codes custom-codes update: %w", err)
 			}
@@ -283,12 +284,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes custom-codes update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateSubscriptionOfferCodeCustomCode(requestCtx, trimmedID, asc.SubscriptionOfferCodeCustomCodeUpdateAttributes{Active: activeValue})
@@ -296,7 +297,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -33,7 +33,7 @@ Examples:
   asc bundle-ids delete --id "BUNDLE_ID" --confirm
   asc bundle-ids capabilities list --bundle "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BundleIDsListCommand(),
 			BundleIDsGetCommand(),
@@ -71,21 +71,21 @@ Examples:
   asc bundle-ids list --limit 10
   asc bundle-ids list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("bundle-ids list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("bundle-ids list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BundleIDsOption{
@@ -107,7 +107,7 @@ Examples:
 					return fmt.Errorf("bundle-ids list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetBundleIDs(requestCtx, opts...)
@@ -115,7 +115,7 @@ Examples:
 				return fmt.Errorf("bundle-ids list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -137,19 +137,19 @@ func BundleIDsGetCommand() *ffcli.Command {
 Examples:
   asc bundle-ids get --id "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBundleID(requestCtx, strings.TrimSpace(*id))
@@ -157,7 +157,7 @@ Examples:
 				return fmt.Errorf("bundle-ids get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -181,7 +181,7 @@ func BundleIDsCreateCommand() *ffcli.Command {
 Examples:
   asc bundle-ids create --identifier "com.example.app" --name "Example" --platform IOS`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
@@ -198,12 +198,12 @@ Examples:
 				return fmt.Errorf("bundle-ids create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.BundleIDCreateAttributes{
@@ -216,7 +216,7 @@ Examples:
 				return fmt.Errorf("bundle-ids create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -239,7 +239,7 @@ func BundleIDsUpdateCommand() *ffcli.Command {
 Examples:
   asc bundle-ids update --id "BUNDLE_ID" --name "New Name"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -252,12 +252,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.BundleIDUpdateAttributes{Name: nameValue}
@@ -266,7 +266,7 @@ Examples:
 				return fmt.Errorf("bundle-ids update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -289,7 +289,7 @@ func BundleIDsDeleteCommand() *ffcli.Command {
 Examples:
   asc bundle-ids delete --id "BUNDLE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -301,12 +301,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBundleID(requestCtx, idValue); err != nil {
@@ -318,7 +318,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

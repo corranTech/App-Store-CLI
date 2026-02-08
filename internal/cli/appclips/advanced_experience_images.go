@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipAdvancedExperienceImagesCommand returns the images command group.
@@ -27,7 +28,7 @@ Examples:
   asc app-clips advanced-experiences images create --experience-id "EXP_ID" --file path/to/image.png
   asc app-clips advanced-experiences images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipAdvancedExperienceImagesGetCommand(),
 			AppClipAdvancedExperienceImagesCreateCommand(),
@@ -56,7 +57,7 @@ func AppClipAdvancedExperienceImagesGetCommand() *ffcli.Command {
 Examples:
   asc app-clips advanced-experiences images get --id "IMAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*imageID)
 			if idValue == "" {
@@ -64,12 +65,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences images get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipAdvancedExperienceImage(requestCtx, idValue)
@@ -77,7 +78,7 @@ Examples:
 				return fmt.Errorf("app-clips advanced-experiences images get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -103,7 +104,7 @@ and associates the image with the experience.
 Examples:
   asc app-clips advanced-experiences images create --experience-id "EXP_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -117,12 +118,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences images create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithUploadTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadAppClipAdvancedExperienceImage(requestCtx, fileValue)
@@ -135,7 +136,7 @@ Examples:
 			}
 
 			result.ExperienceID = experienceValue
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -158,7 +159,7 @@ func AppClipAdvancedExperienceImagesDeleteCommand() *ffcli.Command {
 Examples:
   asc app-clips advanced-experiences images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*imageID)
 			if idValue == "" {
@@ -170,12 +171,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences images delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppClipAdvancedExperienceImage(requestCtx, idValue); err != nil {
@@ -187,7 +188,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

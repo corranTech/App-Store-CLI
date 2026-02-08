@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // --- helpers ---------------------------------------------------------------
@@ -295,9 +296,9 @@ func TestResolvePublishBetaGroupIDs_SinglePage(t *testing.T) {
 		return jsonResponse(http.StatusOK, body), nil
 	}))
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
-		t.Fatalf("getASCClient: %v", err)
+		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
 	got, err := resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"Alpha", "G2"})
@@ -324,9 +325,9 @@ func TestResolvePublishBetaGroupIDs_APIError(t *testing.T) {
 		return jsonResponse(http.StatusForbidden, body), nil
 	}))
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
-		t.Fatalf("getASCClient: %v", err)
+		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
 	_, err = resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"Alpha"})
@@ -350,9 +351,9 @@ func TestResolvePublishBetaGroupIDs_NameNotFound(t *testing.T) {
 		return jsonResponse(http.StatusOK, body), nil
 	}))
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
-		t.Fatalf("getASCClient: %v", err)
+		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
 	_, err = resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"NonExistent"})
@@ -379,9 +380,9 @@ func TestListAllPublishBetaGroups_SinglePage(t *testing.T) {
 		return jsonResponse(http.StatusOK, body), nil
 	}))
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
-		t.Fatalf("getASCClient: %v", err)
+		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
 	resp, err := listAllPublishBetaGroups(context.Background(), client, "APP1")
@@ -430,9 +431,9 @@ func TestListAllPublishBetaGroups_Paginated(t *testing.T) {
 		}
 	}))
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
-		t.Fatalf("getASCClient: %v", err)
+		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
 	resp, err := listAllPublishBetaGroups(context.Background(), client, "APP1")
@@ -477,9 +478,9 @@ func TestListAllPublishBetaGroups_PaginationAPIError(t *testing.T) {
 		}
 	}))
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
-		t.Fatalf("getASCClient: %v", err)
+		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
 	_, err = listAllPublishBetaGroups(context.Background(), client, "APP1")
@@ -518,9 +519,9 @@ func TestResolvePublishBetaGroupIDs_PaginatedNameResolution(t *testing.T) {
 		}
 	}))
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
-		t.Fatalf("getASCClient: %v", err)
+		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
 	// Resolve a name that only exists on page 2.

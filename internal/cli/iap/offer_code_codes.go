@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPOfferCodesCustomCodesCommand returns the custom codes command group.
@@ -26,7 +27,7 @@ Examples:
   asc iap offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes custom-codes get --custom-code-id "CUSTOM_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPOfferCodesCustomCodesListCommand(),
 			IAPOfferCodesCustomCodesGetCommand(),
@@ -58,12 +59,12 @@ Examples:
   asc iap offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap offer-codes custom-codes list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap offer-codes custom-codes list: %w", err)
 			}
 
@@ -73,12 +74,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes custom-codes list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPOfferCodeCustomCodesOption{
@@ -100,7 +101,7 @@ Examples:
 					return fmt.Errorf("iap offer-codes custom-codes list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseOfferCodeCustomCodes(requestCtx, id, opts...)
@@ -108,7 +109,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes custom-codes list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -130,7 +131,7 @@ func IAPOfferCodesCustomCodesGetCommand() *ffcli.Command {
 Examples:
   asc iap offer-codes custom-codes get --custom-code-id "CUSTOM_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*customCodeID)
 			if id == "" {
@@ -138,12 +139,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes custom-codes get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchaseOfferCodeCustomCode(requestCtx, id)
@@ -151,7 +152,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes custom-codes get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -171,7 +172,7 @@ Examples:
   asc iap offer-codes one-time-codes get --one-time-code-id "ONE_TIME_USE_CODE_ID"
   asc iap offer-codes one-time-codes values --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPOfferCodesOneTimeCodesListCommand(),
 			IAPOfferCodesOneTimeCodesGetCommand(),
@@ -204,12 +205,12 @@ Examples:
   asc iap offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap offer-codes one-time-codes list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap offer-codes one-time-codes list: %w", err)
 			}
 
@@ -219,12 +220,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes one-time-codes list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPOfferCodeOneTimeUseCodesOption{
@@ -246,7 +247,7 @@ Examples:
 					return fmt.Errorf("iap offer-codes one-time-codes list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseOfferCodeOneTimeUseCodes(requestCtx, id, opts...)
@@ -254,7 +255,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes one-time-codes list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -276,7 +277,7 @@ func IAPOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
 Examples:
   asc iap offer-codes one-time-codes get --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
@@ -284,12 +285,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes one-time-codes get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchaseOfferCodeOneTimeUseCode(requestCtx, id)
@@ -297,7 +298,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes one-time-codes get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -319,7 +320,7 @@ func IAPOfferCodesOneTimeCodesValuesCommand() *ffcli.Command {
 Examples:
   asc iap offer-codes one-time-codes values --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
@@ -327,12 +328,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes one-time-codes values: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			values, err := client.GetInAppPurchaseOfferCodeOneTimeUseCodeValues(requestCtx, id)
@@ -341,7 +342,7 @@ Examples:
 			}
 
 			result := &asc.OfferCodeValuesResult{Codes: values}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

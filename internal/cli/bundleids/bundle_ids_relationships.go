@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BundleIDsAppCommand returns the bundle ID app command group.
@@ -26,7 +27,7 @@ func BundleIDsAppCommand() *ffcli.Command {
 Examples:
   asc bundle-ids app get --id "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BundleIDsAppGetCommand(),
 		},
@@ -53,7 +54,7 @@ func BundleIDsAppGetCommand() *ffcli.Command {
 Examples:
   asc bundle-ids app get --id "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -61,12 +62,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids app get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBundleIDApp(requestCtx, idValue)
@@ -74,7 +75,7 @@ Examples:
 				return fmt.Errorf("bundle-ids app get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -92,7 +93,7 @@ func BundleIDsProfilesCommand() *ffcli.Command {
 Examples:
   asc bundle-ids profiles list --id "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BundleIDsProfilesListCommand(),
 		},
@@ -123,7 +124,7 @@ Examples:
   asc bundle-ids profiles list --id "BUNDLE_ID"
   asc bundle-ids profiles list --id "BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
@@ -133,7 +134,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("bundle-ids profiles list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("bundle-ids profiles list: %w", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
@@ -144,12 +145,12 @@ Examples:
 				idValue = derivedID
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids profiles list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BundleIDProfilesOption{
@@ -175,7 +176,7 @@ Examples:
 					return fmt.Errorf("bundle-ids profiles list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBundleIDProfiles(requestCtx, idValue, opts...)
@@ -183,7 +184,7 @@ Examples:
 				return fmt.Errorf("bundle-ids profiles list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

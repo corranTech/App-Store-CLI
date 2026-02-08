@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func xcodeCloudProductsListFlags(fs *flag.FlagSet) (appID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
@@ -35,7 +36,7 @@ Examples:
   asc xcode-cloud products get --id "PRODUCT_ID"
   asc xcode-cloud products delete --id "PRODUCT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudProductsListCommand(),
 			XcodeCloudProductsGetCommand(),
@@ -69,7 +70,7 @@ Examples:
   asc xcode-cloud products list --limit 50
   asc xcode-cloud products list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudProductsList(ctx, *appID, *limit, *next, *paginate, *output, *pretty)
 		},
@@ -93,7 +94,7 @@ Examples:
   asc xcode-cloud products get --id "PRODUCT_ID"
   asc xcode-cloud products get --id "PRODUCT_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -101,7 +102,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products get: %w", err)
 			}
@@ -114,7 +115,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud products get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -136,7 +137,7 @@ Examples:
   asc xcode-cloud products app --id "PRODUCT_ID"
   asc xcode-cloud products app --id "PRODUCT_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -144,7 +145,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products app: %w", err)
 			}
@@ -157,7 +158,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud products app: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -183,12 +184,12 @@ Examples:
   asc xcode-cloud products build-runs --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products build-runs --id "PRODUCT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud products build-runs: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud products build-runs: %w", err)
 			}
 
@@ -198,7 +199,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products build-runs: %w", err)
 			}
@@ -225,7 +226,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud products build-runs: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiProductBuildRuns(requestCtx, idValue, opts...)
@@ -233,7 +234,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud products build-runs: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -259,12 +260,12 @@ Examples:
   asc xcode-cloud products workflows --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products workflows --id "PRODUCT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud products workflows: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud products workflows: %w", err)
 			}
 
@@ -274,7 +275,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products workflows: %w", err)
 			}
@@ -301,7 +302,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud products workflows: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiWorkflows(requestCtx, idValue, opts...)
@@ -309,7 +310,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud products workflows: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -335,12 +336,12 @@ Examples:
   asc xcode-cloud products primary-repositories --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products primary-repositories --id "PRODUCT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud products primary-repositories: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud products primary-repositories: %w", err)
 			}
 
@@ -350,7 +351,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products primary-repositories: %w", err)
 			}
@@ -377,7 +378,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud products primary-repositories: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiProductPrimaryRepositories(requestCtx, idValue, opts...)
@@ -385,7 +386,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud products primary-repositories: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -411,12 +412,12 @@ Examples:
   asc xcode-cloud products additional-repositories --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products additional-repositories --id "PRODUCT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud products additional-repositories: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud products additional-repositories: %w", err)
 			}
 
@@ -426,7 +427,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products additional-repositories: %w", err)
 			}
@@ -453,7 +454,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud products additional-repositories: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiProductAdditionalRepositories(requestCtx, idValue, opts...)
@@ -461,7 +462,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud products additional-repositories: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -483,7 +484,7 @@ func XcodeCloudProductsDeleteCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud products delete --id "PRODUCT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -495,7 +496,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products delete: %w", err)
 			}
@@ -508,7 +509,7 @@ Examples:
 			}
 
 			result := &asc.CiProductDeleteResult{ID: idValue, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -517,11 +518,11 @@ func xcodeCloudProductsList(ctx context.Context, appID string, limit int, next s
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return fmt.Errorf("xcode-cloud products: --limit must be between 1 and 200")
 	}
-	if err := validateNextURL(next); err != nil {
+	if err := shared.ValidateNextURL(next); err != nil {
 		return fmt.Errorf("xcode-cloud products: %w", err)
 	}
 
-	resolvedAppID := resolveAppID(appID)
+	resolvedAppID := shared.ResolveAppID(appID)
 	opts := []asc.CiProductsOption{
 		asc.WithCiProductsLimit(limit),
 		asc.WithCiProductsNextURL(next),
@@ -530,7 +531,7 @@ func xcodeCloudProductsList(ctx context.Context, appID string, limit int, next s
 		opts = append(opts, asc.WithCiProductsAppID(resolvedAppID))
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud products: %w", err)
 	}
@@ -552,7 +553,7 @@ func xcodeCloudProductsList(ctx context.Context, appID string, limit int, next s
 			return fmt.Errorf("xcode-cloud products: %w", err)
 		}
 
-		return printOutput(resp, output, pretty)
+		return shared.PrintOutput(resp, output, pretty)
 	}
 
 	resp, err := client.GetCiProducts(requestCtx, opts...)
@@ -560,7 +561,7 @@ func xcodeCloudProductsList(ctx context.Context, appID string, limit int, next s
 		return fmt.Errorf("xcode-cloud products: %w", err)
 	}
 
-	return printOutput(resp, output, pretty)
+	return shared.PrintOutput(resp, output, pretty)
 }
 
 func xcodeCloudVersionListFlags(fs *flag.FlagSet) (limit *int, next *string, paginate *bool, output *string, pretty *bool) {
@@ -590,7 +591,7 @@ Examples:
   asc xcode-cloud macos-versions get --id "MACOS_VERSION_ID"
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudMacOSVersionsListCommand(),
 			XcodeCloudMacOSVersionsGetCommand(),
@@ -618,7 +619,7 @@ Examples:
   asc xcode-cloud macos-versions list --limit 50
   asc xcode-cloud macos-versions list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudMacOSVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
@@ -642,7 +643,7 @@ Examples:
   asc xcode-cloud macos-versions get --id "MACOS_VERSION_ID"
   asc xcode-cloud macos-versions get --id "MACOS_VERSION_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -650,7 +651,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud macos-versions get: %w", err)
 			}
@@ -663,7 +664,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud macos-versions get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -689,12 +690,12 @@ Examples:
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID" --limit 50
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud macos-versions xcode-versions: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud macos-versions xcode-versions: %w", err)
 			}
 
@@ -704,7 +705,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud macos-versions xcode-versions: %w", err)
 			}
@@ -731,7 +732,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud macos-versions xcode-versions: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiMacOsVersionXcodeVersions(requestCtx, idValue, opts...)
@@ -739,7 +740,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud macos-versions xcode-versions: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -748,11 +749,11 @@ func xcodeCloudMacOSVersionsList(ctx context.Context, limit int, next string, pa
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return fmt.Errorf("xcode-cloud macos-versions: --limit must be between 1 and 200")
 	}
-	if err := validateNextURL(next); err != nil {
+	if err := shared.ValidateNextURL(next); err != nil {
 		return fmt.Errorf("xcode-cloud macos-versions: %w", err)
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud macos-versions: %w", err)
 	}
@@ -779,7 +780,7 @@ func xcodeCloudMacOSVersionsList(ctx context.Context, limit int, next string, pa
 			return fmt.Errorf("xcode-cloud macos-versions: %w", err)
 		}
 
-		return printOutput(resp, output, pretty)
+		return shared.PrintOutput(resp, output, pretty)
 	}
 
 	resp, err := client.GetCiMacOsVersions(requestCtx, opts...)
@@ -787,7 +788,7 @@ func xcodeCloudMacOSVersionsList(ctx context.Context, limit int, next string, pa
 		return fmt.Errorf("xcode-cloud macos-versions: %w", err)
 	}
 
-	return printOutput(resp, output, pretty)
+	return shared.PrintOutput(resp, output, pretty)
 }
 
 // XcodeCloudXcodeVersionsCommand returns the xcode-cloud xcode-versions command.
@@ -808,7 +809,7 @@ Examples:
   asc xcode-cloud xcode-versions get --id \"XCODE_VERSION_ID\"
   asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudXcodeVersionsListCommand(),
 			XcodeCloudXcodeVersionsGetCommand(),
@@ -836,7 +837,7 @@ Examples:
   asc xcode-cloud xcode-versions list --limit 50
   asc xcode-cloud xcode-versions list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudXcodeVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
@@ -860,7 +861,7 @@ Examples:
   asc xcode-cloud xcode-versions get --id "XCODE_VERSION_ID"
   asc xcode-cloud xcode-versions get --id "XCODE_VERSION_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -868,7 +869,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud xcode-versions get: %w", err)
 			}
@@ -881,7 +882,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud xcode-versions get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -907,12 +908,12 @@ Examples:
   asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\" --limit 50
   asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud xcode-versions macos-versions: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud xcode-versions macos-versions: %w", err)
 			}
 
@@ -922,7 +923,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud xcode-versions macos-versions: %w", err)
 			}
@@ -949,7 +950,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud xcode-versions macos-versions: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiXcodeVersionMacOsVersions(requestCtx, idValue, opts...)
@@ -957,7 +958,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud xcode-versions macos-versions: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -966,11 +967,11 @@ func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, pa
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return fmt.Errorf("xcode-cloud xcode-versions: --limit must be between 1 and 200")
 	}
-	if err := validateNextURL(next); err != nil {
+	if err := shared.ValidateNextURL(next); err != nil {
 		return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
 	}
@@ -997,7 +998,7 @@ func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, pa
 			return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
 		}
 
-		return printOutput(resp, output, pretty)
+		return shared.PrintOutput(resp, output, pretty)
 	}
 
 	resp, err := client.GetCiXcodeVersions(requestCtx, opts...)
@@ -1005,7 +1006,7 @@ func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, pa
 		return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
 	}
 
-	return printOutput(resp, output, pretty)
+	return shared.PrintOutput(resp, output, pretty)
 }
 
 func readJSONFilePayload(path string) (json.RawMessage, error) {

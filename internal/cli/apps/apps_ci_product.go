@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppsCIProductCommand returns the ci-product command group.
@@ -23,7 +24,7 @@ func AppsCIProductCommand() *ffcli.Command {
 Examples:
   asc apps ci-product get --id "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppsCIProductGetCommand(),
 		},
@@ -50,7 +51,7 @@ func AppsCIProductGetCommand() *ffcli.Command {
 Examples:
   asc apps ci-product get --id "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -58,12 +59,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps ci-product get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCiProduct(requestCtx, idValue)
@@ -71,7 +72,7 @@ Examples:
 				return fmt.Errorf("apps ci-product get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

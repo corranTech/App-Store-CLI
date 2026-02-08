@@ -31,7 +31,7 @@ Examples:
   asc xcode-cloud artifacts get --id "ARTIFACT_ID"
   asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path ./artifact.zip`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudArtifactsListCommand(),
 			XcodeCloudArtifactsGetCommand(),
@@ -66,12 +66,12 @@ Examples:
   asc xcode-cloud artifacts list --action-id "ACTION_ID" --limit 50
   asc xcode-cloud artifacts list --action-id "ACTION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud artifacts list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud artifacts list: %w", err)
 			}
 
@@ -81,7 +81,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud artifacts list: %w", err)
 			}
@@ -108,7 +108,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud artifacts list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiBuildActionArtifacts(requestCtx, resolvedActionID, opts...)
@@ -116,7 +116,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud artifacts list: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -139,7 +139,7 @@ Examples:
   asc xcode-cloud artifacts get --id "ARTIFACT_ID"
   asc xcode-cloud artifacts get --id "ARTIFACT_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -147,7 +147,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud artifacts get: %w", err)
 			}
@@ -160,7 +160,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud artifacts get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -185,7 +185,7 @@ Examples:
   asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path ./artifact.zip
   asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path ./artifact.zip --overwrite`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -198,7 +198,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud artifacts download: %w", err)
 			}
@@ -236,7 +236,7 @@ Examples:
 				BytesWritten: bytesWritten,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

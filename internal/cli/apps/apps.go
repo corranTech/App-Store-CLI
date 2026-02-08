@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func appsListFlags(fs *flag.FlagSet) (output *string, pretty *bool, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool) {
@@ -51,7 +52,7 @@ Examples:
   asc apps --next "<links.next>"
   asc apps --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppsListCommand(),
 			AppsGetCommand(),
@@ -90,7 +91,7 @@ Examples:
   asc apps list --next "<links.next>"
   asc apps list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return appsList(ctx, *output, *pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate)
 		},
@@ -115,7 +116,7 @@ Examples:
   asc apps get --id "APP_ID"
   asc apps get --id "APP_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -123,12 +124,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			app, err := client.GetApp(requestCtx, idValue)
@@ -136,7 +137,7 @@ Examples:
 				return fmt.Errorf("apps get: failed to fetch: %w", err)
 			}
 
-			return printOutput(app, *output, *pretty)
+			return shared.PrintOutput(app, *output, *pretty)
 		},
 	}
 }
@@ -163,7 +164,7 @@ Examples:
   asc apps update --id "APP_ID" --primary-locale "en-US"
   asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -194,12 +195,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			app, err := client.UpdateApp(requestCtx, idValue, attrs)
@@ -207,7 +208,7 @@ Examples:
 				return fmt.Errorf("apps update: failed to update: %w", err)
 			}
 
-			return printOutput(app, *output, *pretty)
+			return shared.PrintOutput(app, *output, *pretty)
 		},
 	}
 }
@@ -216,25 +217,25 @@ func appsList(ctx context.Context, output string, pretty bool, bundleID string, 
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return fmt.Errorf("apps: --limit must be between 1 and 200")
 	}
-	if err := validateNextURL(next); err != nil {
+	if err := shared.ValidateNextURL(next); err != nil {
 		return fmt.Errorf("apps: %w", err)
 	}
-	if err := validateSort(sort, "name", "-name", "bundleId", "-bundleId"); err != nil {
+	if err := shared.ValidateSort(sort, "name", "-name", "bundleId", "-bundleId"); err != nil {
 		return fmt.Errorf("apps: %w", err)
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("apps: %w", err)
 	}
 
-	requestCtx, cancel := contextWithTimeout(ctx)
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	opts := []asc.AppsOption{
-		asc.WithAppsBundleIDs(splitCSV(bundleID)),
-		asc.WithAppsNames(splitCSV(name)),
-		asc.WithAppsSKUs(splitCSV(sku)),
+		asc.WithAppsBundleIDs(shared.SplitCSV(bundleID)),
+		asc.WithAppsNames(shared.SplitCSV(name)),
+		asc.WithAppsSKUs(shared.SplitCSV(sku)),
 		asc.WithAppsLimit(limit),
 		asc.WithAppsNextURL(next),
 	}
@@ -258,7 +259,7 @@ func appsList(ctx context.Context, output string, pretty bool, bundleID string, 
 			return fmt.Errorf("apps: %w", err)
 		}
 
-		return printOutput(apps, output, pretty)
+		return shared.PrintOutput(apps, output, pretty)
 	}
 
 	apps, err := client.GetApps(requestCtx, opts...)
@@ -266,5 +267,5 @@ func appsList(ctx context.Context, output string, pretty bool, bundleID string, 
 		return fmt.Errorf("apps: failed to fetch: %w", err)
 	}
 
-	return printOutput(apps, output, pretty)
+	return shared.PrintOutput(apps, output, pretty)
 }

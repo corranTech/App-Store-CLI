@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ReviewsSummarizationsCommand returns the review summarizations command.
@@ -40,16 +41,16 @@ Examples:
   asc reviews summarizations --app "APP_ID" --limit 50
   asc reviews summarizations --next "<links.next>"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("reviews summarizations: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("reviews summarizations: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -60,25 +61,25 @@ Examples:
 				return fmt.Errorf("reviews summarizations: %w", err)
 			}
 
-			platformValues, err := normalizeReviewSummarizationPlatforms(splitCSVUpper(*platforms))
+			platformValues, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platforms))
 			if err != nil {
 				return fmt.Errorf("reviews summarizations: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("reviews summarizations: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.CustomerReviewSummarizationsOption{
 				asc.WithCustomerReviewSummarizationsPlatforms(platformValues),
-				asc.WithCustomerReviewSummarizationsTerritories(splitCSVUpper(*territories)),
+				asc.WithCustomerReviewSummarizationsTerritories(shared.SplitCSVUpper(*territories)),
 				asc.WithCustomerReviewSummarizationsFields(fieldsValue),
-				asc.WithCustomerReviewSummarizationsTerritoryFields(splitCSV(*territoryFields)),
-				asc.WithCustomerReviewSummarizationsInclude(splitCSV(*include)),
+				asc.WithCustomerReviewSummarizationsTerritoryFields(shared.SplitCSV(*territoryFields)),
+				asc.WithCustomerReviewSummarizationsInclude(shared.SplitCSV(*include)),
 				asc.WithCustomerReviewSummarizationsLimit(*limit),
 				asc.WithCustomerReviewSummarizationsNextURL(*next),
 			}
@@ -95,7 +96,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("reviews summarizations: %w", err)
 				}
-				return printOutput(summaries, *output, *pretty)
+				return shared.PrintOutput(summaries, *output, *pretty)
 			}
 
 			resp, err := client.GetCustomerReviewSummarizations(requestCtx, resolvedAppID, opts...)
@@ -103,7 +104,7 @@ Examples:
 				return fmt.Errorf("reviews summarizations: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -117,7 +118,7 @@ func reviewSummarizationPlatformList() []string {
 }
 
 func normalizeReviewSummarizationFields(value string) ([]string, error) {
-	values := splitCSV(value)
+	values := shared.SplitCSV(value)
 	if len(values) == 0 {
 		return nil, nil
 	}

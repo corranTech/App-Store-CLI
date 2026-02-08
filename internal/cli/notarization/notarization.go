@@ -29,7 +29,7 @@ Examples:
   asc notarization status --id "SUBMISSION_ID"
   asc notarization log --id "SUBMISSION_ID"
   asc notarization list`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			submitCommand(),
 			statusCommand(),
@@ -69,7 +69,7 @@ Examples:
   asc notarization submit --file ./MyApp.zip --wait --poll-interval 30s --timeout 1h
   asc notarization submit --file ./MyApp.zip --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
@@ -116,12 +116,12 @@ Examples:
 				return fmt.Errorf("notarization submit: failed to compute SHA-256: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("notarization submit: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			// Submit to Notary API
@@ -151,7 +151,7 @@ Examples:
 			}
 			defer fileHandle.Close()
 
-			uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
 			defer uploadCancel()
 
 			creds := asc.S3Credentials{
@@ -187,7 +187,7 @@ Examples:
 						},
 					},
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			// Wait for notarization to complete
@@ -203,7 +203,7 @@ Examples:
 				return fmt.Errorf("notarization submit: %w", err)
 			}
 
-			if err := printOutput(statusResp, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(statusResp, *output, *pretty); err != nil {
 				return err
 			}
 
@@ -246,7 +246,7 @@ Examples:
   asc notarization status --id "SUBMISSION_ID"
   asc notarization status --id "SUBMISSION_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
@@ -254,12 +254,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("notarization status: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetNotarizationStatus(requestCtx, idValue)
@@ -267,7 +267,7 @@ Examples:
 				return fmt.Errorf("notarization status: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -293,7 +293,7 @@ Examples:
   asc notarization log --id "SUBMISSION_ID"
   asc notarization log --id "SUBMISSION_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
@@ -301,12 +301,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("notarization log: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetNotarizationLogs(requestCtx, idValue)
@@ -314,7 +314,7 @@ Examples:
 				return fmt.Errorf("notarization log: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -338,18 +338,18 @@ Examples:
   asc notarization list --limit 5
   asc notarization list --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit < 0 {
 				return fmt.Errorf("notarization list: --limit must not be negative")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("notarization list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.ListNotarizations(requestCtx)
@@ -361,7 +361,7 @@ Examples:
 				resp.Data = resp.Data[:*limit]
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

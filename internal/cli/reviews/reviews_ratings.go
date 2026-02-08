@@ -10,6 +10,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
 
@@ -42,7 +43,7 @@ Examples:
   asc reviews ratings --app "1479784361" --all
   asc reviews ratings --app "1479784361" --all --workers 20`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*appID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required")
@@ -67,7 +68,7 @@ func executeRatings(ctx context.Context, appID, country string, all bool, worker
 
 	client := itunes.NewClient()
 
-	requestCtx, cancel := contextWithTimeout(ctx)
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	if all {
@@ -89,7 +90,7 @@ func executeSingleRatings(ctx context.Context, client *itunes.Client, appID, cou
 	case "markdown":
 		return printRatingsMarkdown(ratings)
 	default:
-		return printOutput(ratings, "json", pretty)
+		return shared.PrintOutput(ratings, "json", pretty)
 	}
 }
 
@@ -105,7 +106,7 @@ func executeAllRatings(ctx context.Context, client *itunes.Client, appID string,
 	case "markdown":
 		return printGlobalRatingsMarkdown(global)
 	default:
-		return printOutput(global, "json", pretty)
+		return shared.PrintOutput(global, "json", pretty)
 	}
 }
 

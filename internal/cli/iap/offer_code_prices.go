@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPOfferCodesPricesCommand returns the offer code prices subcommand.
@@ -33,12 +34,12 @@ Examples:
   asc iap offer-codes prices --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes prices --offer-code-id "OFFER_CODE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap offer-codes prices: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap offer-codes prices: %w", err)
 			}
 
@@ -48,12 +49,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes prices: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPOfferCodePricesOption{
@@ -75,7 +76,7 @@ Examples:
 					return fmt.Errorf("iap offer-codes prices: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseOfferCodePrices(requestCtx, id, opts...)
@@ -83,7 +84,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes prices: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

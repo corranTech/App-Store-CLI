@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func xcodeCloudActionsListFlags(fs *flag.FlagSet) (runID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
@@ -46,7 +47,7 @@ Examples:
   asc xcode-cloud actions --run-id "BUILD_RUN_ID" --limit 50
   asc xcode-cloud actions --run-id "BUILD_RUN_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudActionsListCommand(),
 			XcodeCloudActionsGetCommand(),
@@ -75,7 +76,7 @@ Examples:
   asc xcode-cloud actions list --run-id "BUILD_RUN_ID" --limit 50
   asc xcode-cloud actions list --run-id "BUILD_RUN_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudActionsList(ctx, *runID, *limit, *next, *paginate, *output, *pretty)
 		},
@@ -99,7 +100,7 @@ Examples:
   asc xcode-cloud actions get --id "ACTION_ID"
   asc xcode-cloud actions get --id "ACTION_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -107,7 +108,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud actions get: %w", err)
 			}
@@ -120,7 +121,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud actions get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -142,7 +143,7 @@ Examples:
   asc xcode-cloud actions build-run --id "ACTION_ID"
   asc xcode-cloud actions build-run --id "ACTION_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -150,7 +151,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud actions build-run: %w", err)
 			}
@@ -163,7 +164,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud actions build-run: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -172,7 +173,7 @@ func xcodeCloudActionsList(ctx context.Context, runID string, limit int, next st
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return fmt.Errorf("xcode-cloud actions: --limit must be between 1 and 200")
 	}
-	if err := validateNextURL(next); err != nil {
+	if err := shared.ValidateNextURL(next); err != nil {
 		return fmt.Errorf("xcode-cloud actions: %w", err)
 	}
 
@@ -182,7 +183,7 @@ func xcodeCloudActionsList(ctx context.Context, runID string, limit int, next st
 		return flag.ErrHelp
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud actions: %w", err)
 	}
@@ -209,7 +210,7 @@ func xcodeCloudActionsList(ctx context.Context, runID string, limit int, next st
 			return fmt.Errorf("xcode-cloud actions: %w", err)
 		}
 
-		return printOutput(resp, output, pretty)
+		return shared.PrintOutput(resp, output, pretty)
 	}
 
 	resp, err := client.GetCiBuildActions(requestCtx, resolvedRunID, opts...)
@@ -217,5 +218,5 @@ func xcodeCloudActionsList(ctx context.Context, runID string, limit int, next st
 		return fmt.Errorf("xcode-cloud actions: %w", err)
 	}
 
-	return printOutput(resp, output, pretty)
+	return shared.PrintOutput(resp, output, pretty)
 }

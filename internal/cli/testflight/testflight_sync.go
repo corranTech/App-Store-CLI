@@ -13,6 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // TestFlightConfig is the YAML export schema for TestFlight config.
@@ -95,7 +96,7 @@ func TestFlightSyncCommand() *ffcli.Command {
 Examples:
   asc testflight sync pull --app "APP_ID" --output "./testflight.yaml"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightSyncPullCommand(),
 		},
@@ -129,9 +130,9 @@ Examples:
   asc testflight sync pull --app "APP_ID" --output "./testflight.yaml" --include-builds
   asc testflight sync pull --app "APP_ID" --output "./testflight.yaml" --include-builds --include-testers`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -143,8 +144,8 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			buildFilters := splitCSV(*buildFilter)
-			testerFilters := splitCSV(*testerFilter)
+			buildFilters := shared.SplitCSV(*buildFilter)
+			testerFilters := shared.SplitCSV(*testerFilter)
 			if len(buildFilters) > 0 && !*includeBuilds {
 				fmt.Fprintf(os.Stderr, "Error: --build requires --include-builds\n\n")
 				return flag.ErrHelp
@@ -159,12 +160,12 @@ Examples:
 				return fmt.Errorf("testflight sync pull: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight sync pull: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			options := testFlightPullOptions{

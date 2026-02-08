@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // MarketplaceWebhooksCommand returns the marketplace webhooks command group.
@@ -26,7 +27,7 @@ Examples:
   asc marketplace webhooks list
   asc marketplace webhooks get --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MarketplaceWebhooksListCommand(),
 			MarketplaceWebhooksGetCommand(),
@@ -62,14 +63,14 @@ Examples:
   asc marketplace webhooks list --limit 10
   asc marketplace webhooks list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated()
 
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("marketplace webhooks list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("marketplace webhooks list: %w", err)
 			}
 
@@ -78,12 +79,12 @@ Examples:
 				return fmt.Errorf("marketplace webhooks list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace webhooks list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.MarketplaceWebhooksOption{
@@ -108,7 +109,7 @@ Examples:
 					return fmt.Errorf("marketplace webhooks list: %w", err)
 				}
 
-				return printOutput(webhooks, *output, *pretty)
+				return shared.PrintOutput(webhooks, *output, *pretty)
 			}
 
 			webhooks, err := client.GetMarketplaceWebhooks(requestCtx, opts...)
@@ -116,7 +117,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks list: failed to fetch: %w", err)
 			}
 
-			return printOutput(webhooks, *output, *pretty)
+			return shared.PrintOutput(webhooks, *output, *pretty)
 		},
 	}
 }
@@ -138,7 +139,7 @@ func MarketplaceWebhooksGetCommand() *ffcli.Command {
 Examples:
   asc marketplace webhooks get --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated()
 
@@ -148,12 +149,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace webhooks get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			webhook, err := client.GetMarketplaceWebhook(requestCtx, trimmedID)
@@ -161,7 +162,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks get: failed to fetch: %w", err)
 			}
 
-			return printOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output, *pretty)
 		},
 	}
 }
@@ -184,7 +185,7 @@ func MarketplaceWebhooksCreateCommand() *ffcli.Command {
 Examples:
   asc marketplace webhooks create --url "https://example.com/webhook" --secret "placeholder123"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated()
 
@@ -199,12 +200,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace webhooks create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			webhook, err := client.CreateMarketplaceWebhook(requestCtx, endpointURL, secretValue)
@@ -212,7 +213,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks create: failed to create: %w", err)
 			}
 
-			return printOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output, *pretty)
 		},
 	}
 }
@@ -237,7 +238,7 @@ Examples:
   asc marketplace webhooks update --webhook-id "WEBHOOK_ID" --url "https://example.com/webhook"
   asc marketplace webhooks update --webhook-id "WEBHOOK_ID" --secret "new-secret"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated()
 
@@ -267,12 +268,12 @@ Examples:
 				attrs.Secret = &value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace webhooks update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			webhook, err := client.UpdateMarketplaceWebhook(requestCtx, trimmedID, attrs)
@@ -280,7 +281,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks update: failed to update: %w", err)
 			}
 
-			return printOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output, *pretty)
 		},
 	}
 }
@@ -303,7 +304,7 @@ func MarketplaceWebhooksDeleteCommand() *ffcli.Command {
 Examples:
   asc marketplace webhooks delete --webhook-id "WEBHOOK_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated()
 
@@ -317,12 +318,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace webhooks delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteMarketplaceWebhook(requestCtx, trimmedID); err != nil {
@@ -334,13 +335,13 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
 
 func normalizeMarketplaceWebhookFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}

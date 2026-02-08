@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PassTypeIDsCommand returns the pass type IDs command with subcommands.
@@ -30,7 +31,7 @@ Examples:
   asc pass-type-ids delete --pass-type-id "PASS_ID" --confirm
   asc pass-type-ids certificates list --pass-type-id "PASS_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PassTypeIDsListCommand(),
 			PassTypeIDsGetCommand(),
@@ -76,7 +77,7 @@ Examples:
   asc pass-type-ids list --name "Example"
   asc pass-type-ids list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pass-type-ids list: --limit must be between 1 and 200")
@@ -84,10 +85,10 @@ Examples:
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
 				return fmt.Errorf("pass-type-ids list: --limit-certificates must be between 1 and 50")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pass-type-ids list: %w", err)
 			}
-			if err := validateSort(*sort, passTypeIDSortList()...); err != nil {
+			if err := shared.ValidateSort(*sort, passTypeIDSortList()...); err != nil {
 				return fmt.Errorf("pass-type-ids list: %w", err)
 			}
 
@@ -104,19 +105,19 @@ Examples:
 				return fmt.Errorf("pass-type-ids list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.PassTypeIDsOption{
 				asc.WithPassTypeIDsLimit(*limit),
 				asc.WithPassTypeIDsNextURL(*next),
 			}
-			idsValue := splitCSV(*ids)
+			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) > 0 {
 				opts = append(opts, asc.WithPassTypeIDsFilterIDs(idsValue))
 			}
@@ -156,7 +157,7 @@ Examples:
 					return fmt.Errorf("pass-type-ids list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetPassTypeIDs(requestCtx, opts...)
@@ -164,7 +165,7 @@ Examples:
 				return fmt.Errorf("pass-type-ids list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -190,7 +191,7 @@ func PassTypeIDsGetCommand() *ffcli.Command {
 Examples:
   asc pass-type-ids get --pass-type-id "PASS_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
@@ -214,12 +215,12 @@ Examples:
 				return fmt.Errorf("pass-type-ids get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.PassTypeIDOption{}
@@ -241,7 +242,7 @@ Examples:
 				return fmt.Errorf("pass-type-ids get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -264,7 +265,7 @@ func PassTypeIDsCreateCommand() *ffcli.Command {
 Examples:
   asc pass-type-ids create --identifier "pass.com.example" --name "Example"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
@@ -277,12 +278,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.PassTypeIDCreateAttributes{
@@ -294,7 +295,7 @@ Examples:
 				return fmt.Errorf("pass-type-ids create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -317,7 +318,7 @@ func PassTypeIDsUpdateCommand() *ffcli.Command {
 Examples:
   asc pass-type-ids update --pass-type-id "PASS_ID" --name "New Name"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
@@ -330,12 +331,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.PassTypeIDUpdateAttributes{
@@ -346,7 +347,7 @@ Examples:
 				return fmt.Errorf("pass-type-ids update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -369,7 +370,7 @@ func PassTypeIDsDeleteCommand() *ffcli.Command {
 Examples:
   asc pass-type-ids delete --pass-type-id "PASS_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
@@ -381,12 +382,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pass-type-ids delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeletePassTypeID(requestCtx, passTypeIDValue); err != nil {
@@ -398,13 +399,13 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
 
 func normalizePassTypeIDFields(value, flagName string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -421,7 +422,7 @@ func normalizePassTypeIDFields(value, flagName string) ([]string, error) {
 }
 
 func normalizeCertificateFields(value, flagName string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -442,7 +443,7 @@ func normalizePassTypeIDInclude(value string) ([]string, error) {
 }
 
 func normalizeInclude(value string, allowed []string, flagName string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

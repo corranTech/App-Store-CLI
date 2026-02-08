@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppInfoRelationshipsCommand returns the app-info relationships command group.
@@ -25,7 +26,7 @@ func AppInfoRelationshipsCommand() *ffcli.Command {
 Examples:
   asc app-info relationships primary-category --id "APP_INFO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			appInfoCategoryRelationshipCommand(
 				"primary-category",
@@ -94,7 +95,7 @@ func appInfoCategoryRelationshipCommand(name, shortHelp string, fetch appInfoCat
 Examples:
   asc app-info relationships %s --id "APP_INFO_ID"`, shortHelp, name),
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*appInfoID)
 			if idValue == "" {
@@ -102,12 +103,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-info relationships %s: %w", name, err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := fetch(requestCtx, client, idValue)
@@ -115,7 +116,7 @@ Examples:
 				return fmt.Errorf("app-info relationships %s: failed to fetch: %w", name, err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

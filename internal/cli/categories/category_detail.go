@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // CategoriesGetCommand returns the category get subcommand.
@@ -29,7 +30,7 @@ func CategoriesGetCommand() *ffcli.Command {
 Examples:
   asc categories get --category-id "GAMES"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*categoryID)
 			if trimmedID == "" {
@@ -37,12 +38,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("categories get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCategory(requestCtx, trimmedID)
@@ -50,7 +51,7 @@ Examples:
 				return fmt.Errorf("categories get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -72,7 +73,7 @@ func CategoriesParentCommand() *ffcli.Command {
 Examples:
   asc categories parent --category-id "GAMES"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*categoryID)
 			if trimmedID == "" {
@@ -80,12 +81,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("categories parent: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCategoryParent(requestCtx, trimmedID)
@@ -93,7 +94,7 @@ Examples:
 				return fmt.Errorf("categories parent: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -119,13 +120,13 @@ Examples:
   asc categories subcategories --category-id "GAMES"
   asc categories subcategories --category-id "GAMES" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("categories subcategories: %w", err)
 			}
 
@@ -136,12 +137,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("categories subcategories: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCategoriesOption{
@@ -161,7 +162,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("categories subcategories: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppCategorySubcategories(requestCtx, trimmedID, opts...)
@@ -169,7 +170,7 @@ Examples:
 				return fmt.Errorf("categories subcategories: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

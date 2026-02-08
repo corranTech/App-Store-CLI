@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // Crashes command factory
@@ -48,40 +49,40 @@ Examples:
   asc crashes --next "<links.next>"
   asc crashes --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("crashes: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("crashes: %w", err)
 			}
-			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
+			if err := shared.ValidateSort(*sort, "createdDate", "-createdDate"); err != nil {
 				return fmt.Errorf("crashes: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("crashes: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.CrashOption{
-				asc.WithCrashDeviceModels(splitCSV(*deviceModel)),
-				asc.WithCrashOSVersions(splitCSV(*osVersion)),
-				asc.WithCrashAppPlatforms(splitCSVUpper(*appPlatform)),
-				asc.WithCrashDevicePlatforms(splitCSVUpper(*devicePlatform)),
-				asc.WithCrashBuildIDs(splitCSV(*buildID)),
-				asc.WithCrashBuildPreReleaseVersionIDs(splitCSV(*buildPreRelease)),
-				asc.WithCrashTesterIDs(splitCSV(*tester)),
+				asc.WithCrashDeviceModels(shared.SplitCSV(*deviceModel)),
+				asc.WithCrashOSVersions(shared.SplitCSV(*osVersion)),
+				asc.WithCrashAppPlatforms(shared.SplitCSVUpper(*appPlatform)),
+				asc.WithCrashDevicePlatforms(shared.SplitCSVUpper(*devicePlatform)),
+				asc.WithCrashBuildIDs(shared.SplitCSV(*buildID)),
+				asc.WithCrashBuildPreReleaseVersionIDs(shared.SplitCSV(*buildPreRelease)),
+				asc.WithCrashTesterIDs(shared.SplitCSV(*tester)),
 				asc.WithCrashLimit(*limit),
 				asc.WithCrashNextURL(*next),
 			}
@@ -106,7 +107,7 @@ Examples:
 				}
 
 				format := *output
-				return printOutput(crashes, format, *pretty)
+				return shared.PrintOutput(crashes, format, *pretty)
 			}
 
 			crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
@@ -116,7 +117,7 @@ Examples:
 
 			format := *output
 
-			return printOutput(crashes, format, *pretty)
+			return shared.PrintOutput(crashes, format, *pretty)
 		},
 	}
 }

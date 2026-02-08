@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildsAddGroupsCommand returns the builds add-groups subcommand.
@@ -31,7 +32,7 @@ Examples:
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
   asc builds add-groups --build "BUILD_ID" --group "GROUP1,GROUP2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
@@ -39,18 +40,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			groupIDs := parseCommaSeparatedIDs(*groups)
+			groupIDs := shared.SplitCSV(*groups)
 			if len(groupIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --group is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds add-groups: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.AddBetaGroupsToBuild(requestCtx, trimmedBuildID, groupIDs); err != nil {
@@ -64,7 +65,7 @@ Examples:
 				Action:   "added",
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -89,7 +90,7 @@ Examples:
   asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID" --confirm
   asc builds remove-groups --build "BUILD_ID" --group "GROUP1,GROUP2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
@@ -97,7 +98,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			groupIDs := parseCommaSeparatedIDs(*groups)
+			groupIDs := shared.SplitCSV(*groups)
 			if len(groupIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --group is required")
 				return flag.ErrHelp
@@ -107,12 +108,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds remove-groups: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBetaGroupsFromBuild(requestCtx, trimmedBuildID, groupIDs); err != nil {
@@ -126,7 +127,7 @@ Examples:
 				Action:   "removed",
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

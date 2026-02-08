@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AnalyticsCommand returns the analytics command with subcommands.
@@ -26,7 +27,7 @@ Examples:
   asc analytics instances relationships --instance-id "INSTANCE_ID"
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AnalyticsSalesCommand(),
 			AnalyticsRequestCommand(),

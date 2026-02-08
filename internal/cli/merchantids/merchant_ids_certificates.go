@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // MerchantIDsCertificatesCommand returns the merchant ID certificates command with subcommands.
@@ -26,7 +27,7 @@ Examples:
   asc merchant-ids certificates list --merchant-id "MERCHANT_ID"
   asc merchant-ids certificates get --merchant-id "MERCHANT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MerchantIDsCertificatesListCommand(),
 			MerchantIDsCertificatesGetCommand(),
@@ -66,7 +67,7 @@ Examples:
   asc merchant-ids certificates list --merchant-id "MERCHANT_ID"
   asc merchant-ids certificates list --merchant-id "MERCHANT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
@@ -76,10 +77,10 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("merchant-ids certificates list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("merchant-ids certificates list: %w", err)
 			}
-			if err := validateSort(*sort, certificateSortValues...); err != nil {
+			if err := shared.ValidateSort(*sort, certificateSortValues...); err != nil {
 				return fmt.Errorf("merchant-ids certificates list: %w", err)
 			}
 
@@ -95,17 +96,17 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("merchant-ids certificates list: %w", err)
 			}
-			if len(passTypeFieldsValue) > 0 && !hasInclude(includeValue, "passTypeId") {
+			if len(passTypeFieldsValue) > 0 && !shared.HasInclude(includeValue, "passTypeId") {
 				fmt.Fprintln(os.Stderr, "Error: --pass-type-fields requires --include passTypeId")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("merchant-ids certificates list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.MerchantIDCertificatesOption{
@@ -135,7 +136,7 @@ Examples:
 					return fmt.Errorf("merchant-ids certificates list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetMerchantIDCertificates(requestCtx, merchantIDValue, opts...)
@@ -143,7 +144,7 @@ Examples:
 				return fmt.Errorf("merchant-ids certificates list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -169,7 +170,7 @@ Examples:
   asc merchant-ids certificates get --merchant-id "MERCHANT_ID"
   asc merchant-ids certificates get --merchant-id "MERCHANT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
@@ -179,16 +180,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("merchant-ids certificates get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("merchant-ids certificates get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("merchant-ids certificates get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -210,7 +211,7 @@ Examples:
 					return fmt.Errorf("merchant-ids certificates get: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetMerchantIDCertificatesRelationships(requestCtx, merchantIDValue, opts...)
@@ -218,7 +219,7 @@ Examples:
 				return fmt.Errorf("merchant-ids certificates get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

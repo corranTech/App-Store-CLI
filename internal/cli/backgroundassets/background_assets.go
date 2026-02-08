@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BackgroundAssetsCommand returns the background assets command group.
@@ -32,7 +33,7 @@ Examples:
   asc background-assets app-store-releases get --id "RELEASE_ID"
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BackgroundAssetsListCommand(),
 			BackgroundAssetsGetCommand(),
@@ -74,9 +75,9 @@ Examples:
   asc background-assets list --app "APP_ID" --archived false
   asc background-assets list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -84,7 +85,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return fmt.Errorf("background-assets list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("background-assets list: %w", err)
 			}
 
@@ -97,14 +98,14 @@ Examples:
 				archivedFilter = []string{strconv.FormatBool(value)}
 			}
 
-			assetPackIdentifiers := splitCSV(*assetPackIdentifier)
+			assetPackIdentifiers := shared.SplitCSV(*assetPackIdentifier)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BackgroundAssetsOption{
@@ -132,7 +133,7 @@ Examples:
 					return fmt.Errorf("background-assets list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBackgroundAssets(requestCtx, resolvedAppID, opts...)
@@ -140,7 +141,7 @@ Examples:
 				return fmt.Errorf("background-assets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -162,7 +163,7 @@ func BackgroundAssetsGetCommand() *ffcli.Command {
 Examples:
   asc background-assets get --id "ASSET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
@@ -170,12 +171,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBackgroundAsset(requestCtx, assetIDValue)
@@ -183,7 +184,7 @@ Examples:
 				return fmt.Errorf("background-assets get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -206,9 +207,9 @@ func BackgroundAssetsCreateCommand() *ffcli.Command {
 Examples:
   asc background-assets create --app "APP_ID" --asset-pack-identifier "com.example.assetpack"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -220,12 +221,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateBackgroundAsset(requestCtx, resolvedAppID, assetPackIdentifierValue)
@@ -233,7 +234,7 @@ Examples:
 				return fmt.Errorf("background-assets create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -256,7 +257,7 @@ func BackgroundAssetsUpdateCommand() *ffcli.Command {
 Examples:
   asc background-assets update --id "ASSET_ID" --archived true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
@@ -273,12 +274,12 @@ Examples:
 				return fmt.Errorf("background-assets update: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.BackgroundAssetUpdateAttributes{Archived: &archivedValue}
@@ -287,7 +288,7 @@ Examples:
 				return fmt.Errorf("background-assets update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

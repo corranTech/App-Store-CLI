@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterLeaderboardSetMembersCommand returns the leaderboard set members command group.
@@ -26,7 +27,7 @@ Examples:
   asc game-center leaderboard-sets members list --set-id "SET_ID"
   asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids "id1,id2,id3"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetMembersListCommand(),
 			GameCenterLeaderboardSetMembersSetCommand(),
@@ -59,12 +60,12 @@ Examples:
   asc game-center leaderboard-sets members list --set-id "SET_ID" --limit 50
   asc game-center leaderboard-sets members list --set-id "SET_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center leaderboard-sets members list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center leaderboard-sets members list: %w", err)
 			}
 
@@ -74,12 +75,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets members list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetMembersOption{
@@ -101,7 +102,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboard-sets members list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardSetMembers(requestCtx, id, opts...)
@@ -109,7 +110,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets members list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -136,7 +137,7 @@ Examples:
   asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids "id1,id2,id3"
   asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids ""`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
@@ -155,12 +156,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets members set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.UpdateGameCenterLeaderboardSetMembers(requestCtx, id, ids); err != nil {
@@ -174,7 +175,7 @@ Examples:
 				Updated:     true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

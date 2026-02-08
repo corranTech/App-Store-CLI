@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppsSubscriptionGracePeriodCommand returns the subscription grace period command group.
@@ -22,7 +23,7 @@ func AppsSubscriptionGracePeriodCommand() *ffcli.Command {
 Examples:
   asc apps subscription-grace-period get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppsSubscriptionGracePeriodGetCommand(),
 		},
@@ -49,20 +50,20 @@ func AppsSubscriptionGracePeriodGetCommand() *ffcli.Command {
 Examples:
   asc apps subscription-grace-period get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps subscription-grace-period get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppSubscriptionGracePeriod(requestCtx, resolvedAppID)
@@ -70,7 +71,7 @@ Examples:
 				return fmt.Errorf("apps subscription-grace-period get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

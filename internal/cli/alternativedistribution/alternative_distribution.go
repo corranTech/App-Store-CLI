@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AlternativeDistributionCommand returns the alternative distribution command group.
@@ -24,7 +25,7 @@ Examples:
   asc alternative-distribution keys create --app "APP_ID" --public-key-path "./key.pem"
   asc alternative-distribution packages get --package-id "PACKAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AlternativeDistributionDomainsCommand(),
 			AlternativeDistributionKeysCommand(),

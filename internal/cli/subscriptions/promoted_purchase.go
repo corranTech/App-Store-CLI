@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SubscriptionsPromotedPurchaseCommand returns the promoted purchase command group.
@@ -23,7 +24,7 @@ func SubscriptionsPromotedPurchaseCommand() *ffcli.Command {
 Examples:
   asc subscriptions promoted-purchase get --id "SUBSCRIPTION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsPromotedPurchaseGetCommand(),
 		},
@@ -50,7 +51,7 @@ func SubscriptionsPromotedPurchaseGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions promoted-purchase get --id "SUBSCRIPTION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -58,12 +59,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions promoted-purchase get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionPromotedPurchase(requestCtx, id)
@@ -71,7 +72,7 @@ Examples:
 				return fmt.Errorf("subscriptions promoted-purchase get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

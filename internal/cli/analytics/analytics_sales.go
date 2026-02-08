@@ -40,7 +40,7 @@ Examples:
   asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequency DAILY --date "2024-01-20" --decompress
   asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequency DAILY --date "2024-01-20" --output "reports/daily_sales.tsv.gz"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vendorNumber := shared.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
@@ -88,12 +88,12 @@ Examples:
 			defaultOutput := fmt.Sprintf("sales_report_%s_%s.tsv.gz", reportDate, string(salesType))
 			compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".tsv", *decompress)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics sales: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			download, err := client.GetSalesReport(requestCtx, asc.SalesReportParams{
@@ -136,7 +136,7 @@ Examples:
 				DecompressedSize: decompressedSize,
 			}
 
-			return printOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *outputFormat, *pretty)
 		},
 	}
 }

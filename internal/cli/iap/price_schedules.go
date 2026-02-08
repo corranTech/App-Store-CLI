@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPPriceSchedulesCommand returns the price schedules command group.
@@ -27,7 +28,7 @@ Examples:
   asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID:2024-03-01"
   asc iap price-schedules manual-prices --schedule-id "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPPriceSchedulesGetCommand(),
 			IAPPriceSchedulesBaseTerritoryCommand(),
@@ -67,7 +68,7 @@ Examples:
   asc iap price-schedules get --schedule-id "SCHEDULE_ID"
   asc iap price-schedules get --iap-id "IAP_ID" --include "baseTerritory,manualPrices,automaticPrices" --price-fields "startDate,endDate,manual,inAppPurchasePricePoint,territory" --territory-fields "currency" --manual-prices-limit 50 --automatic-prices-limit 50`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			scheduleValue := strings.TrimSpace(*scheduleID)
@@ -94,25 +95,25 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap price-schedules get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := make([]asc.IAPPriceScheduleOption, 0, 6)
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithIAPPriceScheduleInclude(includeValues))
 			}
-			if values := splitCSV(*scheduleFields); len(values) > 0 {
+			if values := shared.SplitCSV(*scheduleFields); len(values) > 0 {
 				opts = append(opts, asc.WithIAPPriceScheduleFields(values))
 			}
-			if values := splitCSV(*territoryFields); len(values) > 0 {
+			if values := shared.SplitCSV(*territoryFields); len(values) > 0 {
 				opts = append(opts, asc.WithIAPPriceScheduleTerritoryFields(values))
 			}
-			if values := splitCSV(*priceFields); len(values) > 0 {
+			if values := shared.SplitCSV(*priceFields); len(values) > 0 {
 				opts = append(opts, asc.WithIAPPriceSchedulePriceFields(values))
 			}
 			if *manualPricesLimit > 0 {
@@ -128,7 +129,7 @@ Examples:
 					return fmt.Errorf("iap price-schedules get: failed to fetch: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchasePriceSchedule(requestCtx, iapValue, opts...)
@@ -136,13 +137,13 @@ Examples:
 				return fmt.Errorf("iap price-schedules get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
 
 func normalizeIAPPriceScheduleInclude(value string) ([]string, error) {
-	parts := splitCSV(value)
+	parts := shared.SplitCSV(value)
 	if len(parts) == 0 {
 		return nil, nil
 	}
@@ -185,7 +186,7 @@ func IAPPriceSchedulesBaseTerritoryCommand() *ffcli.Command {
 Examples:
   asc iap price-schedules base-territory --schedule-id "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" {
@@ -193,12 +194,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap price-schedules base-territory: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchasePriceScheduleBaseTerritory(requestCtx, id)
@@ -206,7 +207,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules base-territory: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -230,7 +231,7 @@ func IAPPriceSchedulesCreateCommand() *ffcli.Command {
 Examples:
   asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID:2024-03-01"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -253,12 +254,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap price-schedules create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateInAppPurchasePriceSchedule(requestCtx, iapValue, asc.InAppPurchasePriceScheduleCreateAttributes{
@@ -269,7 +270,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -295,12 +296,12 @@ Examples:
   asc iap price-schedules manual-prices --schedule-id "SCHEDULE_ID"
   asc iap price-schedules manual-prices --schedule-id "SCHEDULE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap price-schedules manual-prices: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap price-schedules manual-prices: %w", err)
 			}
 
@@ -310,12 +311,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap price-schedules manual-prices: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPPriceSchedulePricesOption{
@@ -337,7 +338,7 @@ Examples:
 					return fmt.Errorf("iap price-schedules manual-prices: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchasePriceScheduleManualPrices(requestCtx, id, opts...)
@@ -345,7 +346,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules manual-prices: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -371,12 +372,12 @@ Examples:
   asc iap price-schedules automatic-prices --schedule-id "SCHEDULE_ID"
   asc iap price-schedules automatic-prices --schedule-id "SCHEDULE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap price-schedules automatic-prices: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap price-schedules automatic-prices: %w", err)
 			}
 
@@ -386,12 +387,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap price-schedules automatic-prices: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPPriceSchedulePricesOption{
@@ -413,7 +414,7 @@ Examples:
 					return fmt.Errorf("iap price-schedules automatic-prices: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(requestCtx, id, opts...)
@@ -421,7 +422,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules automatic-prices: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

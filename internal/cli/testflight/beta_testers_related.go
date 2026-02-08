@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BetaTestersAppsCommand returns the beta-testers apps command group.
@@ -25,7 +26,7 @@ func BetaTestersAppsCommand() *ffcli.Command {
 Examples:
   asc testflight beta-testers apps list --tester-id "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaTestersAppsListCommand(),
 		},
@@ -57,12 +58,12 @@ Examples:
   asc testflight beta-testers apps list --tester-id "TESTER_ID"
   asc testflight beta-testers apps list --tester-id "TESTER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight beta-testers apps list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-testers apps list: %w", err)
 			}
 
@@ -78,12 +79,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-testers apps list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaTesterAppsOption{
@@ -107,7 +108,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers apps list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBetaTesterApps(requestCtx, testerValue, opts...)
@@ -115,7 +116,7 @@ Examples:
 				return fmt.Errorf("testflight beta-testers apps list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -133,7 +134,7 @@ func BetaTestersBetaGroupsCommand() *ffcli.Command {
 Examples:
   asc testflight beta-testers beta-groups list --tester-id "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaTestersBetaGroupsListCommand(),
 		},
@@ -165,12 +166,12 @@ Examples:
   asc testflight beta-testers beta-groups list --tester-id "TESTER_ID"
   asc testflight beta-testers beta-groups list --tester-id "TESTER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight beta-testers beta-groups list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-testers beta-groups list: %w", err)
 			}
 
@@ -186,12 +187,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-testers beta-groups list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaTesterBetaGroupsOption{
@@ -215,7 +216,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers beta-groups list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBetaTesterBetaGroups(requestCtx, testerValue, opts...)
@@ -223,7 +224,7 @@ Examples:
 				return fmt.Errorf("testflight beta-testers beta-groups list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -241,7 +242,7 @@ func BetaTestersBuildsCommand() *ffcli.Command {
 Examples:
   asc testflight beta-testers builds list --tester-id "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaTestersBuildsListCommand(),
 		},
@@ -273,12 +274,12 @@ Examples:
   asc testflight beta-testers builds list --tester-id "TESTER_ID"
   asc testflight beta-testers builds list --tester-id "TESTER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight beta-testers builds list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-testers builds list: %w", err)
 			}
 
@@ -294,12 +295,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-testers builds list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaTesterBuildsOption{
@@ -323,7 +324,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers builds list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBetaTesterBuilds(requestCtx, testerValue, opts...)
@@ -331,7 +332,7 @@ Examples:
 				return fmt.Errorf("testflight beta-testers builds list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

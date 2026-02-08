@@ -27,7 +27,7 @@ Examples:
   asc subscriptions images list --subscription-id "SUB_ID"
   asc subscriptions images create --subscription-id "SUB_ID" --file "./image.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsImagesListCommand(),
 			SubscriptionsImagesGetCommand(),
@@ -62,12 +62,12 @@ Examples:
   asc subscriptions images list --subscription-id "SUB_ID"
   asc subscriptions images list --subscription-id "SUB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions images list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions images list: %w", err)
 			}
 
@@ -77,12 +77,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions images list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionImagesOption{
@@ -104,7 +104,7 @@ Examples:
 					return fmt.Errorf("subscriptions images list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionImages(requestCtx, id, opts...)
@@ -112,7 +112,7 @@ Examples:
 				return fmt.Errorf("subscriptions images list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -134,7 +134,7 @@ func SubscriptionsImagesGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions images get --id "IMAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
@@ -142,12 +142,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions images get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionImage(requestCtx, id)
@@ -155,7 +155,7 @@ Examples:
 				return fmt.Errorf("subscriptions images get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -178,7 +178,7 @@ func SubscriptionsImagesCreateCommand() *ffcli.Command {
 Examples:
   asc subscriptions images create --subscription-id "SUB_ID" --file "./image.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -198,12 +198,12 @@ Examples:
 			}
 			defer file.Close()
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions images create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithUploadTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateSubscriptionImage(requestCtx, id, info.Name(), info.Size())
@@ -234,10 +234,10 @@ Examples:
 				return fmt.Errorf("subscriptions images create: failed to commit upload: %w", err)
 			}
 			if commitResp != nil {
-				return printOutput(commitResp, *output, *pretty)
+				return shared.PrintOutput(commitResp, *output, *pretty)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -262,7 +262,7 @@ func SubscriptionsImagesUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions images update --id "IMAGE_ID" --uploaded true --checksum "HASH"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
@@ -276,12 +276,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions images update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionImageUpdateAttributes{}
@@ -298,7 +298,7 @@ Examples:
 				return fmt.Errorf("subscriptions images update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -321,7 +321,7 @@ func SubscriptionsImagesDeleteCommand() *ffcli.Command {
 Examples:
   asc subscriptions images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
@@ -333,12 +333,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions images delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteSubscriptionImage(requestCtx, id); err != nil {
@@ -346,7 +346,7 @@ Examples:
 			}
 
 			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

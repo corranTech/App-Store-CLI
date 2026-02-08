@@ -30,7 +30,7 @@ Examples:
   asc product-pages experiments create --version-id "VERSION_ID" --name "Icon Test" --traffic-proportion 25
   asc product-pages experiments create --v2 --app "APP_ID" --platform IOS --name "Icon Test" --traffic-proportion 25`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ExperimentsListCommand(),
 			ExperimentsGetCommand(),
@@ -71,34 +71,34 @@ Examples:
   asc product-pages experiments list --version-id "VERSION_ID" --state IN_REVIEW
   asc product-pages experiments list --v2 --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("experiments list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("experiments list: %w", err)
 			}
 
-			stateValues, err := normalizeExperimentStates(splitCSVUpper(*state))
+			stateValues, err := normalizeExperimentStates(shared.SplitCSVUpper(*state))
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
 
 			if *v2 {
-				resolvedAppID := resolveAppID(*appID)
+				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("experiments list: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				opts := []asc.AppStoreVersionExperimentsV2Option{
@@ -121,7 +121,7 @@ Examples:
 						return fmt.Errorf("experiments list: %w", err)
 					}
 
-					return printOutput(paginated, *output, *pretty)
+					return shared.PrintOutput(paginated, *output, *pretty)
 				}
 
 				resp, err := client.GetAppStoreVersionExperimentsV2(requestCtx, resolvedAppID, opts...)
@@ -129,7 +129,7 @@ Examples:
 					return fmt.Errorf("experiments list: failed to fetch: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
@@ -138,12 +138,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentsOption{
@@ -166,7 +166,7 @@ Examples:
 					return fmt.Errorf("experiments list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperiments(requestCtx, trimmedVersionID, opts...)
@@ -174,7 +174,7 @@ Examples:
 				return fmt.Errorf("experiments list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -198,7 +198,7 @@ Examples:
   asc product-pages experiments get --experiment-id "EXPERIMENT_ID"
   asc product-pages experiments get --experiment-id "EXPERIMENT_ID" --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
@@ -206,12 +206,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if *v2 {
@@ -219,7 +219,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("experiments get: failed to fetch: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperiment(requestCtx, trimmedID)
@@ -227,7 +227,7 @@ Examples:
 				return fmt.Errorf("experiments get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -255,7 +255,7 @@ Examples:
   asc product-pages experiments create --version-id "VERSION_ID" --name "Icon Test" --traffic-proportion 25
   asc product-pages experiments create --v2 --app "APP_ID" --platform IOS --name "Icon Test" --traffic-proportion 25`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
@@ -270,7 +270,7 @@ Examples:
 			}
 
 			if *v2 {
-				resolvedAppID := resolveAppID(*appID)
+				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 					return flag.ErrHelp
@@ -282,12 +282,12 @@ Examples:
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("experiments create: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				resp, err := client.CreateAppStoreVersionExperimentV2(requestCtx, resolvedAppID, platformValue, nameValue, trafficValue)
@@ -295,7 +295,7 @@ Examples:
 					return fmt.Errorf("experiments create: failed to create: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
@@ -304,12 +304,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionExperiment(requestCtx, trimmedVersionID, nameValue, trafficValue)
@@ -317,7 +317,7 @@ Examples:
 				return fmt.Errorf("experiments create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -347,7 +347,7 @@ Examples:
   asc product-pages experiments update --experiment-id "EXPERIMENT_ID" --started true
   asc product-pages experiments update --experiment-id "EXPERIMENT_ID" --v2 --name "Updated"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
@@ -371,12 +371,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if *v2 {
@@ -397,7 +397,7 @@ Examples:
 					return fmt.Errorf("experiments update: failed to update: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			attrs := asc.AppStoreVersionExperimentUpdateAttributes{}
@@ -417,7 +417,7 @@ Examples:
 				return fmt.Errorf("experiments update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -442,7 +442,7 @@ Examples:
   asc product-pages experiments delete --experiment-id "EXPERIMENT_ID" --confirm
   asc product-pages experiments delete --experiment-id "EXPERIMENT_ID" --confirm --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
@@ -454,12 +454,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if *v2 {
@@ -473,7 +473,7 @@ Examples:
 			}
 
 			result := &asc.AppStoreVersionExperimentDeleteResult{ID: trimmedID, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

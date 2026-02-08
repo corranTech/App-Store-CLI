@@ -27,7 +27,7 @@ Examples:
   asc beta-app-localizations list --app "APP_ID"
   asc beta-app-localizations create --app "APP_ID" --locale "en-US" --description "Welcome testers"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaAppLocalizationsListCommand(),
 			BetaAppLocalizationsGetCommand(),
@@ -65,32 +65,32 @@ Examples:
   asc beta-app-localizations list --app "APP_ID" --locale "en-US,ja"
   asc beta-app-localizations list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("beta-app-localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("beta-app-localizations list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
 				return fmt.Errorf("beta-app-localizations list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaAppLocalizationsOption{
@@ -117,7 +117,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("beta-app-localizations list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBetaAppLocalizations(requestCtx, opts...)
@@ -125,7 +125,7 @@ Examples:
 				return fmt.Errorf("beta-app-localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -147,7 +147,7 @@ func BetaAppLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc beta-app-localizations get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -155,12 +155,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaAppLocalization(requestCtx, idValue)
@@ -168,7 +168,7 @@ Examples:
 				return fmt.Errorf("beta-app-localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -197,9 +197,9 @@ Examples:
   asc beta-app-localizations create --app "APP_ID" --locale "en-US"
   asc beta-app-localizations create --app "APP_ID" --locale "en-US" --description "Welcome testers"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -234,12 +234,12 @@ Examples:
 				attrs.TvOsPrivacyPolicy = value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateBetaAppLocalization(requestCtx, resolvedAppID, attrs)
@@ -247,7 +247,7 @@ Examples:
 				return fmt.Errorf("beta-app-localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -275,7 +275,7 @@ Examples:
   asc beta-app-localizations update --id "LOCALIZATION_ID" --description "Updated copy"
   asc beta-app-localizations update --id "LOCALIZATION_ID" --feedback-email "qa@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -320,12 +320,12 @@ Examples:
 				attrs.TvOsPrivacyPolicy = &value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateBetaAppLocalization(requestCtx, idValue, attrs)
@@ -333,7 +333,7 @@ Examples:
 				return fmt.Errorf("beta-app-localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -356,7 +356,7 @@ func BetaAppLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc beta-app-localizations delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -368,12 +368,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaAppLocalization(requestCtx, idValue); err != nil {
@@ -385,7 +385,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PerformanceDiagnosticsCommand returns the diagnostics subcommand group.
@@ -26,7 +27,7 @@ Examples:
   asc performance diagnostics list --build "BUILD_ID"
   asc performance diagnostics get --id "SIGNATURE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PerformanceDiagnosticsListCommand(),
 			PerformanceDiagnosticsGetCommand(),
@@ -60,7 +61,7 @@ Examples:
   asc performance diagnostics list --build "BUILD_ID"
   asc performance diagnostics list --build "BUILD_ID" --diagnostic-type "HANGS" --limit 50`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
@@ -71,7 +72,7 @@ Examples:
 				return fmt.Errorf("performance diagnostics list: --limit must be between 1 and 200")
 			}
 
-			diagnosticTypes, err := normalizeDiagnosticSignatureTypes(splitCSVUpper(*diagnosticType))
+			diagnosticTypes, err := normalizeDiagnosticSignatureTypes(shared.SplitCSVUpper(*diagnosticType))
 			if err != nil {
 				return fmt.Errorf("performance diagnostics list: %w", err)
 			}
@@ -80,12 +81,12 @@ Examples:
 				return fmt.Errorf("performance diagnostics list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("performance diagnostics list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.DiagnosticSignaturesOption{
@@ -109,7 +110,7 @@ Examples:
 					return fmt.Errorf("performance diagnostics list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetDiagnosticSignaturesForBuild(requestCtx, trimmedBuildID, opts...)
@@ -117,7 +118,7 @@ Examples:
 				return fmt.Errorf("performance diagnostics list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -141,7 +142,7 @@ Examples:
   asc performance diagnostics get --id "SIGNATURE_ID"
   asc performance diagnostics get --id "SIGNATURE_ID" --limit 50`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*signatureID)
 			if trimmedID == "" {
@@ -152,12 +153,12 @@ Examples:
 				return fmt.Errorf("performance diagnostics get: --limit must be between 1 and 200")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("performance diagnostics get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetDiagnosticSignatureLogs(requestCtx, trimmedID, asc.WithDiagnosticLogsLimit(*limit))
@@ -165,7 +166,7 @@ Examples:
 				return fmt.Errorf("performance diagnostics get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -207,7 +208,7 @@ func diagnosticSignatureFieldList() []string {
 }
 
 func normalizeDiagnosticSignatureFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}

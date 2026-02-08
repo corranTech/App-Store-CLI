@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPImagesCommand returns the images command group.
@@ -29,7 +30,7 @@ Examples:
   asc iap images update --image-id "IMAGE_ID" --file "./image.png"
   asc iap images delete --image-id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPImagesListCommand(),
 			IAPImagesGetCommand(),
@@ -64,12 +65,12 @@ Examples:
   asc iap images list --iap-id "IAP_ID"
   asc iap images list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap images list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap images list: %w", err)
 			}
 
@@ -79,12 +80,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap images list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPImagesOption{
@@ -106,7 +107,7 @@ Examples:
 					return fmt.Errorf("iap images list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseImages(requestCtx, iapValue, opts...)
@@ -114,7 +115,7 @@ Examples:
 				return fmt.Errorf("iap images list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -136,7 +137,7 @@ func IAPImagesGetCommand() *ffcli.Command {
 Examples:
   asc iap images get --image-id "IMAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			imageValue := strings.TrimSpace(*imageID)
 			if imageValue == "" {
@@ -144,12 +145,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap images get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchaseImage(requestCtx, imageValue)
@@ -157,7 +158,7 @@ Examples:
 				return fmt.Errorf("iap images get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -180,7 +181,7 @@ func IAPImagesCreateCommand() *ffcli.Command {
 Examples:
   asc iap images create --iap-id "IAP_ID" --file "./image.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -204,7 +205,7 @@ Examples:
 				return fmt.Errorf("iap images create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap images create: %w", err)
 			}
@@ -237,7 +238,7 @@ Examples:
 				return fmt.Errorf("iap images create: failed to fetch: %w", err)
 			}
 
-			return printOutput(finalResp, *output, *pretty)
+			return shared.PrintOutput(finalResp, *output, *pretty)
 		},
 	}
 }
@@ -260,7 +261,7 @@ func IAPImagesUpdateCommand() *ffcli.Command {
 Examples:
   asc iap images update --image-id "IMAGE_ID" --file "./image.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			imageValue := strings.TrimSpace(*imageID)
 			if imageValue == "" {
@@ -284,7 +285,7 @@ Examples:
 				return fmt.Errorf("iap images update: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap images update: %w", err)
 			}
@@ -341,7 +342,7 @@ Examples:
 				}
 			}
 
-			return printOutput(updated, *output, *pretty)
+			return shared.PrintOutput(updated, *output, *pretty)
 		},
 	}
 }
@@ -364,7 +365,7 @@ func IAPImagesDeleteCommand() *ffcli.Command {
 Examples:
   asc iap images delete --image-id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			imageValue := strings.TrimSpace(*imageID)
 			if imageValue == "" {
@@ -376,12 +377,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap images delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteInAppPurchaseImage(requestCtx, imageValue); err != nil {
@@ -393,7 +394,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

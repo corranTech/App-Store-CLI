@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPAvailabilitiesCommand returns the availabilities command group.
@@ -26,7 +27,7 @@ Examples:
   asc iap availabilities get --id "AVAILABILITY_ID"
   asc iap availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPAvailabilitiesGetCommand(),
 			IAPAvailabilitiesAvailableTerritoriesCommand(),
@@ -54,7 +55,7 @@ func IAPAvailabilitiesGetCommand() *ffcli.Command {
 Examples:
   asc iap availabilities get --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*availabilityID)
 			if id == "" {
@@ -62,12 +63,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap availabilities get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchaseAvailabilityByID(requestCtx, id)
@@ -75,7 +76,7 @@ Examples:
 				return fmt.Errorf("iap availabilities get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -101,12 +102,12 @@ Examples:
   asc iap availabilities available-territories --id "AVAILABILITY_ID"
   asc iap availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap availabilities available-territories: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap availabilities available-territories: %w", err)
 			}
 
@@ -116,12 +117,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap availabilities available-territories: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPAvailabilityTerritoriesOption{
@@ -143,7 +144,7 @@ Examples:
 					return fmt.Errorf("iap availabilities available-territories: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseAvailabilityAvailableTerritories(requestCtx, id, opts...)
@@ -151,7 +152,7 @@ Examples:
 				return fmt.Errorf("iap availabilities available-territories: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPAvailabilityCommand returns the availability command group.
@@ -24,7 +25,7 @@ Examples:
   asc iap availability get --iap-id "IAP_ID"
   asc iap availability set --iap-id "IAP_ID" --territories "USA,CAN"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPAvailabilityGetCommand(),
 			IAPAvailabilitySetCommand(),
@@ -52,7 +53,7 @@ func IAPAvailabilityGetCommand() *ffcli.Command {
 Examples:
   asc iap availability get --iap-id "IAP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -60,12 +61,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap availability get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchaseAvailability(requestCtx, iapValue)
@@ -73,7 +74,7 @@ Examples:
 				return fmt.Errorf("iap availability get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -97,7 +98,7 @@ func IAPAvailabilitySetCommand() *ffcli.Command {
 Examples:
   asc iap availability set --iap-id "IAP_ID" --territories "USA,CAN"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -105,18 +106,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			territoryIDs := splitCSVUpper(*territories)
+			territoryIDs := shared.SplitCSVUpper(*territories)
 			if len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territories is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap availability set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateInAppPurchaseAvailability(requestCtx, iapValue, *availableInNew, territoryIDs)
@@ -124,7 +125,7 @@ Examples:
 				return fmt.Errorf("iap availability set: failed to set: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

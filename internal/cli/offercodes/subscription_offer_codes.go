@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var offerCodeDurationValues = []string{
@@ -70,7 +71,7 @@ var offerCodeCustomerEligibilityMap = map[string]asc.SubscriptionCustomerEligibi
 }
 
 func parseOfferCodePrices(value string) ([]asc.SubscriptionOfferCodePrice, error) {
-	entries := parseCommaSeparatedIDs(value)
+	entries := shared.SplitCSV(value)
 	if len(entries) == 0 {
 		return nil, nil
 	}
@@ -112,7 +113,7 @@ func OfferCodesGetCommand() *ffcli.Command {
 Examples:
   asc offer-codes get --offer-code-id "OFFER_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*offerCodeID)
 			if trimmedID == "" {
@@ -120,12 +121,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionOfferCode(requestCtx, trimmedID)
@@ -133,7 +134,7 @@ Examples:
 				return fmt.Errorf("offer-codes get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -165,7 +166,7 @@ func OfferCodesCreateCommand() *ffcli.Command {
 Examples:
   asc offer-codes create --subscription-id "SUB_ID" --name "SPRING" --customer-eligibilities NEW --offer-eligibility STACK_WITH_INTRO_OFFERS --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "USA:PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			subscription := strings.TrimSpace(*subscriptionID)
 			if subscription == "" {
@@ -236,17 +237,17 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			autoRenewEnabledValue, err := parseOptionalBoolFlag("--auto-renew-enabled", *autoRenewEnabled)
+			autoRenewEnabledValue, err := shared.ParseOptionalBoolFlag("--auto-renew-enabled", *autoRenewEnabled)
 			if err != nil {
 				return fmt.Errorf("offer-codes create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionOfferCodeCreateAttributes{
@@ -264,7 +265,7 @@ Examples:
 				return fmt.Errorf("offer-codes create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -287,7 +288,7 @@ func OfferCodesUpdateCommand() *ffcli.Command {
 Examples:
   asc offer-codes update --offer-code-id "OFFER_CODE_ID" --active true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*offerCodeID)
 			if trimmedID == "" {
@@ -295,7 +296,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			activeValue, err := parseOptionalBoolFlag("--active", *active)
+			activeValue, err := shared.ParseOptionalBoolFlag("--active", *active)
 			if err != nil {
 				return fmt.Errorf("offer-codes update: %w", err)
 			}
@@ -304,12 +305,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateSubscriptionOfferCode(requestCtx, trimmedID, asc.SubscriptionOfferCodeUpdateAttributes{Active: activeValue})
@@ -317,7 +318,7 @@ Examples:
 				return fmt.Errorf("offer-codes update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -378,7 +379,7 @@ func normalizeOfferCodeEligibility(value string) (asc.SubscriptionOfferEligibili
 }
 
 func normalizeOfferCodeCustomerEligibilities(value string) ([]asc.SubscriptionCustomerEligibility, error) {
-	values := parseCommaSeparatedIDs(value)
+	values := shared.SplitCSV(value)
 	if len(values) == 0 {
 		return nil, nil
 	}

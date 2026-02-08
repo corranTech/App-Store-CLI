@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BetaCrashLogsCommand returns the beta-crash-logs command group.
@@ -23,7 +24,7 @@ func BetaCrashLogsCommand() *ffcli.Command {
 Examples:
   asc testflight beta-crash-logs get --id "CRASH_LOG_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaCrashLogsGetCommand(),
 		},
@@ -50,7 +51,7 @@ func BetaCrashLogsGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-crash-logs get --id "CRASH_LOG_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -58,12 +59,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-crash-logs get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaCrashLog(requestCtx, idValue)
@@ -71,7 +72,7 @@ Examples:
 				return fmt.Errorf("testflight beta-crash-logs get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

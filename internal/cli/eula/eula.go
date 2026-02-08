@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // EULACommand returns the end user license agreements command with subcommands.
@@ -31,7 +32,7 @@ Examples:
   asc eula update --id "EULA_ID" --territory "USA,CAN"
   asc eula delete --id "EULA_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			EULAGetCommand(),
 			EULAListCommand(),
@@ -64,12 +65,12 @@ Examples:
   asc eula get --id "EULA_ID"
   asc eula get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
 			if idValue == "" {
-				appValue = resolveAppID(*appID)
+				appValue = shared.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --app is required (or set ASC_APP_ID)")
@@ -80,12 +81,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("eula get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var resp *asc.EndUserLicenseAgreementResponse
@@ -98,7 +99,7 @@ Examples:
 				return fmt.Errorf("eula get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -120,20 +121,20 @@ func EULAListCommand() *ffcli.Command {
 Examples:
   asc eula list --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appValue := resolveAppID(*appID)
+			appValue := shared.ResolveAppID(*appID)
 			if appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("eula list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetEndUserLicenseAgreementForApp(requestCtx, appValue)
@@ -141,7 +142,7 @@ Examples:
 				return fmt.Errorf("eula list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -165,9 +166,9 @@ func EULACreateCommand() *ffcli.Command {
 Examples:
   asc eula create --app "APP_ID" --agreement-text "Terms..." --territory "USA,CAN"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appValue := resolveAppID(*appID)
+			appValue := shared.ResolveAppID(*appID)
 			if appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -178,18 +179,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			territoryIDs := parseCommaSeparatedIDs(*territories)
+			territoryIDs := shared.SplitCSV(*territories)
 			if len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territory is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("eula create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateEndUserLicenseAgreement(requestCtx, appValue, agreementValue, territoryIDs)
@@ -197,7 +198,7 @@ Examples:
 				return fmt.Errorf("eula create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -222,7 +223,7 @@ Examples:
   asc eula update --id "EULA_ID" --agreement-text "Updated terms"
   asc eula update --id "EULA_ID" --territory "USA,CAN"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -236,18 +237,18 @@ Examples:
 				agreementValue = &value
 			}
 
-			territoryIDs := parseCommaSeparatedIDs(*territories)
+			territoryIDs := shared.SplitCSV(*territories)
 			if agreementValue == nil && len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --agreement-text or --territory is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("eula update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateEndUserLicenseAgreement(requestCtx, idValue, agreementValue, territoryIDs)
@@ -255,7 +256,7 @@ Examples:
 				return fmt.Errorf("eula update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -278,7 +279,7 @@ func EULADeleteCommand() *ffcli.Command {
 Examples:
   asc eula delete --id "EULA_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -290,12 +291,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("eula delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteEndUserLicenseAgreement(requestCtx, idValue); err != nil {
@@ -307,7 +308,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

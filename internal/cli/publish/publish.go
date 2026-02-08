@@ -31,7 +31,7 @@ Combines upload, distribution, and submission into single commands.
 Examples:
   asc publish testflight --app APP_ID --ipa app.ipa --group GROUP_ID
   asc publish appstore --app APP_ID --ipa app.ipa --version 1.2.3 --submit --confirm`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PublishTestFlightCommand(),
 			PublishAppStoreCommand(),
@@ -79,9 +79,9 @@ Examples:
   asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID" --test-notes "Test instructions" --locale "en-US" --wait`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -91,7 +91,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			parsedGroupIDs := parseCommaSeparatedIDs(*groupIDs)
+			parsedGroupIDs := shared.SplitCSV(*groupIDs)
 			if len(parsedGroupIDs) == 0 {
 				fmt.Fprintf(os.Stderr, "Error: --group is required\n\n")
 				return flag.ErrHelp
@@ -120,7 +120,7 @@ Examples:
 				return fmt.Errorf("publish testflight: --timeout must be greater than 0")
 			}
 
-			normalizedPlatform, err := normalizeSubmitPlatform(*platform)
+			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
 				return fmt.Errorf("publish testflight: %w", err)
 			}
@@ -135,7 +135,7 @@ Examples:
 				return fmt.Errorf("publish testflight: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("publish testflight: %w", err)
 			}
@@ -184,7 +184,7 @@ Examples:
 				Notified:        *notify,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -223,14 +223,14 @@ Examples:
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --submit --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *submit && !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --submit")
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -246,7 +246,7 @@ Examples:
 				return fmt.Errorf("publish appstore: --timeout must be greater than 0")
 			}
 
-			normalizedPlatform, err := normalizeSubmitPlatform(*platform)
+			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
 				return fmt.Errorf("publish appstore: %w", err)
 			}
@@ -261,7 +261,7 @@ Examples:
 				return fmt.Errorf("publish appstore: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("publish appstore: %w", err)
 			}
@@ -321,7 +321,7 @@ Examples:
 				result.Submitted = true
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -382,7 +382,7 @@ func contextWithPublishUploadTimeout(ctx context.Context, timeout time.Duration,
 		}
 		return context.WithTimeout(ctx, timeout)
 	}
-	return contextWithUploadTimeout(ctx)
+	return shared.ContextWithUploadTimeout(ctx)
 }
 
 func validateIPAPath(ipaPath string) (os.FileInfo, error) {

@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BundleIDsCapabilitiesCommand returns the bundle IDs capabilities command group.
@@ -28,7 +29,7 @@ Examples:
   asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD
   asc bundle-ids capabilities remove --id "CAPABILITY_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BundleIDsCapabilitiesListCommand(),
 			BundleIDsCapabilitiesAddCommand(),
@@ -60,9 +61,9 @@ Examples:
   asc bundle-ids capabilities list --bundle "BUNDLE_ID"
   asc bundle-ids capabilities list --bundle "BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("bundle-ids capabilities list: %w", err)
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
@@ -71,12 +72,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BundleIDCapabilitiesOption{
@@ -96,7 +97,7 @@ Examples:
 					return fmt.Errorf("bundle-ids capabilities list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetBundleIDCapabilities(requestCtx, bundleValue, opts...)
@@ -104,7 +105,7 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -129,7 +130,7 @@ Examples:
   asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD
   asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_13","enabled":true}]}]'`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
@@ -147,12 +148,12 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities add: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities add: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.BundleIDCapabilityCreateAttributes{
@@ -164,7 +165,7 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -187,7 +188,7 @@ func BundleIDsCapabilitiesRemoveCommand() *ffcli.Command {
 Examples:
   asc bundle-ids capabilities remove --id "CAPABILITY_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -199,12 +200,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities remove: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBundleIDCapability(requestCtx, idValue); err != nil {
@@ -216,7 +217,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

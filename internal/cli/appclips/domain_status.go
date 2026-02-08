@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipDomainStatusCommand returns the domain status command group.
@@ -26,7 +27,7 @@ Examples:
   asc app-clips domain-status cache --build-bundle-id "BUILD_BUNDLE_ID"
   asc app-clips domain-status debug --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipDomainStatusCacheCommand(),
 			AppClipDomainStatusDebugCommand(),
@@ -54,7 +55,7 @@ func AppClipDomainStatusCacheCommand() *ffcli.Command {
 Examples:
   asc app-clips domain-status cache --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
@@ -62,25 +63,25 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips domain-status cache: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildBundleAppClipDomainCacheStatus(requestCtx, buildBundleValue)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return printOutput(result, *output, *pretty)
+					return shared.PrintOutput(result, *output, *pretty)
 				}
 				return fmt.Errorf("app-clips domain-status cache: failed to fetch: %w", err)
 			}
 
 			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -102,7 +103,7 @@ func AppClipDomainStatusDebugCommand() *ffcli.Command {
 Examples:
   asc app-clips domain-status debug --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
@@ -110,25 +111,25 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips domain-status debug: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildBundleAppClipDomainDebugStatus(requestCtx, buildBundleValue)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return printOutput(result, *output, *pretty)
+					return shared.PrintOutput(result, *output, *pretty)
 				}
 				return fmt.Errorf("app-clips domain-status debug: failed to fetch: %w", err)
 			}
 
 			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

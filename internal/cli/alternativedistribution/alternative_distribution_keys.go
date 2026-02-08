@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AlternativeDistributionKeysCommand returns the keys command group.
@@ -29,7 +30,7 @@ Examples:
   asc alternative-distribution keys delete --key-id "KEY_ID" --confirm
   asc alternative-distribution keys app --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AlternativeDistributionKeysListCommand(),
 			AlternativeDistributionKeysGetCommand(),
@@ -64,21 +65,21 @@ Examples:
   asc alternative-distribution keys list --limit 50
   asc alternative-distribution keys list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
 				return fmt.Errorf("alternative-distribution keys list: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("alternative-distribution keys list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution keys list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionKeysOption{
@@ -100,7 +101,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution keys list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionKeys(requestCtx, opts...)
@@ -108,7 +109,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution keys list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -130,7 +131,7 @@ func AlternativeDistributionKeysGetCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution keys get --key-id "KEY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*keyID)
 			if trimmedID == "" {
@@ -138,12 +139,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution keys get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAlternativeDistributionKey(requestCtx, trimmedID)
@@ -151,7 +152,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution keys get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -176,9 +177,9 @@ Examples:
   asc alternative-distribution keys create --app "APP_ID" --public-key "KEY_DATA"
   asc alternative-distribution keys create --app "APP_ID" --public-key-path "./key.pem"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -201,12 +202,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution keys create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAlternativeDistributionKey(requestCtx, resolvedAppID, keyValue)
@@ -214,7 +215,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution keys create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -237,7 +238,7 @@ func AlternativeDistributionKeysDeleteCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution keys delete --key-id "KEY_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*keyID)
 			if trimmedID == "" {
@@ -249,12 +250,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution keys delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAlternativeDistributionKey(requestCtx, trimmedID); err != nil {
@@ -266,7 +267,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -288,20 +289,20 @@ func AlternativeDistributionKeysAppCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution keys app --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution keys app: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppAlternativeDistributionKey(requestCtx, resolvedAppID)
@@ -309,7 +310,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution keys app: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

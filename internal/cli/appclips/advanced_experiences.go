@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipAdvancedExperiencesCommand returns the advanced experiences command group.
@@ -26,7 +27,7 @@ Examples:
   asc app-clips advanced-experiences list --app-clip-id "CLIP_ID"
   asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipAdvancedExperiencesListCommand(),
 			AppClipAdvancedExperiencesGetCommand(),
@@ -65,12 +66,12 @@ Examples:
   asc app-clips advanced-experiences list --app-clip-id "CLIP_ID"
   asc app-clips advanced-experiences list --app-clip-id "CLIP_ID" --action OPEN`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-clips advanced-experiences list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-clips advanced-experiences list: %w", err)
 			}
 
@@ -85,20 +86,20 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppClipAdvancedExperiencesOption{
 				asc.WithAppClipAdvancedExperiencesLimit(*limit),
 				asc.WithAppClipAdvancedExperiencesNextURL(*next),
 				asc.WithAppClipAdvancedExperiencesActions(actionValues),
-				asc.WithAppClipAdvancedExperiencesStatuses(splitCSVUpper(*status)),
-				asc.WithAppClipAdvancedExperiencesPlaceStatuses(splitCSVUpper(*placeStatus)),
+				asc.WithAppClipAdvancedExperiencesStatuses(shared.SplitCSVUpper(*status)),
+				asc.WithAppClipAdvancedExperiencesPlaceStatuses(shared.SplitCSVUpper(*placeStatus)),
 			}
 
 			if *paginate {
@@ -107,7 +108,7 @@ Examples:
 				if err != nil {
 					if asc.IsNotFound(err) {
 						empty := &asc.AppClipAdvancedExperiencesResponse{Data: []asc.Resource[asc.AppClipAdvancedExperienceAttributes]{}}
-						return printOutput(empty, *output, *pretty)
+						return shared.PrintOutput(empty, *output, *pretty)
 					}
 					return fmt.Errorf("app-clips advanced-experiences list: failed to fetch: %w", err)
 				}
@@ -119,19 +120,19 @@ Examples:
 					return fmt.Errorf("app-clips advanced-experiences list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppClipAdvancedExperiences(requestCtx, appClipValue, opts...)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.AppClipAdvancedExperiencesResponse{Data: []asc.Resource[asc.AppClipAdvancedExperienceAttributes]{}}
-					return printOutput(empty, *output, *pretty)
+					return shared.PrintOutput(empty, *output, *pretty)
 				}
 				return fmt.Errorf("app-clips advanced-experiences list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -153,7 +154,7 @@ func AppClipAdvancedExperiencesGetCommand() *ffcli.Command {
 Examples:
   asc app-clips advanced-experiences get --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*experienceID)
 			if idValue == "" {
@@ -161,12 +162,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipAdvancedExperience(requestCtx, idValue)
@@ -174,7 +175,7 @@ Examples:
 				return fmt.Errorf("app-clips advanced-experiences get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -206,7 +207,7 @@ Examples:
   asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by
   asc app-clips advanced-experiences create --app "APP_ID" --bundle-id "com.example.clip" --link "https://example.com" --default-language EN --is-powered-by`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			linkValue := strings.TrimSpace(*link)
 			if linkValue == "" {
@@ -251,17 +252,17 @@ Examples:
 				categoryValue = &parsed
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			bundleValue := strings.TrimSpace(*bundleID)
-			appValue := strings.TrimSpace(resolveAppID(*appID))
+			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if appClipValue == "" && bundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app-clip-id or --bundle-id is required")
 				return flag.ErrHelp
@@ -284,12 +285,12 @@ Examples:
 				BusinessCategory: categoryValue,
 			}
 
-			resp, err := client.CreateAppClipAdvancedExperience(requestCtx, appClipValue, attrs, *headerImageID, splitCSV(*localizationIDs))
+			resp, err := client.CreateAppClipAdvancedExperience(requestCtx, appClipValue, attrs, *headerImageID, shared.SplitCSV(*localizationIDs))
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -320,7 +321,7 @@ Examples:
   asc app-clips advanced-experiences update --experience-id "EXP_ID" --action VIEW
   asc app-clips advanced-experiences update --experience-id "EXP_ID" --category FOOD_AND_DRINK`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -374,20 +375,20 @@ Examples:
 				attrs = &update
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.UpdateAppClipAdvancedExperience(requestCtx, experienceValue, attrs, *appClipID, *headerImageID, splitCSV(*localizationIDs))
+			resp, err := client.UpdateAppClipAdvancedExperience(requestCtx, experienceValue, attrs, *appClipID, *headerImageID, shared.SplitCSV(*localizationIDs))
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -410,7 +411,7 @@ func AppClipAdvancedExperiencesDeleteCommand() *ffcli.Command {
 Examples:
   asc app-clips advanced-experiences delete --experience-id "EXP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -422,12 +423,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppClipAdvancedExperience(requestCtx, experienceValue); err != nil {
@@ -439,7 +440,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

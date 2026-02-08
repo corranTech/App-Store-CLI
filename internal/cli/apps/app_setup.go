@@ -30,7 +30,7 @@ Examples:
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupInfoCommand(),
 			AppSetupCategoriesCommand(),
@@ -57,7 +57,7 @@ Examples:
   asc app-setup info set --app "APP_ID" --locale "en-US" --name "My App" --subtitle "Great app"
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"
   asc app-setup info set --app "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupInfoSetCommand(),
 		},
@@ -97,7 +97,7 @@ Examples:
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"
   asc app-setup info set --app "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appIDValue := strings.TrimSpace(*appID)
 			if appIDValue == "" {
@@ -159,12 +159,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-setup info set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var appResp *asc.AppResponse
@@ -243,7 +243,7 @@ Examples:
 				AppInfoLocalization: appInfoResp,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -258,7 +258,7 @@ func AppSetupCategoriesCommand() *ffcli.Command {
 
 Examples:
   asc app-setup categories set --app "APP_ID" --primary GAMES --secondary ENTERTAINMENT`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupCategoriesSetCommand(),
 		},
@@ -296,7 +296,7 @@ func AppSetupAvailabilityCommand() *ffcli.Command {
 
 Examples:
   asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupAvailabilitySetCommand(),
 		},
@@ -332,7 +332,7 @@ func AppSetupPricingCommand() *ffcli.Command {
 
 Examples:
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupPricingSetCommand(),
 		},
@@ -372,7 +372,7 @@ func AppSetupLocalizationsCommand() *ffcli.Command {
 Examples:
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"
   asc app-setup localizations upload --app "APP_ID" --type app-info --path "./localizations"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupLocalizationsUploadCommand(),
 		},
@@ -408,7 +408,7 @@ Examples:
   asc app-setup localizations upload --version "VERSION_ID" --locale "en-US" --path "en-US.strings"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations" --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*path) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path is required")
@@ -420,7 +420,7 @@ Examples:
 				return fmt.Errorf("app-setup localizations upload: %w", err)
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
@@ -429,12 +429,12 @@ Examples:
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
@@ -454,20 +454,20 @@ Examples:
 					Results:   results,
 				}
 
-				return printOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output, *pretty)
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := resolveAppID(*appID)
+				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
@@ -493,7 +493,7 @@ Examples:
 					Results:   results,
 				}
 
-				return printOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output, *pretty)
 			default:
 				return fmt.Errorf("app-setup localizations upload: unsupported type %q", normalizedType)
 			}

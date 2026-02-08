@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ReviewCommand returns the review parent command.
@@ -32,7 +33,7 @@ Examples:
   asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ReviewDetailsGetCommand(),
 			ReviewDetailsForVersionCommand(),

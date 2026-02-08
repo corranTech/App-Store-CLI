@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AlternativeDistributionDomainsCommand returns the domains command group.
@@ -28,7 +29,7 @@ Examples:
   asc alternative-distribution domains create --domain "example.com" --reference-name "Example"
   asc alternative-distribution domains delete --domain-id "DOMAIN_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AlternativeDistributionDomainsListCommand(),
 			AlternativeDistributionDomainsGetCommand(),
@@ -62,21 +63,21 @@ Examples:
   asc alternative-distribution domains list --limit 50
   asc alternative-distribution domains list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
 				return fmt.Errorf("alternative-distribution domains list: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("alternative-distribution domains list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution domains list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionDomainsOption{
@@ -98,7 +99,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution domains list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionDomains(requestCtx, opts...)
@@ -106,7 +107,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution domains list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -128,7 +129,7 @@ func AlternativeDistributionDomainsGetCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution domains get --domain-id "DOMAIN_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*domainID)
 			if trimmedID == "" {
@@ -136,12 +137,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution domains get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAlternativeDistributionDomain(requestCtx, trimmedID)
@@ -149,7 +150,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution domains get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -172,7 +173,7 @@ func AlternativeDistributionDomainsCreateCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution domains create --domain "example.com" --reference-name "Example"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			domainValue := strings.TrimSpace(*domain)
 			if domainValue == "" {
@@ -186,12 +187,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution domains create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAlternativeDistributionDomain(requestCtx, domainValue, referenceValue)
@@ -199,7 +200,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution domains create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -222,7 +223,7 @@ func AlternativeDistributionDomainsDeleteCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution domains delete --domain-id "DOMAIN_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*domainID)
 			if trimmedID == "" {
@@ -234,12 +235,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution domains delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAlternativeDistributionDomain(requestCtx, trimmedID); err != nil {
@@ -251,7 +252,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

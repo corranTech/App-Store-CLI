@@ -30,7 +30,7 @@ Examples:
   asc build-localizations update --id "LOCALIZATION_ID" --whats-new "New features"
   asc build-localizations delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildLocalizationsListCommand(),
 			BuildLocalizationsGetCommand(),
@@ -67,12 +67,12 @@ Examples:
   asc build-localizations list --build "BUILD_ID" --locale "en-US,ja"
   asc build-localizations list --build "BUILD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("build-localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("build-localizations list: %w", err)
 			}
 
@@ -82,17 +82,17 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
 				return fmt.Errorf("build-localizations list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			versionID, err := resolveBuildAppStoreVersion(requestCtx, client, build)
@@ -121,14 +121,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("build-localizations list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, opts...)
 			if err != nil {
 				return fmt.Errorf("build-localizations list: failed to fetch: %w", err)
 			}
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -150,7 +150,7 @@ func BuildLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc build-localizations get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -158,12 +158,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreVersionLocalization(requestCtx, id)
@@ -171,7 +171,7 @@ Examples:
 				return fmt.Errorf("build-localizations get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -196,7 +196,7 @@ Examples:
   asc build-localizations create --build "BUILD_ID" --locale "en-US"
   asc build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Bug fixes"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			build := strings.TrimSpace(*buildID)
 			if build == "" {
@@ -215,12 +215,12 @@ Examples:
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			versionID, err := resolveBuildAppStoreVersion(requestCtx, client, build)
@@ -240,7 +240,7 @@ Examples:
 				return fmt.Errorf("build-localizations create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -263,7 +263,7 @@ func BuildLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc build-localizations update --id "LOCALIZATION_ID" --whats-new "New features"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -277,12 +277,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.AppStoreVersionLocalizationAttributes{
@@ -294,7 +294,7 @@ Examples:
 				return fmt.Errorf("build-localizations update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -317,7 +317,7 @@ func BuildLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc build-localizations delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -329,12 +329,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("build-localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppStoreVersionLocalization(requestCtx, id); err != nil {
@@ -346,7 +346,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

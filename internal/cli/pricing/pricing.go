@@ -36,7 +36,7 @@ Examples:
   asc pricing availability get --id "AVAILABILITY_ID"
   asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PricingTerritoriesCommand(),
 			PricingPricePointsCommand(),
@@ -59,7 +59,7 @@ func PricingTerritoriesCommand() *ffcli.Command {
 
 Examples:
   asc pricing territories list`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PricingTerritoriesListCommand(),
 		},
@@ -89,21 +89,21 @@ Examples:
   asc pricing territories list
   asc pricing territories list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pricing territories list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pricing territories list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing territories list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.TerritoriesOption{
@@ -125,7 +125,7 @@ Examples:
 					return fmt.Errorf("pricing territories list: %w", err)
 				}
 
-				return printOutput(territories, *output, *pretty)
+				return shared.PrintOutput(territories, *output, *pretty)
 			}
 
 			resp, err := client.GetTerritories(requestCtx, opts...)
@@ -133,7 +133,7 @@ Examples:
 				return fmt.Errorf("pricing territories list: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -163,7 +163,7 @@ Examples:
   asc pricing price-points get --price-point "PRICE_POINT_ID"
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PricingPricePointsGetCommand(),
 			PricingPricePointsEqualizationsCommand(),
@@ -172,22 +172,22 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pricing price-points: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pricing price-points: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing price-points: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.PricePointsOption{
@@ -210,7 +210,7 @@ Examples:
 					return fmt.Errorf("pricing price-points: %w", err)
 				}
 
-				return printOutput(points, *output, *pretty)
+				return shared.PrintOutput(points, *output, *pretty)
 			}
 
 			points, err := client.GetAppPricePoints(requestCtx, resolvedAppID, opts...)
@@ -218,7 +218,7 @@ Examples:
 				return fmt.Errorf("pricing price-points: %w", err)
 			}
 
-			return printOutput(points, *output, *pretty)
+			return shared.PrintOutput(points, *output, *pretty)
 		},
 	}
 }
@@ -240,7 +240,7 @@ func PricingPricePointsGetCommand() *ffcli.Command {
 Examples:
   asc pricing price-points get --price-point "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedPricePointID := strings.TrimSpace(*pricePointID)
 			if trimmedPricePointID == "" {
@@ -248,12 +248,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing price-points get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppPricePoint(requestCtx, trimmedPricePointID)
@@ -261,7 +261,7 @@ Examples:
 				return fmt.Errorf("pricing price-points get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -283,7 +283,7 @@ func PricingPricePointsEqualizationsCommand() *ffcli.Command {
 Examples:
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedPricePointID := strings.TrimSpace(*pricePointID)
 			if trimmedPricePointID == "" {
@@ -291,12 +291,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing price-points equalizations: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppPricePointEqualizations(requestCtx, trimmedPricePointID)
@@ -304,7 +304,7 @@ Examples:
 				return fmt.Errorf("pricing price-points equalizations: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -323,7 +323,7 @@ Examples:
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --start-date "2024-03-01"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PricingScheduleGetCommand(),
 			PricingScheduleCreateCommand(),
@@ -355,12 +355,12 @@ Examples:
   asc pricing schedule get --app "123456789"
   asc pricing schedule get --id "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
 			if idValue == "" {
-				appValue = resolveAppID(*appID)
+				appValue = shared.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --id is required (or set ASC_APP_ID)")
@@ -371,12 +371,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing schedule get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var resp *asc.AppPriceScheduleResponse
@@ -389,7 +389,7 @@ Examples:
 				return fmt.Errorf("pricing schedule get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -428,7 +428,7 @@ func PricingScheduleManualPricesCommand() *ffcli.Command {
 Examples:
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedScheduleID := strings.TrimSpace(*scheduleID)
 			if trimmedScheduleID == "" {
@@ -436,12 +436,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing schedule manual-prices: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppPriceScheduleManualPrices(requestCtx, trimmedScheduleID)
@@ -449,7 +449,7 @@ Examples:
 				return fmt.Errorf("pricing schedule manual-prices: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -471,7 +471,7 @@ func PricingScheduleAutomaticPricesCommand() *ffcli.Command {
 Examples:
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedScheduleID := strings.TrimSpace(*scheduleID)
 			if trimmedScheduleID == "" {
@@ -479,12 +479,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing schedule automatic-prices: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppPriceScheduleAutomaticPrices(requestCtx, trimmedScheduleID)
@@ -492,7 +492,7 @@ Examples:
 				return fmt.Errorf("pricing schedule automatic-prices: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -510,7 +510,7 @@ Examples:
   asc pricing availability get --id "AVAILABILITY_ID"
   asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PricingAvailabilityGetCommand(),
 			PricingAvailabilityTerritoryAvailabilitiesCommand(),
@@ -541,12 +541,12 @@ Examples:
   asc pricing availability get --app "123456789"
   asc pricing availability get --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
 			if idValue == "" {
-				appValue = resolveAppID(*appID)
+				appValue = shared.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --id is required (or set ASC_APP_ID)")
@@ -557,12 +557,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing availability get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var resp *asc.AppAvailabilityV2Response
@@ -572,13 +572,13 @@ Examples:
 				resp, err = client.GetAppAvailabilityV2(requestCtx, appValue)
 			}
 			if err != nil {
-				if idValue == "" && isAppAvailabilityMissing(err) {
+				if idValue == "" && shared.IsAppAvailabilityMissing(err) {
 					return fmt.Errorf("pricing availability get: app availability not found for app %q", appValue)
 				}
 				return fmt.Errorf("pricing availability get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -600,7 +600,7 @@ func PricingAvailabilityTerritoryAvailabilitiesCommand() *ffcli.Command {
 Examples:
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedAvailabilityID := strings.TrimSpace(*availabilityID)
 			if trimmedAvailabilityID == "" {
@@ -608,12 +608,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pricing availability territory-availabilities: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetTerritoryAvailabilities(requestCtx, trimmedAvailabilityID)
@@ -621,7 +621,7 @@ Examples:
 				return fmt.Errorf("pricing availability territory-availabilities: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterMatchmakingCommand returns the matchmaking command group.
@@ -31,7 +32,7 @@ Examples:
   asc game-center matchmaking teams list --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking metrics queue-requests --queue-id "QUEUE_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingQueuesCommand(),
 			GameCenterMatchmakingRuleSetsCommand(),
@@ -63,7 +64,7 @@ Examples:
   asc game-center matchmaking queues update --id "QUEUE_ID" --classic-bundle-ids "com.example.app"
   asc game-center matchmaking queues delete --id "QUEUE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingQueuesListCommand(),
 			GameCenterMatchmakingQueuesGetCommand(),
@@ -98,21 +99,21 @@ Examples:
   asc game-center matchmaking queues list --limit 50
   asc game-center matchmaking queues list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center matchmaking queues list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center matchmaking queues list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCMatchmakingQueuesOption{
@@ -134,7 +135,7 @@ Examples:
 					return fmt.Errorf("game-center matchmaking queues list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterMatchmakingQueues(requestCtx, opts...)
@@ -142,7 +143,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking queues list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -164,7 +165,7 @@ func GameCenterMatchmakingQueuesGetCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking queues get --id "QUEUE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
@@ -172,12 +173,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterMatchmakingQueue(requestCtx, id)
@@ -185,7 +186,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking queues get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -211,7 +212,7 @@ Examples:
   asc game-center matchmaking queues create --reference-name "Queue" --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking queues create --reference-name "Queue" --rule-set-id "RULE_SET_ID" --classic-bundle-ids "com.example.app"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
@@ -226,15 +227,15 @@ Examples:
 
 			attrs := asc.GameCenterMatchmakingQueueCreateAttributes{
 				ReferenceName:               name,
-				ClassicMatchmakingBundleIDs: splitCSV(*classicBundleIDs),
+				ClassicMatchmakingBundleIDs: shared.SplitCSV(*classicBundleIDs),
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingQueue(requestCtx, attrs, ruleSet, strings.TrimSpace(*experimentRuleSetID))
@@ -242,7 +243,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking queues create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -268,7 +269,7 @@ Examples:
   asc game-center matchmaking queues update --id "QUEUE_ID" --classic-bundle-ids "com.example.app"
   asc game-center matchmaking queues update --id "QUEUE_ID" --rule-set-id "RULE_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
@@ -279,7 +280,7 @@ Examples:
 			hasUpdate := false
 			attrs := asc.GameCenterMatchmakingQueueUpdateAttributes{}
 			if strings.TrimSpace(*classicBundleIDs) != "" {
-				attrs.ClassicMatchmakingBundleIDs = splitCSV(*classicBundleIDs)
+				attrs.ClassicMatchmakingBundleIDs = shared.SplitCSV(*classicBundleIDs)
 				hasUpdate = true
 			}
 
@@ -288,12 +289,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingQueue(requestCtx, id, attrs, strings.TrimSpace(*ruleSetID), strings.TrimSpace(*experimentRuleSetID))
@@ -301,7 +302,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking queues update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -324,7 +325,7 @@ func GameCenterMatchmakingQueuesDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking queues delete --id "QUEUE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
@@ -336,12 +337,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterMatchmakingQueue(requestCtx, id); err != nil {
@@ -353,7 +354,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -376,7 +377,7 @@ Examples:
   asc game-center matchmaking rule-sets delete --id "RULE_SET_ID" --confirm
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingRuleSetsListCommand(),
 			GameCenterMatchmakingRuleSetsGetCommand(),
@@ -412,21 +413,21 @@ Examples:
   asc game-center matchmaking rule-sets list --limit 50
   asc game-center matchmaking rule-sets list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center matchmaking rule-sets list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCMatchmakingRuleSetsOption{
@@ -448,7 +449,7 @@ Examples:
 					return fmt.Errorf("game-center matchmaking rule-sets list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterMatchmakingRuleSets(requestCtx, opts...)
@@ -456,7 +457,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-sets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -478,7 +479,7 @@ func GameCenterMatchmakingRuleSetsGetCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rule-sets get --id "RULE_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
@@ -486,12 +487,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterMatchmakingRuleSet(requestCtx, id)
@@ -499,7 +500,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-sets get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -524,7 +525,7 @@ func GameCenterMatchmakingRuleSetsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rule-sets create --reference-name "Rules" --rule-language-version 1 --min-players 2 --max-players 8`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
@@ -547,12 +548,12 @@ Examples:
 				MaxPlayers:          *maxPlayers,
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingRuleSet(requestCtx, attrs)
@@ -560,7 +561,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-sets create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -585,7 +586,7 @@ Examples:
   asc game-center matchmaking rule-sets update --id "RULE_SET_ID" --min-players 2
   asc game-center matchmaking rule-sets update --id "RULE_SET_ID" --max-players 8`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
@@ -612,12 +613,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingRuleSet(requestCtx, id, attrs)
@@ -625,7 +626,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-sets update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -648,7 +649,7 @@ func GameCenterMatchmakingRuleSetsDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rule-sets delete --id "RULE_SET_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
@@ -660,12 +661,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterMatchmakingRuleSet(requestCtx, id); err != nil {
@@ -677,7 +678,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -695,7 +696,7 @@ func GameCenterMatchmakingRuleSetQueuesCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingRuleSetQueuesListCommand(),
 		},
@@ -727,12 +728,12 @@ Examples:
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID" --limit 50
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center matchmaking rule-sets queues list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
 			}
 
@@ -742,12 +743,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCMatchmakingQueuesOption{
@@ -769,7 +770,7 @@ Examples:
 					return fmt.Errorf("game-center matchmaking rule-sets queues list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterMatchmakingRuleSetQueues(requestCtx, id, opts...)
@@ -777,7 +778,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-sets queues list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -798,7 +799,7 @@ Examples:
   asc game-center matchmaking rules update --id "RULE_ID" --description "New description"
   asc game-center matchmaking rules delete --id "RULE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingRulesListCommand(),
 			GameCenterMatchmakingRulesCreateCommand(),
@@ -833,12 +834,12 @@ Examples:
   asc game-center matchmaking rules list --rule-set-id "RULE_SET_ID" --limit 50
   asc game-center matchmaking rules list --rule-set-id "RULE_SET_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center matchmaking rules list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center matchmaking rules list: %w", err)
 			}
 
@@ -848,12 +849,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rules list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCMatchmakingRulesOption{
@@ -875,7 +876,7 @@ Examples:
 					return fmt.Errorf("game-center matchmaking rules list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterMatchmakingRules(requestCtx, id, opts...)
@@ -883,7 +884,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rules list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -910,7 +911,7 @@ func GameCenterMatchmakingRulesCreateCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rules create --rule-set-id "RULE_SET_ID" --reference-name "Rule" --description "Match" --type MATCH --expression "player.level > 1"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
@@ -954,12 +955,12 @@ Examples:
 				attrs.Weight = &val
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rules create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingRule(requestCtx, ruleSet, attrs)
@@ -967,7 +968,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rules create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -993,7 +994,7 @@ Examples:
   asc game-center matchmaking rules update --id "RULE_ID" --description "New description"
   asc game-center matchmaking rules update --id "RULE_ID" --weight 0.5`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleID)
 			if id == "" {
@@ -1029,12 +1030,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rules update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingRule(requestCtx, id, attrs)
@@ -1042,7 +1043,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rules update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1065,7 +1066,7 @@ func GameCenterMatchmakingRulesDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rules delete --id "RULE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleID)
 			if id == "" {
@@ -1077,12 +1078,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rules delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterMatchmakingRule(requestCtx, id); err != nil {
@@ -1094,7 +1095,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -1115,7 +1116,7 @@ Examples:
   asc game-center matchmaking teams update --id "TEAM_ID" --min-players 1
   asc game-center matchmaking teams delete --id "TEAM_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingTeamsListCommand(),
 			GameCenterMatchmakingTeamsCreateCommand(),
@@ -1150,12 +1151,12 @@ Examples:
   asc game-center matchmaking teams list --rule-set-id "RULE_SET_ID" --limit 50
   asc game-center matchmaking teams list --rule-set-id "RULE_SET_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center matchmaking teams list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center matchmaking teams list: %w", err)
 			}
 
@@ -1165,12 +1166,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking teams list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCMatchmakingTeamsOption{
@@ -1192,7 +1193,7 @@ Examples:
 					return fmt.Errorf("game-center matchmaking teams list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterMatchmakingTeams(requestCtx, id, opts...)
@@ -1200,7 +1201,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking teams list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1225,7 +1226,7 @@ func GameCenterMatchmakingTeamsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking teams create --rule-set-id "RULE_SET_ID" --reference-name "Team" --min-players 1 --max-players 4`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
@@ -1248,12 +1249,12 @@ Examples:
 				MaxPlayers:    *maxPlayers,
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking teams create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingTeam(requestCtx, ruleSet, attrs)
@@ -1261,7 +1262,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking teams create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1286,7 +1287,7 @@ Examples:
   asc game-center matchmaking teams update --id "TEAM_ID" --min-players 1
   asc game-center matchmaking teams update --id "TEAM_ID" --max-players 4`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*teamID)
 			if id == "" {
@@ -1311,12 +1312,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking teams update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingTeam(requestCtx, id, attrs)
@@ -1324,7 +1325,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking teams update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1347,7 +1348,7 @@ func GameCenterMatchmakingTeamsDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking teams delete --id "TEAM_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*teamID)
 			if id == "" {
@@ -1359,12 +1360,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking teams delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterMatchmakingTeam(requestCtx, id); err != nil {
@@ -1376,7 +1377,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -1396,7 +1397,7 @@ Examples:
   asc game-center matchmaking metrics queue-requests --queue-id "QUEUE_ID" --granularity P1D --group-by result
   asc game-center matchmaking metrics rule-errors --rule-id "RULE_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingQueueSizesCommand(),
 			GameCenterMatchmakingQueueRequestsCommand(),
@@ -1582,7 +1583,7 @@ func metricsQueueCommand(name string, fs *flag.FlagSet, queueID *string, granula
 Examples:
   asc game-center matchmaking metrics ` + name + ` --queue-id "QUEUE_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runMetricsQueue(ctx, name, queueID, granularity, sort, limit, next, paginate, output, pretty, fetch, nil, "", "", "")
 		},
@@ -1599,7 +1600,7 @@ func metricsQueueCommandWithFilters(name string, fs *flag.FlagSet, queueID *stri
 Examples:
   asc game-center matchmaking metrics ` + name + ` --queue-id "QUEUE_ID" --granularity P1D --group-by result`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runMetricsQueue(ctx, name, queueID, granularity, sort, limit, next, paginate, output, pretty, nil, fetch, *groupBy, *filterResult, *filterDetail)
 		},
@@ -1616,7 +1617,7 @@ func metricsRuleCommand(name string, fs *flag.FlagSet, ruleID *string, granulari
 Examples:
   asc game-center matchmaking metrics ` + name + ` --rule-id "RULE_ID" --granularity P1D --group-by result`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runMetricsRule(ctx, name, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output, pretty, fetch)
 		},
@@ -1627,7 +1628,7 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 	if *limit != 0 && (*limit < 1 || *limit > 200) {
 		return fmt.Errorf("game-center matchmaking metrics %s: --limit must be between 1 and 200", name)
 	}
-	if err := validateNextURL(*next); err != nil {
+	if err := shared.ValidateNextURL(*next); err != nil {
 		return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 	}
 
@@ -1643,17 +1644,17 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 	}
 
 	var err error
-	requestCtx, cancel := contextWithTimeout(ctx)
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	opts := []asc.GCMatchmakingMetricsOption{
 		asc.WithGCMatchmakingMetricsGranularity(gran),
-		asc.WithGCMatchmakingMetricsSort(splitCSV(*sort)),
+		asc.WithGCMatchmakingMetricsSort(shared.SplitCSV(*sort)),
 		asc.WithGCMatchmakingMetricsLimit(*limit),
 		asc.WithGCMatchmakingMetricsNextURL(*next),
 	}
 	if strings.TrimSpace(groupBy) != "" {
-		opts = append(opts, asc.WithGCMatchmakingMetricsGroupBy(splitCSV(groupBy)))
+		opts = append(opts, asc.WithGCMatchmakingMetricsGroupBy(shared.SplitCSV(groupBy)))
 	}
 	if strings.TrimSpace(filterResult) != "" {
 		opts = append(opts, asc.WithGCMatchmakingMetricsFilterResult(filterResult))
@@ -1685,7 +1686,7 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 		}
 
-		return printOutput(resp, *output, *pretty)
+		return shared.PrintOutput(resp, *output, *pretty)
 	}
 
 	var resp interface{}
@@ -1698,14 +1699,14 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 		return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
 	}
 
-	return printOutput(resp, *output, *pretty)
+	return shared.PrintOutput(resp, *output, *pretty)
 }
 
 func runMetricsRule(ctx context.Context, name string, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) error {
 	if *limit != 0 && (*limit < 1 || *limit > 200) {
 		return fmt.Errorf("game-center matchmaking metrics %s: --limit must be between 1 and 200", name)
 	}
-	if err := validateNextURL(*next); err != nil {
+	if err := shared.ValidateNextURL(*next); err != nil {
 		return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 	}
 
@@ -1720,15 +1721,15 @@ func runMetricsRule(ctx context.Context, name string, ruleID *string, granularit
 		return flag.ErrHelp
 	}
 
-	requestCtx, cancel := contextWithTimeout(ctx)
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	opts := []asc.GCMatchmakingMetricsOption{
 		asc.WithGCMatchmakingMetricsGranularity(gran),
-		asc.WithGCMatchmakingMetricsGroupBy(splitCSV(*groupBy)),
+		asc.WithGCMatchmakingMetricsGroupBy(shared.SplitCSV(*groupBy)),
 		asc.WithGCMatchmakingMetricsFilterResult(strings.TrimSpace(*filterResult)),
 		asc.WithGCMatchmakingMetricsFilterQueue(strings.TrimSpace(*filterQueue)),
-		asc.WithGCMatchmakingMetricsSort(splitCSV(*sort)),
+		asc.WithGCMatchmakingMetricsSort(shared.SplitCSV(*sort)),
 		asc.WithGCMatchmakingMetricsLimit(*limit),
 		asc.WithGCMatchmakingMetricsNextURL(*next),
 	}
@@ -1747,7 +1748,7 @@ func runMetricsRule(ctx context.Context, name string, ruleID *string, granularit
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 		}
 
-		return printOutput(resp, *output, *pretty)
+		return shared.PrintOutput(resp, *output, *pretty)
 	}
 
 	resp, err := fetch(requestCtx, id, opts...)
@@ -1755,7 +1756,7 @@ func runMetricsRule(ctx context.Context, name string, ruleID *string, granularit
 		return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
 	}
 
-	return printOutput(resp, *output, *pretty)
+	return shared.PrintOutput(resp, *output, *pretty)
 }
 
 // GameCenterMatchmakingRuleSetTestsCommand returns the rule set tests command group.
@@ -1771,7 +1772,7 @@ func GameCenterMatchmakingRuleSetTestsCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rule-set-tests create --file payload.json`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterMatchmakingRuleSetTestsCreateCommand(),
 		},
@@ -1798,7 +1799,7 @@ func GameCenterMatchmakingRuleSetTestsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center matchmaking rule-set-tests create --file payload.json`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			path := strings.TrimSpace(*filePath)
 			if path == "" {
@@ -1811,12 +1812,12 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-set-tests create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-set-tests create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingRuleSetTest(requestCtx, payload)
@@ -1824,13 +1825,13 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-set-tests create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
 
 func ascClient(ctx context.Context) *asc.Client {
-	client, _ := getASCClient()
+	client, _ := shared.GetASCClient()
 	return client
 }
 

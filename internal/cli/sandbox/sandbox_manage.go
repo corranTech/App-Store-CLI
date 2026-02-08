@@ -32,7 +32,7 @@ Examples:
   asc sandbox get --id "SANDBOX_TESTER_ID"
   asc sandbox get --email "tester@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
@@ -44,12 +44,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("sandbox get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var response *asc.SandboxTesterResponse
@@ -62,7 +62,7 @@ Examples:
 				return fmt.Errorf("sandbox get: %w", err)
 			}
 
-			return printOutput(response, *output, *pretty)
+			return shared.PrintOutput(response, *output, *pretty)
 		},
 	}
 }
@@ -91,7 +91,7 @@ Examples:
   asc sandbox update --email "tester@example.com" --interrupt-purchases
   asc sandbox update --id "SANDBOX_TESTER_ID" --subscription-renewal-rate "MONTHLY_RENEWAL_EVERY_ONE_HOUR"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
@@ -117,12 +117,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resolvedID := strings.TrimSpace(*testerID)
@@ -155,7 +155,7 @@ Examples:
 				return fmt.Errorf("sandbox update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -180,7 +180,7 @@ Examples:
   asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
   asc sandbox clear-history --email "tester@example.com" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
@@ -196,12 +196,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resolvedID := strings.TrimSpace(*testerID)
@@ -226,7 +226,7 @@ Examples:
 				Cleared:   true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

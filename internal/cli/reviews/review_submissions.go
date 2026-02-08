@@ -37,33 +37,33 @@ Examples:
   asc review submissions-list --app "123456789" --platform IOS --state READY_FOR_REVIEW
   asc review submissions-list --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("review submissions-list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
-			platforms, err := shared.NormalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
-			states := splitCSVUpper(*state)
+			states := shared.SplitCSVUpper(*state)
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.ReviewSubmissionsOption{
@@ -87,7 +87,7 @@ Examples:
 					return fmt.Errorf("review submissions-list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetReviewSubmissions(requestCtx, resolvedAppID, opts...)
@@ -95,7 +95,7 @@ Examples:
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -117,19 +117,19 @@ func ReviewSubmissionsGetCommand() *ffcli.Command {
 Examples:
   asc review submissions-get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review submissions-get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
@@ -137,7 +137,7 @@ Examples:
 				return fmt.Errorf("review submissions-get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -160,25 +160,25 @@ func ReviewSubmissionsCreateCommand() *ffcli.Command {
 Examples:
   asc review submissions-create --app "123456789" --platform IOS`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			normalizedPlatform, err := normalizeSubmitPlatform(*platform)
+			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateReviewSubmission(requestCtx, resolvedAppID, asc.Platform(normalizedPlatform))
@@ -186,7 +186,7 @@ Examples:
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -209,7 +209,7 @@ func ReviewSubmissionsUpdateCommand() *ffcli.Command {
 Examples:
   asc review submissions-update --id "SUBMISSION_ID" --canceled true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" {
@@ -230,12 +230,12 @@ Examples:
 				Canceled: canceled,
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review submissions-update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateReviewSubmission(requestCtx, trimmedID, attrs)
@@ -243,7 +243,7 @@ Examples:
 				return fmt.Errorf("review submissions-update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -266,7 +266,7 @@ func ReviewSubmissionsSubmitCommand() *ffcli.Command {
 Examples:
   asc review submissions-submit --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit")
@@ -277,12 +277,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review submissions-submit: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.SubmitReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
@@ -290,7 +290,7 @@ Examples:
 				return fmt.Errorf("review submissions-submit: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -313,7 +313,7 @@ func ReviewSubmissionsCancelCommand() *ffcli.Command {
 Examples:
   asc review submissions-cancel --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to cancel")
@@ -324,12 +324,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review submissions-cancel: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CancelReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
@@ -337,7 +337,7 @@ Examples:
 				return fmt.Errorf("review submissions-cancel: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -363,7 +363,7 @@ Examples:
   asc review submissions-items-ids --id "SUBMISSION_ID"
   asc review submissions-items-ids --id "SUBMISSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
@@ -373,16 +373,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("review submissions-items-ids: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -404,7 +404,7 @@ Examples:
 					return fmt.Errorf("review submissions-items-ids: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetReviewSubmissionItemsRelationships(requestCtx, trimmedID, opts...)
@@ -412,7 +412,7 @@ Examples:
 				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AlternativeDistributionPackageVersionsCommand returns the package versions command group.
@@ -28,7 +29,7 @@ Examples:
   asc alternative-distribution packages versions deltas --version-id "VERSION_ID"
   asc alternative-distribution packages versions variants --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AlternativeDistributionPackageVersionsListCommand(),
 			AlternativeDistributionPackageVersionsGetCommand(),
@@ -62,7 +63,7 @@ Examples:
   asc alternative-distribution packages versions list --package-id "PACKAGE_ID"
   asc alternative-distribution packages versions list --package-id "PACKAGE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*packageID)
 			if trimmedID == "" {
@@ -72,16 +73,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
 				return fmt.Errorf("alternative-distribution packages versions list: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("alternative-distribution packages versions list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageVersionsOption{
@@ -103,7 +104,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution packages versions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionPackageVersions(requestCtx, trimmedID, opts...)
@@ -111,7 +112,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -133,7 +134,7 @@ func AlternativeDistributionPackageVersionsGetCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution packages versions get --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
@@ -141,12 +142,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages versions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAlternativeDistributionPackageVersion(requestCtx, trimmedID)
@@ -154,7 +155,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages versions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -180,7 +181,7 @@ Examples:
   asc alternative-distribution packages versions deltas --version-id "VERSION_ID"
   asc alternative-distribution packages versions deltas --version-id "VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
@@ -190,16 +191,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
 				return fmt.Errorf("alternative-distribution packages versions deltas: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("alternative-distribution packages versions deltas: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages versions deltas: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageDeltasOption{
@@ -221,7 +222,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution packages versions deltas: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionPackageVersionDeltas(requestCtx, trimmedID, opts...)
@@ -229,7 +230,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages versions deltas: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -255,7 +256,7 @@ Examples:
   asc alternative-distribution packages versions variants --version-id "VERSION_ID"
   asc alternative-distribution packages versions variants --version-id "VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
@@ -265,16 +266,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
 				return fmt.Errorf("alternative-distribution packages versions variants: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("alternative-distribution packages versions variants: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages versions variants: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionPackageVariantsOption{
@@ -296,7 +297,7 @@ Examples:
 					return fmt.Errorf("alternative-distribution packages versions variants: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAlternativeDistributionPackageVersionVariants(requestCtx, trimmedID, opts...)
@@ -304,7 +305,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages versions variants: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
