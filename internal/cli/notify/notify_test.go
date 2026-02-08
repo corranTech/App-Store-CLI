@@ -145,6 +145,150 @@ func TestNotifySlackWithChannel(t *testing.T) {
 	}
 }
 
+func TestNotifySlackWithBlocksJSON(t *testing.T) {
+	var receivedPayload map[string]interface{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Errorf("unmarshal payload: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	t.Setenv(slackWebhookEnvVar, server.URL)
+	t.Setenv(slackWebhookAllowLocalEnv, "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	root := SlackCommand()
+	root.FlagSet.SetOutput(io.Discard)
+
+	blocks := `[{"type":"section","text":{"type":"mrkdwn","text":"*Release* ready"}}]`
+	err := root.Parse([]string{"--message", "Release ready", "--blocks-json", blocks})
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := root.Run(context.Background())
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+
+	blocksValue, ok := receivedPayload["blocks"].([]interface{})
+	if !ok {
+		t.Fatalf("expected blocks array, got %T", receivedPayload["blocks"])
+	}
+	if len(blocksValue) != 1 {
+		t.Fatalf("expected 1 block, got %d", len(blocksValue))
+	}
+	if receivedPayload["text"] != "Release ready" {
+		t.Errorf("expected text 'Release ready', got %v", receivedPayload["text"])
+	}
+}
+
+func TestNotifySlackWithBlocksFile(t *testing.T) {
+	var receivedPayload map[string]interface{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Errorf("unmarshal payload: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	t.Setenv(slackWebhookEnvVar, server.URL)
+	t.Setenv(slackWebhookAllowLocalEnv, "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	blocksPath := filepath.Join(t.TempDir(), "blocks.json")
+	if err := os.WriteFile(blocksPath, []byte(`[{"type":"divider"}]`), 0o600); err != nil {
+		t.Fatalf("write blocks file: %v", err)
+	}
+
+	root := SlackCommand()
+	root.FlagSet.SetOutput(io.Discard)
+
+	err := root.Parse([]string{"--message", "Release ready", "--blocks-file", blocksPath})
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := root.Run(context.Background())
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+
+	blocksValue, ok := receivedPayload["blocks"].([]interface{})
+	if !ok {
+		t.Fatalf("expected blocks array, got %T", receivedPayload["blocks"])
+	}
+	if len(blocksValue) != 1 {
+		t.Fatalf("expected 1 block, got %d", len(blocksValue))
+	}
+}
+
+func TestNotifySlackBlocksValidationErrors(t *testing.T) {
+	blocksPath := filepath.Join(t.TempDir(), "invalid.json")
+	if err := os.WriteFile(blocksPath, []byte(`{"type":"section"}`), 0o600); err != nil {
+		t.Fatalf("write blocks file: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		args       []string
+		wantErrMsg string
+	}{
+		{
+			name:       "blocks json invalid",
+			args:       []string{"--message", "hello", "--blocks-json", "{invalid"},
+			wantErrMsg: "--blocks-json must contain a JSON array",
+		},
+		{
+			name:       "blocks file invalid",
+			args:       []string{"--message", "hello", "--blocks-file", blocksPath},
+			wantErrMsg: "--blocks-file must contain a JSON array",
+		},
+		{
+			name:       "blocks file missing",
+			args:       []string{"--message", "hello", "--blocks-file", filepath.Join(t.TempDir(), "missing.json")},
+			wantErrMsg: "--blocks-file must be readable",
+		},
+		{
+			name:       "blocks both set",
+			args:       []string{"--message", "hello", "--blocks-json", "[]", "--blocks-file", blocksPath},
+			wantErrMsg: "only one of --blocks-json or --blocks-file may be set",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv(slackWebhookEnvVar, "https://hooks.slack.com/services/test")
+			t.Setenv(slackWebhookAllowLocalEnv, "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			root := SlackCommand()
+			root.FlagSet.SetOutput(io.Discard)
+
+			_, stderr := captureOutput(t, func() {
+				err := root.Parse(test.args)
+				if err != nil && !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr := root.Run(context.Background())
+				if runErr == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if !errors.Is(runErr, flag.ErrHelp) {
+					t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+				}
+			})
+
+			if !strings.Contains(stderr, test.wantErrMsg) {
+				t.Fatalf("expected error %q, got %q", test.wantErrMsg, stderr)
+			}
+		})
+	}
+}
+
 func TestNotifySlackNonSuccessResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
