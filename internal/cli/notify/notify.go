@@ -31,10 +31,12 @@ var slackHTTPClient = func() *http.Client {
 	return &http.Client{Timeout: asc.ResolveTimeout()}
 }
 
-func slackFlags(fs *flag.FlagSet) (webhook *string, channel *string, message *string) {
+func slackFlags(fs *flag.FlagSet) (webhook *string, channel *string, message *string, blocksJSON *string, blocksFile *string) {
 	webhook = fs.String("webhook", "", "Slack webhook URL (or set "+slackWebhookEnvVar+" env var)")
 	channel = fs.String("channel", "", "Slack channel (#channel or @username)")
 	message = fs.String("message", "", "Message to send to Slack")
+	blocksJSON = fs.String("blocks-json", "", "Slack Block Kit JSON array")
+	blocksFile = fs.String("blocks-file", "", "Path to Slack Block Kit JSON array file")
 	return
 }
 
@@ -64,7 +66,7 @@ Examples:
 func SlackCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("notify slack", flag.ExitOnError)
 
-	webhook, channel, message := slackFlags(fs)
+	webhook, channel, message, blocksJSON, blocksFile := slackFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "slack",
@@ -74,11 +76,14 @@ func SlackCommand() *ffcli.Command {
 
 This command sends a JSON payload to a Slack incoming webhook URL.
 The webhook URL can be provided via --webhook flag or ASC_SLACK_WEBHOOK env var.
+When using blocks, keep --message as the top-level text fallback.
 
 Examples:
   asc notify slack --webhook "https://hooks.slack.com/..." --message "Build uploaded"
   asc notify slack --message "Done" --channel "#deployments"
-  ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Release v2.1 ready"`,
+  ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Release v2.1 ready"
+  asc notify slack --message "Release ready" --blocks-json '[{"type":"section","text":{"type":"mrkdwn","text":"*Release* ready"}}]'
+  asc notify slack --message "Release ready" --blocks-file ./blocks.json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -98,11 +103,20 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			blocks, err := parseSlackBlocks(*blocksJSON, *blocksFile)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				return flag.ErrHelp
+			}
+
 			payload := map[string]interface{}{}
 			payload["text"] = msg
 
 			if ch := strings.TrimSpace(*channel); ch != "" {
 				payload["channel"] = ch
+			}
+			if blocks != nil {
+				payload["blocks"] = blocks
 			}
 
 			body, err := json.Marshal(payload)
@@ -153,6 +167,38 @@ func resolveWebhook(flagValue string) string {
 		return v
 	}
 	return ""
+}
+
+func parseSlackBlocks(blocksJSON string, blocksFile string) ([]json.RawMessage, error) {
+	blocksJSON = strings.TrimSpace(blocksJSON)
+	blocksFile = strings.TrimSpace(blocksFile)
+
+	if blocksJSON != "" && blocksFile != "" {
+		return nil, fmt.Errorf("only one of --blocks-json or --blocks-file may be set")
+	}
+	if blocksJSON == "" && blocksFile == "" {
+		return nil, nil
+	}
+
+	source := "--blocks-json"
+	if blocksFile != "" {
+		data, err := os.ReadFile(blocksFile)
+		if err != nil {
+			return nil, fmt.Errorf("--blocks-file must be readable: %w", err)
+		}
+		blocksJSON = strings.TrimSpace(string(data))
+		source = "--blocks-file"
+	}
+	if blocksJSON == "" {
+		return nil, fmt.Errorf("%s must contain a JSON array", source)
+	}
+
+	var blocks []json.RawMessage
+	if err := json.Unmarshal([]byte(blocksJSON), &blocks); err != nil {
+		return nil, fmt.Errorf("%s must contain a JSON array: %w", source, err)
+	}
+
+	return blocks, nil
 }
 
 func validateSlackWebhookURL(rawURL string) error {

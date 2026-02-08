@@ -97,3 +97,48 @@ func TestNotifySlackSuccess(t *testing.T) {
 		t.Errorf("expected text 'Hello', got %v", receivedPayload["text"])
 	}
 }
+
+func TestNotifySlackSuccessWithBlocks(t *testing.T) {
+	var receivedPayload map[string]interface{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if err := json.Unmarshal(body, &receivedPayload); err != nil {
+			t.Errorf("unmarshal payload: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	t.Setenv("ASC_SLACK_WEBHOOK", server.URL)
+	t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "1")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"notify", "slack",
+			"--message", "Hello",
+			"--blocks-json", `[{"type":"section","text":{"type":"plain_text","text":"Hi"}}]`,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Message sent to Slack successfully") {
+		t.Fatalf("expected success message, got %q", stderr)
+	}
+	blocksValue, ok := receivedPayload["blocks"].([]interface{})
+	if !ok {
+		t.Fatalf("expected blocks array, got %T", receivedPayload["blocks"])
+	}
+	if len(blocksValue) != 1 {
+		t.Fatalf("expected 1 block, got %d", len(blocksValue))
+	}
+}
