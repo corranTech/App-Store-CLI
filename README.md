@@ -43,9 +43,25 @@ Agent Skills for automating `asc` workflows including builds, TestFlight, metada
   - [Xcode Cloud](#xcode-cloud)
   - [Notarization](#notarization)
   - [Game Center](#game-center)
+  - [Signing](#signing)
+  - [Certificates](#certificates)
+  - [Profiles](#profiles)
+  - [Bundle IDs](#bundle-ids)
+  - [Subscriptions](#subscriptions)
+  - [In-App Purchases](#in-app-purchases)
+  - [Performance](#performance)
+  - [Webhooks](#webhooks)
+  - [Publish (End-to-End Workflows)](#publish-end-to-end-workflows)
+  - [App Clips](#app-clips)
+  - [Encryption](#encryption)
+  - [Assets (Screenshots & Previews)](#assets-screenshots--previews)
+  - [Background Assets](#background-assets)
+  - [Routing Coverage](#routing-coverage)
+  - [Notify](#notify)
   - [Apps & Builds](#apps--builds)
 - [App Setup](#app-setup)
   - [Categories](#categories)
+  - [Offer Codes (Subscriptions)](#offer-codes-subscriptions)
   - [Versions](#versions)
   - [App Info](#app-info)
   - [Pre-Release Versions](#pre-release-versions)
@@ -226,7 +242,7 @@ Config.json keys (same semantics, snake_case):
 
 - JSON output is default for easy parsing; add `--pretty` when debugging.
 - Use `--paginate` to automatically fetch all pages.
-- `--paginate` works on list commands including apps, builds list, app-tags list, app-tags territories, promo codes list, devices list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, game-center achievements/leaderboards/leaderboard-sets lists (including localizations/releases/members), and Xcode Cloud workflows/build-runs.
+- `--paginate` works on list commands including apps, builds list, builds uploads list, app-tags list, app-tags territories, offer-codes list, devices list, feedback, crashes, reviews, versions list, pre-release versions list, localizations list, build-localizations list, beta-groups list, beta-testers list, sandbox list, analytics requests/get, testflight apps list, game-center achievements/leaderboards/leaderboard-sets lists (including localizations/releases/members), Xcode Cloud workflows/build-runs, certificates list, profiles list, bundle-ids list, subscriptions groups/list, iap list, webhooks list, app-clips list, encryption declarations list, background-assets list, and performance diagnostics list.
 - Use `--limit` + `--next "<links.next>"` for manual pagination control.
 - Sort with `--sort` (prefix `-` for descending):
   - Feedback/Crashes: `createdDate` / `-createdDate`
@@ -272,50 +288,81 @@ asc testflight apps get --app "APP_ID"
 
 # Export TestFlight configuration to YAML
 asc testflight sync pull --app "APP_ID" --output "./testflight.yaml"
+asc testflight sync pull --app "APP_ID" --output "./testflight.yaml" --include-builds --include-testers
+
+# TestFlight review and submission
+asc testflight review get --app "APP_ID"
+asc testflight review submit --build "BUILD_ID" --confirm
+
+# Beta details
+asc testflight beta-details get --build "BUILD_ID"
+asc testflight beta-details update --id "DETAIL_ID" --auto-notify
+
+# Beta license agreements
+asc testflight beta-license-agreements list --app "APP_ID"
+asc testflight beta-license-agreements update --id "AGREEMENT_ID" --agreement-text "New terms..."
+
+# Send beta notification for a build
+asc testflight beta-notifications create --build "BUILD_ID"
+
+# TestFlight metrics
+asc testflight metrics public-link --group "GROUP_ID"
+asc testflight metrics beta-tester-usages --app "APP_ID"
 ```
 
 ### Beta Groups
 
 ```bash
 # List beta groups for an app
-asc beta-groups list --app "APP_ID"
+asc testflight beta-groups list --app "APP_ID"
 
 # Fetch all beta groups (all pages)
-asc beta-groups list --app "APP_ID" --paginate
+asc testflight beta-groups list --app "APP_ID" --paginate
 
 # Create, fetch, update, delete
-asc beta-groups create --app "APP_ID" --name "Beta Testers"
-asc beta-groups get --id "GROUP_ID"
-asc beta-groups update --id "GROUP_ID" --name "New Name"
-asc beta-groups delete --id "GROUP_ID" --confirm
+asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
+asc testflight beta-groups get --id "GROUP_ID"
+asc testflight beta-groups update --id "GROUP_ID" --name "New Name"
+asc testflight beta-groups update --id "GROUP_ID" --public-link-enabled true --feedback-enabled true
+asc testflight beta-groups delete --id "GROUP_ID" --confirm
 
 # Add/remove testers
-asc beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
-asc beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
+asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
+asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
+
+# View linked app and recruitment criteria
+asc testflight beta-groups app get --group-id "GROUP_ID"
 ```
 
 ### Beta Testers
 
 ```bash
 # List beta testers
-asc beta-testers list --app "APP_ID"
+asc testflight beta-testers list --app "APP_ID"
 
 # Filter by build or group
-asc beta-testers list --app "APP_ID" --build "BUILD_ID"
-asc beta-testers list --app "APP_ID" --group "Beta"
+asc testflight beta-testers list --app "APP_ID" --build "BUILD_ID"
+asc testflight beta-testers list --app "APP_ID" --group "Beta"
 
 # Fetch all beta testers (all pages)
-asc beta-testers list --app "APP_ID" --paginate
+asc testflight beta-testers list --app "APP_ID" --paginate
 
 # Get, add, remove, invite
-asc beta-testers get --id "TESTER_ID"
-asc beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
-asc beta-testers remove --app "APP_ID" --email "tester@example.com"
-asc beta-testers invite --app "APP_ID" --email "tester@example.com"
+asc testflight beta-testers get --id "TESTER_ID"
+asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
+asc testflight beta-testers remove --app "APP_ID" --email "tester@example.com"
+asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com"
 
 # Manage group membership
-asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
-asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
+asc testflight beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
+asc testflight beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
+
+# Manage build access
+asc testflight beta-testers add-builds --id "TESTER_ID" --build "BUILD_ID"
+asc testflight beta-testers remove-builds --id "TESTER_ID" --build "BUILD_ID" --confirm
+
+# Tester metrics
+asc testflight beta-testers metrics --tester-id "TESTER_ID" --app "APP_ID"
 ```
 
 ### Devices
@@ -327,6 +374,13 @@ asc devices list
 # Filter by platform/status/UDID
 asc devices list --platform IOS --status ENABLED --udid "UDID1,UDID2"
 
+# Filter by name or ID
+asc devices list --name "My iPhone"
+asc devices list --id "DEVICE_ID1,DEVICE_ID2"
+
+# Sort and select fields
+asc devices list --sort name --fields "name,platform,udid"
+
 # Fetch all devices (all pages)
 asc devices list --paginate
 
@@ -336,9 +390,15 @@ asc devices get --id "DEVICE_ID"
 # Register a device
 asc devices register --name "My iPhone" --udid "UDID" --platform IOS
 
+# Register using the local macOS hardware UDID
+asc devices register --name "My Mac" --udid-from-system --platform MAC_OS
+
 # Update device name/status
 asc devices update --id "DEVICE_ID" --name "New Name"
 asc devices update --id "DEVICE_ID" --status DISABLED
+
+# Get local macOS hardware UDID
+asc devices local-udid
 ```
 
 ### App Store
@@ -358,6 +418,15 @@ asc reviews --app "123456789" --sort -createdDate --limit 5
 
 # Fetch all reviews pages automatically
 asc reviews --app "123456789" --paginate
+
+# Get a specific review by ID
+asc reviews get --id "REVIEW_ID"
+
+# Get review ratings summary
+asc reviews ratings --app "123456789"
+
+# Get review summarizations
+asc reviews summarizations --app "123456789" --platform IOS --territory USA
 
 # Respond to a customer review
 asc reviews respond --review-id "REVIEW_ID" --response "Thanks for your feedback!"
@@ -544,6 +613,7 @@ asc sandbox update --id "SANDBOX_TESTER_ID" --subscription-renewal-rate "MONTHLY
 
 # Clear purchase history
 asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
+asc sandbox clear-history --email "tester@example.com" --confirm
 ```
 
 Notes:
@@ -583,6 +653,33 @@ asc xcode-cloud status --run-id "BUILD_RUN_ID" --output table
 
 # Wait for an existing build run to complete
 asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait
+
+# CI Products
+asc xcode-cloud products --app "APP_ID"
+
+# Source code management
+asc xcode-cloud scm providers list
+asc xcode-cloud scm providers get --provider-id "PROVIDER_ID"
+asc xcode-cloud scm providers repositories --provider-id "PROVIDER_ID"
+asc xcode-cloud scm repositories list
+asc xcode-cloud scm repositories get --id "REPO_ID"
+asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"
+asc xcode-cloud scm git-references get --id "REF_ID"
+
+# Build actions and artifacts
+asc xcode-cloud actions --run-id "BUILD_RUN_ID"
+asc xcode-cloud artifacts list --action-id "ACTION_ID"
+asc xcode-cloud artifacts get --id "ARTIFACT_ID"
+asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path "./artifact.zip"
+
+# Test results and issues
+asc xcode-cloud test-results list --action-id "ACTION_ID"
+asc xcode-cloud test-results get --id "RESULT_ID"
+asc xcode-cloud issues list --action-id "ACTION_ID"
+
+# Available macOS and Xcode versions
+asc xcode-cloud macos-versions
+asc xcode-cloud xcode-versions
 ```
 
 Notes:
@@ -699,6 +796,419 @@ asc game-center leaderboard-sets releases create --app "APP_ID" --set-id "SET_ID
 asc game-center leaderboard-sets releases delete --id "RELEASE_ID" --confirm
 ```
 
+### Signing
+
+```bash
+# Fetch signing files (certificates + profiles) for an app
+asc signing fetch --bundle-id "com.example.app" --profile-type IOS_APP_STORE --output "./signing"
+
+# Create missing profiles automatically
+asc signing fetch --bundle-id "com.example.app" --profile-type IOS_APP_DEVELOPMENT --device "DEVICE_ID" --create-missing
+
+# Filter by certificate type
+asc signing fetch --bundle-id "com.example.app" --profile-type IOS_APP_STORE --certificate-type IOS_DISTRIBUTION
+```
+
+### Certificates
+
+```bash
+# List signing certificates
+asc certificates list
+asc certificates list --certificate-type "IOS_DISTRIBUTION,IOS_DEVELOPMENT"
+
+# Fetch all certificates (all pages)
+asc certificates list --paginate
+
+# Get a certificate by ID
+asc certificates get --id "CERT_ID"
+
+# Create a signing certificate
+asc certificates create --certificate-type "IOS_DISTRIBUTION" --csr "./CertificateSigningRequest.certSigningRequest"
+
+# Update a certificate
+asc certificates update --id "CERT_ID" --activated true
+
+# Revoke a certificate (irreversible)
+asc certificates revoke --id "CERT_ID" --confirm
+```
+
+### Profiles
+
+```bash
+# List provisioning profiles
+asc profiles list
+asc profiles list --profile-type "IOS_APP_STORE,IOS_APP_DEVELOPMENT"
+
+# Fetch all profiles (all pages)
+asc profiles list --paginate
+
+# Get a profile by ID (with related resources)
+asc profiles get --id "PROFILE_ID" --include "bundleId,certificates,devices"
+
+# Create a provisioning profile
+asc profiles create --name "My App Store Profile" --profile-type IOS_APP_STORE --bundle "BUNDLE_ID" --certificate "CERT_ID"
+
+# Create a development profile with devices
+asc profiles create --name "Dev Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID" --device "DEVICE_ID1,DEVICE_ID2"
+
+# Download a profile
+asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
+
+# Delete a profile
+asc profiles delete --id "PROFILE_ID" --confirm
+
+# View profile relationships
+asc profiles relationships bundle-id --id "PROFILE_ID"
+asc profiles relationships certificates --id "PROFILE_ID"
+asc profiles relationships devices --id "PROFILE_ID"
+```
+
+### Bundle IDs
+
+```bash
+# List bundle IDs
+asc bundle-ids list
+asc bundle-ids list --paginate
+
+# Get a bundle ID by ID
+asc bundle-ids get --id "BUNDLE_ID"
+
+# Create a bundle ID
+asc bundle-ids create --identifier "com.example.app" --name "My App" --platform IOS
+
+# Update a bundle ID
+asc bundle-ids update --id "BUNDLE_ID" --name "New Name"
+
+# Delete a bundle ID
+asc bundle-ids delete --id "BUNDLE_ID" --confirm
+
+# View linked app
+asc bundle-ids app get --id "BUNDLE_ID"
+
+# List linked profiles
+asc bundle-ids profiles list --id "BUNDLE_ID"
+
+# Manage capabilities
+asc bundle-ids capabilities list --bundle "BUNDLE_ID"
+asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability IN_APP_PURCHASE
+asc bundle-ids capabilities remove --id "CAPABILITY_ID" --confirm
+```
+
+### Subscriptions
+
+```bash
+# Subscription groups
+asc subscriptions groups list --app "APP_ID"
+asc subscriptions groups create --app "APP_ID" --reference-name "Premium"
+asc subscriptions groups get --id "GROUP_ID"
+asc subscriptions groups update --id "GROUP_ID" --reference-name "Premium+"
+asc subscriptions groups delete --id "GROUP_ID" --confirm
+
+# Group localizations
+asc subscriptions groups localizations list --group-id "GROUP_ID"
+asc subscriptions groups localizations create --group-id "GROUP_ID" --locale en-US --name "Premium"
+asc subscriptions groups localizations update --id "LOC_ID" --name "Premium+"
+asc subscriptions groups localizations delete --id "LOC_ID" --confirm
+
+# Submit a group for review
+asc subscriptions groups submit --group-id "GROUP_ID" --confirm
+
+# Subscriptions within a group
+asc subscriptions list --group "GROUP_ID"
+asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.monthly" --subscription-period "ONE_MONTH"
+asc subscriptions get --id "SUB_ID"
+asc subscriptions update --id "SUB_ID" --ref-name "Monthly Premium"
+asc subscriptions delete --id "SUB_ID" --confirm
+asc subscriptions submit --subscription-id "SUB_ID" --confirm
+
+# Pricing
+asc subscriptions pricing --app "APP_ID"
+asc subscriptions pricing --subscription-id "SUB_ID" --territory "USA"
+
+# Prices
+asc subscriptions prices list --id "SUB_ID"
+asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
+asc subscriptions prices delete --price-id "PRICE_ID" --confirm
+
+# Availability
+asc subscriptions availability get --subscription-id "SUB_ID"
+asc subscriptions availability set --id "SUB_ID" --territory "USA,GBR,JPN"
+asc subscriptions availability available-territories --id "AVAILABILITY_ID"
+
+# Localizations
+asc subscriptions localizations list --subscription-id "SUB_ID"
+asc subscriptions localizations create --subscription-id "SUB_ID" --locale en-US --name "Monthly"
+asc subscriptions localizations update --id "LOC_ID" --name "Monthly Premium"
+asc subscriptions localizations delete --id "LOC_ID" --confirm
+
+# Introductory offers
+asc subscriptions introductory-offers list --subscription-id "SUB_ID"
+asc subscriptions introductory-offers create --subscription-id "SUB_ID" --offer-duration "ONE_MONTH" --offer-mode "FREE_TRIAL" --number-of-periods 1
+asc subscriptions introductory-offers delete --id "OFFER_ID" --confirm
+
+# Promotional offers
+asc subscriptions promotional-offers list --subscription-id "SUB_ID"
+asc subscriptions promotional-offers create --subscription-id "SUB_ID" --offer-code "PROMO1" --name "Holiday" --offer-duration "ONE_MONTH" --offer-mode "PAY_AS_YOU_GO" --number-of-periods 3 --prices "PRICE_ID1,PRICE_ID2"
+asc subscriptions promotional-offers delete --id "OFFER_ID" --confirm
+
+# Price points
+asc subscriptions price-points list --subscription-id "SUB_ID"
+asc subscriptions price-points get --id "PRICE_POINT_ID"
+asc subscriptions price-points equalizations --id "PRICE_POINT_ID"
+
+# Images and review screenshots
+asc subscriptions images list --subscription-id "SUB_ID"
+asc subscriptions images create --subscription-id "SUB_ID" --file "./image.png"
+asc subscriptions review-screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"
+```
+
+### In-App Purchases
+
+```bash
+# List in-app purchases
+asc iap list --app "APP_ID"
+asc iap list --app "APP_ID" --paginate
+
+# Legacy in-app purchases
+asc iap list --app "APP_ID" --legacy
+asc iap get --id "IAP_ID" --legacy
+
+# Create an in-app purchase
+asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "100 Coins" --product-id "com.example.coins100"
+
+# Update and delete
+asc iap update --id "IAP_ID" --ref-name "200 Coins"
+asc iap delete --id "IAP_ID" --confirm
+
+# Pricing summary
+asc iap prices --app "APP_ID"
+asc iap prices --iap-id "IAP_ID" --territory "USA"
+
+# Submit for review
+asc iap submit --iap-id "IAP_ID" --confirm
+
+# Localizations
+asc iap localizations list --iap-id "IAP_ID"
+asc iap localizations create --iap-id "IAP_ID" --locale en-US --name "100 Coins" --description "Buy 100 coins"
+asc iap localizations update --id "LOC_ID" --name "200 Coins"
+asc iap localizations delete --id "LOC_ID" --confirm
+
+# Images and review screenshots
+asc iap images list --iap-id "IAP_ID"
+asc iap images create --iap-id "IAP_ID" --file "./image.png"
+asc iap review-screenshots create --iap-id "IAP_ID" --file "./screenshot.png"
+
+# Availability
+asc iap availability get --iap-id "IAP_ID"
+asc iap availability set --iap-id "IAP_ID" --territories "USA,GBR,JPN"
+
+# Price points and schedules
+asc iap price-points list --iap-id "IAP_ID"
+asc iap price-schedules get --iap-id "IAP_ID"
+asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID"
+```
+
+### Performance
+
+```bash
+# App-level performance metrics
+asc performance metrics list --app "APP_ID"
+asc performance metrics list --app "APP_ID" --metric-type "LAUNCH,HANG" --platform IOS
+
+# Build-level performance metrics
+asc performance metrics get --build "BUILD_ID"
+asc performance metrics get --build "BUILD_ID" --metric-type "BATTERY,MEMORY"
+
+# Diagnostic signatures for a build
+asc performance diagnostics list --build "BUILD_ID"
+asc performance diagnostics list --build "BUILD_ID" --diagnostic-type "DISK_WRITES,HANGS"
+
+# Diagnostic logs for a signature
+asc performance diagnostics get --id "SIGNATURE_ID"
+
+# Download metrics or diagnostics
+asc performance download --app "APP_ID" --output "./metrics.json"
+asc performance download --build "BUILD_ID" --output "./build-metrics.json"
+asc performance download --diagnostic-id "SIGNATURE_ID" --output "./diagnostic.json"
+```
+
+### Webhooks
+
+```bash
+# List webhooks for an app
+asc webhooks list --app "APP_ID"
+
+# Get a webhook by ID
+asc webhooks get --webhook-id "WEBHOOK_ID"
+
+# Create a webhook
+asc webhooks create --app "APP_ID" --name "Build Notifications" --url "https://example.com/webhook" --secret "my-secret" --events "BUILD_CREATED,BUILD_UPDATED" --enabled true
+
+# Update a webhook
+asc webhooks update --webhook-id "WEBHOOK_ID" --enabled false
+asc webhooks update --webhook-id "WEBHOOK_ID" --events "BUILD_CREATED"
+
+# Delete a webhook
+asc webhooks delete --webhook-id "WEBHOOK_ID" --confirm
+
+# Webhook deliveries
+asc webhooks deliveries --webhook-id "WEBHOOK_ID" --created-after "2025-01-01"
+
+# Redeliver a failed delivery
+asc webhooks deliveries redeliver --delivery-id "DELIVERY_ID"
+
+# Ping a webhook
+asc webhooks ping --webhook-id "WEBHOOK_ID"
+```
+
+### Publish (End-to-End Workflows)
+
+```bash
+# Upload and distribute to TestFlight in one step
+asc publish testflight --app "APP_ID" --ipa "app.ipa" --group "Beta Testers"
+
+# With multiple groups and notification
+asc publish testflight --app "APP_ID" --ipa "app.ipa" --group "Internal,External" --notify --wait
+
+# With "What to Test" notes
+asc publish testflight --app "APP_ID" --ipa "app.ipa" --group "Beta" --test-notes "Test login flow" --locale "en-US" --wait
+
+# Upload and submit to App Store in one step
+asc publish appstore --app "APP_ID" --ipa "app.ipa" --submit --confirm --wait
+```
+
+Notes:
+- `--version` and `--build-number` are auto-extracted from the IPA if not provided
+- Default timeout is 30 minutes; override with `--timeout`
+
+### App Clips
+
+```bash
+# List App Clips for an app
+asc app-clips list --app "APP_ID"
+
+# Get App Clip details
+asc app-clips get --id "APP_CLIP_ID"
+
+# Default experiences
+asc app-clips default-experiences list --app-clip-id "APP_CLIP_ID"
+asc app-clips default-experiences get --experience-id "EXP_ID"
+asc app-clips default-experiences create --app-clip-id "APP_CLIP_ID" --action OPEN
+asc app-clips default-experiences update --experience-id "EXP_ID" --action VIEW
+asc app-clips default-experiences delete --experience-id "EXP_ID" --confirm
+
+# Advanced experiences
+asc app-clips advanced-experiences list --app-clip-id "APP_CLIP_ID"
+asc app-clips advanced-experiences create --app-clip-id "APP_CLIP_ID" --link "https://example.com/clip" --default-language en --is-powered-by true
+asc app-clips advanced-experiences update --experience-id "EXP_ID" --removed true
+asc app-clips advanced-experiences delete --experience-id "EXP_ID" --confirm
+
+# Header images
+asc app-clips header-images create --localization-id "LOC_ID" --file "header.png"
+asc app-clips header-images get --id "IMAGE_ID"
+asc app-clips header-images delete --id "IMAGE_ID" --confirm
+
+# Beta invocations (for testing)
+asc app-clips invocations list --build-bundle-id "BUNDLE_ID"
+asc app-clips invocations create --build-bundle-id "BUNDLE_ID" --url "https://example.com/clip"
+asc app-clips invocations delete --invocation-id "INVOCATION_ID" --confirm
+
+# Domain status
+asc app-clips domain-status cache --build-bundle-id "BUNDLE_ID"
+asc app-clips domain-status debug --build-bundle-id "BUNDLE_ID"
+```
+
+### Encryption
+
+```bash
+# List encryption declarations for an app
+asc encryption declarations list --app "APP_ID"
+
+# Get a declaration by ID
+asc encryption declarations get --id "DECLARATION_ID"
+
+# Create an encryption declaration
+asc encryption declarations create --app "APP_ID" --app-description "Uses HTTPS only" --contains-proprietary-cryptography false --contains-third-party-cryptography false --available-on-french-store true
+
+# Assign builds to a declaration
+asc encryption declarations assign-builds --id "DECLARATION_ID" --build "BUILD_ID1,BUILD_ID2"
+
+# Upload an encryption document
+asc encryption documents upload --declaration "DECLARATION_ID" --file "./encryption-doc.pdf"
+
+# Get a document
+asc encryption documents get --id "DOC_ID"
+```
+
+### Assets (Screenshots & Previews)
+
+```bash
+# List screenshots for a version localization
+asc assets screenshots list --version-localization "LOC_ID"
+
+# Upload screenshots
+asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots/" --device-type IPHONE_65
+
+# Delete a screenshot
+asc assets screenshots delete --id "SCREENSHOT_ID" --confirm
+
+# List and upload previews
+asc assets previews list --version-localization "LOC_ID"
+asc assets previews upload --version-localization "LOC_ID" --path "./previews/" --device-type IPHONE_65
+asc assets previews delete --id "PREVIEW_ID" --confirm
+```
+
+### Background Assets
+
+```bash
+# List background assets for an app
+asc background-assets list --app "APP_ID"
+asc background-assets list --app "APP_ID" --archived false
+
+# Create and manage background assets
+asc background-assets get --id "ASSET_ID"
+asc background-assets create --app "APP_ID" --asset-pack-identifier "com.example.assets.pack1"
+asc background-assets update --id "ASSET_ID" --archived true
+
+# Manage versions
+asc background-assets versions list --background-asset-id "ASSET_ID"
+asc background-assets versions create --background-asset-id "ASSET_ID"
+
+# Upload files
+asc background-assets upload-files list --version-id "VERSION_ID"
+asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.bin" --asset-type ASSET
+```
+
+### Routing Coverage
+
+```bash
+# Get routing app coverage for a version
+asc routing-coverage get --version-id "VERSION_ID"
+
+# Upload routing app coverage
+asc routing-coverage create --version-id "VERSION_ID" --file "./routing.geojson"
+
+# Get by ID
+asc routing-coverage info --id "COVERAGE_ID"
+
+# Delete routing coverage
+asc routing-coverage delete --id "COVERAGE_ID" --confirm
+```
+
+### Notify
+
+```bash
+# Send a Slack notification
+asc notify slack --webhook "https://hooks.slack.com/services/..." --message "Build deployed!"
+
+# Send to a specific channel
+asc notify slack --webhook "https://hooks.slack.com/services/..." --message "v1.0.0 live" --channel "#releases"
+```
+
+Notes:
+- Set `ASC_SLACK_WEBHOOK` env var to avoid passing `--webhook` each time
+- Webhook URL must target `hooks.slack.com` over HTTPS
+
 ### Apps & Builds
 
 ```bash
@@ -725,21 +1235,69 @@ asc builds list --app "123456789" --paginate
 asc builds info --build "BUILD_ID"
 
 # Expire a build (irreversible)
-asc builds expire --build "BUILD_ID"
+asc builds expire --build "BUILD_ID" --confirm
 
 # Expire builds in bulk (use --dry-run to preview)
 asc builds expire-all --app "123456789" --older-than 90d --dry-run
 asc builds expire-all --app "123456789" --older-than 90d --confirm
 
-# Prepare a build upload
+# Upload a build
 asc builds upload --app "123456789" --ipa "app.ipa"
 
-Notes:
-- Build upload currently prepares upload operations only (upload + commit is not yet automated).
+# Upload a macOS build
+asc builds upload --app "123456789" --pkg "app.pkg" --version "1.0.0" --build-number "123"
+
+# Upload with concurrent chunk uploads
+asc builds upload --app "123456789" --ipa "app.ipa" --concurrency 4
+
+# Upload and verify checksums
+asc builds upload --app "123456789" --ipa "app.ipa" --checksum
+
+# Upload and wait for build processing
+asc builds upload --app "123456789" --ipa "app.ipa" --wait
+
+# Upload with "What to Test" notes
+asc builds upload --app "123456789" --ipa "app.ipa" --test-notes "Test the new login flow" --locale "en-US" --wait
+
+# Dry run (reserve upload operations only)
+asc builds upload --app "123456789" --ipa "app.ipa" --dry-run
+
+# Manage build uploads
+asc builds uploads list --app "123456789"
+asc builds uploads get --id "UPLOAD_ID"
+asc builds uploads delete --id "UPLOAD_ID" --confirm
+asc builds uploads files list --upload "UPLOAD_ID"
+
+# Get the latest build for an app
+asc builds latest --app "123456789"
+asc builds latest --app "123456789" --version "1.0.0" --platform IOS
+
+# Manage build test notes (What to Test)
+asc builds test-notes list --build "BUILD_ID"
+asc builds test-notes get --id "LOCALIZATION_ID"
+asc builds test-notes create --build "BUILD_ID" --locale "en-US" --whats-new "Test the new login flow"
+asc builds test-notes update --id "LOCALIZATION_ID" --whats-new "Updated test notes"
+asc builds test-notes delete --id "LOCALIZATION_ID" --confirm
+
+# Manage individual testers on a build
+asc builds individual-testers list --build "BUILD_ID"
+asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID"
+asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID"
 
 # Add/remove beta groups from a build
 asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
-asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
+asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID" --confirm
+
+# Build relationships and related resources
+asc builds app get --build "BUILD_ID"
+asc builds pre-release-version get --build "BUILD_ID"
+asc builds icons list --build "BUILD_ID"
+asc builds beta-app-review-submission get --build "BUILD_ID"
+asc builds build-beta-detail get --build "BUILD_ID"
+asc builds relationships get --build "BUILD_ID" --type "app"
+
+# Build metrics
+asc builds metrics beta-usages --build "BUILD_ID"
 ```
 
 ### App Setup
@@ -773,11 +1331,28 @@ asc offer-codes list --offer-code "OFFER_CODE_ID"
 # Fetch all offer code batches (all pages)
 asc offer-codes list --offer-code "OFFER_CODE_ID" --paginate
 
+# Get an offer code by ID
+asc offer-codes get --offer-code-id "OFFER_CODE_ID"
+
+# Create an offer code
+asc offer-codes create --subscription-id "SUB_ID" --name "Holiday" --customer-eligibilities "NEW,EXISTING" --offer-eligibility "ONCE" --duration "ONE_MONTH" --offer-mode "PAY_AS_YOU_GO" --number-of-periods 3 --prices "USA:PRICE_POINT_ID"
+
+# Update an offer code
+asc offer-codes update --offer-code-id "OFFER_CODE_ID" --active false
+
 # Generate one-time use offer codes
 asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
 
 # Download one-time use offer codes to a file
 asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"
+
+# Manage custom (vanity) codes
+asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
+asc offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "HOLIDAY2026"
+asc offer-codes custom-codes update --id "CUSTOM_CODE_ID" --active false
+
+# List offer code prices
+asc offer-codes prices list --offer-code-id "OFFER_CODE_ID"
 ```
 
 ### Categories
@@ -804,6 +1379,16 @@ asc versions list --app "123456789" --paginate
 # Get version details
 asc versions get --version-id "VERSION_ID"
 
+# Create a new App Store version
+asc versions create --app "123456789" --version "1.0.0"
+asc versions create --app "123456789" --version "2.0.0" --platform IOS --release-type MANUAL
+
+# Update a version
+asc versions update --version-id "VERSION_ID" --version "1.0.1"
+
+# Delete a version
+asc versions delete --version-id "VERSION_ID" --confirm
+
 # Attach a build to a version
 asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
 
@@ -829,8 +1414,13 @@ asc app-info get --app "123456789"
 # Get metadata for a specific version
 asc app-info get --app "123456789" --version "1.2.3" --platform IOS
 
+# Include related resources
+asc app-info get --app "123456789" --include "ageRatingDeclaration,territoryAgeRatings"
+
 # Update metadata for a locale
 asc app-info set --app "123456789" --locale "en-US" --whats-new "Bug fixes"
+asc app-info set --app "123456789" --locale "en-US" --description "My app description" --keywords "app,tool" --support-url "https://example.com/support"
+asc app-info set --app "123456789" --locale "en-US" --promotional-text "Now with dark mode!" --marketing-url "https://example.com"
 ```
 
 ### Pre-Release Versions
@@ -894,10 +1484,10 @@ Validate and migrate metadata between ASC's `.strings` format and Fastlane direc
 asc migrate validate --fastlane-dir ./metadata
 
 # Import metadata from fastlane format to App Store Connect
-asc migrate import --app "123456789" --fastlane-dir ./metadata
+asc migrate import --app "123456789" --version-id "VERSION_ID" --fastlane-dir ./metadata
 
 # Export metadata from App Store Connect to fastlane format
-asc migrate export --app "123456789" --output ./exported-metadata
+asc migrate export --app "123456789" --version-id "VERSION_ID" --output-dir ./exported-metadata
 ```
 
 **Character limits validated:**
@@ -953,11 +1543,13 @@ asc auth status --validate
 
 # Diagnose authentication issues
 asc auth doctor
-asc auth doctor --output json
+asc auth doctor --output json --pretty
 asc auth doctor --fix --confirm
 
 # Logout
 asc auth logout
+asc auth logout --all
+asc auth logout --name "MyApp"
 ```
 
 ## Design Philosophy
