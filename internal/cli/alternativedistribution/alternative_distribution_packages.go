@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AlternativeDistributionPackagesCommand returns the packages command group.
@@ -31,7 +32,7 @@ Examples:
   asc alternative-distribution packages variants --variant-id "VARIANT_ID"
   asc alternative-distribution packages deltas --delta-id "DELTA_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AlternativeDistributionPackagesGetCommand(),
 			AlternativeDistributionPackagesCreateCommand(),
@@ -63,7 +64,7 @@ func AlternativeDistributionPackagesGetCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution packages get --package-id "PACKAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*packageID)
 			if trimmedID == "" {
@@ -71,12 +72,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAlternativeDistributionPackage(requestCtx, trimmedID)
@@ -84,7 +85,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -106,7 +107,7 @@ func AlternativeDistributionPackagesCreateCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution packages create --app-store-version-id "APP_STORE_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*appStoreVersionID)
 			if trimmedID == "" {
@@ -114,12 +115,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAlternativeDistributionPackage(requestCtx, trimmedID)
@@ -127,7 +128,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -149,7 +150,7 @@ func AlternativeDistributionPackagesAppStoreVersionCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution packages app-store-version --app-store-version-id "APP_STORE_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*appStoreVersionID)
 			if trimmedID == "" {
@@ -157,12 +158,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages app-store-version: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreVersionAlternativeDistributionPackage(requestCtx, trimmedID)
@@ -170,7 +171,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages app-store-version: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -192,7 +193,7 @@ func AlternativeDistributionPackageVariantsCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution packages variants --variant-id "VARIANT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*variantID)
 			if trimmedID == "" {
@@ -200,12 +201,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages variants: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAlternativeDistributionPackageVariant(requestCtx, trimmedID)
@@ -213,7 +214,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages variants: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -235,7 +236,7 @@ func AlternativeDistributionPackageDeltasCommand() *ffcli.Command {
 Examples:
   asc alternative-distribution packages deltas --delta-id "DELTA_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*deltaID)
 			if trimmedID == "" {
@@ -243,12 +244,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution packages deltas: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAlternativeDistributionPackageDelta(requestCtx, trimmedID)
@@ -256,7 +257,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages deltas: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

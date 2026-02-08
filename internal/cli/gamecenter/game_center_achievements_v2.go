@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterAchievementsV2Command returns the achievements v2 command group.
@@ -28,7 +29,7 @@ Examples:
   asc game-center achievements v2 localizations list --version-id "VER_ID"
   asc game-center achievements v2 images upload --localization-id "LOC_ID" --file "path/to/image.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAchievementsV2ListCommand(),
 			GameCenterAchievementVersionsV2Command(),
@@ -64,12 +65,12 @@ Examples:
   asc game-center achievements v2 list --group-id "GROUP_ID"
   asc game-center achievements v2 list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center achievements v2 list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center achievements v2 list: %w", err)
 			}
 
@@ -79,19 +80,19 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if group == "" && resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			gcDetailID := ""
@@ -122,7 +123,7 @@ Examples:
 					return fmt.Errorf("game-center achievements v2 list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterAchievementsV2(requestCtx, gcDetailID, group, opts...)
@@ -130,7 +131,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -150,7 +151,7 @@ Examples:
   asc game-center achievements v2 versions get --id "VERSION_ID"
   asc game-center achievements v2 versions create --achievement-id "ACH_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAchievementVersionsV2ListCommand(),
 			GameCenterAchievementVersionsV2GetCommand(),
@@ -183,12 +184,12 @@ Examples:
   asc game-center achievements v2 versions list --achievement-id "ACH_ID"
   asc game-center achievements v2 versions list --achievement-id "ACH_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center achievements v2 versions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center achievements v2 versions list: %w", err)
 			}
 
@@ -198,12 +199,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCAchievementVersionsOption{
@@ -225,7 +226,7 @@ Examples:
 					return fmt.Errorf("game-center achievements v2 versions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterAchievementVersions(requestCtx, id, opts...)
@@ -233,7 +234,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -255,7 +256,7 @@ func GameCenterAchievementVersionsV2GetCommand() *ffcli.Command {
 Examples:
   asc game-center achievements v2 versions get --id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -263,12 +264,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 versions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterAchievementVersion(requestCtx, id)
@@ -276,7 +277,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 versions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -298,7 +299,7 @@ func GameCenterAchievementVersionsV2CreateCommand() *ffcli.Command {
 Examples:
   asc game-center achievements v2 versions create --achievement-id "ACH_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*achievementID)
 			if id == "" {
@@ -306,12 +307,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 versions create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterAchievementVersion(requestCtx, id)
@@ -319,7 +320,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 versions create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -338,7 +339,7 @@ Examples:
   asc game-center achievements v2 localizations list --version-id "VER_ID"
   asc game-center achievements v2 localizations create --version-id "VER_ID" --locale en-US --name "First Win" --before-earned-description "Before" --after-earned-description "After"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAchievementLocalizationsV2ListCommand(),
 			GameCenterAchievementLocalizationsV2GetCommand(),
@@ -373,12 +374,12 @@ Examples:
   asc game-center achievements v2 localizations list --version-id "VER_ID"
   asc game-center achievements v2 localizations list --version-id "VER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center achievements v2 localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center achievements v2 localizations list: %w", err)
 			}
 
@@ -388,12 +389,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCAchievementLocalizationsOption{
@@ -415,7 +416,7 @@ Examples:
 					return fmt.Errorf("game-center achievements v2 localizations list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterAchievementVersionLocalizations(requestCtx, id, opts...)
@@ -423,7 +424,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -445,7 +446,7 @@ func GameCenterAchievementLocalizationsV2GetCommand() *ffcli.Command {
 Examples:
   asc game-center achievements v2 localizations get --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -453,12 +454,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterAchievementLocalizationV2(requestCtx, id)
@@ -466,7 +467,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -492,7 +493,7 @@ func GameCenterAchievementLocalizationsV2CreateCommand() *ffcli.Command {
 Examples:
   asc game-center achievements v2 localizations create --version-id "VER_ID" --locale en-US --name "First Win" --before-earned-description "Before" --after-earned-description "After"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -531,12 +532,12 @@ Examples:
 				AfterEarnedDescription:  after,
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterAchievementLocalizationV2(requestCtx, id, attrs)
@@ -544,7 +545,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -569,7 +570,7 @@ func GameCenterAchievementLocalizationsV2UpdateCommand() *ffcli.Command {
 Examples:
   asc game-center achievements v2 localizations update --id "LOC_ID" --name "New Name"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -601,12 +602,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterAchievementLocalizationV2(requestCtx, id, attrs)
@@ -614,7 +615,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -637,7 +638,7 @@ func GameCenterAchievementLocalizationsV2DeleteCommand() *ffcli.Command {
 Examples:
   asc game-center achievements v2 localizations delete --id "LOC_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
@@ -649,12 +650,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterAchievementLocalizationV2(requestCtx, id); err != nil {
@@ -666,7 +667,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -687,7 +688,7 @@ Examples:
   asc game-center achievements v2 images get --localization-id "LOC_ID"
   asc game-center achievements v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAchievementImagesV2UploadCommand(),
 			GameCenterAchievementImagesV2GetCommand(),
@@ -719,7 +720,7 @@ The image file will be validated, reserved, uploaded in chunks, and committed.
 Examples:
   asc game-center achievements v2 images upload --localization-id "LOC_ID" --file "path/to/image.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -733,12 +734,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 images upload: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadGameCenterAchievementImageV2(requestCtx, locID, path)
@@ -746,7 +747,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 images upload: %w", err)
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -770,7 +771,7 @@ Examples:
   asc game-center achievements v2 images get --id "IMAGE_ID"
   asc game-center achievements v2 images get --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			locID := strings.TrimSpace(*localizationID)
@@ -783,12 +784,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 images get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if locID != "" {
@@ -796,7 +797,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 images get: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterAchievementImageV2(requestCtx, id)
@@ -804,7 +805,7 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 images get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -827,7 +828,7 @@ func GameCenterAchievementImagesV2DeleteCommand() *ffcli.Command {
 Examples:
   asc game-center achievements v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
@@ -839,12 +840,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 images delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterAchievementImageV2(requestCtx, id); err != nil {
@@ -856,7 +857,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // UsersCommand returns the users command with subcommands.
@@ -34,7 +35,7 @@ Examples:
   asc users visible-apps list --id "USER_ID"
   asc users visible-apps get --id "USER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			UsersListCommand(),
 			UsersGetCommand(),
@@ -76,26 +77,26 @@ Examples:
   asc users list --limit 50
   asc users list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("users list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("users list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.UsersOption{
 				asc.WithUsersEmail(*email),
-				asc.WithUsersRoles(splitCSV(*role)),
+				asc.WithUsersRoles(shared.SplitCSV(*role)),
 				asc.WithUsersLimit(*limit),
 				asc.WithUsersNextURL(*next),
 			}
@@ -114,7 +115,7 @@ Examples:
 					return fmt.Errorf("users list: %w", err)
 				}
 
-				return printOutput(users, *output, *pretty)
+				return shared.PrintOutput(users, *output, *pretty)
 			}
 
 			users, err := client.GetUsers(requestCtx, opts...)
@@ -122,7 +123,7 @@ Examples:
 				return fmt.Errorf("users list: failed to fetch: %w", err)
 			}
 
-			return printOutput(users, *output, *pretty)
+			return shared.PrintOutput(users, *output, *pretty)
 		},
 	}
 }
@@ -146,7 +147,7 @@ Examples:
   asc users get --id "USER_ID"
   asc users get --id "USER_ID" --include visibleApps`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -159,12 +160,12 @@ Examples:
 				return fmt.Errorf("users get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.UsersOption{}
@@ -177,7 +178,7 @@ Examples:
 				return fmt.Errorf("users get: failed to fetch: %w", err)
 			}
 
-			return printOutput(user, *output, *pretty)
+			return shared.PrintOutput(user, *output, *pretty)
 		},
 	}
 }
@@ -202,7 +203,7 @@ Examples:
   asc users update --id "USER_ID" --roles "ADMIN"
   asc users update --id "USER_ID" --roles "ADMIN" --visible-app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -210,20 +211,20 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			roleValues := splitCSV(*roles)
+			roleValues := shared.SplitCSV(*roles)
 			if len(roleValues) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --roles is required")
 				return flag.ErrHelp
 			}
 
-			visibleAppIDs := parseCommaSeparatedIDs(*visibleApps)
+			visibleAppIDs := shared.SplitCSV(*visibleApps)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.UserUpdateAttributes{
@@ -245,7 +246,7 @@ Examples:
 				}
 			}
 
-			return printOutput(user, *output, *pretty)
+			return shared.PrintOutput(user, *output, *pretty)
 		},
 	}
 }
@@ -268,7 +269,7 @@ func UsersDeleteCommand() *ffcli.Command {
 Examples:
   asc users delete --id "USER_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
@@ -281,12 +282,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteUser(requestCtx, idValue); err != nil {
@@ -298,7 +299,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -326,7 +327,7 @@ Examples:
   asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps
   asc users invite --email "user@example.com" --first-name "John" --last-name "Smith" --roles "DEVELOPER" --visible-app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			emailValue := strings.TrimSpace(*email)
 			if emailValue == "" {
@@ -346,7 +347,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			roleValues := splitCSV(*roles)
+			roleValues := shared.SplitCSV(*roles)
 			if len(roleValues) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --roles is required")
 				return flag.ErrHelp
@@ -357,19 +358,19 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			visibleAppIDs := parseCommaSeparatedIDs(*visibleApps)
+			visibleAppIDs := shared.SplitCSV(*visibleApps)
 
 			if !*allApps && len(visibleAppIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --all-apps or --visible-app is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users invite: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.UserInvitationCreateAttributes{
@@ -391,7 +392,7 @@ Examples:
 				return fmt.Errorf("users invite: failed to create: %w", err)
 			}
 
-			return printOutput(invitation, *output, *pretty)
+			return shared.PrintOutput(invitation, *output, *pretty)
 		},
 	}
 }
@@ -412,7 +413,7 @@ Examples:
   asc users invites revoke --id "INVITE_ID" --confirm
   asc users invites visible-apps list --id "INVITE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			UsersInvitesListCommand(),
 			UsersInvitesGetCommand(),
@@ -446,21 +447,21 @@ Examples:
   asc users invites list --limit 50
   asc users invites list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("users invites list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("users invites list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users invites list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.UserInvitationsOption{
@@ -482,7 +483,7 @@ Examples:
 					return fmt.Errorf("users invites list: %w", err)
 				}
 
-				return printOutput(invites, *output, *pretty)
+				return shared.PrintOutput(invites, *output, *pretty)
 			}
 
 			invites, err := client.GetUserInvitations(requestCtx, opts...)
@@ -490,7 +491,7 @@ Examples:
 				return fmt.Errorf("users invites list: failed to fetch: %w", err)
 			}
 
-			return printOutput(invites, *output, *pretty)
+			return shared.PrintOutput(invites, *output, *pretty)
 		},
 	}
 }
@@ -512,7 +513,7 @@ func UsersInvitesGetCommand() *ffcli.Command {
 Examples:
   asc users invites get --id "INVITE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -520,12 +521,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users invites get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			invite, err := client.GetUserInvitation(requestCtx, idValue)
@@ -533,7 +534,7 @@ Examples:
 				return fmt.Errorf("users invites get: failed to fetch: %w", err)
 			}
 
-			return printOutput(invite, *output, *pretty)
+			return shared.PrintOutput(invite, *output, *pretty)
 		},
 	}
 }
@@ -556,7 +557,7 @@ func UsersInvitesRevokeCommand() *ffcli.Command {
 Examples:
   asc users invites revoke --id "INVITE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
@@ -569,12 +570,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users invites revoke: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteUserInvitation(requestCtx, idValue); err != nil {
@@ -586,13 +587,13 @@ Examples:
 				Revoked: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
 
 func normalizeUsersInclude(value string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

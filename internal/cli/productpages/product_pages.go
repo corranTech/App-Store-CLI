@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const productPagesMaxLimit = 200
@@ -25,7 +26,7 @@ Examples:
   asc product-pages experiments list --version-id "VERSION_ID"
   asc product-pages experiments create --version-id "VERSION_ID" --name "Icon Test" --traffic-proportion 25`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			CustomPagesCommand(),
 			ExperimentsCommand(),

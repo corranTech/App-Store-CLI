@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipDefaultExperienceHeaderImageCommand returns the default experience header image command group.
@@ -23,7 +24,7 @@ func AppClipDefaultExperienceHeaderImageCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences header-image get --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipDefaultExperienceHeaderImageGetCommand(),
 		},
@@ -50,7 +51,7 @@ func AppClipDefaultExperienceHeaderImageGetCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences header-image get --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
@@ -58,12 +59,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences header-image get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipDefaultExperienceLocalizationHeaderImage(requestCtx, locValue)
@@ -71,7 +72,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences header-image get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

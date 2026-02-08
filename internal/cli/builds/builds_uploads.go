@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildsUploadsCommand returns the builds uploads command group.
@@ -28,7 +29,7 @@ Examples:
   asc builds uploads delete --id "UPLOAD_ID" --confirm
   asc builds uploads files list --upload "UPLOAD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsUploadsListCommand(),
 			BuildsUploadsGetCommand(),
@@ -69,46 +70,46 @@ Examples:
   asc builds uploads list --app "APP_ID" --platform "IOS" --sort "-uploadedDate"
   asc builds uploads list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("builds uploads list: %w", err)
 			}
-			if err := validateSort(*sort, "cfBundleVersion", "-cfBundleVersion", "uploadedDate", "-uploadedDate"); err != nil {
+			if err := shared.ValidateSort(*sort, "cfBundleVersion", "-cfBundleVersion", "uploadedDate", "-uploadedDate"); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			platforms, err := normalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("builds uploads list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds uploads list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildUploadsOption{
 				asc.WithBuildUploadsLimit(*limit),
 				asc.WithBuildUploadsNextURL(*next),
-				asc.WithBuildUploadsCFBundleShortVersionStrings(splitCSV(*shortVersion)),
-				asc.WithBuildUploadsCFBundleVersions(splitCSV(*bundleVersion)),
+				asc.WithBuildUploadsCFBundleShortVersionStrings(shared.SplitCSV(*shortVersion)),
+				asc.WithBuildUploadsCFBundleVersions(shared.SplitCSV(*bundleVersion)),
 				asc.WithBuildUploadsPlatforms(platforms),
-				asc.WithBuildUploadsStates(splitCSVUpper(*state)),
+				asc.WithBuildUploadsStates(shared.SplitCSVUpper(*state)),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildUploadsSort(*sort))
@@ -127,7 +128,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds uploads list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBuildUploads(requestCtx, resolvedAppID, opts...)
@@ -135,7 +136,7 @@ Examples:
 				return fmt.Errorf("builds uploads list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -157,7 +158,7 @@ func BuildsUploadsGetCommand() *ffcli.Command {
 Examples:
   asc builds uploads get --id "UPLOAD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			uploadID := strings.TrimSpace(*id)
 			if uploadID == "" {
@@ -165,12 +166,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds uploads get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildUpload(requestCtx, uploadID)
@@ -178,7 +179,7 @@ Examples:
 				return fmt.Errorf("builds uploads get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -201,7 +202,7 @@ func BuildsUploadsDeleteCommand() *ffcli.Command {
 Examples:
   asc builds uploads delete --id "UPLOAD_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			uploadID := strings.TrimSpace(*id)
 			if uploadID == "" {
@@ -213,12 +214,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds uploads delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBuildUpload(requestCtx, uploadID); err != nil {
@@ -230,7 +231,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -249,7 +250,7 @@ Examples:
   asc builds uploads files list --upload "UPLOAD_ID"
   asc builds uploads files get --id "FILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsUploadFilesListCommand(),
 			BuildsUploadFilesGetCommand(),
@@ -281,12 +282,12 @@ Examples:
   asc builds uploads files list --upload "UPLOAD_ID"
   asc builds uploads files list --upload "UPLOAD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds uploads files list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("builds uploads files list: %w", err)
 			}
 
@@ -296,12 +297,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds uploads files list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildUploadFilesOption{
@@ -328,7 +329,7 @@ Examples:
 					return fmt.Errorf("builds uploads files list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBuildUploadFiles(requestCtx, uploadValue, opts...)
@@ -336,7 +337,7 @@ Examples:
 				return fmt.Errorf("builds uploads files list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -358,7 +359,7 @@ func BuildsUploadFilesGetCommand() *ffcli.Command {
 Examples:
   asc builds uploads files get --id "FILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			fileID := strings.TrimSpace(*id)
 			if fileID == "" {
@@ -366,12 +367,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds uploads files get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildUploadFile(requestCtx, fileID)
@@ -379,7 +380,7 @@ Examples:
 				return fmt.Errorf("builds uploads files get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

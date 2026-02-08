@@ -36,7 +36,7 @@ Examples:
   asc profiles relationships certificates --id "PROFILE_ID"
   asc profiles relationships devices --id "PROFILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ProfilesListCommand(),
 			ProfilesGetCommand(),
@@ -73,23 +73,23 @@ Examples:
   asc profiles list --profile-type IOS_APP_DEVELOPMENT
   asc profiles list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("profiles list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("profiles list: %w", err)
 			}
 
-			profileTypes := splitCSVUpper(*profileType)
+			profileTypes := shared.SplitCSVUpper(*profileType)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("profiles list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.ProfilesOption{
@@ -114,7 +114,7 @@ Examples:
 					return fmt.Errorf("profiles list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetProfiles(requestCtx, opts...)
@@ -122,7 +122,7 @@ Examples:
 				return fmt.Errorf("profiles list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -146,7 +146,7 @@ Examples:
   asc profiles get --id "PROFILE_ID"
   asc profiles get --id "PROFILE_ID" --include bundleId,certificates,devices`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -159,12 +159,12 @@ Examples:
 				return fmt.Errorf("profiles get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("profiles get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.ProfilesOption{}
@@ -177,7 +177,7 @@ Examples:
 				return fmt.Errorf("profiles get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -204,7 +204,7 @@ Examples:
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID"
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID" --device "DEVICE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
@@ -221,19 +221,19 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --bundle is required")
 				return flag.ErrHelp
 			}
-			certificateIDs := splitCSV(*certificates)
+			certificateIDs := shared.SplitCSV(*certificates)
 			if len(certificateIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --certificate is required")
 				return flag.ErrHelp
 			}
-			deviceIDs := splitCSV(*devices)
+			deviceIDs := shared.SplitCSV(*devices)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("profiles create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.ProfileCreateAttributes{
@@ -245,7 +245,7 @@ Examples:
 				return fmt.Errorf("profiles create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -268,7 +268,7 @@ func ProfilesDeleteCommand() *ffcli.Command {
 Examples:
   asc profiles delete --id "PROFILE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -280,12 +280,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("profiles delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteProfile(requestCtx, idValue); err != nil {
@@ -297,7 +297,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -320,7 +320,7 @@ func ProfilesDownloadCommand() *ffcli.Command {
 Examples:
   asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -333,12 +333,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("profiles download: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetProfile(requestCtx, idValue)
@@ -366,7 +366,7 @@ Examples:
 				OutputPath: pathValue,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -384,7 +384,7 @@ func decodeProfileContent(content string) ([]byte, error) {
 }
 
 func normalizeProfileInclude(value string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipsCommand returns the app-clips command group.
@@ -29,7 +30,7 @@ Examples:
   asc app-clips advanced-experiences create --app "APP_ID" --bundle-id "com.example.clip" --link "https://example.com" --default-language EN --is-powered-by
   asc app-clips invocations list --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipsListCommand(),
 			AppClipsGetCommand(),
@@ -72,33 +73,33 @@ Examples:
   asc app-clips list --app "APP_ID" --limit 50
   asc app-clips list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-clips list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-clips list: %w", err)
 			}
 
-			appValue := strings.TrimSpace(resolveAppID(*appID))
+			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppClipsOption{
 				asc.WithAppClipsLimit(*limit),
 				asc.WithAppClipsNextURL(*next),
-				asc.WithAppClipsBundleIDs(splitCSV(*bundleID)),
+				asc.WithAppClipsBundleIDs(shared.SplitCSV(*bundleID)),
 			}
 
 			if *paginate {
@@ -107,7 +108,7 @@ Examples:
 				if err != nil {
 					if asc.IsNotFound(err) {
 						empty := &asc.AppClipsResponse{Data: []asc.Resource[asc.AppClipAttributes]{}}
-						return printOutput(empty, *output, *pretty)
+						return shared.PrintOutput(empty, *output, *pretty)
 					}
 					return fmt.Errorf("app-clips list: failed to fetch: %w", err)
 				}
@@ -119,19 +120,19 @@ Examples:
 					return fmt.Errorf("app-clips list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppClips(requestCtx, appValue, opts...)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.AppClipsResponse{Data: []asc.Resource[asc.AppClipAttributes]{}}
-					return printOutput(empty, *output, *pretty)
+					return shared.PrintOutput(empty, *output, *pretty)
 				}
 				return fmt.Errorf("app-clips list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -153,7 +154,7 @@ func AppClipsGetCommand() *ffcli.Command {
 Examples:
   asc app-clips get --id "CLIP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*appClipID)
 			if idValue == "" {
@@ -161,12 +162,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClip(requestCtx, idValue)
@@ -174,7 +175,7 @@ Examples:
 				return fmt.Errorf("app-clips get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

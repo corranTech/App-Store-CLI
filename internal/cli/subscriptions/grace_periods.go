@@ -27,7 +27,7 @@ Examples:
   asc subscriptions grace-periods get --id "GRACE_PERIOD_ID"
   asc subscriptions grace-periods update --id "GRACE_PERIOD_ID" --duration SIXTEEN_DAYS --opt-in true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsGracePeriodsGetCommand(),
 			SubscriptionsGracePeriodsUpdateCommand(),
@@ -55,7 +55,7 @@ func SubscriptionsGracePeriodsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions grace-periods get --id "GRACE_PERIOD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*gracePeriodID)
 			if id == "" {
@@ -63,12 +63,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions grace-periods get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionGracePeriod(requestCtx, id)
@@ -76,7 +76,7 @@ Examples:
 				return fmt.Errorf("subscriptions grace-periods get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -104,7 +104,7 @@ func SubscriptionsGracePeriodsUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions grace-periods update --id "GRACE_PERIOD_ID" --duration SIXTEEN_DAYS --opt-in true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*gracePeriodID)
 			if id == "" {
@@ -127,12 +127,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions grace-periods update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionGracePeriodUpdateAttributes{}
@@ -158,7 +158,7 @@ Examples:
 				return fmt.Errorf("subscriptions grace-periods update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

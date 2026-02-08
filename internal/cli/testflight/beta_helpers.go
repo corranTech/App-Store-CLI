@@ -60,14 +60,3 @@ func findBetaTesterIDByEmail(ctx context.Context, client *asc.Client, appID, ema
 
 	return testers.Data[0].ID, nil
 }
-
-func parseCommaSeparatedIDs(input string) []string {
-	parts := strings.Split(input, ",")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
-}

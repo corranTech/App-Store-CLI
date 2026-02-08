@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppEncryptionDeclarationsCommand returns the app-encryption-declarations command group.
@@ -23,7 +24,7 @@ func AppEncryptionDeclarationsCommand() *ffcli.Command {
 Examples:
   asc apps app-encryption-declarations list --id "APP_ID"
   asc apps app-encryption-declarations list --id "APP_ID" --include appEncryptionDeclarationDocument`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEncryptionDeclarationsListCommand(),
 		},
@@ -60,7 +61,7 @@ Examples:
   asc apps app-encryption-declarations list --id "APP_ID" --include appEncryptionDeclarationDocument --document-fields "fileName,fileSize"
   asc apps app-encryption-declarations list --id "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("apps app-encryption-declarations list: --limit must be between 1 and 200")
@@ -68,7 +69,7 @@ Examples:
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
 				return fmt.Errorf("apps app-encryption-declarations list: --build-limit must be between 1 and 50")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("apps app-encryption-declarations list: %w", err)
 			}
 
@@ -85,20 +86,20 @@ Examples:
 				return fmt.Errorf("apps app-encryption-declarations list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			buildIDs := splitCSV(*builds)
+			buildIDs := shared.SplitCSV(*builds)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps app-encryption-declarations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppEncryptionDeclarationsOption{
@@ -123,7 +124,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("apps app-encryption-declarations list: %w", err)
 				}
-				return printOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output, *pretty)
 			}
 
 			resp, err := client.GetAppEncryptionDeclarations(requestCtx, resolvedAppID, opts...)
@@ -131,13 +132,13 @@ Examples:
 				return fmt.Errorf("apps app-encryption-declarations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
 
 func normalizeAppEncryptionDeclarationFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -155,7 +156,7 @@ func normalizeAppEncryptionDeclarationFields(value string) ([]string, error) {
 }
 
 func normalizeAppEncryptionDeclarationDocumentFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -173,7 +174,7 @@ func normalizeAppEncryptionDeclarationDocumentFields(value string) ([]string, er
 }
 
 func normalizeAppEncryptionDeclarationInclude(value string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type buildExpireCandidate struct {
@@ -49,9 +50,9 @@ Examples:
   asc builds expire-all --app "123456789" --keep-latest 5 --confirm
   asc builds expire-all --app "123456789" --older-than "2025-01-01" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -80,12 +81,12 @@ Examples:
 				olderThanThreshold = threshold
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds expire-all: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			firstPage, err := client.GetBuilds(requestCtx, resolvedAppID, asc.WithBuildsLimit(200), asc.WithBuildsSort("-uploadedDate"))
@@ -213,7 +214,7 @@ Examples:
 				Failures:            failures,
 			}
 
-			if err := printOutput(result, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(result, *output, *pretty); err != nil {
 				return err
 			}
 

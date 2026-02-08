@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPReviewScreenshotsCommand returns the review screenshots command group.
@@ -28,7 +29,7 @@ Examples:
   asc iap review-screenshots update --screenshot-id "SHOT_ID" --file "./review.png"
   asc iap review-screenshots delete --screenshot-id "SHOT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPReviewScreenshotsGetCommand(),
 			IAPReviewScreenshotsCreateCommand(),
@@ -60,7 +61,7 @@ Examples:
   asc iap review-screenshots get --iap-id "IAP_ID"
   asc iap review-screenshots get --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			screenshotValue := strings.TrimSpace(*screenshotID)
@@ -69,12 +70,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if screenshotValue != "" {
@@ -82,7 +83,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("iap review-screenshots get: failed to fetch: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseAppStoreReviewScreenshotForIAP(requestCtx, iapValue)
@@ -90,7 +91,7 @@ Examples:
 				return fmt.Errorf("iap review-screenshots get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -113,7 +114,7 @@ func IAPReviewScreenshotsCreateCommand() *ffcli.Command {
 Examples:
   asc iap review-screenshots create --iap-id "IAP_ID" --file "./review.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -137,7 +138,7 @@ Examples:
 				return fmt.Errorf("iap review-screenshots create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots create: %w", err)
 			}
@@ -170,7 +171,7 @@ Examples:
 				return fmt.Errorf("iap review-screenshots create: failed to fetch: %w", err)
 			}
 
-			return printOutput(finalResp, *output, *pretty)
+			return shared.PrintOutput(finalResp, *output, *pretty)
 		},
 	}
 }
@@ -193,7 +194,7 @@ func IAPReviewScreenshotsUpdateCommand() *ffcli.Command {
 Examples:
   asc iap review-screenshots update --screenshot-id "SHOT_ID" --file "./review.png"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			screenshotValue := strings.TrimSpace(*screenshotID)
 			if screenshotValue == "" {
@@ -217,7 +218,7 @@ Examples:
 				return fmt.Errorf("iap review-screenshots update: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots update: %w", err)
 			}
@@ -274,7 +275,7 @@ Examples:
 				}
 			}
 
-			return printOutput(updated, *output, *pretty)
+			return shared.PrintOutput(updated, *output, *pretty)
 		},
 	}
 }
@@ -297,7 +298,7 @@ func IAPReviewScreenshotsDeleteCommand() *ffcli.Command {
 Examples:
   asc iap review-screenshots delete --screenshot-id "SHOT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			screenshotValue := strings.TrimSpace(*screenshotID)
 			if screenshotValue == "" {
@@ -309,12 +310,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteInAppPurchaseAppStoreReviewScreenshot(requestCtx, screenshotValue); err != nil {
@@ -326,7 +327,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

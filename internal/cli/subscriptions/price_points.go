@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SubscriptionsPricePointsCommand returns the subscription price points command group.
@@ -27,7 +28,7 @@ Examples:
   asc subscriptions price-points get --id "PRICE_POINT_ID"
   asc subscriptions price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsPricePointsListCommand(),
 			SubscriptionsPricePointsGetCommand(),
@@ -72,12 +73,12 @@ Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate
   asc subscriptions price-points list --subscription-id "SUB_ID" --paginate --stream`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions price-points list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
 			}
 			if *stream && !*paginate {
@@ -91,12 +92,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionPricePointsOption{
@@ -108,7 +109,7 @@ Examples:
 			if *paginate && *stream {
 				// Streaming mode: emit each page as a separate JSON line
 				paginateOpts := append(opts, asc.WithSubscriptionPricePointsLimit(200))
-				firstPageCtx, firstPageCancel := contextWithTimeout(ctx)
+				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
 				page, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
 				if err != nil {
@@ -117,7 +118,7 @@ Examples:
 
 				seenNext := make(map[string]struct{})
 				for {
-					if err := printStreamPage(page); err != nil {
+					if err := shared.PrintStreamPage(page); err != nil {
 						return fmt.Errorf("subscriptions price-points list: write stream page: %w", err)
 					}
 
@@ -129,7 +130,7 @@ Examples:
 					}
 					seenNext[page.Links.Next] = struct{}{}
 
-					pageCtx, pageCancel := contextWithTimeout(ctx)
+					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 					page, err = client.GetSubscriptionPricePoints(pageCtx, id, asc.WithSubscriptionPricePointsNextURL(page.Links.Next))
 					pageCancel()
 					if err != nil {
@@ -141,7 +142,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithSubscriptionPricePointsLimit(200))
-				firstPageCtx, firstPageCancel := contextWithTimeout(ctx)
+				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
 				firstPage, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
 				if err != nil {
@@ -149,7 +150,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					pageCtx, pageCancel := contextWithTimeout(ctx)
+					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 					defer pageCancel()
 					return client.GetSubscriptionPricePoints(pageCtx, id, asc.WithSubscriptionPricePointsNextURL(nextURL))
 				})
@@ -157,7 +158,7 @@ Examples:
 					return fmt.Errorf("subscriptions price-points list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionPricePoints(requestCtx, id, opts...)
@@ -165,7 +166,7 @@ Examples:
 				return fmt.Errorf("subscriptions price-points list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -187,7 +188,7 @@ func SubscriptionsPricePointsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions price-points get --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
@@ -195,12 +196,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionPricePoint(requestCtx, id)
@@ -208,7 +209,7 @@ Examples:
 				return fmt.Errorf("subscriptions price-points get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -230,7 +231,7 @@ func SubscriptionsPricePointsEqualizationsCommand() *ffcli.Command {
 Examples:
   asc subscriptions price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
@@ -238,12 +239,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points equalizations: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionPricePointEqualizations(requestCtx, id)
@@ -251,7 +252,7 @@ Examples:
 				return fmt.Errorf("subscriptions price-points equalizations: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

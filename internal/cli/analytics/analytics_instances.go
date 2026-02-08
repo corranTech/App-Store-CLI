@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AnalyticsInstancesCommand returns the analytics instances command group.
@@ -27,7 +28,7 @@ Examples:
   asc analytics instances relationships --instance-id "INSTANCE_ID"
   asc analytics instances relationships --instance-id "INSTANCE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AnalyticsInstancesGetCommand(),
 			AnalyticsInstancesRelationshipsCommand(),
@@ -55,19 +56,19 @@ func AnalyticsInstancesGetCommand() *ffcli.Command {
 Examples:
   asc analytics instances get --instance-id "INSTANCE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*instanceID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics instances get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAnalyticsReportInstance(requestCtx, strings.TrimSpace(*instanceID))
@@ -75,7 +76,7 @@ Examples:
 				return fmt.Errorf("analytics instances get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -101,12 +102,12 @@ Examples:
   asc analytics instances relationships --instance-id "INSTANCE_ID"
   asc analytics instances relationships --instance-id "INSTANCE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
 				return fmt.Errorf("analytics instances relationships: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("analytics instances relationships: %w", err)
 			}
 
@@ -121,12 +122,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics instances relationships: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -148,7 +149,7 @@ Examples:
 					return fmt.Errorf("analytics instances relationships: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAnalyticsReportInstanceSegmentsRelationships(requestCtx, id, opts...)
@@ -156,7 +157,7 @@ Examples:
 				return fmt.Errorf("analytics instances relationships: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

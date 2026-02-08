@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterEnabledVersionsCommand returns the enabled versions command group.
@@ -26,7 +27,7 @@ Examples:
   asc game-center enabled-versions list --app "APP_ID"
   asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterEnabledVersionsListCommand(),
 			GameCenterEnabledVersionsCompatibleVersionsCommand(),
@@ -59,27 +60,27 @@ Examples:
   asc game-center enabled-versions list --app "APP_ID" --limit 50
   asc game-center enabled-versions list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center enabled-versions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center enabled-versions list: %w", err)
 			}
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center enabled-versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCEnabledVersionsOption{
@@ -104,7 +105,7 @@ Examples:
 					return fmt.Errorf("game-center enabled-versions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppGameCenterEnabledVersions(requestCtx, resolvedAppID, opts...)
@@ -112,7 +113,7 @@ Examples:
 				return fmt.Errorf("game-center enabled-versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -139,12 +140,12 @@ Examples:
   asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID" --limit 50
   asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center enabled-versions compatible-versions: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
 			}
 			id := strings.TrimSpace(*enabledVersionID)
@@ -154,12 +155,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCEnabledVersionsOption{
@@ -184,7 +185,7 @@ Examples:
 					return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterEnabledVersionCompatibleVersions(requestCtx, id, opts...)
@@ -192,7 +193,7 @@ Examples:
 				return fmt.Errorf("game-center enabled-versions compatible-versions: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

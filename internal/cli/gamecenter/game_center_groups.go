@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterGroupsCommand returns the groups command group.
@@ -37,7 +38,7 @@ Examples:
   asc game-center groups challenges list --group-id "GROUP_ID"
   asc game-center groups challenges set --group-id "GROUP_ID" --ids "CH_1,CH_2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterGroupsListCommand(),
 			GameCenterGroupsGetCommand(),
@@ -79,28 +80,28 @@ Examples:
   asc game-center groups list --app "APP_ID" --limit 50
   asc game-center groups list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center groups list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center groups list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			gcDetailID := ""
@@ -134,7 +135,7 @@ Examples:
 					return fmt.Errorf("game-center groups list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterGroups(requestCtx, opts...)
@@ -142,7 +143,7 @@ Examples:
 				return fmt.Errorf("game-center groups list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -164,7 +165,7 @@ func GameCenterGroupsGetCommand() *ffcli.Command {
 Examples:
   asc game-center groups get --id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -172,12 +173,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterGroup(requestCtx, id)
@@ -185,7 +186,7 @@ Examples:
 				return fmt.Errorf("game-center groups get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -207,7 +208,7 @@ func GameCenterGroupsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center groups create --reference-name "Group 1"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			var ref *string
 			if strings.TrimSpace(*referenceName) != "" {
@@ -215,12 +216,12 @@ Examples:
 				ref = &value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterGroup(requestCtx, ref)
@@ -228,7 +229,7 @@ Examples:
 				return fmt.Errorf("game-center groups create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -251,7 +252,7 @@ func GameCenterGroupsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center groups update --id "GROUP_ID" --reference-name "New Name"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -265,12 +266,12 @@ Examples:
 			}
 			value := strings.TrimSpace(*referenceName)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterGroup(requestCtx, id, &value)
@@ -278,7 +279,7 @@ Examples:
 				return fmt.Errorf("game-center groups update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -301,7 +302,7 @@ func GameCenterGroupsDeleteCommand() *ffcli.Command {
 Examples:
   asc game-center groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -313,12 +314,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteGameCenterGroup(requestCtx, id); err != nil {
@@ -330,7 +331,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -349,7 +350,7 @@ Examples:
   asc game-center groups achievements list --group-id "GROUP_ID"
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterGroupAchievementsListCommand(),
 			GameCenterGroupAchievementsSetCommand(),
@@ -384,12 +385,12 @@ Examples:
   asc game-center groups achievements list --group-id "GROUP_ID" --paginate
   asc game-center groups achievements list --group-id "GROUP_ID" --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center groups achievements list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center groups achievements list: %w", err)
 			}
 
@@ -399,12 +400,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups achievements list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCAchievementsOption{
@@ -436,7 +437,7 @@ Examples:
 					return fmt.Errorf("game-center groups achievements list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			var resp *asc.GameCenterAchievementsResponse
@@ -449,7 +450,7 @@ Examples:
 				return fmt.Errorf("game-center groups achievements list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -474,25 +475,25 @@ Examples:
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2"
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2" --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
 				return flag.ErrHelp
 			}
-			idsValue := splitCSV(*ids)
+			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --ids is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups achievements set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if *v2 {
@@ -506,7 +507,7 @@ Examples:
 			}
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterAchievements, idsValue)}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -525,7 +526,7 @@ Examples:
   asc game-center groups leaderboards list --group-id "GROUP_ID"
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterGroupLeaderboardsListCommand(),
 			GameCenterGroupLeaderboardsSetCommand(),
@@ -560,12 +561,12 @@ Examples:
   asc game-center groups leaderboards list --group-id "GROUP_ID" --paginate
   asc game-center groups leaderboards list --group-id "GROUP_ID" --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center groups leaderboards list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center groups leaderboards list: %w", err)
 			}
 
@@ -575,12 +576,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups leaderboards list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardsOption{
@@ -612,7 +613,7 @@ Examples:
 					return fmt.Errorf("game-center groups leaderboards list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			var resp *asc.GameCenterLeaderboardsResponse
@@ -625,7 +626,7 @@ Examples:
 				return fmt.Errorf("game-center groups leaderboards list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -650,25 +651,25 @@ Examples:
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2"
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2" --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
 				return flag.ErrHelp
 			}
-			idsValue := splitCSV(*ids)
+			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --ids is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups leaderboards set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if *v2 {
@@ -682,7 +683,7 @@ Examples:
 			}
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterLeaderboards, idsValue)}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -700,7 +701,7 @@ func GameCenterGroupLeaderboardSetsCommand() *ffcli.Command {
 Examples:
   asc game-center groups leaderboard-sets list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterGroupLeaderboardSetsListCommand(),
 		},
@@ -734,12 +735,12 @@ Examples:
   asc game-center groups leaderboard-sets list --group-id "GROUP_ID" --paginate
   asc game-center groups leaderboard-sets list --group-id "GROUP_ID" --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center groups leaderboard-sets list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center groups leaderboard-sets list: %w", err)
 			}
 
@@ -749,12 +750,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups leaderboard-sets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCLeaderboardSetsOption{
@@ -786,7 +787,7 @@ Examples:
 					return fmt.Errorf("game-center groups leaderboard-sets list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			var resp *asc.GameCenterLeaderboardSetsResponse
@@ -799,7 +800,7 @@ Examples:
 				return fmt.Errorf("game-center groups leaderboard-sets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -817,7 +818,7 @@ func GameCenterGroupActivitiesCommand() *ffcli.Command {
 Examples:
   asc game-center groups activities list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterGroupActivitiesListCommand(),
 		},
@@ -849,12 +850,12 @@ Examples:
   asc game-center groups activities list --group-id "GROUP_ID" --limit 50
   asc game-center groups activities list --group-id "GROUP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center groups activities list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center groups activities list: %w", err)
 			}
 
@@ -864,12 +865,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups activities list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCActivitiesOption{
@@ -891,7 +892,7 @@ Examples:
 					return fmt.Errorf("game-center groups activities list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterGroupActivities(requestCtx, id, opts...)
@@ -899,7 +900,7 @@ Examples:
 				return fmt.Errorf("game-center groups activities list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -918,7 +919,7 @@ Examples:
   asc game-center groups challenges list --group-id "GROUP_ID"
   asc game-center groups challenges set --group-id "GROUP_ID" --ids "CH_1,CH_2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterGroupChallengesListCommand(),
 			GameCenterGroupChallengesSetCommand(),
@@ -951,12 +952,12 @@ Examples:
   asc game-center groups challenges list --group-id "GROUP_ID" --limit 50
   asc game-center groups challenges list --group-id "GROUP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center groups challenges list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center groups challenges list: %w", err)
 			}
 
@@ -966,12 +967,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups challenges list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCChallengesOption{
@@ -993,7 +994,7 @@ Examples:
 					return fmt.Errorf("game-center groups challenges list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterGroupChallenges(requestCtx, id, opts...)
@@ -1001,7 +1002,7 @@ Examples:
 				return fmt.Errorf("game-center groups challenges list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -1024,25 +1025,25 @@ func GameCenterGroupChallengesSetCommand() *ffcli.Command {
 Examples:
   asc game-center groups challenges set --group-id "GROUP_ID" --ids "CH_1,CH_2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
 				return flag.ErrHelp
 			}
-			idsValue := splitCSV(*ids)
+			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --ids is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups challenges set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.UpdateGameCenterGroupChallenges(requestCtx, id, idsValue); err != nil {
@@ -1050,7 +1051,7 @@ Examples:
 			}
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterChallenges, idsValue)}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -1068,7 +1069,7 @@ func GameCenterGroupDetailsCommand() *ffcli.Command {
 Examples:
   asc game-center groups details list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterGroupDetailsListCommand(),
 		},
@@ -1100,12 +1101,12 @@ Examples:
   asc game-center groups details list --group-id "GROUP_ID" --limit 50
   asc game-center groups details list --group-id "GROUP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center groups details list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center groups details list: %w", err)
 			}
 
@@ -1116,12 +1117,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center groups details list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCDetailsOption{
@@ -1146,7 +1147,7 @@ Examples:
 					return fmt.Errorf("game-center groups details list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterGroupGameCenterDetails(requestCtx, id, opts...)
@@ -1154,7 +1155,7 @@ Examples:
 				return fmt.Errorf("game-center groups details list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

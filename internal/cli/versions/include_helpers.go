@@ -3,6 +3,8 @@ package versions
 import (
 	"fmt"
 	"strings"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func normalizeAppStoreVersionInclude(value string) ([]string, error) {
@@ -10,7 +12,7 @@ func normalizeAppStoreVersionInclude(value string) ([]string, error) {
 }
 
 func normalizeInclude(value string, allowed []string, flagName string) ([]string, error) {
-	include := splitCSV(value)
+	include := shared.SplitCSV(value)
 	if len(include) == 0 {
 		return nil, nil
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipReviewDetailsCommand returns the review-details command group.
@@ -27,7 +28,7 @@ Examples:
   asc app-clips review-details create --experience-id "EXP_ID" --url "https://example.com/clip"
   asc app-clips review-details update --id "DETAIL_ID" --url "https://example.com/clip"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipReviewDetailsGetCommand(),
 			AppClipReviewDetailsCreateCommand(),
@@ -56,7 +57,7 @@ func AppClipReviewDetailsGetCommand() *ffcli.Command {
 Examples:
   asc app-clips review-details get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
@@ -64,12 +65,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips review-details get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipAppStoreReviewDetail(requestCtx, detailValue)
@@ -77,7 +78,7 @@ Examples:
 				return fmt.Errorf("app-clips review-details get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -100,7 +101,7 @@ func AppClipReviewDetailsCreateCommand() *ffcli.Command {
 Examples:
   asc app-clips review-details create --experience-id "EXP_ID" --url "https://example.com/clip"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -108,18 +109,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			urlValues := splitCSV(*urls)
+			urlValues := shared.SplitCSV(*urls)
 			if len(urlValues) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --url is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips review-details create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := &asc.AppClipAppStoreReviewDetailCreateAttributes{InvocationURLs: urlValues}
@@ -128,7 +129,7 @@ Examples:
 				return fmt.Errorf("app-clips review-details create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -151,7 +152,7 @@ func AppClipReviewDetailsUpdateCommand() *ffcli.Command {
 Examples:
   asc app-clips review-details update --id "DETAIL_ID" --url "https://example.com/clip"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
@@ -168,15 +169,15 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			urlValues := splitCSV(*urls)
+			urlValues := shared.SplitCSV(*urls)
 			attrs := &asc.AppClipAppStoreReviewDetailUpdateAttributes{InvocationURLs: urlValues}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips review-details update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppClipAppStoreReviewDetail(requestCtx, detailValue, attrs)
@@ -184,7 +185,7 @@ Examples:
 				return fmt.Errorf("app-clips review-details update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

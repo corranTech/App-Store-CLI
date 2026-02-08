@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // UsersVisibleAppsCommand returns the visible apps command group.
@@ -27,7 +28,7 @@ Examples:
   asc users visible-apps list --id "USER_ID"
   asc users visible-apps get --id "USER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			UsersVisibleAppsListCommand(),
 			UsersVisibleAppsGetCommand(),
@@ -59,7 +60,7 @@ Examples:
   asc users visible-apps list --id "USER_ID"
   asc users visible-apps list --id "USER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
@@ -69,7 +70,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("users visible-apps list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("users visible-apps list: %w", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
@@ -80,12 +81,12 @@ Examples:
 				idValue = derivedID
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users visible-apps list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.UserVisibleAppsOption{
@@ -111,7 +112,7 @@ Examples:
 					return fmt.Errorf("users visible-apps list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetUserVisibleApps(requestCtx, idValue, opts...)
@@ -119,7 +120,7 @@ Examples:
 				return fmt.Errorf("users visible-apps list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -145,7 +146,7 @@ Examples:
   asc users visible-apps get --id "USER_ID"
   asc users visible-apps get --id "USER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
@@ -155,7 +156,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("users visible-apps get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("users visible-apps get: %w", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
@@ -166,12 +167,12 @@ Examples:
 				idValue = derivedID
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users visible-apps get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -197,7 +198,7 @@ Examples:
 					return fmt.Errorf("users visible-apps get: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetUserVisibleAppsRelationships(requestCtx, idValue, opts...)
@@ -205,7 +206,7 @@ Examples:
 				return fmt.Errorf("users visible-apps get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

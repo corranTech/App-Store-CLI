@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // Feedback command factory
@@ -48,40 +49,40 @@ Examples:
   asc feedback --next "<links.next>"
   asc feedback --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("feedback: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("feedback: %w", err)
 			}
-			if err := validateSort(*sort, "createdDate", "-createdDate"); err != nil {
+			if err := shared.ValidateSort(*sort, "createdDate", "-createdDate"); err != nil {
 				return fmt.Errorf("feedback: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("feedback: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.FeedbackOption{
-				asc.WithFeedbackDeviceModels(splitCSV(*deviceModel)),
-				asc.WithFeedbackOSVersions(splitCSV(*osVersion)),
-				asc.WithFeedbackAppPlatforms(splitCSVUpper(*appPlatform)),
-				asc.WithFeedbackDevicePlatforms(splitCSVUpper(*devicePlatform)),
-				asc.WithFeedbackBuildIDs(splitCSV(*buildID)),
-				asc.WithFeedbackBuildPreReleaseVersionIDs(splitCSV(*buildPreRelease)),
-				asc.WithFeedbackTesterIDs(splitCSV(*tester)),
+				asc.WithFeedbackDeviceModels(shared.SplitCSV(*deviceModel)),
+				asc.WithFeedbackOSVersions(shared.SplitCSV(*osVersion)),
+				asc.WithFeedbackAppPlatforms(shared.SplitCSVUpper(*appPlatform)),
+				asc.WithFeedbackDevicePlatforms(shared.SplitCSVUpper(*devicePlatform)),
+				asc.WithFeedbackBuildIDs(shared.SplitCSV(*buildID)),
+				asc.WithFeedbackBuildPreReleaseVersionIDs(shared.SplitCSV(*buildPreRelease)),
+				asc.WithFeedbackTesterIDs(shared.SplitCSV(*tester)),
 				asc.WithFeedbackLimit(*limit),
 				asc.WithFeedbackNextURL(*next),
 			}
@@ -109,7 +110,7 @@ Examples:
 				}
 
 				format := *output
-				return printOutput(feedback, format, *pretty)
+				return shared.PrintOutput(feedback, format, *pretty)
 			}
 
 			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
@@ -119,7 +120,7 @@ Examples:
 
 			format := *output
 
-			return printOutput(feedback, format, *pretty)
+			return shared.PrintOutput(feedback, format, *pretty)
 		},
 	}
 }

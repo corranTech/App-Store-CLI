@@ -37,7 +37,7 @@ Examples:
   asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
   asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			OfferCodesGetCommand(),
 			OfferCodesCreateCommand(),
@@ -76,12 +76,12 @@ Examples:
   asc offer-codes list --offer-code "OFFER_CODE_ID" --limit 10
   asc offer-codes list --offer-code "OFFER_CODE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > offerCodesMaxLimit) {
 				return fmt.Errorf("offer-codes list: --limit must be between 1 and %d", offerCodesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("offer-codes list: %w", err)
 			}
 
@@ -91,12 +91,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodeOneTimeUseCodesOption{
@@ -118,7 +118,7 @@ Examples:
 					return fmt.Errorf("offer-codes list: %w", err)
 				}
 
-				return printOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, trimmedOfferCodeID, opts...)
@@ -126,7 +126,7 @@ Examples:
 				return fmt.Errorf("offer-codes list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -152,7 +152,7 @@ Examples:
   asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
   asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --output "./offer-codes.txt"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedOfferCodeID := strings.TrimSpace(*offerCodeID)
 			if trimmedOfferCodeID == "" {
@@ -169,12 +169,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes generate: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			req := asc.SubscriptionOfferCodeOneTimeUseCodeCreateRequest{
@@ -217,7 +217,7 @@ Examples:
 				}
 			}
 
-			if err := printOutput(resp, *outputFormat, *pretty); err != nil {
+			if err := shared.PrintOutput(resp, *outputFormat, *pretty); err != nil {
 				return err
 			}
 			if writeErr != nil {
@@ -245,7 +245,7 @@ Examples:
   asc offer-codes values --id "ONE_TIME_USE_CODE_ID"
   asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
@@ -253,12 +253,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes values: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			codes, err := client.GetSubscriptionOfferCodeOneTimeUseCodeValues(requestCtx, trimmedID)
@@ -291,7 +291,7 @@ Examples:
 }
 
 func normalizeOfferCodeExpirationDate(value string) (string, error) {
-	return normalizeDate(value, "--expiration-date")
+	return shared.NormalizeDate(value, "--expiration-date")
 }
 
 func writeOfferCodesFile(path string, codes []string) error {

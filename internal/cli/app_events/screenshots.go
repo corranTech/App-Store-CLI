@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppEventScreenshotsCommand returns the app event screenshots command group.
@@ -26,7 +27,7 @@ Examples:
   asc app-events screenshots list --event-id "EVENT_ID"
   asc app-events screenshots create --localization-id "LOC_ID" --path "./event.png" --asset-type EVENT_CARD`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEventScreenshotsListCommand(),
 			AppEventScreenshotsRelationshipsCommand(),
@@ -64,12 +65,12 @@ Examples:
   asc app-events screenshots relationships --event-id "EVENT_ID" --locale "en-US"
   asc app-events screenshots relationships --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-events screenshots relationships: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-events screenshots relationships: %w", err)
 			}
 
@@ -79,12 +80,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots relationships: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resolvedLocalizationID := strings.TrimSpace(*localizationID)
@@ -113,7 +114,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-events screenshots relationships: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, opts...)
@@ -121,7 +122,7 @@ Examples:
 				return fmt.Errorf("app-events screenshots relationships: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -150,12 +151,12 @@ Examples:
   asc app-events screenshots list --event-id "EVENT_ID" --locale "en-US"
   asc app-events screenshots list --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-events screenshots list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-events screenshots list: %w", err)
 			}
 			if strings.TrimSpace(*next) == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
@@ -163,12 +164,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resolvedLocalizationID := strings.TrimSpace(*localizationID)
@@ -199,7 +200,7 @@ Examples:
 					return fmt.Errorf("app-events screenshots list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppEventScreenshots(requestCtx, resolvedLocalizationID, opts...)
@@ -207,7 +208,7 @@ Examples:
 				return fmt.Errorf("app-events screenshots list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -229,7 +230,7 @@ func AppEventScreenshotsGetCommand() *ffcli.Command {
 Examples:
   asc app-events screenshots get --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
@@ -237,12 +238,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppEventScreenshot(requestCtx, id)
@@ -250,7 +251,7 @@ Examples:
 				return fmt.Errorf("app-events screenshots get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -277,7 +278,7 @@ Examples:
   asc app-events screenshots create --localization-id "LOC_ID" --path "./event.png" --asset-type EVENT_CARD
   asc app-events screenshots create --event-id "EVENT_ID" --locale "en-US" --path "./event.png" --asset-type EVENT_DETAILS_PAGE`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
@@ -295,7 +296,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots create: %w", err)
 			}
@@ -337,10 +338,10 @@ Examples:
 				return fmt.Errorf("app-events screenshots create: %w", err)
 			}
 			if finalResp != nil {
-				return printOutput(finalResp, *output, *pretty)
+				return shared.PrintOutput(finalResp, *output, *pretty)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -363,7 +364,7 @@ func AppEventScreenshotsDeleteCommand() *ffcli.Command {
 Examples:
   asc app-events screenshots delete --screenshot-id "SHOT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
@@ -375,12 +376,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppEventScreenshot(requestCtx, id); err != nil {
@@ -392,7 +393,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

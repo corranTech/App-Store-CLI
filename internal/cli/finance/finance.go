@@ -30,7 +30,7 @@ Examples:
   asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"
   asc finance regions --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			FinanceReportsCommand(),
 			FinanceRegionsCommand(),
@@ -102,7 +102,7 @@ Examples:
   # Save to custom path
   asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12" --output "reports/finance.tsv.gz"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vendorNumber := shared.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
@@ -137,12 +137,12 @@ Examples:
 			defaultOutput := fmt.Sprintf("finance_report_%s_%s_%s.tsv.gz", reportDate, string(normalizedReportType), regionCode)
 			compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".tsv", *decompress)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("finance reports: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			download, err := client.DownloadFinanceReport(requestCtx, asc.FinanceReportParams{
@@ -181,7 +181,7 @@ Examples:
 				DecompressedBytes: decompressedSize,
 			}
 
-			return printOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *outputFormat, *pretty)
 		},
 	}
 }
@@ -212,10 +212,10 @@ Examples:
   asc finance regions
   asc finance regions --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result := &asc.FinanceRegionsResult{Regions: asc.FinanceRegions()}
-			return printOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *outputFormat, *pretty)
 		},
 	}
 }

@@ -55,10 +55,10 @@ Examples:
   asc builds upload --app "123456789" --ipa "app.ipa" --test-notes "Test flow" --locale "en-US" --wait
   asc builds upload --app "123456789" --pkg "path/to/app.pkg" --version "1.0.0" --build-number "123"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Validate required flags
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -209,7 +209,7 @@ Examples:
 				return fmt.Errorf("builds upload: Info.plist missing %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds upload: %w", err)
 			}
@@ -283,7 +283,7 @@ Examples:
 				uploadOpts := []asc.UploadOption{
 					asc.WithUploadConcurrency(*concurrency),
 				}
-				uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+				uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
 				err = asc.ExecuteUploadOperations(uploadCtx, filePath, fileResp.Data.Attributes.UploadOperations, uploadOpts...)
 				uploadCancel()
 				if err != nil {
@@ -319,7 +319,7 @@ Examples:
 					},
 				}
 
-				commitCtx, commitCancel := contextWithUploadTimeout(ctx)
+				commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
 				commitResp, err := client.UpdateBuildUploadFile(commitCtx, fileResp.Data.ID, updateReq)
 				commitCancel()
 				if err != nil {
@@ -359,7 +359,7 @@ Examples:
 
 			format := *output
 
-			return printOutput(result, format, *pretty)
+			return shared.PrintOutput(result, format, *pretty)
 		},
 	}
 }
@@ -398,7 +398,7 @@ Examples:
   asc builds relationships get --build "BUILD_ID" --type "app"
   asc builds metrics beta-usages --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			listCmd,
 			BuildsLatestCommand(),
@@ -452,30 +452,30 @@ Examples:
   asc builds list --app "123456789" --limit 10
   asc builds list --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("builds: %w", err)
 			}
-			if err := validateSort(*sort, "uploadedDate", "-uploadedDate"); err != nil {
+			if err := shared.ValidateSort(*sort, "uploadedDate", "-uploadedDate"); err != nil {
 				return fmt.Errorf("builds: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildsOption{
@@ -503,7 +503,7 @@ Examples:
 				}
 
 				format := *output
-				return printOutput(builds, format, *pretty)
+				return shared.PrintOutput(builds, format, *pretty)
 			}
 
 			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
@@ -513,7 +513,7 @@ Examples:
 
 			format := *output
 
-			return printOutput(builds, format, *pretty)
+			return shared.PrintOutput(builds, format, *pretty)
 		},
 	}
 }
@@ -535,19 +535,19 @@ func BuildsInfoCommand() *ffcli.Command {
 Examples:
   asc builds info --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*buildID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds info: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			build, err := client.GetBuild(requestCtx, strings.TrimSpace(*buildID))
@@ -557,7 +557,7 @@ Examples:
 
 			format := *output
 
-			return printOutput(build, format, *pretty)
+			return shared.PrintOutput(build, format, *pretty)
 		},
 	}
 }
@@ -582,7 +582,7 @@ This action is irreversible for the specified build.
 Examples:
   asc builds expire --build "BUILD_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*buildID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
@@ -593,12 +593,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds expire: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			build, err := client.ExpireBuild(requestCtx, strings.TrimSpace(*buildID))
@@ -608,7 +608,7 @@ Examples:
 
 			format := *output
 
-			return printOutput(build, format, *pretty)
+			return shared.PrintOutput(build, format, *pretty)
 		},
 	}
 }

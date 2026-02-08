@@ -32,7 +32,7 @@ Examples:
   asc localizations download --version "VERSION_ID" --path "./localizations"
   asc localizations upload --version "VERSION_ID" --path "./localizations"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsListCommand(),
 			LocalizationsSearchKeywordsCommand(),
@@ -74,12 +74,12 @@ Examples:
   asc localizations list --version "VERSION_ID" --locale "en-US,ja"
   asc localizations list --version "VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("localizations list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("localizations list: %w", err)
 			}
 
@@ -88,7 +88,7 @@ Examples:
 				return fmt.Errorf("localizations list: %w", err)
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
@@ -97,12 +97,12 @@ Examples:
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("localizations list: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				opts := []asc.AppStoreVersionLocalizationsOption{
@@ -128,27 +128,27 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("localizations list: %w", err)
 					}
-					return printOutput(resp, *output, *pretty)
+					return shared.PrintOutput(resp, *output, *pretty)
 				}
 
 				resp, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), opts...)
 				if err != nil {
 					return fmt.Errorf("localizations list: failed to fetch: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := resolveAppID(*appID)
+				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("localizations list: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
@@ -179,14 +179,14 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("localizations list: %w", err)
 					}
-					return printOutput(resp, *output, *pretty)
+					return shared.PrintOutput(resp, *output, *pretty)
 				}
 
 				resp, err := client.GetAppInfoLocalizations(requestCtx, appInfo, opts...)
 				if err != nil {
 					return fmt.Errorf("localizations list: failed to fetch: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			default:
 				return fmt.Errorf("localizations list: unsupported type %q", normalizedType)
 			}
@@ -222,12 +222,12 @@ Examples:
   asc localizations download --version "VERSION_ID" --locale "en-US" --path "en-US.strings"
   asc localizations download --version "VERSION_ID" --paginate --path "./localizations"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("localizations download: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("localizations download: %w", err)
 			}
 
@@ -236,7 +236,7 @@ Examples:
 				return fmt.Errorf("localizations download: %w", err)
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
@@ -245,12 +245,12 @@ Examples:
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				opts := []asc.AppStoreVersionLocalizationsOption{
@@ -292,7 +292,7 @@ Examples:
 						Files:      files,
 					}
 
-					return printOutput(&result, *output, *pretty)
+					return shared.PrintOutput(&result, *output, *pretty)
 				}
 
 				resp, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), opts...)
@@ -312,20 +312,20 @@ Examples:
 					Files:      files,
 				}
 
-				return printOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output, *pretty)
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := resolveAppID(*appID)
+				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
@@ -373,7 +373,7 @@ Examples:
 						Files:      files,
 					}
 
-					return printOutput(&result, *output, *pretty)
+					return shared.PrintOutput(&result, *output, *pretty)
 				}
 
 				resp, err := client.GetAppInfoLocalizations(requestCtx, appInfo, opts...)
@@ -394,7 +394,7 @@ Examples:
 					Files:      files,
 				}
 
-				return printOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output, *pretty)
 			default:
 				return fmt.Errorf("localizations download: unsupported type %q", normalizedType)
 			}
@@ -428,7 +428,7 @@ Examples:
   asc localizations upload --version "VERSION_ID" --locale "en-US" --path "en-US.strings"
   asc localizations upload --version "VERSION_ID" --path "./localizations" --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*path) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path is required")
@@ -440,7 +440,7 @@ Examples:
 				return fmt.Errorf("localizations upload: %w", err)
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
@@ -449,12 +449,12 @@ Examples:
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
@@ -474,20 +474,20 @@ Examples:
 					Results:   results,
 				}
 
-				return printOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output, *pretty)
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := resolveAppID(*appID)
+				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
 					return flag.ErrHelp
 				}
 
-				client, err := getASCClient()
+				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				appInfo, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
@@ -513,7 +513,7 @@ Examples:
 					Results:   results,
 				}
 
-				return printOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output, *pretty)
 			default:
 				return fmt.Errorf("localizations upload: unsupported type %q", normalizedType)
 			}

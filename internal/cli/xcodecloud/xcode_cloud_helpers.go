@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // waitForBuildCompletion polls until the build run completes or times out.
@@ -24,7 +25,7 @@ func waitForBuildCompletion(ctx context.Context, client *asc.Client, buildRunID 
 
 		if asc.IsBuildRunComplete(resp.Data.Attributes.ExecutionProgress) {
 			result := buildStatusResult(resp)
-			if err := printOutput(result, outputFormat, pretty); err != nil {
+			if err := shared.PrintOutput(result, outputFormat, pretty); err != nil {
 				return err
 			}
 

@@ -6,10 +6,11 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func normalizeWebhookEvents(value string) ([]asc.WebhookEventType, error) {
-	values := splitCSV(value)
+	values := shared.SplitCSV(value)
 	if len(values) == 0 {
 		return nil, fmt.Errorf("--events must include at least one value")
 	}

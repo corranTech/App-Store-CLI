@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // XcodeCloudCommand returns the xcode-cloud command with subcommands.
@@ -34,7 +35,7 @@ Examples:
   asc xcode-cloud status --run-id "BUILD_RUN_ID"
   asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudRunCommand(),
 			XcodeCloudStatusCommand(),
@@ -85,7 +86,7 @@ Examples:
   asc xcode-cloud run --app "123456789" --workflow "Deploy" --branch "release/1.0" --wait
   asc xcode-cloud run --app "123456789" --workflow "CI" --branch "main" --wait --poll-interval 30s --timeout 1h`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Validate input combinations
 			hasWorkflowName := strings.TrimSpace(*workflowName) != ""
@@ -114,13 +115,13 @@ Examples:
 				return fmt.Errorf("xcode-cloud run: --poll-interval must be greater than 0")
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if hasWorkflowName && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required when using --workflow (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud run: %w", err)
 			}
@@ -203,7 +204,7 @@ Examples:
 			}
 
 			if !*wait {
-				return printOutput(result, *output, *pretty)
+				return shared.PrintOutput(result, *output, *pretty)
 			}
 
 			// Wait for completion
@@ -235,7 +236,7 @@ Examples:
   asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait
   asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait --poll-interval 30s --timeout 1h`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*runID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --run-id is required")
@@ -248,7 +249,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud status: --poll-interval must be greater than 0")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud status: %w", err)
 			}
@@ -267,7 +268,7 @@ Examples:
 			}
 
 			result := buildStatusResult(resp)
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

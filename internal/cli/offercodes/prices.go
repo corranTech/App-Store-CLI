@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // OfferCodePricesCommand returns the prices command group.
@@ -25,7 +26,7 @@ func OfferCodePricesCommand() *ffcli.Command {
 Examples:
   asc offer-codes prices list --offer-code-id "OFFER_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			OfferCodePricesListCommand(),
 		},
@@ -57,12 +58,12 @@ Examples:
   asc offer-codes prices list --offer-code-id "OFFER_CODE_ID" --limit 50
   asc offer-codes prices list --offer-code-id "OFFER_CODE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > offerCodesMaxLimit) {
 				return fmt.Errorf("offer-codes prices list: --limit must be between 1 and %d", offerCodesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("offer-codes prices list: %w", err)
 			}
 
@@ -72,12 +73,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("offer-codes prices list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodePricesOption{
@@ -99,7 +100,7 @@ Examples:
 					return fmt.Errorf("offer-codes prices list: %w", err)
 				}
 
-				return printOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output, *pretty)
 			}
 
 			resp, err := client.GetSubscriptionOfferCodePrices(requestCtx, trimmedOfferCodeID, opts...)
@@ -107,7 +108,7 @@ Examples:
 				return fmt.Errorf("offer-codes prices list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

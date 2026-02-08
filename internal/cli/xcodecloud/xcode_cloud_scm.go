@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func xcodeCloudScmListFlags(fs *flag.FlagSet) (limit *int, next *string, paginate *bool, output *string, pretty *bool) {
@@ -48,7 +49,7 @@ Examples:
   asc xcode-cloud scm repositories list
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudScmProvidersCommand(),
 			XcodeCloudScmRepositoriesCommand(),
@@ -78,7 +79,7 @@ Examples:
   asc xcode-cloud scm providers get --provider-id "PROVIDER_ID"
   asc xcode-cloud scm providers repositories --provider-id "PROVIDER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudScmProvidersListCommand(),
 			XcodeCloudScmProvidersGetCommand(),
@@ -105,7 +106,7 @@ Examples:
   asc xcode-cloud scm providers list
   asc xcode-cloud scm providers list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudScmProvidersList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
@@ -128,7 +129,7 @@ func XcodeCloudScmProvidersGetCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud scm providers get --provider-id "PROVIDER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*providerID)
 			if idValue == "" {
@@ -136,7 +137,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm providers get: %w", err)
 			}
@@ -149,7 +150,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm providers get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -169,13 +170,13 @@ Examples:
   asc xcode-cloud scm providers repositories --provider-id "PROVIDER_ID"
   asc xcode-cloud scm providers repositories --provider-id "PROVIDER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud scm providers repositories: --limit must be between 1 and 200")
 			}
 			nextURL := strings.TrimSpace(*next)
-			if err := validateNextURL(nextURL); err != nil {
+			if err := shared.ValidateNextURL(nextURL); err != nil {
 				return fmt.Errorf("xcode-cloud scm providers repositories: %w", err)
 			}
 
@@ -185,7 +186,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm providers repositories: %w", err)
 			}
@@ -212,7 +213,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud scm providers repositories: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetScmProviderRepositories(requestCtx, idValue, opts...)
@@ -220,7 +221,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm providers repositories: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -242,7 +243,7 @@ Examples:
   asc xcode-cloud scm repositories get --id "REPO_ID"
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudScmRepositoriesListCommand(),
 			XcodeCloudScmRepositoriesGetCommand(),
@@ -271,7 +272,7 @@ Examples:
   asc xcode-cloud scm repositories list
   asc xcode-cloud scm repositories list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudScmRepositoriesList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
@@ -294,7 +295,7 @@ func XcodeCloudScmRepositoriesGetCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud scm repositories get --id "REPO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -302,7 +303,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories get: %w", err)
 			}
@@ -316,7 +317,7 @@ Examples:
 			}
 
 			resp := &asc.ScmRepositoriesResponse{Data: []asc.ScmRepositoryResource{*repo}}
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -336,13 +337,13 @@ Examples:
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud scm repositories git-references: --limit must be between 1 and 200")
 			}
 			nextURL := strings.TrimSpace(*next)
-			if err := validateNextURL(nextURL); err != nil {
+			if err := shared.ValidateNextURL(nextURL); err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories git-references: %w", err)
 			}
 
@@ -352,7 +353,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories git-references: %w", err)
 			}
@@ -379,7 +380,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud scm repositories git-references: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetScmGitReferences(requestCtx, idValue, opts...)
@@ -387,7 +388,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm repositories git-references: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -407,13 +408,13 @@ Examples:
   asc xcode-cloud scm repositories pull-requests --repo-id "REPO_ID"
   asc xcode-cloud scm repositories pull-requests --repo-id "REPO_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud scm repositories pull-requests: --limit must be between 1 and 200")
 			}
 			nextURL := strings.TrimSpace(*next)
-			if err := validateNextURL(nextURL); err != nil {
+			if err := shared.ValidateNextURL(nextURL); err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories pull-requests: %w", err)
 			}
 
@@ -423,7 +424,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories pull-requests: %w", err)
 			}
@@ -450,7 +451,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud scm repositories pull-requests: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetScmRepositoryPullRequests(requestCtx, idValue, opts...)
@@ -458,7 +459,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm repositories pull-requests: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -476,7 +477,7 @@ Examples:
   asc xcode-cloud scm repositories relationships git-references --repo-id "REPO_ID"
   asc xcode-cloud scm repositories relationships pull-requests --repo-id "REPO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudScmRepositoriesRelationshipsGitReferencesCommand(),
 			XcodeCloudScmRepositoriesRelationshipsPullRequestsCommand(),
@@ -502,13 +503,13 @@ Examples:
   asc xcode-cloud scm repositories relationships git-references --repo-id "REPO_ID"
   asc xcode-cloud scm repositories relationships git-references --repo-id "REPO_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud scm repositories relationships git-references: --limit must be between 1 and 200")
 			}
 			nextURL := strings.TrimSpace(*next)
-			if err := validateNextURL(nextURL); err != nil {
+			if err := shared.ValidateNextURL(nextURL); err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories relationships git-references: %w", err)
 			}
 
@@ -518,7 +519,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories relationships git-references: %w", err)
 			}
@@ -545,7 +546,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud scm repositories relationships git-references: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetScmRepositoryGitReferencesRelationships(requestCtx, idValue, opts...)
@@ -553,7 +554,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm repositories relationships git-references: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -573,13 +574,13 @@ Examples:
   asc xcode-cloud scm repositories relationships pull-requests --repo-id "REPO_ID"
   asc xcode-cloud scm repositories relationships pull-requests --repo-id "REPO_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud scm repositories relationships pull-requests: --limit must be between 1 and 200")
 			}
 			nextURL := strings.TrimSpace(*next)
-			if err := validateNextURL(nextURL); err != nil {
+			if err := shared.ValidateNextURL(nextURL); err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories relationships pull-requests: %w", err)
 			}
 
@@ -589,7 +590,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm repositories relationships pull-requests: %w", err)
 			}
@@ -616,7 +617,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud scm repositories relationships pull-requests: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetScmRepositoryPullRequestsRelationships(requestCtx, idValue, opts...)
@@ -624,7 +625,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm repositories relationships pull-requests: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -642,7 +643,7 @@ func XcodeCloudScmGitReferencesCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud scm git-references get --id "REF_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudScmGitReferencesGetCommand(),
 		},
@@ -668,7 +669,7 @@ func XcodeCloudScmGitReferencesGetCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud scm git-references get --id "REF_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -676,7 +677,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm git-references get: %w", err)
 			}
@@ -689,7 +690,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm git-references get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -707,7 +708,7 @@ func XcodeCloudScmPullRequestsCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud scm pull-requests get --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudScmPullRequestsGetCommand(),
 		},
@@ -733,7 +734,7 @@ func XcodeCloudScmPullRequestsGetCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud scm pull-requests get --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -741,7 +742,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud scm pull-requests get: %w", err)
 			}
@@ -754,7 +755,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud scm pull-requests get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -764,11 +765,11 @@ func xcodeCloudScmProvidersList(ctx context.Context, limit int, next string, pag
 		return fmt.Errorf("xcode-cloud scm providers: --limit must be between 1 and 200")
 	}
 	nextURL := strings.TrimSpace(next)
-	if err := validateNextURL(nextURL); err != nil {
+	if err := shared.ValidateNextURL(nextURL); err != nil {
 		return fmt.Errorf("xcode-cloud scm providers: %w", err)
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud scm providers: %w", err)
 	}
@@ -795,7 +796,7 @@ func xcodeCloudScmProvidersList(ctx context.Context, limit int, next string, pag
 			return fmt.Errorf("xcode-cloud scm providers: %w", err)
 		}
 
-		return printOutput(resp, output, pretty)
+		return shared.PrintOutput(resp, output, pretty)
 	}
 
 	resp, err := client.GetScmProviders(requestCtx, opts...)
@@ -803,7 +804,7 @@ func xcodeCloudScmProvidersList(ctx context.Context, limit int, next string, pag
 		return fmt.Errorf("xcode-cloud scm providers: %w", err)
 	}
 
-	return printOutput(resp, output, pretty)
+	return shared.PrintOutput(resp, output, pretty)
 }
 
 func xcodeCloudScmRepositoriesList(ctx context.Context, limit int, next string, paginate bool, output string, pretty bool) error {
@@ -811,11 +812,11 @@ func xcodeCloudScmRepositoriesList(ctx context.Context, limit int, next string, 
 		return fmt.Errorf("xcode-cloud scm repositories: --limit must be between 1 and 200")
 	}
 	nextURL := strings.TrimSpace(next)
-	if err := validateNextURL(nextURL); err != nil {
+	if err := shared.ValidateNextURL(nextURL); err != nil {
 		return fmt.Errorf("xcode-cloud scm repositories: %w", err)
 	}
 
-	client, err := getASCClient()
+	client, err := shared.GetASCClient()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud scm repositories: %w", err)
 	}
@@ -842,7 +843,7 @@ func xcodeCloudScmRepositoriesList(ctx context.Context, limit int, next string, 
 			return fmt.Errorf("xcode-cloud scm repositories: %w", err)
 		}
 
-		return printOutput(resp, output, pretty)
+		return shared.PrintOutput(resp, output, pretty)
 	}
 
 	resp, err := client.GetScmRepositories(requestCtx, opts...)
@@ -850,5 +851,5 @@ func xcodeCloudScmRepositoriesList(ctx context.Context, limit int, next string, 
 		return fmt.Errorf("xcode-cloud scm repositories: %w", err)
 	}
 
-	return printOutput(resp, output, pretty)
+	return shared.PrintOutput(resp, output, pretty)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // XcodeCloudIssuesCommand returns the xcode-cloud issues command with subcommands.
@@ -26,7 +27,7 @@ Examples:
   asc xcode-cloud issues list --action-id "ACTION_ID"
   asc xcode-cloud issues get --id "ISSUE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudIssuesListCommand(),
 			XcodeCloudIssuesGetCommand(),
@@ -60,12 +61,12 @@ Examples:
   asc xcode-cloud issues list --action-id "ACTION_ID" --limit 50
   asc xcode-cloud issues list --action-id "ACTION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("xcode-cloud issues list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("xcode-cloud issues list: %w", err)
 			}
 
@@ -75,7 +76,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud issues list: %w", err)
 			}
@@ -102,7 +103,7 @@ Examples:
 					return fmt.Errorf("xcode-cloud issues list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetCiBuildActionIssues(requestCtx, resolvedActionID, opts...)
@@ -110,7 +111,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud issues list: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -133,7 +134,7 @@ Examples:
   asc xcode-cloud issues get --id "ISSUE_ID"
   asc xcode-cloud issues get --id "ISSUE_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -141,7 +142,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud issues get: %w", err)
 			}
@@ -154,7 +155,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud issues get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

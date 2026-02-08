@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var betaGroupRelationshipKinds = map[string]relationshipKind{
@@ -31,7 +32,7 @@ Examples:
   asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "betaTesters"
   asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaGroupsRelationshipsGetCommand(),
 		},
@@ -64,12 +65,12 @@ Examples:
   asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "betaTesters"
   asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("testflight beta-groups relationships get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-groups relationships get: %w", err)
 			}
 
@@ -104,12 +105,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("testflight beta-groups relationships get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -131,14 +132,14 @@ Examples:
 					return fmt.Errorf("testflight beta-groups relationships get: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := getBetaGroupRelationshipList(requestCtx, client, relationshipType, groupValue, opts...)
 			if err != nil {
 				return fmt.Errorf("testflight beta-groups relationships get: %w", err)
 			}
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

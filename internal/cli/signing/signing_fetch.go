@@ -48,7 +48,7 @@ Examples:
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_DEVELOPMENT --device "DEVICE1,DEVICE2"
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bundle := strings.TrimSpace(*bundleID)
 			if bundle == "" {
@@ -72,15 +72,15 @@ Examples:
 				outputDir = "./signing"
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("signing fetch: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID != "" {
 				if err := validateBundleIDMatchesApp(requestCtx, client, resolvedAppID, bundle); err != nil {
 					return fmt.Errorf("signing fetch: %w", err)
@@ -112,7 +112,7 @@ Examples:
 				bundle,
 				profType,
 				result.CertificateIDs,
-				splitCSV(*deviceIDs),
+				shared.SplitCSV(*deviceIDs),
 				*createMissing,
 			)
 			if err != nil {
@@ -149,7 +149,7 @@ Examples:
 				result.CertificateFiles = append(result.CertificateFiles, certPath)
 			}
 
-			return printOutput(result, *format, *pretty)
+			return shared.PrintOutput(result, *format, *pretty)
 		},
 	}
 }

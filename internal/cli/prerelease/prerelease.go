@@ -24,7 +24,7 @@ func PreReleaseVersionsCommand() *ffcli.Command {
 Examples:
   asc pre-release-versions list --app "APP_ID"
   asc pre-release-versions relationships get --id "PR_ID" --type "app"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PreReleaseVersionsListCommand(),
 			PreReleaseVersionsGetCommand(),
@@ -63,33 +63,33 @@ Examples:
   asc pre-release-versions list --app "APP_ID" --version "1.0.0"
   asc pre-release-versions list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pre-release-versions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pre-release-versions list: %w", err)
 			}
 
-			platforms, err := shared.NormalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("pre-release-versions list: %w", err)
 			}
 
-			resolvedAppID := strings.TrimSpace(resolveAppID(strings.TrimSpace(*appID)))
+			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
 			nextValue := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pre-release-versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.PreReleaseVersionsOption{
@@ -100,7 +100,7 @@ Examples:
 			if len(platforms) > 0 {
 				opts = append(opts, asc.WithPreReleaseVersionsPlatform(strings.Join(platforms, ",")))
 			}
-			if versions := splitCSV(*version); len(versions) > 0 {
+			if versions := shared.SplitCSV(*version); len(versions) > 0 {
 				opts = append(opts, asc.WithPreReleaseVersionsVersion(strings.Join(versions, ",")))
 			}
 
@@ -120,7 +120,7 @@ Examples:
 					return fmt.Errorf("pre-release-versions list: %w", err)
 				}
 
-				return printOutput(versions, *output, *pretty)
+				return shared.PrintOutput(versions, *output, *pretty)
 			}
 
 			versions, err := client.GetPreReleaseVersions(requestCtx, resolvedAppID, opts...)
@@ -128,7 +128,7 @@ Examples:
 				return fmt.Errorf("pre-release-versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(versions, *output, *pretty)
+			return shared.PrintOutput(versions, *output, *pretty)
 		},
 	}
 }
@@ -150,7 +150,7 @@ func PreReleaseVersionsGetCommand() *ffcli.Command {
 Examples:
   asc pre-release-versions get --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -158,12 +158,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pre-release-versions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			version, err := client.GetPreReleaseVersion(requestCtx, idValue)
@@ -171,7 +171,7 @@ Examples:
 				return fmt.Errorf("pre-release-versions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(version, *output, *pretty)
+			return shared.PrintOutput(version, *output, *pretty)
 		},
 	}
 }

@@ -28,7 +28,7 @@ Examples:
   asc apps search-keywords list --app "APP_ID" --platform IOS --locale "en-US"
   asc apps search-keywords set --app "APP_ID" --keywords "kw1,kw2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppsSearchKeywordsListCommand(),
 			AppsSearchKeywordsSetCommand(),
@@ -62,37 +62,37 @@ Examples:
   asc apps search-keywords list --app "APP_ID"
   asc apps search-keywords list --app "APP_ID" --platform IOS --locale "en-US"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("apps search-keywords list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("apps search-keywords list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			platforms, err := shared.NormalizeAppStoreVersionPlatforms(splitCSVUpper(*platform))
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return fmt.Errorf("apps search-keywords list: %w", err)
 			}
 
-			locales := splitCSV(*locale)
+			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
 				return fmt.Errorf("apps search-keywords list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps search-keywords list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppSearchKeywordsOption{
@@ -119,7 +119,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("apps search-keywords list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppSearchKeywords(requestCtx, resolvedAppID, opts...)
@@ -127,7 +127,7 @@ Examples:
 				return fmt.Errorf("apps search-keywords list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -151,9 +151,9 @@ func AppsSearchKeywordsSetCommand() *ffcli.Command {
 Examples:
   asc apps search-keywords set --app "APP_ID" --keywords "kw1,kw2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -163,25 +163,25 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			keywordValues := splitCSV(*keywords)
+			keywordValues := shared.SplitCSV(*keywords)
 			if len(keywordValues) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --keywords is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps search-keywords set: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.SetAppSearchKeywords(requestCtx, resolvedAppID, keywordValues); err != nil {
 				return fmt.Errorf("apps search-keywords set: failed to update: %w", err)
 			}
 
-			return printOutput(buildAppKeywordsResponse(keywordValues), *output, *pretty)
+			return shared.PrintOutput(buildAppKeywordsResponse(keywordValues), *output, *pretty)
 		},
 	}
 }

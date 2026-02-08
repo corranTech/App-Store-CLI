@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AccessibilityCommand returns the accessibility declarations command.
@@ -29,7 +30,7 @@ Examples:
   asc accessibility update --id "DECLARATION_ID" --publish true
   asc accessibility delete --id "DECLARATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AccessibilityListCommand(),
 			AccessibilityGetCommand(),
@@ -69,21 +70,21 @@ Examples:
   asc accessibility list --app "APP_ID" --state PUBLISHED --limit 50
   asc accessibility list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("accessibility list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("accessibility list: %w", err)
 			}
 
-			deviceFamilies, err := normalizeAccessibilityDeviceFamilies(splitCSVUpper(*deviceFamily))
+			deviceFamilies, err := normalizeAccessibilityDeviceFamilies(shared.SplitCSVUpper(*deviceFamily))
 			if err != nil {
 				return fmt.Errorf("accessibility list: %w", err)
 			}
 
-			states, err := normalizeAccessibilityStates(splitCSVUpper(*state))
+			states, err := normalizeAccessibilityStates(shared.SplitCSVUpper(*state))
 			if err != nil {
 				return fmt.Errorf("accessibility list: %w", err)
 			}
@@ -93,18 +94,18 @@ Examples:
 				return fmt.Errorf("accessibility list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("accessibility list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AccessibilityDeclarationsOption{
@@ -129,7 +130,7 @@ Examples:
 					return fmt.Errorf("accessibility list: %w", err)
 				}
 
-				return printOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output, *pretty)
 			}
 
 			resp, err := client.GetAccessibilityDeclarations(requestCtx, resolvedAppID, opts...)
@@ -137,7 +138,7 @@ Examples:
 				return fmt.Errorf("accessibility list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -161,7 +162,7 @@ Examples:
   asc accessibility get --id "DECLARATION_ID"
   asc accessibility get --id "DECLARATION_ID" --fields "deviceFamily,state"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -174,12 +175,12 @@ Examples:
 				return fmt.Errorf("accessibility get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("accessibility get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAccessibilityDeclaration(requestCtx, idValue, fieldsValue)
@@ -187,7 +188,7 @@ Examples:
 				return fmt.Errorf("accessibility get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -220,9 +221,9 @@ Examples:
   asc accessibility create --app "APP_ID" --device-family IPHONE --supports-voiceover true
   asc accessibility create --app "APP_ID" --device-family IPAD --supports-captions true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -254,12 +255,12 @@ Examples:
 				return fmt.Errorf("accessibility create: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("accessibility create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAccessibilityDeclaration(requestCtx, resolvedAppID, attrs)
@@ -267,7 +268,7 @@ Examples:
 				return fmt.Errorf("accessibility create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -300,7 +301,7 @@ Examples:
   asc accessibility update --id "DECLARATION_ID" --supports-voiceover true
   asc accessibility update --id "DECLARATION_ID" --publish true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -328,12 +329,12 @@ Examples:
 				return fmt.Errorf("accessibility update: at least one update flag is required")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("accessibility update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAccessibilityDeclaration(requestCtx, idValue, attrs)
@@ -341,7 +342,7 @@ Examples:
 				return fmt.Errorf("accessibility update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -364,7 +365,7 @@ func AccessibilityDeleteCommand() *ffcli.Command {
 Examples:
   asc accessibility delete --id "DECLARATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -376,12 +377,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("accessibility delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAccessibilityDeclaration(requestCtx, idValue); err != nil {
@@ -393,7 +394,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -403,39 +404,39 @@ func buildAccessibilityDeclarationCreateAttributes(deviceFamily string, values m
 		DeviceFamily: asc.DeviceFamily(deviceFamily),
 	}
 
-	supportsAudioDescriptions, err := parseOptionalBoolFlag("--supports-audio-descriptions", values["supports-audio-descriptions"])
+	supportsAudioDescriptions, err := shared.ParseOptionalBoolFlag("--supports-audio-descriptions", values["supports-audio-descriptions"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsCaptions, err := parseOptionalBoolFlag("--supports-captions", values["supports-captions"])
+	supportsCaptions, err := shared.ParseOptionalBoolFlag("--supports-captions", values["supports-captions"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsDarkInterface, err := parseOptionalBoolFlag("--supports-dark-interface", values["supports-dark-interface"])
+	supportsDarkInterface, err := shared.ParseOptionalBoolFlag("--supports-dark-interface", values["supports-dark-interface"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsDifferentiateWithoutColorAlone, err := parseOptionalBoolFlag("--supports-differentiate-without-color-alone", values["supports-differentiate-without-color-alone"])
+	supportsDifferentiateWithoutColorAlone, err := shared.ParseOptionalBoolFlag("--supports-differentiate-without-color-alone", values["supports-differentiate-without-color-alone"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsLargerText, err := parseOptionalBoolFlag("--supports-larger-text", values["supports-larger-text"])
+	supportsLargerText, err := shared.ParseOptionalBoolFlag("--supports-larger-text", values["supports-larger-text"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsReducedMotion, err := parseOptionalBoolFlag("--supports-reduced-motion", values["supports-reduced-motion"])
+	supportsReducedMotion, err := shared.ParseOptionalBoolFlag("--supports-reduced-motion", values["supports-reduced-motion"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsSufficientContrast, err := parseOptionalBoolFlag("--supports-sufficient-contrast", values["supports-sufficient-contrast"])
+	supportsSufficientContrast, err := shared.ParseOptionalBoolFlag("--supports-sufficient-contrast", values["supports-sufficient-contrast"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsVoiceControl, err := parseOptionalBoolFlag("--supports-voice-control", values["supports-voice-control"])
+	supportsVoiceControl, err := shared.ParseOptionalBoolFlag("--supports-voice-control", values["supports-voice-control"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsVoiceover, err := parseOptionalBoolFlag("--supports-voiceover", values["supports-voiceover"])
+	supportsVoiceover, err := shared.ParseOptionalBoolFlag("--supports-voiceover", values["supports-voiceover"])
 	if err != nil {
 		return attrs, err
 	}
@@ -456,43 +457,43 @@ func buildAccessibilityDeclarationCreateAttributes(deviceFamily string, values m
 func buildAccessibilityDeclarationUpdateAttributes(values map[string]string) (asc.AccessibilityDeclarationUpdateAttributes, error) {
 	var attrs asc.AccessibilityDeclarationUpdateAttributes
 
-	publish, err := parseOptionalBoolFlag("--publish", values["publish"])
+	publish, err := shared.ParseOptionalBoolFlag("--publish", values["publish"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsAudioDescriptions, err := parseOptionalBoolFlag("--supports-audio-descriptions", values["supports-audio-descriptions"])
+	supportsAudioDescriptions, err := shared.ParseOptionalBoolFlag("--supports-audio-descriptions", values["supports-audio-descriptions"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsCaptions, err := parseOptionalBoolFlag("--supports-captions", values["supports-captions"])
+	supportsCaptions, err := shared.ParseOptionalBoolFlag("--supports-captions", values["supports-captions"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsDarkInterface, err := parseOptionalBoolFlag("--supports-dark-interface", values["supports-dark-interface"])
+	supportsDarkInterface, err := shared.ParseOptionalBoolFlag("--supports-dark-interface", values["supports-dark-interface"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsDifferentiateWithoutColorAlone, err := parseOptionalBoolFlag("--supports-differentiate-without-color-alone", values["supports-differentiate-without-color-alone"])
+	supportsDifferentiateWithoutColorAlone, err := shared.ParseOptionalBoolFlag("--supports-differentiate-without-color-alone", values["supports-differentiate-without-color-alone"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsLargerText, err := parseOptionalBoolFlag("--supports-larger-text", values["supports-larger-text"])
+	supportsLargerText, err := shared.ParseOptionalBoolFlag("--supports-larger-text", values["supports-larger-text"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsReducedMotion, err := parseOptionalBoolFlag("--supports-reduced-motion", values["supports-reduced-motion"])
+	supportsReducedMotion, err := shared.ParseOptionalBoolFlag("--supports-reduced-motion", values["supports-reduced-motion"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsSufficientContrast, err := parseOptionalBoolFlag("--supports-sufficient-contrast", values["supports-sufficient-contrast"])
+	supportsSufficientContrast, err := shared.ParseOptionalBoolFlag("--supports-sufficient-contrast", values["supports-sufficient-contrast"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsVoiceControl, err := parseOptionalBoolFlag("--supports-voice-control", values["supports-voice-control"])
+	supportsVoiceControl, err := shared.ParseOptionalBoolFlag("--supports-voice-control", values["supports-voice-control"])
 	if err != nil {
 		return attrs, err
 	}
-	supportsVoiceover, err := parseOptionalBoolFlag("--supports-voiceover", values["supports-voiceover"])
+	supportsVoiceover, err := shared.ParseOptionalBoolFlag("--supports-voiceover", values["supports-voiceover"])
 	if err != nil {
 		return attrs, err
 	}
@@ -546,7 +547,7 @@ func normalizeAccessibilityStates(values []string) ([]string, error) {
 }
 
 func normalizeAccessibilityDeclarationFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}

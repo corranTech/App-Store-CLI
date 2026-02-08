@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // MarketplaceCommand returns the marketplace command with subcommands.
@@ -21,7 +22,7 @@ Examples:
   asc marketplace search-details get --app "APP_ID"
   asc marketplace webhooks list`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MarketplaceSearchDetailsCommand(),
 			MarketplaceWebhooksCommand(),

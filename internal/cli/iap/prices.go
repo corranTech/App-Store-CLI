@@ -16,6 +16,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const (
@@ -87,11 +88,11 @@ Examples:
   asc iap prices --iap-id "IAP_ID"
   asc iap prices --app "APP_ID" --territory "USA" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedIAPID := strings.TrimSpace(*iapID)
 			requestedAppID := strings.TrimSpace(*appID)
-			if requestedIAPID == "" && resolveAppID(requestedAppID) == "" {
+			if requestedIAPID == "" && shared.ResolveAppID(requestedAppID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --iap-id is required")
 				return flag.ErrHelp
 			}
@@ -100,12 +101,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap prices: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var iaps []asc.Resource[asc.InAppPurchaseV2Attributes]
@@ -116,7 +117,7 @@ Examples:
 				}
 				iaps = []asc.Resource[asc.InAppPurchaseV2Attributes]{resp.Data}
 			} else {
-				resolvedAppID := resolveAppID(requestedAppID)
+				resolvedAppID := shared.ResolveAppID(requestedAppID)
 				firstPage, err := client.GetInAppPurchasesV2(requestCtx, resolvedAppID, asc.WithIAPLimit(200))
 				if err != nil {
 					return fmt.Errorf("iap prices: failed to fetch IAP list: %w", err)
@@ -969,7 +970,7 @@ func dedupePriceEntries(entries []iapPriceEntry) []iapPriceEntry {
 func printIAPPricesResult(result *iapPricesResult, format string, pretty bool) error {
 	switch strings.ToLower(strings.TrimSpace(format)) {
 	case "json":
-		return printOutput(result, "json", pretty)
+		return shared.PrintOutput(result, "json", pretty)
 	case "table":
 		if pretty {
 			return fmt.Errorf("--pretty is only valid with JSON output")

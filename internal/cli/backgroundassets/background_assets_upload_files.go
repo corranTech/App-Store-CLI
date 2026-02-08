@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BackgroundAssetsUploadFilesCommand returns the upload files command group.
@@ -29,7 +30,7 @@ Examples:
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET
   asc background-assets upload-files update --upload-file-id "UPLOAD_FILE_ID" --uploaded true --file "./asset.zip"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BackgroundAssetsUploadFilesListCommand(),
 			BackgroundAssetsUploadFilesGetCommand(),
@@ -63,7 +64,7 @@ Examples:
   asc background-assets upload-files list --version-id "VERSION_ID"
   asc background-assets upload-files list --version-id "VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" && strings.TrimSpace(*next) == "" {
@@ -73,16 +74,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return fmt.Errorf("background-assets upload-files list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("background-assets upload-files list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BackgroundAssetUploadFilesOption{
@@ -104,7 +105,7 @@ Examples:
 					return fmt.Errorf("background-assets upload-files list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBackgroundAssetUploadFiles(requestCtx, versionIDValue, opts...)
@@ -112,7 +113,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -134,7 +135,7 @@ func BackgroundAssetsUploadFilesGetCommand() *ffcli.Command {
 Examples:
   asc background-assets upload-files get --upload-file-id "UPLOAD_FILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
@@ -142,12 +143,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBackgroundAssetUploadFile(requestCtx, uploadFileIDValue)
@@ -155,7 +156,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -181,7 +182,7 @@ Examples:
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./manifest.json" --asset-type MANIFEST --checksum`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
@@ -219,12 +220,12 @@ Examples:
 				return fmt.Errorf("background-assets upload-files create: file size must be greater than 0")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateBackgroundAssetUploadFile(requestCtx, versionIDValue, filepath.Base(pathValue), info.Size(), typeValue)
@@ -235,7 +236,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files create: no upload operations returned")
 			}
 
-			uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
 			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
 			uploadCancel()
 			if err != nil {
@@ -264,14 +265,14 @@ Examples:
 				Uploaded:            &uploaded,
 			}
 
-			commitCtx, commitCancel := contextWithUploadTimeout(ctx)
+			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
 			commitResp, err := client.UpdateBackgroundAssetUploadFile(commitCtx, resp.Data.ID, updateAttrs)
 			commitCancel()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files create: failed to commit upload: %w", err)
 			}
 
-			return printOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output, *pretty)
 		},
 	}
 }
@@ -297,7 +298,7 @@ Examples:
   asc background-assets upload-files update --upload-file-id "UPLOAD_FILE_ID" --uploaded true
   asc background-assets upload-files update --upload-file-id "UPLOAD_FILE_ID" --uploaded true --file "./asset.zip" --checksum`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
@@ -337,14 +338,14 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files update: %w", err)
 			}
 
 			var checksums *asc.Checksums
 			if pathValue != "" {
-				requestCtx, cancel := contextWithTimeout(ctx)
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
 				resp, err := client.GetBackgroundAssetUploadFile(requestCtx, uploadFileIDValue)
@@ -373,14 +374,14 @@ Examples:
 				Uploaded:            &uploadedBool,
 			}
 
-			commitCtx, commitCancel := contextWithUploadTimeout(ctx)
+			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
 			commitResp, err := client.UpdateBackgroundAssetUploadFile(commitCtx, uploadFileIDValue, updateAttrs)
 			commitCancel()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files update: failed to update: %w", err)
 			}
 
-			return printOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output, *pretty)
 		},
 	}
 }

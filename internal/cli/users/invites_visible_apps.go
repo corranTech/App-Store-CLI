@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // UsersInvitesVisibleAppsCommand returns the invites visible apps command group.
@@ -26,7 +27,7 @@ func UsersInvitesVisibleAppsCommand() *ffcli.Command {
 Examples:
   asc users invites visible-apps list --id "INVITE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			UsersInvitesVisibleAppsListCommand(),
 		},
@@ -57,7 +58,7 @@ Examples:
   asc users invites visible-apps list --id "INVITE_ID"
   asc users invites visible-apps list --id "INVITE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
@@ -67,7 +68,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("users invites visible-apps list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("users invites visible-apps list: %w", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
@@ -78,12 +79,12 @@ Examples:
 				idValue = derivedID
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("users invites visible-apps list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.UserInvitationVisibleAppsOption{
@@ -109,7 +110,7 @@ Examples:
 					return fmt.Errorf("users invites visible-apps list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetUserInvitationVisibleApps(requestCtx, idValue, opts...)
@@ -117,7 +118,7 @@ Examples:
 				return fmt.Errorf("users invites visible-apps list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

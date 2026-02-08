@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AnalyticsSegmentsCommand returns the analytics segments command group.
@@ -23,7 +24,7 @@ func AnalyticsSegmentsCommand() *ffcli.Command {
 Examples:
   asc analytics segments get --segment-id "SEGMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AnalyticsSegmentsGetCommand(),
 		},
@@ -50,19 +51,19 @@ func AnalyticsSegmentsGetCommand() *ffcli.Command {
 Examples:
   asc analytics segments get --segment-id "SEGMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*segmentID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --segment-id is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics segments get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAnalyticsReportSegment(requestCtx, strings.TrimSpace(*segmentID))
@@ -70,7 +71,7 @@ Examples:
 				return fmt.Errorf("analytics segments get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

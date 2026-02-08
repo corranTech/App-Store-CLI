@@ -11,8 +11,4 @@ func RootCommand(version string) *ffcli.Command {
 	return cmd.RootCommand(version)
 }
 
-func parseCommaSeparatedIDs(input string) []string {
-	return shared.SplitCSV(input)
-}
-
 type ReportedError = shared.ReportedError

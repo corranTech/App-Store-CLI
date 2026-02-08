@@ -193,7 +193,7 @@ func normalizeSubscriptionOfferEligibility(value string, required bool) (asc.Sub
 }
 
 func normalizeSubscriptionCustomerEligibilities(value string, required bool) ([]asc.SubscriptionCustomerEligibility, error) {
-	values := splitCSVUpper(value)
+	values := shared.SplitCSVUpper(value)
 	if len(values) == 0 {
 		if required {
 			return nil, fmt.Errorf("--customer-eligibilities is required")
@@ -213,7 +213,7 @@ func normalizeSubscriptionCustomerEligibilities(value string, required bool) ([]
 }
 
 func parseSubscriptionOfferCodePrices(value string) ([]asc.SubscriptionOfferCodePrice, error) {
-	entries := splitCSV(value)
+	entries := shared.SplitCSV(value)
 	if len(entries) == 0 {
 		return nil, nil
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PreReleaseVersionsAppCommand returns the app command group.
@@ -25,7 +26,7 @@ func PreReleaseVersionsAppCommand() *ffcli.Command {
 Examples:
   asc pre-release-versions app get --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PreReleaseVersionsAppGetCommand(),
 		},
@@ -52,7 +53,7 @@ func PreReleaseVersionsAppGetCommand() *ffcli.Command {
 Examples:
   asc pre-release-versions app get --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -60,12 +61,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pre-release-versions app get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetPreReleaseVersionApp(requestCtx, idValue)
@@ -73,7 +74,7 @@ Examples:
 				return fmt.Errorf("pre-release-versions app get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -91,7 +92,7 @@ func PreReleaseVersionsBuildsCommand() *ffcli.Command {
 Examples:
   asc pre-release-versions builds list --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PreReleaseVersionsBuildsListCommand(),
 		},
@@ -122,12 +123,12 @@ Examples:
   asc pre-release-versions builds list --id "PR_ID"
   asc pre-release-versions builds list --id "PR_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pre-release-versions builds list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pre-release-versions builds list: %w", err)
 			}
 
@@ -137,12 +138,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pre-release-versions builds list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.PreReleaseVersionBuildsOption{
@@ -166,7 +167,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("pre-release-versions builds list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetPreReleaseVersionBuilds(requestCtx, idValue, opts...)
@@ -174,7 +175,7 @@ Examples:
 				return fmt.Errorf("pre-release-versions builds list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

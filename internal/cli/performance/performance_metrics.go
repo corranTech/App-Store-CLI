@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PerformanceMetricsCommand returns the metrics subcommand group.
@@ -26,7 +27,7 @@ Examples:
   asc performance metrics list --app "APP_ID"
   asc performance metrics get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PerformanceMetricsListCommand(),
 			PerformanceMetricsGetCommand(),
@@ -58,41 +59,41 @@ Examples:
   asc performance metrics list --app "APP_ID"
   asc performance metrics list --app "APP_ID" --metric-type "MEMORY,DISK" --device-type "iPhone15,2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			platforms, err := normalizePerfPowerMetricPlatforms(splitCSVUpper(*platform), "--platform")
+			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
 				return fmt.Errorf("performance metrics list: %w", err)
 			}
-			metricTypes, err := normalizePerfPowerMetricTypes(splitCSVUpper(*metricType))
-			if err != nil {
-				return fmt.Errorf("performance metrics list: %w", err)
-			}
-
-			client, err := getASCClient()
+			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {
 				return fmt.Errorf("performance metrics list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("performance metrics list: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetPerfPowerMetricsForApp(requestCtx, resolvedAppID,
 				asc.WithPerfPowerMetricsPlatforms(platforms),
 				asc.WithPerfPowerMetricsMetricTypes(metricTypes),
-				asc.WithPerfPowerMetricsDeviceTypes(splitCSV(*deviceType)),
+				asc.WithPerfPowerMetricsDeviceTypes(shared.SplitCSV(*deviceType)),
 			)
 			if err != nil {
 				return fmt.Errorf("performance metrics list: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -118,7 +119,7 @@ Examples:
   asc performance metrics get --build "BUILD_ID"
   asc performance metrics get --build "BUILD_ID" --metric-type "MEMORY" --device-type "iPhone15,2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
@@ -126,33 +127,33 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			platforms, err := normalizePerfPowerMetricPlatforms(splitCSVUpper(*platform), "--platform")
+			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
 				return fmt.Errorf("performance metrics get: %w", err)
 			}
-			metricTypes, err := normalizePerfPowerMetricTypes(splitCSVUpper(*metricType))
-			if err != nil {
-				return fmt.Errorf("performance metrics get: %w", err)
-			}
-
-			client, err := getASCClient()
+			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {
 				return fmt.Errorf("performance metrics get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("performance metrics get: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetPerfPowerMetricsForBuild(requestCtx, trimmedBuildID,
 				asc.WithPerfPowerMetricsPlatforms(platforms),
 				asc.WithPerfPowerMetricsMetricTypes(metricTypes),
-				asc.WithPerfPowerMetricsDeviceTypes(splitCSV(*deviceType)),
+				asc.WithPerfPowerMetricsDeviceTypes(shared.SplitCSV(*deviceType)),
 			)
 			if err != nil {
 				return fmt.Errorf("performance metrics get: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppsRemoveBetaTestersCommand returns the apps remove-beta-testers subcommand.
@@ -31,15 +32,15 @@ Examples:
   asc apps remove-beta-testers --app "APP_ID" --tester "TESTER_ID" --confirm
   asc apps remove-beta-testers --app "APP_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			testerIDs := splitCSV(*testers)
+			testerIDs := shared.SplitCSV(*testers)
 			if len(testerIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --tester is required")
 				return flag.ErrHelp
@@ -49,12 +50,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("apps remove-beta-testers: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBetaTestersFromApp(requestCtx, resolvedAppID, testerIDs); err != nil {
@@ -67,7 +68,7 @@ Examples:
 				Action:    "removed",
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

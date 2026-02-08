@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type relationshipKind int
@@ -39,7 +40,7 @@ Examples:
   asc pre-release-versions relationships get --id "PR_ID" --type "app"
   asc pre-release-versions relationships get --id "PR_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PreReleaseVersionsRelationshipsGetCommand(),
 		},
@@ -71,12 +72,12 @@ Examples:
   asc pre-release-versions relationships get --id "PR_ID" --type "app"
   asc pre-release-versions relationships get --id "PR_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pre-release-versions relationships get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("pre-release-versions relationships get: %w", err)
 			}
 
@@ -104,12 +105,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("pre-release-versions relationships get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			switch kind {
@@ -118,7 +119,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("pre-release-versions relationships get: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			case relationshipList:
 				opts := []asc.LinkagesOption{
 					asc.WithLinkagesLimit(*limit),
@@ -137,14 +138,14 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("pre-release-versions relationships get: %w", err)
 					}
-					return printOutput(resp, *output, *pretty)
+					return shared.PrintOutput(resp, *output, *pretty)
 				}
 
 				resp, err := getPreReleaseRelationshipList(requestCtx, client, relationshipType, versionValue, opts...)
 				if err != nil {
 					return fmt.Errorf("pre-release-versions relationships get: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			default:
 				return fmt.Errorf("pre-release-versions relationships get: unsupported relationship type %q", relationshipType)
 			}

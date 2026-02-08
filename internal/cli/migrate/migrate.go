@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // MigrateCommand returns the migrate command with subcommands.
@@ -29,7 +30,7 @@ Examples:
   asc migrate import --app "APP_ID" --version "VERSION_ID" --fastlane-dir ./fastlane
   asc migrate export --app "APP_ID" --version "VERSION_ID" --output-dir ./fastlane`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MigrateImportCommand(),
 			MigrateExportCommand(),
@@ -79,7 +80,7 @@ Examples:
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -90,7 +91,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -124,12 +125,12 @@ Examples:
 				return printMigrateOutput(result, *output, *pretty)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			// Fetch existing localizations to get their IDs
@@ -275,7 +276,7 @@ Creates the standard fastlane structure with all localizations.
 Examples:
   asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -286,18 +287,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			// Fetch all localizations
@@ -613,7 +614,7 @@ Examples:
   asc migrate validate --fastlane-dir ./fastlane
   asc migrate validate --fastlane-dir ./fastlane --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*fastlaneDir) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --fastlane-dir is required")

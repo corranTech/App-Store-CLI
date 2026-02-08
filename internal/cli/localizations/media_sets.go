@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // LocalizationsPreviewSetsCommand returns the preview sets command group.
@@ -27,7 +28,7 @@ Examples:
   asc localizations preview-sets get --id "PREVIEW_SET_ID"
   asc localizations preview-sets relationships --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsPreviewSetsListCommand(),
 			LocalizationsPreviewSetsGetCommand(),
@@ -59,7 +60,7 @@ func LocalizationsPreviewSetsListCommand() *ffcli.Command {
 Examples:
   asc localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
@@ -70,16 +71,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("localizations preview-sets list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("localizations preview-sets list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("localizations preview-sets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionLocalizationPreviewSetsOption{
@@ -99,7 +100,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("localizations preview-sets list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, trimmedID, opts...)
@@ -107,7 +108,7 @@ Examples:
 				return fmt.Errorf("localizations preview-sets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -129,7 +130,7 @@ func LocalizationsPreviewSetsGetCommand() *ffcli.Command {
 Examples:
   asc localizations preview-sets get --id "PREVIEW_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*setID)
 			if trimmedID == "" {
@@ -137,12 +138,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("localizations preview-sets get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppPreviewSet(requestCtx, trimmedID)
@@ -150,7 +151,7 @@ Examples:
 				return fmt.Errorf("localizations preview-sets get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -175,7 +176,7 @@ func LocalizationsPreviewSetsRelationshipsCommand() *ffcli.Command {
 Examples:
   asc localizations preview-sets relationships --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
@@ -186,16 +187,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("localizations preview-sets relationships: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("localizations preview-sets relationships: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("localizations preview-sets relationships: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -215,7 +216,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("localizations preview-sets relationships: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionLocalizationPreviewSetsRelationships(requestCtx, trimmedID, opts...)
@@ -223,7 +224,7 @@ Examples:
 				return fmt.Errorf("localizations preview-sets relationships: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -243,7 +244,7 @@ Examples:
   asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"
   asc localizations screenshot-sets relationships --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsScreenshotSetsListCommand(),
 			LocalizationsScreenshotSetsGetCommand(),
@@ -272,7 +273,7 @@ func LocalizationsScreenshotSetsGetCommand() *ffcli.Command {
 Examples:
   asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*setID)
 			if trimmedID == "" {
@@ -280,12 +281,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("localizations screenshot-sets get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppScreenshotSet(requestCtx, trimmedID)
@@ -293,7 +294,7 @@ Examples:
 				return fmt.Errorf("localizations screenshot-sets get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -318,7 +319,7 @@ func LocalizationsScreenshotSetsListCommand() *ffcli.Command {
 Examples:
   asc localizations screenshot-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
@@ -329,16 +330,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("localizations screenshot-sets list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("localizations screenshot-sets list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("localizations screenshot-sets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionLocalizationScreenshotSetsOption{
@@ -358,7 +359,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("localizations screenshot-sets list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionLocalizationScreenshotSets(requestCtx, trimmedID, opts...)
@@ -366,7 +367,7 @@ Examples:
 				return fmt.Errorf("localizations screenshot-sets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -391,7 +392,7 @@ func LocalizationsScreenshotSetsRelationshipsCommand() *ffcli.Command {
 Examples:
   asc localizations screenshot-sets relationships --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
@@ -402,16 +403,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("localizations screenshot-sets relationships: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("localizations screenshot-sets relationships: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("localizations screenshot-sets relationships: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -431,7 +432,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("localizations screenshot-sets relationships: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionLocalizationScreenshotSetsRelationships(requestCtx, trimmedID, opts...)
@@ -439,7 +440,7 @@ Examples:
 				return fmt.Errorf("localizations screenshot-sets relationships: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

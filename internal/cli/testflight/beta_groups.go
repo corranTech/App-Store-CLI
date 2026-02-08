@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BetaGroupsCommand returns the beta groups command with subcommands.
@@ -29,7 +30,7 @@ Examples:
   asc testflight beta-groups beta-recruitment-criteria get --group-id "GROUP_ID"
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check get --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaGroupsListCommand(),
 			BetaGroupsCreateCommand(),
@@ -71,27 +72,27 @@ Examples:
   asc testflight beta-groups list --app "APP_ID" --limit 10
   asc testflight beta-groups list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("beta-groups list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("beta-groups list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaGroupsOption{
@@ -115,7 +116,7 @@ Examples:
 					return fmt.Errorf("beta-groups list: %w", err)
 				}
 
-				return printOutput(groups, *output, *pretty)
+				return shared.PrintOutput(groups, *output, *pretty)
 			}
 
 			groups, err := client.GetBetaGroups(requestCtx, resolvedAppID, opts...)
@@ -123,7 +124,7 @@ Examples:
 				return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
 			}
 
-			return printOutput(groups, *output, *pretty)
+			return shared.PrintOutput(groups, *output, *pretty)
 		},
 	}
 }
@@ -146,9 +147,9 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
@@ -158,12 +159,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			group, err := client.CreateBetaGroup(requestCtx, resolvedAppID, strings.TrimSpace(*name))
@@ -171,7 +172,7 @@ Examples:
 				return fmt.Errorf("beta-groups create: failed to create: %w", err)
 			}
 
-			return printOutput(group, *output, *pretty)
+			return shared.PrintOutput(group, *output, *pretty)
 		},
 	}
 }
@@ -193,19 +194,19 @@ func BetaGroupsGetCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups get --id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			group, err := client.GetBetaGroup(requestCtx, strings.TrimSpace(*id))
@@ -213,7 +214,7 @@ Examples:
 				return fmt.Errorf("beta-groups get: failed to fetch: %w", err)
 			}
 
-			return printOutput(group, *output, *pretty)
+			return shared.PrintOutput(group, *output, *pretty)
 		},
 	}
 }
@@ -244,7 +245,7 @@ Examples:
   asc testflight beta-groups update --id "GROUP_ID" --public-link-enabled --public-link-limit 100
   asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled --internal`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
@@ -279,12 +280,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var publicLinkEnabledAttr *bool
@@ -330,7 +331,7 @@ Examples:
 				return fmt.Errorf("beta-groups update: failed to update: %w", err)
 			}
 
-			return printOutput(group, *output, *pretty)
+			return shared.PrintOutput(group, *output, *pretty)
 		},
 	}
 }
@@ -351,7 +352,7 @@ func BetaGroupsDeleteCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -362,12 +363,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaGroup(requestCtx, strings.TrimSpace(*id)); err != nil {
@@ -397,7 +398,7 @@ Examples:
   asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
   asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
@@ -405,18 +406,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			testerIDs := parseCommaSeparatedIDs(*tester)
+			testerIDs := shared.SplitCSV(*tester)
 			if len(testerIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --tester is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups add-testers: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.AddBetaTestersToGroup(requestCtx, groupID, testerIDs); err != nil {
@@ -447,7 +448,7 @@ Examples:
   asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID" --confirm
   asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
@@ -455,7 +456,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			testerIDs := parseCommaSeparatedIDs(*tester)
+			testerIDs := shared.SplitCSV(*tester)
 			if len(testerIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --tester is required")
 				return flag.ErrHelp
@@ -465,12 +466,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups remove-testers: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBetaTestersFromGroup(requestCtx, groupID, testerIDs); err != nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ExperimentTreatmentLocalizationsCommand returns the treatment localizations command group.
@@ -27,7 +28,7 @@ Examples:
   asc product-pages experiments treatments localizations create --treatment-id "TREATMENT_ID" --locale "en-US"
   asc product-pages experiments treatments localizations delete --localization-id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ExperimentTreatmentLocalizationsListCommand(),
 			ExperimentTreatmentLocalizationsGetCommand(),
@@ -63,12 +64,12 @@ Examples:
   asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID"
   asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("experiments treatments localizations list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("experiments treatments localizations list: %w", err)
 			}
 
@@ -78,12 +79,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationsOption{
@@ -105,7 +106,7 @@ Examples:
 					return fmt.Errorf("experiments treatments localizations list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalizations(requestCtx, trimmedID, opts...)
@@ -113,7 +114,7 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -135,7 +136,7 @@ func ExperimentTreatmentLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments localizations get --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
@@ -143,12 +144,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID)
@@ -156,7 +157,7 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -179,7 +180,7 @@ func ExperimentTreatmentLocalizationsCreateCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments localizations create --treatment-id "TREATMENT_ID" --locale "en-US"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
@@ -193,12 +194,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID, localeValue)
@@ -206,7 +207,7 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -229,7 +230,7 @@ func ExperimentTreatmentLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments localizations delete --localization-id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
@@ -241,12 +242,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID); err != nil {
@@ -254,7 +255,7 @@ Examples:
 			}
 
 			result := &asc.AppStoreVersionExperimentTreatmentLocalizationDeleteResult{ID: trimmedID, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

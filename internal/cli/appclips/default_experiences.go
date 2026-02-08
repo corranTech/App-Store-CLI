@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppClipDefaultExperiencesCommand returns the default experiences command group.
@@ -28,7 +29,7 @@ Examples:
   asc app-clips default-experiences update --experience-id "EXP_ID" --action VIEW
   asc app-clips default-experiences delete --experience-id "EXP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipDefaultExperiencesListCommand(),
 			AppClipDefaultExperiencesGetCommand(),
@@ -68,12 +69,12 @@ Examples:
   asc app-clips default-experiences list --app-clip-id "CLIP_ID"
   asc app-clips default-experiences list --app-clip-id "CLIP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-clips default-experiences list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-clips default-experiences list: %w", err)
 			}
 
@@ -83,12 +84,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppClipDefaultExperiencesOption{
@@ -102,7 +103,7 @@ Examples:
 				if err != nil {
 					if asc.IsNotFound(err) {
 						empty := &asc.AppClipDefaultExperiencesResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceAttributes]{}}
-						return printOutput(empty, *output, *pretty)
+						return shared.PrintOutput(empty, *output, *pretty)
 					}
 					return fmt.Errorf("app-clips default-experiences list: failed to fetch: %w", err)
 				}
@@ -114,19 +115,19 @@ Examples:
 					return fmt.Errorf("app-clips default-experiences list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppClipDefaultExperiences(requestCtx, appClipValue, opts...)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.AppClipDefaultExperiencesResponse{Data: []asc.Resource[asc.AppClipDefaultExperienceAttributes]{}}
-					return printOutput(empty, *output, *pretty)
+					return shared.PrintOutput(empty, *output, *pretty)
 				}
 				return fmt.Errorf("app-clips default-experiences list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -149,7 +150,7 @@ func AppClipDefaultExperiencesGetCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences get --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*experienceID)
 			if idValue == "" {
@@ -162,12 +163,12 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipDefaultExperience(requestCtx, idValue, asc.WithAppClipDefaultExperienceInclude(includeValue))
@@ -175,7 +176,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -200,7 +201,7 @@ Examples:
   asc app-clips default-experiences create --app-clip-id "CLIP_ID" --action OPEN
   asc app-clips default-experiences create --app-clip-id "CLIP_ID" --release-version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" {
@@ -219,12 +220,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppClipDefaultExperience(requestCtx, appClipValue, attrs, *releaseVersionID, "")
@@ -232,7 +233,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -257,7 +258,7 @@ Examples:
   asc app-clips default-experiences update --experience-id "EXP_ID" --action VIEW
   asc app-clips default-experiences update --experience-id "EXP_ID" --release-version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -286,12 +287,12 @@ Examples:
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppClipDefaultExperience(requestCtx, experienceValue, attrs, *releaseVersionID)
@@ -299,7 +300,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -322,7 +323,7 @@ func AppClipDefaultExperiencesDeleteCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences delete --experience-id "EXP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -334,12 +335,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppClipDefaultExperience(requestCtx, experienceValue); err != nil {
@@ -351,7 +352,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -373,7 +374,7 @@ func AppClipDefaultExperienceReviewDetailCommand() *ffcli.Command {
 Examples:
   asc app-clips default-experiences review-detail --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -381,12 +382,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences review-detail: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipDefaultExperienceReviewDetail(requestCtx, experienceValue)
@@ -394,7 +395,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences review-detail: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -416,7 +417,7 @@ func AppClipDefaultExperienceReleaseWithAppStoreVersionCommand() *ffcli.Command 
 Examples:
   asc app-clips default-experiences release-with-app-store-version --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -424,12 +425,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences release-with-app-store-version: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppClipDefaultExperienceReleaseWithAppStoreVersion(requestCtx, experienceValue)
@@ -437,7 +438,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences release-with-app-store-version: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

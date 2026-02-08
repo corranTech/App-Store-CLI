@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // PerformanceCommand returns the performance command group.
@@ -24,7 +25,7 @@ Examples:
   asc performance diagnostics get --id "SIGNATURE_ID"
   asc performance download --build "BUILD_ID" --output ./metrics.json`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PerformanceMetricsCommand(),
 			PerformanceDiagnosticsCommand(),

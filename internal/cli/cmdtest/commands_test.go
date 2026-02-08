@@ -2959,7 +2959,7 @@ func TestParseCommaSeparatedIDs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := parseCommaSeparatedIDs(test.input)
+			got := shared.SplitCSV(test.input)
 			if len(got) != len(test.want) {
 				t.Fatalf("expected %d ids, got %d", len(test.want), len(got))
 			}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func validateSandboxEmail(value string) error {
@@ -91,7 +92,7 @@ func findSandboxTesterByEmail(ctx context.Context, client *asc.Client, email str
 		if strings.TrimSpace(resp.Links.Next) == "" {
 			break
 		}
-		if err := validateNextURL(resp.Links.Next); err != nil {
+		if err := shared.ValidateNextURL(resp.Links.Next); err != nil {
 			return nil, err
 		}
 		next = resp.Links.Next

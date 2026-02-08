@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SigningCommand returns the signing command with subcommands.
@@ -20,7 +21,7 @@ func SigningCommand() *ffcli.Command {
 Examples:
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --output ./signing`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SigningFetchCommand(),
 		},

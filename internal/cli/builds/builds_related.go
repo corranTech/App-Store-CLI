@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildsAppCommand returns the builds app command group.
@@ -25,7 +26,7 @@ func BuildsAppCommand() *ffcli.Command {
 Examples:
   asc builds app get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsAppGetCommand(),
 		},
@@ -53,7 +54,7 @@ func BuildsAppGetCommand() *ffcli.Command {
 Examples:
   asc builds app get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -67,12 +68,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds app get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildApp(requestCtx, buildValue)
@@ -80,7 +81,7 @@ Examples:
 				return fmt.Errorf("builds app get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -98,7 +99,7 @@ func BuildsPreReleaseVersionCommand() *ffcli.Command {
 Examples:
   asc builds pre-release-version get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsPreReleaseVersionGetCommand(),
 		},
@@ -126,7 +127,7 @@ func BuildsPreReleaseVersionGetCommand() *ffcli.Command {
 Examples:
   asc builds pre-release-version get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -140,12 +141,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds pre-release-version get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildPreReleaseVersion(requestCtx, buildValue)
@@ -153,7 +154,7 @@ Examples:
 				return fmt.Errorf("builds pre-release-version get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -171,7 +172,7 @@ func BuildsIconsCommand() *ffcli.Command {
 Examples:
   asc builds icons list --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsIconsListCommand(),
 		},
@@ -203,12 +204,12 @@ Examples:
   asc builds icons list --build "BUILD_ID"
   asc builds icons list --build "BUILD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds icons list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("builds icons list: %w", err)
 			}
 
@@ -224,12 +225,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds icons list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildIconsOption{
@@ -253,7 +254,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds icons list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBuildIcons(requestCtx, buildValue, opts...)
@@ -261,7 +262,7 @@ Examples:
 				return fmt.Errorf("builds icons list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -279,7 +280,7 @@ func BuildsBetaAppReviewSubmissionCommand() *ffcli.Command {
 Examples:
   asc builds beta-app-review-submission get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsBetaAppReviewSubmissionGetCommand(),
 		},
@@ -307,7 +308,7 @@ func BuildsBetaAppReviewSubmissionGetCommand() *ffcli.Command {
 Examples:
   asc builds beta-app-review-submission get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -321,12 +322,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds beta-app-review-submission get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildBetaAppReviewSubmission(requestCtx, buildValue)
@@ -334,7 +335,7 @@ Examples:
 				return fmt.Errorf("builds beta-app-review-submission get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -352,7 +353,7 @@ func BuildsBuildBetaDetailCommand() *ffcli.Command {
 Examples:
   asc builds build-beta-detail get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsBuildBetaDetailGetCommand(),
 		},
@@ -380,7 +381,7 @@ func BuildsBuildBetaDetailGetCommand() *ffcli.Command {
 Examples:
   asc builds build-beta-detail get --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -394,12 +395,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds build-beta-detail get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBuildBuildBetaDetail(requestCtx, buildValue)
@@ -407,7 +408,7 @@ Examples:
 				return fmt.Errorf("builds build-beta-detail get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

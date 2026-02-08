@@ -35,7 +35,7 @@ Examples:
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
   asc iap offer-codes update --offer-code-id "CODE_ID" --active true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPOfferCodesListCommand(),
 			IAPOfferCodesGetCommand(),
@@ -72,12 +72,12 @@ Examples:
   asc iap offer-codes list --iap-id "IAP_ID"
   asc iap offer-codes list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap offer-codes list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap offer-codes list: %w", err)
 			}
 
@@ -87,12 +87,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPOfferCodesOption{
@@ -114,7 +114,7 @@ Examples:
 					return fmt.Errorf("iap offer-codes list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseOfferCodes(requestCtx, iapValue, opts...)
@@ -122,7 +122,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -144,7 +144,7 @@ func IAPOfferCodesGetCommand() *ffcli.Command {
 Examples:
   asc iap offer-codes get --offer-code-id "CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			offerCodeValue := strings.TrimSpace(*offerCodeID)
 			if offerCodeValue == "" {
@@ -152,12 +152,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchaseOfferCode(requestCtx, offerCodeValue)
@@ -165,7 +165,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -191,7 +191,7 @@ Examples:
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --eligibilities "NON_SPENDER" --prices "USA:PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -224,12 +224,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateInAppPurchaseOfferCode(requestCtx, iapValue, asc.InAppPurchaseOfferCodeCreateAttributes{
@@ -241,7 +241,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -265,7 +265,7 @@ func IAPOfferCodesUpdateCommand() *ffcli.Command {
 Examples:
   asc iap offer-codes update --offer-code-id "CODE_ID" --active true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			offerCodeValue := strings.TrimSpace(*offerCodeID)
 			if offerCodeValue == "" {
@@ -277,12 +277,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			value := active.Value()
@@ -293,7 +293,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

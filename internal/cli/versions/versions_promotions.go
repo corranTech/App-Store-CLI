@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // VersionsPromotionsCommand returns the promotions command group.
@@ -25,7 +26,7 @@ app store version promotions, so this CLI exposes create only.
 
 Examples:
   asc versions promotions create --version-id "VERSION_ID" --treatment-id "TREATMENT_ID"`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			VersionsPromotionsCreateCommand(),
 		},
@@ -53,7 +54,7 @@ func VersionsPromotionsCreateCommand() *ffcli.Command {
 Examples:
   asc versions promotions create --version-id "VERSION_ID" --treatment-id "TREATMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
@@ -66,12 +67,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("versions promotions create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionPromotion(requestCtx, version, treatment)
@@ -85,7 +86,7 @@ Examples:
 				TreatmentID: treatment,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

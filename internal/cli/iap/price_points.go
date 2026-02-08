@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPPricePointsCommand returns the price points command group.
@@ -26,7 +27,7 @@ Examples:
   asc iap price-points list --iap-id "IAP_ID"
   asc iap price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPPricePointsListCommand(),
 			IAPPricePointsEqualizationsCommand(),
@@ -60,12 +61,12 @@ Examples:
   asc iap price-points list --iap-id "IAP_ID" --territory "USA"
   asc iap price-points list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap price-points list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap price-points list: %w", err)
 			}
 
@@ -75,12 +76,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap price-points list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPPricePointsOption{
@@ -106,7 +107,7 @@ Examples:
 					return fmt.Errorf("iap price-points list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetInAppPurchasePricePoints(requestCtx, iapValue, opts...)
@@ -114,7 +115,7 @@ Examples:
 				return fmt.Errorf("iap price-points list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -136,7 +137,7 @@ func IAPPricePointsEqualizationsCommand() *ffcli.Command {
 Examples:
   asc iap price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
@@ -144,12 +145,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("iap price-points equalizations: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetInAppPurchasePricePointEqualizations(requestCtx, id)
@@ -157,7 +158,7 @@ Examples:
 				return fmt.Errorf("iap price-points equalizations: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

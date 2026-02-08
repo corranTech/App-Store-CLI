@@ -28,7 +28,7 @@ Examples:
   asc categories subcategories --category-id "GAMES"
   asc categories set --app APP_ID --primary GAMES`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			CategoriesListCommand(),
 			CategoriesGetCommand(),
@@ -63,18 +63,18 @@ Examples:
   asc categories list
   asc categories list --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit < 1 || *limit > 200 {
 				return fmt.Errorf("categories list: --limit must be between 1 and 200")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("categories list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			categories, err := client.GetAppCategories(requestCtx, asc.WithAppCategoriesLimit(*limit))
@@ -82,7 +82,7 @@ Examples:
 				return fmt.Errorf("categories list: %w", err)
 			}
 
-			return printOutput(categories, *output, *pretty)
+			return shared.PrintOutput(categories, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // CustomPageLocalizationsCommand returns the custom page localizations command group.
@@ -29,7 +30,7 @@ Examples:
   asc product-pages custom-pages localizations search-keywords list --localization-id "LOCALIZATION_ID"
   asc product-pages custom-pages localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			CustomPageLocalizationsListCommand(),
 			CustomPageLocalizationsGetCommand(),
@@ -67,12 +68,12 @@ Examples:
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID"
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("custom-pages localizations list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("custom-pages localizations list: %w", err)
 			}
 
@@ -82,12 +83,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageLocalizationsOption{
@@ -109,7 +110,7 @@ Examples:
 					return fmt.Errorf("custom-pages localizations list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetAppCustomProductPageLocalizations(requestCtx, trimmedID, opts...)
@@ -117,7 +118,7 @@ Examples:
 				return fmt.Errorf("custom-pages localizations list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -139,7 +140,7 @@ func CustomPageLocalizationsGetCommand() *ffcli.Command {
 Examples:
   asc product-pages custom-pages localizations get --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
@@ -147,12 +148,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCustomProductPageLocalization(requestCtx, trimmedID)
@@ -160,7 +161,7 @@ Examples:
 				return fmt.Errorf("custom-pages localizations get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -185,7 +186,7 @@ Examples:
   asc product-pages custom-pages localizations create --custom-page-version-id "VERSION_ID" --locale "en-US"
   asc product-pages custom-pages localizations create --custom-page-version-id "VERSION_ID" --locale "en-US" --promotional-text "Promo copy"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
@@ -199,12 +200,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppCustomProductPageLocalization(requestCtx, trimmedID, localeValue, strings.TrimSpace(*promotionalText))
@@ -212,7 +213,7 @@ Examples:
 				return fmt.Errorf("custom-pages localizations create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -235,7 +236,7 @@ func CustomPageLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc product-pages custom-pages localizations update --localization-id "LOCALIZATION_ID" --promotional-text "Updated copy"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
@@ -253,12 +254,12 @@ Examples:
 				PromotionalText: &promoValue,
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppCustomProductPageLocalization(requestCtx, trimmedID, attrs)
@@ -266,7 +267,7 @@ Examples:
 				return fmt.Errorf("custom-pages localizations update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -289,7 +290,7 @@ func CustomPageLocalizationsDeleteCommand() *ffcli.Command {
 Examples:
   asc product-pages custom-pages localizations delete --localization-id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
@@ -301,12 +302,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppCustomProductPageLocalization(requestCtx, trimmedID); err != nil {
@@ -314,7 +315,7 @@ Examples:
 			}
 
 			result := &asc.AppCustomProductPageLocalizationDeleteResult{ID: trimmedID, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

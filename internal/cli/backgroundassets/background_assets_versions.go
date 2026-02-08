@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BackgroundAssetsVersionsCommand returns the versions command group.
@@ -27,7 +28,7 @@ Examples:
   asc background-assets versions get --version-id "VERSION_ID"
   asc background-assets versions create --background-asset-id "ASSET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BackgroundAssetsVersionsListCommand(),
 			BackgroundAssetsVersionsGetCommand(),
@@ -60,7 +61,7 @@ Examples:
   asc background-assets versions list --background-asset-id "ASSET_ID"
   asc background-assets versions list --background-asset-id "ASSET_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" && strings.TrimSpace(*next) == "" {
@@ -70,16 +71,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return fmt.Errorf("background-assets versions list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("background-assets versions list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BackgroundAssetVersionsOption{
@@ -101,7 +102,7 @@ Examples:
 					return fmt.Errorf("background-assets versions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBackgroundAssetVersions(requestCtx, assetIDValue, opts...)
@@ -109,7 +110,7 @@ Examples:
 				return fmt.Errorf("background-assets versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -131,7 +132,7 @@ func BackgroundAssetsVersionsGetCommand() *ffcli.Command {
 Examples:
   asc background-assets versions get --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
@@ -139,12 +140,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets versions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBackgroundAssetVersion(requestCtx, versionIDValue)
@@ -152,7 +153,7 @@ Examples:
 				return fmt.Errorf("background-assets versions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -174,7 +175,7 @@ func BackgroundAssetsVersionsCreateCommand() *ffcli.Command {
 Examples:
   asc background-assets versions create --background-asset-id "ASSET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
@@ -182,12 +183,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("background-assets versions create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateBackgroundAssetVersion(requestCtx, assetIDValue)
@@ -195,7 +196,7 @@ Examples:
 				return fmt.Errorf("background-assets versions create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

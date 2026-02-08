@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // RoutingCoverageCommand returns the routing coverage command group.
@@ -26,7 +27,7 @@ Examples:
   asc routing-coverage info --id "COVERAGE_ID"
   asc routing-coverage create --version-id "VERSION_ID" --file ./coverage.geojson
   asc routing-coverage delete --id "COVERAGE_ID" --confirm`,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			RoutingCoverageGetCommand(),
 			RoutingCoverageInfoCommand(),
@@ -56,7 +57,7 @@ func RoutingCoverageGetCommand() *ffcli.Command {
 Examples:
   asc routing-coverage get --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
@@ -64,12 +65,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("routing-coverage get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetRoutingAppCoverageForVersion(requestCtx, versionValue)
@@ -77,7 +78,7 @@ Examples:
 				return fmt.Errorf("routing-coverage get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -99,7 +100,7 @@ func RoutingCoverageInfoCommand() *ffcli.Command {
 Examples:
   asc routing-coverage info --id "COVERAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			coverageValue := strings.TrimSpace(*coverageID)
 			if coverageValue == "" {
@@ -107,12 +108,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("routing-coverage info: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetRoutingAppCoverage(requestCtx, coverageValue)
@@ -120,7 +121,7 @@ Examples:
 				return fmt.Errorf("routing-coverage info: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -143,7 +144,7 @@ func RoutingCoverageCreateCommand() *ffcli.Command {
 Examples:
   asc routing-coverage create --version-id "VERSION_ID" --file ./coverage.geojson`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
@@ -171,12 +172,12 @@ Examples:
 				return fmt.Errorf("routing-coverage create: file size must be greater than 0")
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("routing-coverage create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateRoutingAppCoverage(requestCtx, versionValue, filepath.Base(pathValue), info.Size())
@@ -187,7 +188,7 @@ Examples:
 				return fmt.Errorf("routing-coverage create: no upload operations returned")
 			}
 
-			uploadCtx, uploadCancel := contextWithUploadTimeout(ctx)
+			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
 			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
 			uploadCancel()
 			if err != nil {
@@ -205,14 +206,14 @@ Examples:
 				Uploaded:           &uploaded,
 			}
 
-			commitCtx, commitCancel := contextWithUploadTimeout(ctx)
+			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
 			commitResp, err := client.UpdateRoutingAppCoverage(commitCtx, resp.Data.ID, updateAttrs)
 			commitCancel()
 			if err != nil {
 				return fmt.Errorf("routing-coverage create: failed to commit upload: %w", err)
 			}
 
-			return printOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output, *pretty)
 		},
 	}
 }
@@ -235,7 +236,7 @@ func RoutingCoverageDeleteCommand() *ffcli.Command {
 Examples:
   asc routing-coverage delete --id "COVERAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			coverageValue := strings.TrimSpace(*coverageID)
 			if coverageValue == "" {
@@ -247,12 +248,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("routing-coverage delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteRoutingAppCoverage(requestCtx, coverageValue); err != nil {
@@ -264,7 +265,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

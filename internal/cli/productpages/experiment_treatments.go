@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ExperimentTreatmentsCommand returns the experiment treatments command group.
@@ -27,7 +28,7 @@ Examples:
   asc product-pages experiments treatments create --experiment-id "EXPERIMENT_ID" --name "Variant A"
   asc product-pages experiments treatments delete --treatment-id "TREATMENT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ExperimentTreatmentsListCommand(),
 			ExperimentTreatmentsGetCommand(),
@@ -65,12 +66,12 @@ Examples:
   asc product-pages experiments treatments list --experiment-id "EXPERIMENT_ID" --paginate
   asc product-pages experiments treatments list --experiment-id "EXPERIMENT_ID" --v2`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("experiments treatments list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("experiments treatments list: %w", err)
 			}
 
@@ -80,12 +81,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentsOption{
@@ -115,7 +116,7 @@ Examples:
 					return fmt.Errorf("experiments treatments list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			var resp *asc.AppStoreVersionExperimentTreatmentsResponse
@@ -128,7 +129,7 @@ Examples:
 				return fmt.Errorf("experiments treatments list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -150,7 +151,7 @@ func ExperimentTreatmentsGetCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments get --treatment-id "TREATMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
@@ -158,12 +159,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreVersionExperimentTreatment(requestCtx, trimmedID)
@@ -171,7 +172,7 @@ Examples:
 				return fmt.Errorf("experiments treatments get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -196,7 +197,7 @@ Examples:
   asc product-pages experiments treatments create --experiment-id "EXPERIMENT_ID" --name "Variant A"
   asc product-pages experiments treatments create --experiment-id "EXPERIMENT_ID" --name "Variant A" --app-icon-name "Icon A"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
@@ -210,12 +211,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionExperimentTreatment(requestCtx, trimmedID, nameValue, strings.TrimSpace(*appIconName))
@@ -223,7 +224,7 @@ Examples:
 				return fmt.Errorf("experiments treatments create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -248,7 +249,7 @@ Examples:
   asc product-pages experiments treatments update --treatment-id "TREATMENT_ID" --name "Updated"
   asc product-pages experiments treatments update --treatment-id "TREATMENT_ID" --app-icon-name "Icon B"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
@@ -271,12 +272,12 @@ Examples:
 				attrs.AppIconName = &appIconValue
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppStoreVersionExperimentTreatment(requestCtx, trimmedID, attrs)
@@ -284,7 +285,7 @@ Examples:
 				return fmt.Errorf("experiments treatments update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -307,7 +308,7 @@ func ExperimentTreatmentsDeleteCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments delete --treatment-id "TREATMENT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
@@ -319,12 +320,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppStoreVersionExperimentTreatment(requestCtx, trimmedID); err != nil {
@@ -332,7 +333,7 @@ Examples:
 			}
 
 			result := &asc.AppStoreVersionExperimentTreatmentDeleteResult{ID: trimmedID, Deleted: true}
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ReviewsRespondCommand returns the reviews respond subcommand.
@@ -34,7 +35,7 @@ Examples:
   asc reviews respond --review-id "REVIEW_ID" --response "Thanks for your feedback!"
   asc reviews respond --review-id "REVIEW_ID" --response "We appreciate your review." --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*reviewID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --review-id is required")
@@ -45,12 +46,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("reviews respond: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateCustomerReviewResponse(requestCtx, strings.TrimSpace(*reviewID), strings.TrimSpace(*response))
@@ -58,7 +59,7 @@ Examples:
 				return fmt.Errorf("reviews respond: failed to create response: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -78,7 +79,7 @@ Examples:
   asc reviews response delete --id "RESPONSE_ID" --confirm
   asc reviews response for-review --review-id "REVIEW_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ReviewsResponseGetCommand(),
 			ReviewsResponseDeleteCommand(),
@@ -108,19 +109,19 @@ Examples:
   asc reviews response get --id "RESPONSE_ID"
   asc reviews response get --id "RESPONSE_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*responseID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("reviews response get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetCustomerReviewResponse(requestCtx, strings.TrimSpace(*responseID))
@@ -128,7 +129,7 @@ Examples:
 				return fmt.Errorf("reviews response get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -153,7 +154,7 @@ This action removes your response from the review and cannot be undone.
 Examples:
   asc reviews response delete --id "RESPONSE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*responseID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -164,12 +165,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("reviews response delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteCustomerReviewResponse(requestCtx, strings.TrimSpace(*responseID)); err != nil {
@@ -181,7 +182,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -206,19 +207,19 @@ Examples:
   asc reviews response for-review --review-id "REVIEW_ID"
   asc reviews response for-review --review-id "REVIEW_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*reviewID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --review-id is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("reviews response for-review: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetCustomerReviewResponseForReview(requestCtx, strings.TrimSpace(*reviewID))
@@ -226,7 +227,7 @@ Examples:
 				return fmt.Errorf("reviews response for-review: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

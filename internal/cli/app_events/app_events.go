@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AppEventsCommand returns the app events command group.
@@ -30,7 +31,7 @@ Examples:
   asc app-events delete --event-id "EVENT_ID" --confirm
   asc app-events relationships --event-id "EVENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEventsListCommand(),
 			AppEventsGetCommand(),
@@ -70,27 +71,27 @@ Examples:
   asc app-events list --app "APP_ID"
   asc app-events list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-events list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("app-events list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppEventsOption{
@@ -111,7 +112,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-events list: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppEvents(requestCtx, resolvedAppID, opts...)
@@ -119,7 +120,7 @@ Examples:
 				return fmt.Errorf("app-events list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -141,7 +142,7 @@ func AppEventsGetCommand() *ffcli.Command {
 Examples:
   asc app-events get --event-id "EVENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
@@ -149,12 +150,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppEvent(requestCtx, id)
@@ -162,7 +163,7 @@ Examples:
 				return fmt.Errorf("app-events get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -196,9 +197,9 @@ Examples:
   asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z"
   asc app-events create --app "APP_ID" --name "Launch Party" --event-type PREMIERE --priority HIGH --purpose ATTRACT_NEW_USERS`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -250,7 +251,7 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error:", err.Error())
 					return flag.ErrHelp
 				}
-				territoryValues := splitCSVUpper(*territories)
+				territoryValues := shared.SplitCSVUpper(*territories)
 				schedule := buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue)
 				schedules = []asc.AppEventTerritorySchedule{schedule}
 			}
@@ -266,12 +267,12 @@ Examples:
 				TerritorySchedules:  schedules,
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppEvent(requestCtx, resolvedAppID, attrs)
@@ -279,7 +280,7 @@ Examples:
 				return fmt.Errorf("app-events create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -313,7 +314,7 @@ Examples:
   asc app-events update --event-id "EVENT_ID" --priority HIGH
   asc app-events update --event-id "EVENT_ID" --name "New Name" --event-type SPECIAL_EVENT`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
@@ -406,7 +407,7 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error:", err.Error())
 					return flag.ErrHelp
 				}
-				territoryValues := splitCSVUpper(*territories)
+				territoryValues := shared.SplitCSVUpper(*territories)
 				schedule := buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue)
 				attrs.TerritorySchedules = []asc.AppEventTerritorySchedule{schedule}
 				hasUpdate = true
@@ -417,12 +418,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppEvent(requestCtx, id, attrs)
@@ -430,7 +431,7 @@ Examples:
 				return fmt.Errorf("app-events update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -453,7 +454,7 @@ func AppEventsDeleteCommand() *ffcli.Command {
 Examples:
   asc app-events delete --event-id "EVENT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
@@ -465,12 +466,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-events delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppEvent(requestCtx, id); err != nil {
@@ -482,7 +483,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

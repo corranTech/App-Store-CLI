@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ActorsCommand returns the actors command with subcommands.
@@ -26,7 +27,7 @@ Examples:
   asc actors list --id "ACTOR_ID"
   asc actors get --id "ACTOR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ActorsListCommand(),
 			ActorsGetCommand(),
@@ -60,12 +61,12 @@ Examples:
   asc actors list --id "ID1,ID2" --fields "actorType,userEmail"
   asc actors list --id "ID1,ID2" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("actors list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("actors list: %w", err)
 			}
 			if strings.TrimSpace(*ids) == "" && strings.TrimSpace(*next) == "" {
@@ -78,16 +79,16 @@ Examples:
 				return fmt.Errorf("actors list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("actors list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.ActorsOption{
-				asc.WithActorsIDs(splitCSV(*ids)),
+				asc.WithActorsIDs(shared.SplitCSV(*ids)),
 				asc.WithActorsLimit(*limit),
 				asc.WithActorsNextURL(*next),
 			}
@@ -109,7 +110,7 @@ Examples:
 					return fmt.Errorf("actors list: %w", err)
 				}
 
-				return printOutput(actors, *output, *pretty)
+				return shared.PrintOutput(actors, *output, *pretty)
 			}
 
 			actors, err := client.GetActors(requestCtx, opts...)
@@ -117,7 +118,7 @@ Examples:
 				return fmt.Errorf("actors list: failed to fetch: %w", err)
 			}
 
-			return printOutput(actors, *output, *pretty)
+			return shared.PrintOutput(actors, *output, *pretty)
 		},
 	}
 }
@@ -141,7 +142,7 @@ Examples:
   asc actors get --id "ACTOR_ID"
   asc actors get --id "ACTOR_ID" --fields "actorType,userEmail"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -154,12 +155,12 @@ Examples:
 				return fmt.Errorf("actors get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("actors get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			actor, err := client.GetActor(requestCtx, idValue, fieldsValue)
@@ -167,13 +168,13 @@ Examples:
 				return fmt.Errorf("actors get: failed to fetch: %w", err)
 			}
 
-			return printOutput(actor, *output, *pretty)
+			return shared.PrintOutput(actor, *output, *pretty)
 		},
 	}
 }
 
 func normalizeActorFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}

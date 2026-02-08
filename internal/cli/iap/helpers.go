@@ -44,7 +44,7 @@ func openImageFile(path string) (*os.File, os.FileInfo, error) {
 }
 
 func parseOfferCodeEligibilities(value string) ([]string, error) {
-	values := splitCSVUpper(value)
+	values := shared.SplitCSVUpper(value)
 	if len(values) == 0 {
 		return nil, nil
 	}
@@ -64,7 +64,7 @@ func parseOfferCodeEligibilities(value string) ([]string, error) {
 }
 
 func parseOfferCodePrices(value string) ([]asc.InAppPurchaseOfferCodePrice, error) {
-	entries := splitCSV(value)
+	entries := shared.SplitCSV(value)
 	if len(entries) == 0 {
 		return nil, nil
 	}
@@ -90,7 +90,7 @@ func parseOfferCodePrices(value string) ([]asc.InAppPurchaseOfferCodePrice, erro
 }
 
 func parsePriceSchedulePrices(value string) ([]asc.InAppPurchasePriceSchedulePrice, error) {
-	entries := splitCSV(value)
+	entries := shared.SplitCSV(value)
 	if len(entries) == 0 {
 		return nil, nil
 	}

@@ -31,7 +31,7 @@ Examples:
   asc promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm
   asc promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PromotedPurchasesListCommand(),
 			PromotedPurchasesGetCommand(),
@@ -68,28 +68,28 @@ Examples:
   asc promoted-purchases list --app "APP_ID" --limit 10
   asc promoted-purchases list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("promoted-purchases list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.PromotedPurchasesOption{
@@ -111,7 +111,7 @@ Examples:
 					return fmt.Errorf("promoted-purchases list: %w", err)
 				}
 
-				return printOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output, *pretty)
 			}
 
 			resp, err := client.GetAppPromotedPurchases(requestCtx, resolvedAppID, opts...)
@@ -119,7 +119,7 @@ Examples:
 				return fmt.Errorf("promoted-purchases list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -141,7 +141,7 @@ func PromotedPurchasesGetCommand() *ffcli.Command {
 Examples:
   asc promoted-purchases get --promoted-purchase-id "PROMO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -149,12 +149,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetPromotedPurchase(requestCtx, idValue)
@@ -162,7 +162,7 @@ Examples:
 				return fmt.Errorf("promoted-purchases get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -191,9 +191,9 @@ Examples:
   asc promoted-purchases create --app "APP_ID" --product-id "PRODUCT_ID" --product-type SUBSCRIPTION --visible-for-all-users
   asc promoted-purchases create --app "APP_ID" --product-id "PRODUCT_ID" --product-type IN_APP_PURCHASE --visible-for-all-users --enabled true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -221,12 +221,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.PromotedPurchaseCreateAttributes{
@@ -269,7 +269,7 @@ Examples:
 				return fmt.Errorf("promoted-purchases create: failed to create: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -296,7 +296,7 @@ Examples:
   asc promoted-purchases update --promoted-purchase-id "PROMO_ID" --visible-for-all-users false
   asc promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled true`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -308,12 +308,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			attrs := asc.PromotedPurchaseUpdateAttributes{}
@@ -331,7 +331,7 @@ Examples:
 				return fmt.Errorf("promoted-purchases update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -354,7 +354,7 @@ func PromotedPurchasesDeleteCommand() *ffcli.Command {
 Examples:
   asc promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
@@ -367,12 +367,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeletePromotedPurchase(requestCtx, idValue); err != nil {
@@ -384,7 +384,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -411,9 +411,9 @@ Examples:
   asc promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_1,PROMO_2"
   asc promoted-purchases link --app "APP_ID" --clear --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -431,19 +431,19 @@ Examples:
 				}
 				promotedPurchaseIDs = nil
 			} else {
-				promotedPurchaseIDs = splitCSV(*promotedIDs)
+				promotedPurchaseIDs = shared.SplitCSV(*promotedIDs)
 				if len(promotedPurchaseIDs) == 0 {
 					fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
 					return flag.ErrHelp
 				}
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("promoted-purchases link: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.SetAppPromotedPurchases(requestCtx, resolvedAppID, promotedPurchaseIDs); err != nil {
@@ -460,7 +460,7 @@ Examples:
 				Action:              action,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

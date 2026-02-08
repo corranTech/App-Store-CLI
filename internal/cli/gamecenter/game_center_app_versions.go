@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // GameCenterAppVersionsCommand returns the app versions command group.
@@ -28,7 +29,7 @@ Examples:
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"
   asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAppVersionsListCommand(),
 			GameCenterAppVersionsGetCommand(),
@@ -63,28 +64,28 @@ Examples:
   asc game-center app-versions list --app "APP_ID" --limit 50
   asc game-center app-versions list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center app-versions list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center app-versions list: %w", err)
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center app-versions list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			detailID := ""
@@ -118,7 +119,7 @@ Examples:
 					return fmt.Errorf("game-center app-versions list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterDetailGameCenterAppVersions(requestCtx, detailID, opts...)
@@ -126,7 +127,7 @@ Examples:
 				return fmt.Errorf("game-center app-versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -148,7 +149,7 @@ func GameCenterAppVersionsGetCommand() *ffcli.Command {
 Examples:
   asc game-center app-versions get --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
@@ -156,12 +157,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center app-versions get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterAppVersion(requestCtx, id)
@@ -169,7 +170,7 @@ Examples:
 				return fmt.Errorf("game-center app-versions get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -187,7 +188,7 @@ func GameCenterAppVersionCompatibilityCommand() *ffcli.Command {
 Examples:
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAppVersionCompatibilityListCommand(),
 		},
@@ -219,12 +220,12 @@ Examples:
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID" --limit 50
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("game-center app-versions compatibility list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center app-versions compatibility list: %w", err)
 			}
 
@@ -235,12 +236,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center app-versions compatibility list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.GCAppVersionsOption{
@@ -265,7 +266,7 @@ Examples:
 					return fmt.Errorf("game-center app-versions compatibility list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterAppVersionCompatibilityVersions(requestCtx, id, opts...)
@@ -273,7 +274,7 @@ Examples:
 				return fmt.Errorf("game-center app-versions compatibility list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -291,7 +292,7 @@ func GameCenterAppVersionAppStoreVersionCommand() *ffcli.Command {
 Examples:
   asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			GameCenterAppVersionAppStoreVersionGetCommand(),
 		},
@@ -318,7 +319,7 @@ func GameCenterAppVersionAppStoreVersionGetCommand() *ffcli.Command {
 Examples:
   asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
@@ -326,12 +327,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center app-versions app-store-version get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetGameCenterAppVersionAppStoreVersion(requestCtx, id)
@@ -339,7 +340,7 @@ Examples:
 				return fmt.Errorf("game-center app-versions app-store-version get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

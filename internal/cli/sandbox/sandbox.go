@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SandboxCommand returns the sandbox testers command with subcommands.
@@ -25,7 +26,7 @@ Examples:
   asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SandboxListCommand(),
 			SandboxGetCommand(),

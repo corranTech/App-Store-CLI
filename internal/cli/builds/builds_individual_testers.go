@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildsIndividualTestersCommand returns the individual-testers command group.
@@ -27,7 +28,7 @@ Examples:
   asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID"
   asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsIndividualTestersListCommand(),
 			BuildsIndividualTestersAddCommand(),
@@ -60,12 +61,12 @@ Examples:
   asc builds individual-testers list --build "BUILD_ID"
   asc builds individual-testers list --build "BUILD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds individual-testers list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("builds individual-testers list: %w", err)
 			}
 
@@ -75,12 +76,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds individual-testers list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildIndividualTestersOption{
@@ -107,7 +108,7 @@ Examples:
 					return fmt.Errorf("builds individual-testers list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetBuildIndividualTesters(requestCtx, buildValue, opts...)
@@ -115,7 +116,7 @@ Examples:
 				return fmt.Errorf("builds individual-testers list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -139,7 +140,7 @@ Examples:
   asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID"
   asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
@@ -147,18 +148,18 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			testerIDs := parseCommaSeparatedIDs(*testers)
+			testerIDs := shared.SplitCSV(*testers)
 			if len(testerIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --tester is required")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds individual-testers add: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.AddIndividualTestersToBuild(requestCtx, buildValue, testerIDs); err != nil {
@@ -171,7 +172,7 @@ Examples:
 				Action:    "added",
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -196,7 +197,7 @@ Examples:
   asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID" --confirm
   asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
@@ -204,7 +205,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			testerIDs := parseCommaSeparatedIDs(*testers)
+			testerIDs := shared.SplitCSV(*testers)
 			if len(testerIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --tester is required")
 				return flag.ErrHelp
@@ -214,12 +215,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds individual-testers remove: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveIndividualTestersFromBuild(requestCtx, buildValue, testerIDs); err != nil {
@@ -232,7 +233,7 @@ Examples:
 				Action:    "removed",
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

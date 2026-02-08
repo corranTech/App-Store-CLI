@@ -32,9 +32,9 @@ Examples:
   asc analytics request --app "123456789" --access-type ONGOING
   asc analytics request --app "123456789" --access-type ONE_TIME_SNAPSHOT`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -48,12 +48,12 @@ Examples:
 				return fmt.Errorf("analytics request: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics request: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			response, err := client.CreateAnalyticsReportRequest(requestCtx, resolvedAppID, normalizedAccessType)
@@ -69,7 +69,7 @@ Examples:
 				CreatedDate: response.Data.Attributes.CreatedDate,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -101,7 +101,7 @@ Examples:
   asc analytics requests --app "123456789" --paginate
   asc analytics requests delete --request-id "REQUEST_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AnalyticsRequestsDeleteCommand(),
 		},
@@ -112,7 +112,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
 				return fmt.Errorf("analytics requests: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("analytics requests: %w", err)
 			}
 			if strings.TrimSpace(*requestID) != "" {
@@ -130,18 +130,18 @@ Examples:
 				normalizedState = stateValue
 			}
 
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" && strings.TrimSpace(*requestID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics requests: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			var response *asc.AnalyticsReportRequestsResponse
@@ -179,7 +179,7 @@ Examples:
 						return fmt.Errorf("analytics requests: %w", err)
 					}
 
-					return printOutput(paginated, *output, *pretty)
+					return shared.PrintOutput(paginated, *output, *pretty)
 				}
 
 				response, err = client.GetAnalyticsReportRequests(requestCtx, resolvedAppID, opts...)
@@ -188,7 +188,7 @@ Examples:
 				}
 			}
 
-			return printOutput(response, *output, *pretty)
+			return shared.PrintOutput(response, *output, *pretty)
 		},
 	}
 }
@@ -211,7 +211,7 @@ func AnalyticsRequestsDeleteCommand() *ffcli.Command {
 Examples:
   asc analytics requests delete --request-id "REQUEST_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*requestID)
 			if id == "" {
@@ -226,12 +226,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics requests delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAnalyticsReportRequest(requestCtx, id); err != nil {
@@ -243,7 +243,7 @@ Examples:
 				Deleted:   true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -274,7 +274,7 @@ Examples:
   asc analytics get --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
   asc analytics get --request-id "REQUEST_ID" --date "2024-01-20" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*requestID) == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
@@ -293,7 +293,7 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
 				return fmt.Errorf("analytics get: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("analytics get: %w", err)
 			}
 
@@ -302,12 +302,12 @@ Examples:
 				return fmt.Errorf("analytics get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			paginateReports := strings.TrimSpace(*next) == "" && (strings.TrimSpace(*instanceID) != "" || *paginate)
@@ -396,7 +396,7 @@ Examples:
 				return fmt.Errorf("analytics get: no instances found for date %q", dateFilter)
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
@@ -424,7 +424,7 @@ Examples:
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --decompress
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --segment-id "SEGMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*requestID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
@@ -449,12 +449,12 @@ Examples:
 			defaultOutput := fmt.Sprintf("analytics_report_%s_%s.csv.gz", strings.TrimSpace(*requestID), strings.TrimSpace(*instanceID))
 			compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".csv", *decompress)
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("analytics download: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			reports, _, err := fetchAnalyticsReports(requestCtx, client, strings.TrimSpace(*requestID), 0, "", true)
@@ -542,7 +542,7 @@ Examples:
 				DecompressedSize: decompressedSize,
 			}
 
-			return printOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *outputFormat, *pretty)
 		},
 	}
 }

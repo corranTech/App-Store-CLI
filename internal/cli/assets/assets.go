@@ -5,6 +5,7 @@ import (
 	"flag"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // AssetsCommand returns the assets command with subcommands.
@@ -22,7 +23,7 @@ Examples:
   asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
   asc assets previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AssetsScreenshotsCommand(),
 			AssetsPreviewsCommand(),

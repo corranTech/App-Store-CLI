@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // MarketplaceSearchDetailsCommand returns the marketplace search details command group.
@@ -28,7 +29,7 @@ Examples:
   asc marketplace search-details update --search-detail-id "DETAIL_ID" --catalog-url "https://example.com"
   asc marketplace search-details delete --search-detail-id "DETAIL_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			MarketplaceSearchDetailsGetCommand(),
 			MarketplaceSearchDetailsCreateCommand(),
@@ -59,9 +60,9 @@ func MarketplaceSearchDetailsGetCommand() *ffcli.Command {
 Examples:
   asc marketplace search-details get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -72,12 +73,12 @@ Examples:
 				return fmt.Errorf("marketplace search-details get: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace search-details get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			detail, err := client.GetMarketplaceSearchDetailForApp(requestCtx, resolvedAppID, fieldsValue)
@@ -85,7 +86,7 @@ Examples:
 				return fmt.Errorf("marketplace search-details get: failed to fetch: %w", err)
 			}
 
-			return printOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output, *pretty)
 		},
 	}
 }
@@ -108,9 +109,9 @@ func MarketplaceSearchDetailsCreateCommand() *ffcli.Command {
 Examples:
   asc marketplace search-details create --app "APP_ID" --catalog-url "https://example.com"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
+			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
@@ -122,12 +123,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace search-details create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			detail, err := client.CreateMarketplaceSearchDetail(requestCtx, resolvedAppID, catalogURLValue)
@@ -135,7 +136,7 @@ Examples:
 				return fmt.Errorf("marketplace search-details create: failed to create: %w", err)
 			}
 
-			return printOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output, *pretty)
 		},
 	}
 }
@@ -158,7 +159,7 @@ func MarketplaceSearchDetailsUpdateCommand() *ffcli.Command {
 Examples:
   asc marketplace search-details update --search-detail-id "DETAIL_ID" --catalog-url "https://example.com"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*detailID)
 			if trimmedID == "" {
@@ -182,12 +183,12 @@ Examples:
 				attrs.CatalogURL = &value
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace search-details update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			detail, err := client.UpdateMarketplaceSearchDetail(requestCtx, trimmedID, attrs)
@@ -195,7 +196,7 @@ Examples:
 				return fmt.Errorf("marketplace search-details update: failed to update: %w", err)
 			}
 
-			return printOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output, *pretty)
 		},
 	}
 }
@@ -218,7 +219,7 @@ func MarketplaceSearchDetailsDeleteCommand() *ffcli.Command {
 Examples:
   asc marketplace search-details delete --search-detail-id "DETAIL_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*detailID)
 			if trimmedID == "" {
@@ -230,12 +231,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("marketplace search-details delete: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteMarketplaceSearchDetail(requestCtx, trimmedID); err != nil {
@@ -247,13 +248,13 @@ Examples:
 				Deleted: true,
 			}
 
-			return printOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }
 
 func normalizeMarketplaceSearchDetailFields(value string) ([]string, error) {
-	fields := splitCSV(value)
+	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {
 		return nil, nil
 	}

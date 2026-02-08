@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BetaLicenseAgreementsCommand returns the beta license agreements command group.
@@ -28,7 +29,7 @@ Examples:
   asc testflight beta-license-agreements get --app "APP_ID"
   asc testflight beta-license-agreements update --id "AGREEMENT_ID" --agreement-text "Updated terms"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BetaLicenseAgreementsListCommand(),
 			BetaLicenseAgreementsGetCommand(),
@@ -66,28 +67,28 @@ Examples:
   asc testflight beta-license-agreements list --limit 50
   asc testflight beta-license-agreements list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("beta-license-agreements list: --limit must be between 1 and 200")
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("beta-license-agreements list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-license-agreements list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaLicenseAgreementsOption{
-				asc.WithBetaLicenseAgreementsAppIDs(splitCSV(*appIDs)),
-				asc.WithBetaLicenseAgreementsFields(splitCSV(*fields)),
-				asc.WithBetaLicenseAgreementsAppFields(splitCSV(*appFields)),
-				asc.WithBetaLicenseAgreementsInclude(splitCSV(*include)),
+				asc.WithBetaLicenseAgreementsAppIDs(shared.SplitCSV(*appIDs)),
+				asc.WithBetaLicenseAgreementsFields(shared.SplitCSV(*fields)),
+				asc.WithBetaLicenseAgreementsAppFields(shared.SplitCSV(*appFields)),
+				asc.WithBetaLicenseAgreementsInclude(shared.SplitCSV(*include)),
 				asc.WithBetaLicenseAgreementsLimit(*limit),
 				asc.WithBetaLicenseAgreementsNextURL(*next),
 			}
@@ -104,7 +105,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("beta-license-agreements list: %w", err)
 				}
-				return printOutput(agreements, *output, *pretty)
+				return shared.PrintOutput(agreements, *output, *pretty)
 			}
 
 			agreements, err := client.GetBetaLicenseAgreements(requestCtx, opts...)
@@ -112,7 +113,7 @@ Examples:
 				return fmt.Errorf("beta-license-agreements list: failed to fetch: %w", err)
 			}
 
-			return printOutput(agreements, *output, *pretty)
+			return shared.PrintOutput(agreements, *output, *pretty)
 		},
 	}
 }
@@ -139,12 +140,12 @@ Examples:
   asc testflight beta-license-agreements get --id "AGREEMENT_ID"
   asc testflight beta-license-agreements get --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
 			if idValue == "" {
-				appValue = resolveAppID(*appID)
+				appValue = shared.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --app is required (or set ASC_APP_ID)")
@@ -159,33 +160,33 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-license-agreements get: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if appValue != "" {
-				resp, err := client.GetBetaLicenseAgreementForApp(requestCtx, appValue, splitCSV(*fields))
+				resp, err := client.GetBetaLicenseAgreementForApp(requestCtx, appValue, shared.SplitCSV(*fields))
 				if err != nil {
 					return fmt.Errorf("beta-license-agreements get: failed to fetch: %w", err)
 				}
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			opts := []asc.BetaLicenseAgreementOption{
-				asc.WithBetaLicenseAgreementFields(splitCSV(*fields)),
-				asc.WithBetaLicenseAgreementAppFields(splitCSV(*appFields)),
-				asc.WithBetaLicenseAgreementInclude(splitCSV(*include)),
+				asc.WithBetaLicenseAgreementFields(shared.SplitCSV(*fields)),
+				asc.WithBetaLicenseAgreementAppFields(shared.SplitCSV(*appFields)),
+				asc.WithBetaLicenseAgreementInclude(shared.SplitCSV(*include)),
 			}
 			resp, err := client.GetBetaLicenseAgreement(requestCtx, idValue, opts...)
 			if err != nil {
 				return fmt.Errorf("beta-license-agreements get: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -208,7 +209,7 @@ func BetaLicenseAgreementsUpdateCommand() *ffcli.Command {
 Examples:
   asc testflight beta-license-agreements update --id "AGREEMENT_ID" --agreement-text "Updated terms"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -221,12 +222,12 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-license-agreements update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateBetaLicenseAgreement(requestCtx, idValue, &textValue)
@@ -234,7 +235,7 @@ Examples:
 				return fmt.Errorf("beta-license-agreements update: failed to update: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }

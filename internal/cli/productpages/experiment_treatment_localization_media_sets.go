@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // ExperimentTreatmentLocalizationPreviewSetsCommand returns the preview sets command group.
@@ -25,7 +26,7 @@ func ExperimentTreatmentLocalizationPreviewSetsCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ExperimentTreatmentLocalizationPreviewSetsListCommand(),
 		},
@@ -55,7 +56,7 @@ func ExperimentTreatmentLocalizationPreviewSetsListCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
@@ -66,16 +67,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("experiments treatments localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("experiments treatments localizations preview-sets list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations preview-sets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption{
@@ -97,7 +98,7 @@ Examples:
 					return fmt.Errorf("experiments treatments localizations preview-sets list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(requestCtx, trimmedID, opts...)
@@ -105,7 +106,7 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations preview-sets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -123,7 +124,7 @@ func ExperimentTreatmentLocalizationScreenshotSetsCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments localizations screenshot-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ExperimentTreatmentLocalizationScreenshotSetsListCommand(),
 		},
@@ -153,7 +154,7 @@ func ExperimentTreatmentLocalizationScreenshotSetsListCommand() *ffcli.Command {
 Examples:
   asc product-pages experiments treatments localizations screenshot-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: DefaultUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
@@ -164,16 +165,16 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("experiments treatments localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
-			if err := validateNextURL(*next); err != nil {
+			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("experiments treatments localizations screenshot-sets list: %w", err)
 			}
 
-			client, err := getASCClient()
+			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations screenshot-sets list: %w", err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption{
@@ -195,7 +196,7 @@ Examples:
 					return fmt.Errorf("experiments treatments localizations screenshot-sets list: %w", err)
 				}
 
-				return printOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(requestCtx, trimmedID, opts...)
@@ -203,7 +204,7 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations screenshot-sets list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output, *pretty)
 		},
 	}
 }
