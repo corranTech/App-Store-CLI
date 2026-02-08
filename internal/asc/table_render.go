@@ -8,7 +8,8 @@ import (
 )
 
 // RenderTable writes a bordered Unicode table to stdout.
-// headers defines the column names; rows contains the data.
+// Headers preserve their original casing and are center-aligned.
+// Data rows are left-aligned for readability.
 func RenderTable(headers []string, rows [][]string) {
 	table := tablewriter.NewTable(os.Stdout,
 		tablewriter.WithConfig(tablewriter.Config{
@@ -16,6 +17,10 @@ func RenderTable(headers []string, rows [][]string) {
 				Formatting: tw.CellFormatting{
 					AutoFormat: tw.Off,
 				},
+				Alignment: tw.CellAlignment{Global: tw.AlignCenter},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
 			},
 		}),
 	)
