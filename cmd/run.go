@@ -6,7 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
@@ -21,21 +24,27 @@ func Run(args []string, versionInfo string) int {
 
 	if err := root.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			return 0
+			return ExitSuccess
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		return 1
+		return ExitCodeFromError(err)
+	}
+
+	// Validate CI report flags after parsing
+	if err := shared.ValidateReportFlags(); err != nil {
+		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
+		return ExitUsage
 	}
 
 	if versionRequested {
 		if err := root.Run(context.Background()); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				return 1
+				return ExitUsage
 			}
 			fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-			return 1
+			return ExitCodeFromError(err)
 		}
-		return 0
+		return ExitSuccess
 	}
 
 	updateResult, err := update.CheckAndUpdate(context.Background(), update.Options{
@@ -58,17 +67,155 @@ func Run(args []string, versionInfo string) int {
 		}
 	}
 
-	if err := root.Run(context.Background()); err != nil {
-		var reported ReportedError
-		if errors.As(err, &reported) {
-			return 1
+	start := time.Now()
+	runErr := root.Run(context.Background())
+	elapsed := time.Since(start)
+
+	// Get command name (full subcommand path)
+	commandName := getCommandName(root, args)
+
+	// Write JUnit report if requested
+	if shared.ReportFormat() == shared.ReportFormatJUnit && shared.ReportFile() != "" {
+		reportErr := writeJUnitReport(commandName, runErr, elapsed)
+		if reportErr != nil {
+			// Report write failure is a hard error - CI depends on it
+			fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", reportErr)
+			if runErr == nil {
+				return ExitError
+			}
 		}
-		if errors.Is(err, flag.ErrHelp) {
-			return 1
-		}
-		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		return 1
 	}
 
-	return 0
+	if runErr != nil {
+		var reported ReportedError
+		if errors.As(runErr, &reported) {
+			return ExitCodeFromError(runErr)
+		}
+		if errors.Is(runErr, flag.ErrHelp) {
+			return ExitUsage
+		}
+		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
+		return ExitCodeFromError(runErr)
+	}
+
+	return ExitSuccess
+}
+
+// getCommandName extracts the full subcommand path from the parsed args.
+// args is os.Args[1:] (without program name).
+// It finds the first token matching a known subcommand name, then walks the tree.
+func getCommandName(root *ffcli.Command, args []string) string {
+	current := root
+	path := []string{current.Name}
+
+	// Backward compatibility: tolerate args that include argv[0].
+	if len(args) > 0 && strings.EqualFold(args[0], root.Name) {
+		args = args[1:]
+	}
+
+	for i := 0; i < len(args); {
+		token := args[i]
+		if token == "" {
+			i++
+			continue
+		}
+
+		if sub := findDirectSubcommand(current, token); sub != nil {
+			path = append(path, sub.Name)
+			current = sub
+			i++
+			continue
+		}
+
+		nextIdx, consumed := consumeFlagToken(current.FlagSet, token, args, i)
+		if consumed {
+			i = nextIdx
+			continue
+		}
+
+		// First positional arg that isn't a subcommand ends traversal.
+		break
+	}
+
+	return strings.Join(path, " ")
+}
+
+func findDirectSubcommand(current *ffcli.Command, token string) *ffcli.Command {
+	for _, sub := range current.Subcommands {
+		if strings.EqualFold(sub.Name, token) {
+			return sub
+		}
+	}
+	return nil
+}
+
+func consumeFlagToken(fs *flag.FlagSet, token string, args []string, idx int) (int, bool) {
+	if fs == nil || token == "" || token == "-" || !strings.HasPrefix(token, "-") {
+		return idx, false
+	}
+
+	if token == "--" {
+		return idx + 1, true
+	}
+
+	trimmed := strings.TrimLeft(token, "-")
+	if trimmed == "" {
+		return idx, false
+	}
+
+	name, hasInlineValue := splitFlagToken(trimmed)
+	f := fs.Lookup(name)
+	if f == nil {
+		return idx, false
+	}
+
+	if hasInlineValue || isBoolFlag(f) {
+		return idx + 1, true
+	}
+	if idx+1 < len(args) {
+		return idx + 2, true
+	}
+	return idx + 1, true
+}
+
+func splitFlagToken(token string) (name string, hasInlineValue bool) {
+	if eq := strings.Index(token, "="); eq >= 0 {
+		return token[:eq], true
+	}
+	return token, false
+}
+
+func isBoolFlag(f *flag.Flag) bool {
+	type boolFlag interface {
+		IsBoolFlag() bool
+	}
+	v, ok := f.Value.(boolFlag)
+	return ok && v.IsBoolFlag()
+}
+
+// writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.
+func writeJUnitReport(commandName string, runErr error, elapsed time.Duration) error {
+	reportFile := shared.ReportFile()
+	if reportFile == "" {
+		return nil
+	}
+
+	testCase := shared.JUnitTestCase{
+		Name:      commandName,
+		Classname: commandName,
+		Time:      elapsed,
+	}
+
+	if runErr != nil {
+		testCase.Failure = "ERROR"
+		testCase.Message = runErr.Error()
+	}
+
+	report := shared.JUnitReport{
+		Tests:     []shared.JUnitTestCase{testCase},
+		Timestamp: time.Now(),
+		Name:      "asc",
+	}
+
+	return report.Write(reportFile)
 }

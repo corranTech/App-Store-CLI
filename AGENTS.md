@@ -59,6 +59,35 @@ make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
 - Start with a failing test that captures the expected behavior and edge cases.
 - For new features, begin with CLI-level tests (flags, output, errors) and add unit tests for core logic.
 - Verify the test fails for the right reason before implementing; keep tests green incrementally.
+- **Test realistic CLI invocation patterns**, not invented happy paths. For example, when testing argument parsing, always consider:
+  - Flags before subcommands: `asc --flag subcmd` vs `asc subcmd --flag`
+  - Flag values that look like subcommands: `asc --report junit completion`
+  - Multiple flags with values: `asc -a val1 -b val2 subcmd`
+- **Model tests on actual CLI usage**, not assumed patterns. Check `--help` output to understand real command structure before writing tests.
+
+## Definition of Done (Single-Pass)
+
+- Do not mark work as done until all checks below are complete.
+- For CLI behavior changes (flags, exit codes, output/reporting), follow this sequence:
+  - Add/adjust failing tests first (RED), then implement (GREEN).
+  - Do not add placeholder tests; every new test must assert exit code, stderr/stdout, and/or parsed structured output.
+  - For every new or changed flag, add:
+    - one valid-path test
+    - one invalid-value test that asserts stderr and exit code `2`
+  - For argument/subcommand parsing, test edge cases: flags before subcommands, flag values that match subcommand names, mixed flag order.
+  - Never silently ignore accepted flags; unsupported values must return an error.
+  - For JSON/XML output tests, parse output (`json.Unmarshal`/`xml.Unmarshal`) instead of relying only on string matching.
+  - For report/artifact file outputs, test both successful write and write-failure behavior.
+  - Verify CLI exit behavior using a built binary (not only `go run`) for black-box checks:
+    - `go build -o /tmp/asc .`
+    - run `/tmp/asc ...` and assert exit code + stderr/stdout
+- Before opening/updating a PR, always run:
+  - `make format`
+  - `make lint`
+  - `make test`
+- In the PR description or handoff, include:
+  - commands run
+  - key exit-code scenarios validated
 
 ## CLI Implementation Checklist
 
