@@ -347,6 +347,14 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/app_events` (`localizations video-clips-relationships` invalid/malformed `--next` validation + `--paginate --next` without `--localization-id`)
 - [x] Commit Phase 39
 
+## Phase 40 - `--next` Parity for Analytics Request, Get, and Relationship Surfaces
+
+- [x] `internal/cli/analytics` (`analytics requests` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/analytics` (`analytics get` invalid/malformed `--next` validation + `--paginate --next` without `--request-id`)
+- [x] `internal/cli/analytics` (`analytics instances relationships` invalid/malformed `--next` validation + `--paginate --next` without `--instance-id`)
+- [x] `internal/cli/analytics` (`analytics reports relationships` invalid/malformed `--next` validation + `--paginate --next` without `--report-id`)
+- [x] Commit Phase 40
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
