@@ -30,6 +30,9 @@ func ValidateReportFlags() error {
 	if reportFormat == ReportFormatJUnit && reportFile == "" {
 		return fmt.Errorf("--report-file is required when --report is specified")
 	}
+	if reportFile != "" && reportFormat == "" {
+		return fmt.Errorf("--report is required when --report-file is specified")
+	}
 	return nil
 }
 
