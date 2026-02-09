@@ -199,6 +199,14 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/testflight` (`beta-testers metrics` invalid/malformed `--next` validation + `--next` path without required `--tester-id/--app`)
 - [x] Commit Phase 21
 
+## Phase 22 - `--next` Parity for Sandbox, Reviews, and Promoted Purchases Lists
+
+- [x] `internal/cli/sandbox` (`sandbox list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/promotedpurchases` (`promoted-purchases list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/reviews` (`reviews list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/reviews` (`reviews summarizations` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] Commit Phase 22
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
