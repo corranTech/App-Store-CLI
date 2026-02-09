@@ -102,30 +102,45 @@ func Run(args []string, versionInfo string) int {
 }
 
 // getCommandName extracts the full subcommand path from the parsed args.
-// args is os.Args[1:] (without program name), so it starts with the first subcommand.
-// It walks the command tree to find the terminal command.
+// args is os.Args[1:] (without program name).
+// It finds the first token matching a known subcommand name, then walks the tree.
 func getCommandName(root *ffcli.Command, args []string) string {
 	current := root
 	path := []string{current.Name}
 
-	// args already excludes program name, starts with first subcommand
-	for len(args) > 0 {
+	for i := 0; i < len(args); i++ {
 		found := false
 		for _, sub := range current.Subcommands {
-			if sub.Name == args[0] {
+			if sub.Name == args[i] {
 				path = append(path, sub.Name)
 				current = sub
-				args = args[1:]
 				found = true
 				break
 			}
 		}
 		if !found {
+			// Check if it's a known subcommand at any level to skip flag values
+			if !isKnownSubcommand(root, args[i]) {
+				continue // Skip non-subcommand tokens (flag values)
+			}
 			break
 		}
 	}
 
 	return strings.Join(path, " ")
+}
+
+// isKnownSubcommand checks if a token matches any subcommand in the tree.
+func isKnownSubcommand(cmd *ffcli.Command, name string) bool {
+	for _, sub := range cmd.Subcommands {
+		if sub.Name == name {
+			return true
+		}
+		if isKnownSubcommand(sub, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.

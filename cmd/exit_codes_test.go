@@ -1,8 +1,13 @@
 package cmd
 
 import (
+	"encoding/xml"
 	"errors"
 	"flag"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -114,6 +119,7 @@ func TestGetCommandName(t *testing.T) {
 					{Name: "list"},
 				},
 			},
+			{Name: "completion"},
 		},
 	}
 
@@ -127,6 +133,10 @@ func TestGetCommandName(t *testing.T) {
 		{"single level subcommand", []string{"builds"}, "asc builds"},
 		{"nested subcommand", []string{"builds", "list"}, "asc builds list"},
 		{"another nested subcommand", []string{"apps", "list"}, "asc apps list"},
+		{"root flag before subcommand", []string{"--debug", "builds"}, "asc builds"},
+		{"multiple root flags before subcommand", []string{"--report", "junit", "--report-file", "/tmp/report.xml", "completion"}, "asc completion"},
+		{"root flags with nested subcommand", []string{"-d", "builds", "list"}, "asc builds list"},
+		{"flag with no value before subcommand", []string{"--verbose", "apps", "list"}, "asc apps list"},
 	}
 
 	for _, tt := range tests {
@@ -136,5 +146,47 @@ func TestGetCommandName(t *testing.T) {
 				t.Errorf("getCommandName() = %q, want %q", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestJUnitReportNameWithRootFlags(t *testing.T) {
+	// Build the binary
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	cmd.Dir = ".." // Go up from cmd/ to project root
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build binary: %v\n%s", err, out)
+	}
+
+	reportFile := filepath.Join(tmpDir, "junit.xml")
+	// Run with root flags before subcommand
+	runCmd := exec.Command(binaryPath, "--report", "junit", "--report-file", reportFile, "completion", "--shell", "zsh")
+	runCmd.Env = append(os.Environ(), "ASC_NO_UPDATE=true")
+	output, _ := runCmd.CombinedOutput()
+
+	// Read and parse the JUnit report
+	data, err := os.ReadFile(reportFile)
+	if err != nil {
+		t.Fatalf("Failed to read JUnit report: %v", err)
+	}
+
+	var result struct {
+		XMLName xml.Name `xml:"testsuite"`
+		Cases   []struct {
+			Name string `xml:"name,attr"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &result); err != nil {
+		t.Fatalf("Failed to parse JUnit XML: %v\nOutput: %s", err, output)
+	}
+
+	if len(result.Cases) != 1 {
+		t.Fatalf("Expected 1 test case, got %d", len(result.Cases))
+	}
+
+	// The test case name should include the subcommand, not just "asc"
+	if !strings.Contains(result.Cases[0].Name, "completion") {
+		t.Errorf("Expected testcase name to contain 'completion', got %q. Full XML:\n%s", result.Cases[0].Name, data)
 	}
 }
