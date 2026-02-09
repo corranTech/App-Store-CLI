@@ -270,3 +270,138 @@ func TestXcodeCloudArtifactsListPaginateFromNextWithoutActionID(t *testing.T) {
 		"ci-artifact-next-2",
 	)
 }
+
+func TestXcodeCloudProductsListRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "products", "list"},
+		"xcode-cloud products: ",
+	)
+}
+
+func TestXcodeCloudProductsListPaginateFromNext(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/ciProducts?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/ciProducts?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"ciProducts","id":"ci-product-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"ciProducts","id":"ci-product-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "products", "list"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"ci-product-next-1",
+		"ci-product-next-2",
+	)
+}
+
+func TestXcodeCloudProductsBuildRunsRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "products", "build-runs"},
+		"xcode-cloud products build-runs: ",
+	)
+}
+
+func TestXcodeCloudProductsBuildRunsPaginateFromNextWithoutID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/buildRuns?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/buildRuns?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"ciBuildRuns","id":"ci-product-run-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"ciBuildRuns","id":"ci-product-run-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "products", "build-runs"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"ci-product-run-next-1",
+		"ci-product-run-next-2",
+	)
+}
+
+func TestXcodeCloudProductsWorkflowsRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "products", "workflows"},
+		"xcode-cloud products workflows: ",
+	)
+}
+
+func TestXcodeCloudProductsWorkflowsPaginateFromNextWithoutID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/workflows?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/workflows?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"ciWorkflows","id":"ci-product-workflow-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"ciWorkflows","id":"ci-product-workflow-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "products", "workflows"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"ci-product-workflow-next-1",
+		"ci-product-workflow-next-2",
+	)
+}
+
+func TestXcodeCloudProductsPrimaryRepositoriesRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "products", "primary-repositories"},
+		"xcode-cloud products primary-repositories: ",
+	)
+}
+
+func TestXcodeCloudProductsPrimaryRepositoriesPaginateFromNextWithoutID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/primaryRepositories?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/primaryRepositories?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmRepositories","id":"ci-product-primary-repo-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmRepositories","id":"ci-product-primary-repo-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "products", "primary-repositories"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"ci-product-primary-repo-next-1",
+		"ci-product-primary-repo-next-2",
+	)
+}
+
+func TestXcodeCloudProductsAdditionalRepositoriesRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "products", "additional-repositories"},
+		"xcode-cloud products additional-repositories: ",
+	)
+}
+
+func TestXcodeCloudProductsAdditionalRepositoriesPaginateFromNextWithoutID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/additionalRepositories?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/additionalRepositories?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmRepositories","id":"ci-product-additional-repo-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmRepositories","id":"ci-product-additional-repo-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "products", "additional-repositories"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"ci-product-additional-repo-next-1",
+		"ci-product-additional-repo-next-2",
+	)
+}

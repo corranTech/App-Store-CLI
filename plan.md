@@ -289,6 +289,15 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/xcodecloud` (`xcode-cloud artifacts list` invalid/malformed `--next` validation + `--paginate --next` without `--action-id`)
 - [x] Commit Phase 32
 
+## Phase 33 - `--next` Parity for Xcode Cloud Products Lists and Repository Linkages
+
+- [x] `internal/cli/xcodecloud` (`xcode-cloud products list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/xcodecloud` (`xcode-cloud products build-runs` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/xcodecloud` (`xcode-cloud products workflows` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/xcodecloud` (`xcode-cloud products primary-repositories` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/xcodecloud` (`xcode-cloud products additional-repositories` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] Commit Phase 33
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
