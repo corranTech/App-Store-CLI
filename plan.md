@@ -389,6 +389,13 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/apps` (`app-info territory-age-ratings list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
 - [x] Commit Phase 45
 
+## Phase 46 - `--next` Parity for Background Asset Lists, Versions, and Upload Files
+
+- [x] `internal/cli/backgroundassets` (`background-assets list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/backgroundassets` (`background-assets versions list` invalid/malformed `--next` validation + `--paginate --next` without `--background-asset-id`)
+- [x] `internal/cli/backgroundassets` (`background-assets upload-files list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
+- [x] Commit Phase 46
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
