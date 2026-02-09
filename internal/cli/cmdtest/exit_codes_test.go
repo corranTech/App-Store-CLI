@@ -68,6 +68,7 @@ func TestExitCodeMapper_ASCErrors(t *testing.T) {
 		{"ErrUnauthorized", asc.ErrUnauthorized, cmd.ExitAuth},
 		{"ErrForbidden", asc.ErrForbidden, cmd.ExitAuth},
 		{"ErrNotFound", asc.ErrNotFound, cmd.ExitNotFound},
+		{"ErrConflict", asc.ErrConflict, cmd.ExitConflict},
 	}
 
 	for _, tt := range tests {
@@ -121,6 +122,26 @@ func TestRun_MissingAuth(t *testing.T) {
 
 	if !strings.Contains(stderr, "authentication") && !strings.Contains(stderr, "auth") {
 		t.Errorf("expected auth-related error, got: %s", stderr)
+	}
+}
+
+// TestRun_ReportFileWithoutReport tests that --report-file without --report returns usage error
+func TestRun_ReportFileWithoutReport(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
+
+	_, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{"--report-file", "/tmp/report.xml", "apps", "list"}, "1.0.0")
+		if code != cmd.ExitUsage {
+			t.Errorf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if !strings.Contains(stderr, "--report") {
+		t.Errorf("expected --report error message, got: %s", stderr)
 	}
 }
 

@@ -53,6 +53,11 @@ func TestExitCodeFromError(t *testing.T) {
 			expected: ExitNotFound,
 		},
 		{
+			name:     "ErrConflict returns conflict",
+			err:      asc.ErrConflict,
+			expected: ExitConflict,
+		},
+		{
 			name:     "generic error returns generic error",
 			err:      errors.New("something went wrong"),
 			expected: ExitError,

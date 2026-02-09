@@ -53,6 +53,9 @@ func ExitCodeFromError(err error) int {
 	if errors.Is(err, asc.ErrNotFound) {
 		return ExitNotFound
 	}
+	if errors.Is(err, asc.ErrConflict) {
+		return ExitConflict
+	}
 
 	// Check for APIError with status code or known code
 	var apiErr *asc.APIError
