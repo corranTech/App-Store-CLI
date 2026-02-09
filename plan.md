@@ -180,6 +180,12 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/testflight` (`review submissions list` invalid/malformed `--next` validation + `--paginate --next` path)
 - [x] Commit Phase 18
 
+## Phase 19 - `--next` Parity for TestFlight Relationship Linkages
+
+- [x] `internal/cli/testflight` (`beta-groups relationships get` invalid/malformed `--next` validation + `--paginate --next` without `--group-id`)
+- [x] `internal/cli/testflight` (`beta-testers relationships get` invalid/malformed `--next` validation + `--paginate --next` without `--tester-id`)
+- [x] Commit Phase 19
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
