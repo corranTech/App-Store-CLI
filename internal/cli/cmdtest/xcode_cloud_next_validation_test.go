@@ -24,12 +24,12 @@ func runXcodeCloudInvalidNextURLCases(
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/ciBuildActions/action-1/artifacts?cursor=AQ",
-			wantErr: wantErrPrefix + "--next must be an App Store Connect URL",
+			wantErr: wantErrPrefix + " must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: wantErrPrefix + "--next must be a valid URL:",
+			wantErr: wantErrPrefix + " must be a valid URL:",
 		},
 	}
 
@@ -140,7 +140,7 @@ func TestXcodeCloudBuildRunsListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "build-runs", "list"},
-		"xcode-cloud build-runs: ",
+		"xcode-cloud build-runs: --next",
 	)
 }
 
@@ -167,7 +167,7 @@ func TestXcodeCloudBuildRunsBuildsRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "build-runs", "builds"},
-		"xcode-cloud build-runs builds: ",
+		"xcode-cloud build-runs builds: --next",
 	)
 }
 
@@ -194,7 +194,7 @@ func TestXcodeCloudIssuesListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "issues", "list"},
-		"xcode-cloud issues list: ",
+		"xcode-cloud issues list: --next",
 	)
 }
 
@@ -221,7 +221,7 @@ func TestXcodeCloudTestResultsListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "test-results", "list"},
-		"xcode-cloud test-results list: ",
+		"xcode-cloud test-results list: --next",
 	)
 }
 
@@ -248,7 +248,7 @@ func TestXcodeCloudArtifactsListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "artifacts", "list"},
-		"xcode-cloud artifacts list: ",
+		"xcode-cloud artifacts list: --next",
 	)
 }
 
@@ -275,7 +275,7 @@ func TestXcodeCloudProductsListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "products", "list"},
-		"xcode-cloud products: ",
+		"xcode-cloud products: --next",
 	)
 }
 
@@ -302,7 +302,7 @@ func TestXcodeCloudProductsBuildRunsRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "products", "build-runs"},
-		"xcode-cloud products build-runs: ",
+		"xcode-cloud products build-runs: --next",
 	)
 }
 
@@ -329,7 +329,7 @@ func TestXcodeCloudProductsWorkflowsRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "products", "workflows"},
-		"xcode-cloud products workflows: ",
+		"xcode-cloud products workflows: --next",
 	)
 }
 
@@ -356,7 +356,7 @@ func TestXcodeCloudProductsPrimaryRepositoriesRejectsInvalidNextURL(t *testing.T
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "products", "primary-repositories"},
-		"xcode-cloud products primary-repositories: ",
+		"xcode-cloud products primary-repositories: --next",
 	)
 }
 
@@ -383,7 +383,7 @@ func TestXcodeCloudProductsAdditionalRepositoriesRejectsInvalidNextURL(t *testin
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "products", "additional-repositories"},
-		"xcode-cloud products additional-repositories: ",
+		"xcode-cloud products additional-repositories: --next",
 	)
 }
 
@@ -410,7 +410,7 @@ func TestXcodeCloudMacOSVersionsListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "macos-versions", "list"},
-		"xcode-cloud macos-versions: ",
+		"xcode-cloud macos-versions: --next",
 	)
 }
 
@@ -437,7 +437,7 @@ func TestXcodeCloudXcodeVersionsListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "xcode-versions", "list"},
-		"xcode-cloud xcode-versions: ",
+		"xcode-cloud xcode-versions: --next",
 	)
 }
 
@@ -464,7 +464,7 @@ func TestXcodeCloudMacOSVersionsXcodeVersionsRejectsInvalidNextURL(t *testing.T)
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "macos-versions", "xcode-versions"},
-		"xcode-cloud macos-versions xcode-versions: ",
+		"xcode-cloud macos-versions xcode-versions: --next",
 	)
 }
 
@@ -491,7 +491,7 @@ func TestXcodeCloudXcodeVersionsMacOSVersionsRejectsInvalidNextURL(t *testing.T)
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "xcode-versions", "macos-versions"},
-		"xcode-cloud xcode-versions macos-versions: ",
+		"xcode-cloud xcode-versions macos-versions: --next",
 	)
 }
 
@@ -518,7 +518,7 @@ func TestXcodeCloudScmProvidersListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "scm", "providers", "list"},
-		"xcode-cloud scm providers: ",
+		"xcode-cloud scm providers: --next",
 	)
 }
 
@@ -545,7 +545,7 @@ func TestXcodeCloudScmRepositoriesListRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "scm", "repositories", "list"},
-		"xcode-cloud scm repositories: ",
+		"xcode-cloud scm repositories: --next",
 	)
 }
 
@@ -572,7 +572,7 @@ func TestXcodeCloudScmProvidersRepositoriesRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "scm", "providers", "repositories"},
-		"xcode-cloud scm providers repositories: ",
+		"xcode-cloud scm providers repositories: --next",
 	)
 }
 
@@ -599,7 +599,7 @@ func TestXcodeCloudScmRepositoriesGitReferencesRejectsInvalidNextURL(t *testing.
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "scm", "repositories", "git-references"},
-		"xcode-cloud scm repositories git-references: ",
+		"xcode-cloud scm repositories git-references: --next",
 	)
 }
 
@@ -626,7 +626,7 @@ func TestXcodeCloudScmRepositoriesPullRequestsRejectsInvalidNextURL(t *testing.T
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "scm", "repositories", "pull-requests"},
-		"xcode-cloud scm repositories pull-requests: ",
+		"xcode-cloud scm repositories pull-requests: --next",
 	)
 }
 
@@ -653,7 +653,7 @@ func TestXcodeCloudScmRepositoriesRelationshipsGitReferencesRejectsInvalidNextUR
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "scm", "repositories", "relationships", "git-references"},
-		"xcode-cloud scm repositories relationships git-references: ",
+		"xcode-cloud scm repositories relationships git-references: --next",
 	)
 }
 
@@ -680,7 +680,7 @@ func TestXcodeCloudScmRepositoriesRelationshipsPullRequestsRejectsInvalidNextURL
 	runXcodeCloudInvalidNextURLCases(
 		t,
 		[]string{"xcode-cloud", "scm", "repositories", "relationships", "pull-requests"},
-		"xcode-cloud scm repositories relationships pull-requests: ",
+		"xcode-cloud scm repositories relationships pull-requests: --next",
 	)
 }
 

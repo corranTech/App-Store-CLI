@@ -321,6 +321,15 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/xcodecloud` (`xcode-cloud scm repositories relationships pull-requests` invalid/malformed `--next` validation + `--paginate --next` without `--repo-id`)
 - [x] Commit Phase 36
 
+## Phase 37 - `--next` Parity for Alternative Distribution Domain/Key/Package-Version Lists
+
+- [x] `internal/cli/alternativedistribution` (`domains list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/alternativedistribution` (`keys list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/alternativedistribution` (`packages versions list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/alternativedistribution` (`packages versions deltas` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/alternativedistribution` (`packages versions variants` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] Commit Phase 37
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
