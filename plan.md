@@ -1,0 +1,84 @@
+# Coverage Expansion Plan (audit/fix-security-and-test-gaps)
+
+Goal: eliminate current `0.0%` coverage packages by adding package-local tests in phases, then re-run short/full suites.
+
+## Baseline (captured)
+
+- [x] Run `go test -short -coverprofile=coverage.out ./...`
+- [x] Capture current zero-coverage package list
+- [x] Re-check baseline list after each phase
+
+## Phase 0 - Planning and Tracking
+
+- [x] Create `plan.md`
+- [ ] Keep this file updated after every phase commit
+
+## Phase 1 - Core Utility and Small Command Packages
+
+- [x] `internal/asc/types`
+- [x] `internal/cli/shared/suggest`
+- [x] `internal/cli/completion`
+- [x] `internal/cli/registry`
+- [x] `internal/cli/crashes`
+- [x] `internal/cli/feedback`
+- [x] `internal/cli/submit`
+- [x] `internal/cli/routingcoverage`
+- [ ] Commit Phase 1
+
+## Phase 2 - Identity/Metadata Command Families
+
+- [ ] `internal/cli/accessibility`
+- [ ] `internal/cli/actors`
+- [ ] `internal/cli/agerating`
+- [ ] `internal/cli/agreements`
+- [ ] `internal/cli/categories`
+- [ ] `internal/cli/eula`
+- [ ] `internal/cli/nominations`
+- [ ] `internal/cli/merchantids`
+- [ ] `internal/cli/passtypeids`
+- [ ] Commit Phase 2
+
+## Phase 3 - App Distribution/Release Command Families
+
+- [ ] `internal/cli/androidiosmapping`
+- [ ] `internal/cli/app_events`
+- [ ] `internal/cli/appclips`
+- [ ] `internal/cli/assets`
+- [ ] `internal/cli/betaapplocalizations`
+- [ ] `internal/cli/betabuildlocalizations`
+- [ ] `internal/cli/buildbundles`
+- [ ] `internal/cli/buildlocalizations`
+- [ ] `internal/cli/localizations`
+- [ ] `internal/cli/prerelease`
+- [ ] `internal/cli/productpages`
+- [ ] Commit Phase 3
+
+## Phase 4 - Commerce/Security/Operational Command Families
+
+- [ ] `internal/cli/encryption`
+- [ ] `internal/cli/offercodes`
+- [ ] `internal/cli/performance`
+- [ ] `internal/cli/promotedpurchases`
+- [ ] `internal/cli/reviews`
+- [ ] `internal/cli/winbackoffers`
+- [ ] `internal/cli/notarization`
+- [ ] Commit Phase 4
+
+## Phase 5 - Large Surface Command Families
+
+- [ ] `internal/cli/gamecenter`
+- [ ] `internal/cli/xcodecloud`
+- [ ] Commit Phase 5
+
+## Phase 6 - Remaining Non-CLI Root Packages
+
+- [ ] `github.com/rudrankriyam/App-Store-Connect-CLI` (main package)
+- [ ] Commit Phase 6
+
+## Validation Gate (after each phase and at end)
+
+- [ ] `go test -short ./...`
+- [ ] `go test -short -coverprofile=coverage.out ./...`
+- [ ] verify previously-targeted packages are no longer `0.0%`
+- [ ] `make test`
+- [ ] `make lint`
