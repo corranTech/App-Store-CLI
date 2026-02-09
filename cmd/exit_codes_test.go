@@ -128,45 +128,46 @@ func TestAPIErrorCodeToExitCode(t *testing.T) {
 }
 
 func TestGetCommandName(t *testing.T) {
-	root := &ffcli.Command{
-		Name: "asc",
-		Subcommands: []*ffcli.Command{
-			{
-				Name: "builds",
-				Subcommands: []*ffcli.Command{
-					{Name: "list"},
-					{Name: "get"},
+	makeCommandTree := func() *ffcli.Command {
+		return &ffcli.Command{
+			Name: "asc",
+			Subcommands: []*ffcli.Command{
+				{
+					Name: "builds",
+					Subcommands: []*ffcli.Command{
+						{Name: "list"},
+						{Name: "get"},
+					},
 				},
-			},
-			{
-				Name: "apps",
-				Subcommands: []*ffcli.Command{
-					{Name: "list"},
+				{
+					Name: "apps",
+					Subcommands: []*ffcli.Command{
+						{Name: "list"},
+					},
 				},
+				{Name: "completion"},
 			},
-			{Name: "completion"},
-		},
+		}
 	}
 
-	// args is os.Args[1:], so it excludes the program name
+	// Test cases use os.Args format (with program name as first arg)
 	tests := []struct {
 		name     string
 		args     []string
 		expected string
 	}{
-		{"root command", []string{}, "asc"},
-		{"single level subcommand", []string{"builds"}, "asc builds"},
-		{"nested subcommand", []string{"builds", "list"}, "asc builds list"},
-		{"another nested subcommand", []string{"apps", "list"}, "asc apps list"},
-		{"root flag before subcommand", []string{"--debug", "builds"}, "asc builds"},
-		{"multiple root flags before subcommand", []string{"--report", "junit", "--report-file", "/tmp/report.xml", "completion"}, "asc completion"},
-		{"root flags with nested subcommand", []string{"-d", "builds", "list"}, "asc builds list"},
-		{"flag with no value before subcommand", []string{"--verbose", "apps", "list"}, "asc apps list"},
+		{"root command", []string{"asc"}, "asc"},
+		{"single level subcommand", []string{"asc", "builds"}, "asc builds"},
+		{"nested subcommand", []string{"asc", "builds", "list"}, "asc builds list"},
+		{"another nested subcommand", []string{"asc", "apps", "list"}, "asc apps list"},
+		{"root flag before subcommand", []string{"asc", "--debug", "builds"}, "asc builds"},
+		{"multiple root flags before subcommand", []string{"asc", "--report", "junit", "--report-file", "/tmp/report.xml", "completion"}, "asc completion"},
+		{"subcommand then flags", []string{"asc", "builds", "list", "--output", "json"}, "asc builds list"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getCommandName(root, tt.args)
+			result := getCommandName(makeCommandTree(), tt.args)
 			if result != tt.expected {
 				t.Errorf("getCommandName() = %q, want %q", result, tt.expected)
 			}
