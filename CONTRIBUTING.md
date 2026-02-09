@@ -75,3 +75,20 @@ Do not commit secrets.
 
 If you find a security issue, please report it responsibly by opening a private issue
 or contacting the maintainer directly.
+
+## Hall of Fame
+
+Apps shipping with asc-cli. To add your app:
+
+1. Fork the repo
+2. Add your app to the Hall of Fame section in `README.md`
+3. Open a PR with the format: `[App Name](App Store URL)`
+
+Format:
+```markdown
+- [App Name](https://apps.apple.com/app/id...)
+```
+
+Current apps:
+- [CodexMonitor](https://apps.apple.com/app/id6743665276)
+```
