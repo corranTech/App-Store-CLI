@@ -16,7 +16,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Autom
 | Slow, heavy tooling | Single Go binary, instant startup |
 | Poor scripting support | JSON output, explicit flags, clean exit codes |
 
-## Hall of Fame
+## Wall of Apps
 
 Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls)!
 

@@ -76,12 +76,12 @@ Do not commit secrets.
 If you find a security issue, please report it responsibly by opening a private issue
 or contacting the maintainer directly.
 
-## Hall of Fame
+## Wall of Apps
 
 Apps shipping with asc-cli. To add your app:
 
 1. Fork the repo
-2. Add your app to the Hall of Fame section in `README.md`
+2. Add your app to the Wall of Apps section in `README.md`
 3. Open a PR with the format: `[App Name](App Store URL)`
 
 Format:
