@@ -51,17 +51,17 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/localizations`
 - [x] `internal/cli/prerelease`
 - [x] `internal/cli/productpages`
-- [ ] Commit Phase 3
+- [x] Commit Phase 3
 
 ## Phase 4 - Commerce/Security/Operational Command Families
 
-- [ ] `internal/cli/encryption`
-- [ ] `internal/cli/offercodes`
-- [ ] `internal/cli/performance`
-- [ ] `internal/cli/promotedpurchases`
-- [ ] `internal/cli/reviews`
-- [ ] `internal/cli/winbackoffers`
-- [ ] `internal/cli/notarization`
+- [x] `internal/cli/encryption`
+- [x] `internal/cli/offercodes`
+- [x] `internal/cli/performance`
+- [x] `internal/cli/promotedpurchases`
+- [x] `internal/cli/reviews`
+- [x] `internal/cli/winbackoffers`
+- [x] `internal/cli/notarization`
 - [ ] Commit Phase 4
 
 ## Phase 5 - Large Surface Command Families
