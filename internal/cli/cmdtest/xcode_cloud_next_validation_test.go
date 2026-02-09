@@ -513,3 +513,138 @@ func TestXcodeCloudXcodeVersionsMacOSVersionsPaginateFromNextWithoutID(t *testin
 		"ci-xcode-macos-next-2",
 	)
 }
+
+func TestXcodeCloudScmProvidersListRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "scm", "providers", "list"},
+		"xcode-cloud scm providers: ",
+	)
+}
+
+func TestXcodeCloudScmProvidersListPaginateFromNext(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/scmProviders?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/scmProviders?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmProviders","id":"scm-provider-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmProviders","id":"scm-provider-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "scm", "providers", "list"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"scm-provider-next-1",
+		"scm-provider-next-2",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesListRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "list"},
+		"xcode-cloud scm repositories: ",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesListPaginateFromNext(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmRepositories","id":"scm-repo-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmRepositories","id":"scm-repo-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "list"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"scm-repo-next-1",
+		"scm-repo-next-2",
+	)
+}
+
+func TestXcodeCloudScmProvidersRepositoriesRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "scm", "providers", "repositories"},
+		"xcode-cloud scm providers repositories: ",
+	)
+}
+
+func TestXcodeCloudScmProvidersRepositoriesPaginateFromNextWithoutProviderID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/scmProviders/provider-1/repositories?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/scmProviders/provider-1/repositories?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmRepositories","id":"scm-provider-repo-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmRepositories","id":"scm-provider-repo-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "scm", "providers", "repositories"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"scm-provider-repo-next-1",
+		"scm-provider-repo-next-2",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesGitReferencesRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "git-references"},
+		"xcode-cloud scm repositories git-references: ",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesGitReferencesPaginateFromNextWithoutRepoID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/gitReferences?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/gitReferences?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmGitReferences","id":"scm-git-ref-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmGitReferences","id":"scm-git-ref-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "git-references"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"scm-git-ref-next-1",
+		"scm-git-ref-next-2",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesPullRequestsRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "pull-requests"},
+		"xcode-cloud scm repositories pull-requests: ",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesPullRequestsPaginateFromNextWithoutRepoID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/pullRequests?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/pullRequests?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmPullRequests","id":"scm-pull-request-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmPullRequests","id":"scm-pull-request-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "pull-requests"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"scm-pull-request-next-1",
+		"scm-pull-request-next-2",
+	)
+}
