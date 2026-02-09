@@ -239,6 +239,13 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/merchantids` (`merchant-ids certificates get` invalid/malformed `--next` validation + `--paginate --next` without `--merchant-id`)
 - [x] Commit Phase 26
 
+## Phase 27 - `--next` Parity for Pre-Release Versions Lists and Relationships
+
+- [x] `internal/cli/prerelease` (`pre-release-versions list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/prerelease` (`pre-release-versions builds list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/prerelease` (`pre-release-versions relationships get --type builds` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] Commit Phase 27
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
