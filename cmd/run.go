@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/update"
@@ -21,21 +23,27 @@ func Run(args []string, versionInfo string) int {
 
 	if err := root.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			return 0
+			return ExitSuccess
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		return 1
+		return ExitCodeFromError(err)
+	}
+
+	// Validate CI report flags after parsing
+	if err := shared.ValidateReportFlags(); err != nil {
+		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
+		return ExitUsage
 	}
 
 	if versionRequested {
 		if err := root.Run(context.Background()); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				return 1
+				return ExitUsage
 			}
 			fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-			return 1
+			return ExitCodeFromError(err)
 		}
-		return 0
+		return ExitSuccess
 	}
 
 	updateResult, err := update.CheckAndUpdate(context.Background(), update.Options{
@@ -58,17 +66,69 @@ func Run(args []string, versionInfo string) int {
 		}
 	}
 
-	if err := root.Run(context.Background()); err != nil {
-		var reported ReportedError
-		if errors.As(err, &reported) {
-			return 1
+	start := time.Now()
+	runErr := root.Run(context.Background())
+	elapsed := time.Since(start)
+
+	// Get command name (full subcommand path)
+	commandName := getCommandName(root)
+
+	// Write JUnit report if requested
+	if shared.ReportFormat() == shared.ReportFormatJUnit && shared.ReportFile() != "" {
+		reportErr := writeJUnitReport(commandName, runErr, elapsed)
+		if reportErr != nil {
+			// Report write failure is a hard error - CI depends on it
+			fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", reportErr)
+			if runErr == nil {
+				return ExitError
+			}
 		}
-		if errors.Is(err, flag.ErrHelp) {
-			return 1
-		}
-		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		return 1
 	}
 
-	return 0
+	if runErr != nil {
+		var reported ReportedError
+		if errors.As(runErr, &reported) {
+			return ExitCodeFromError(runErr)
+		}
+		if errors.Is(runErr, flag.ErrHelp) {
+			return ExitUsage
+		}
+		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
+		return ExitCodeFromError(runErr)
+	}
+
+	return ExitSuccess
+}
+
+// getCommandName extracts the command name from the root command.
+func getCommandName(cmd *ffcli.Command) string {
+	name := cmd.Name
+	return name
+}
+
+// writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.
+func writeJUnitReport(commandName string, runErr error, elapsed time.Duration) error {
+	reportFile := shared.ReportFile()
+	if reportFile == "" {
+		return nil
+	}
+
+	testCase := shared.JUnitTestCase{
+		Name:      commandName,
+		Classname: commandName,
+		Time:      elapsed,
+	}
+
+	if runErr != nil {
+		testCase.Failure = "ERROR"
+		testCase.Message = runErr.Error()
+	}
+
+	report := shared.JUnitReport{
+		Tests:     []shared.JUnitTestCase{testCase},
+		Timestamp: time.Now(),
+		Name:      "asc",
+	}
+
+	return report.Write(reportFile)
 }
