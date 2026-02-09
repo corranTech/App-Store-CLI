@@ -172,6 +172,14 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/webhooks` (`webhooks deliveries relationships` invalid/malformed `--next` and invalid extraction path + `--paginate --next` without `--webhook-id`)
 - [x] Commit Phase 17
 
+## Phase 18 - `--next` Parity for TestFlight Review and Recruitment Surfaces
+
+- [x] `internal/cli/testflight` (`review get` invalid/malformed `--next` validation + `--next` path without `--app`)
+- [x] `internal/cli/testflight` (`beta-details get` invalid/malformed `--next` validation + `--next` path without `--build`)
+- [x] `internal/cli/testflight` (`recruitment options` invalid/malformed `--next` validation + `--next` path)
+- [x] `internal/cli/testflight` (`review submissions list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] Commit Phase 18
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
