@@ -648,3 +648,57 @@ func TestXcodeCloudScmRepositoriesPullRequestsPaginateFromNextWithoutRepoID(t *t
 		"scm-pull-request-next-2",
 	)
 }
+
+func TestXcodeCloudScmRepositoriesRelationshipsGitReferencesRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "relationships", "git-references"},
+		"xcode-cloud scm repositories relationships git-references: ",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesRelationshipsGitReferencesPaginateFromNextWithoutRepoID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/relationships/gitReferences?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/relationships/gitReferences?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmGitReferences","id":"scm-git-ref-link-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmGitReferences","id":"scm-git-ref-link-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "relationships", "git-references"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"scm-git-ref-link-next-1",
+		"scm-git-ref-link-next-2",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesRelationshipsPullRequestsRejectsInvalidNextURL(t *testing.T) {
+	runXcodeCloudInvalidNextURLCases(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "relationships", "pull-requests"},
+		"xcode-cloud scm repositories relationships pull-requests: ",
+	)
+}
+
+func TestXcodeCloudScmRepositoriesRelationshipsPullRequestsPaginateFromNextWithoutRepoID(t *testing.T) {
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/relationships/pullRequests?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/scmRepositories/repo-1/relationships/pullRequests?cursor=BQ&limit=200"
+
+	firstBody := `{"data":[{"type":"scmPullRequests","id":"scm-pull-request-link-next-1"}],"links":{"next":"` + secondURL + `"}}`
+	secondBody := `{"data":[{"type":"scmPullRequests","id":"scm-pull-request-link-next-2"}],"links":{"next":""}}`
+
+	runXcodeCloudPaginateFromNext(
+		t,
+		[]string{"xcode-cloud", "scm", "repositories", "relationships", "pull-requests"},
+		firstURL,
+		secondURL,
+		firstBody,
+		secondBody,
+		"scm-pull-request-link-next-1",
+		"scm-pull-request-link-next-2",
+	)
+}

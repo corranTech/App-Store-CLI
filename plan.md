@@ -315,6 +315,12 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/xcodecloud` (`xcode-cloud scm repositories pull-requests` invalid/malformed `--next` validation + `--paginate --next` without `--repo-id`)
 - [x] Commit Phase 35
 
+## Phase 36 - `--next` Parity for Xcode Cloud SCM Relationship Linkages
+
+- [x] `internal/cli/xcodecloud` (`xcode-cloud scm repositories relationships git-references` invalid/malformed `--next` validation + `--paginate --next` without `--repo-id`)
+- [x] `internal/cli/xcodecloud` (`xcode-cloud scm repositories relationships pull-requests` invalid/malformed `--next` validation + `--paginate --next` without `--repo-id`)
+- [x] Commit Phase 36
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
