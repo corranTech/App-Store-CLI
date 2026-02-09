@@ -102,14 +102,13 @@ func Run(args []string, versionInfo string) int {
 }
 
 // getCommandName extracts the full subcommand path from the parsed args.
+// args is os.Args[1:] (without program name), so it starts with the first subcommand.
 // It walks the command tree to find the terminal command.
 func getCommandName(root *ffcli.Command, args []string) string {
-	// Skip the first arg (program name) and find the matching subcommand
 	current := root
 	path := []string{current.Name}
 
-	args = args[1:] // Skip program name (already accounted for in root.Name)
-
+	// args already excludes program name, starts with first subcommand
 	for len(args) > 0 {
 		found := false
 		for _, sub := range current.Subcommands {

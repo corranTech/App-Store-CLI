@@ -117,15 +117,16 @@ func TestGetCommandName(t *testing.T) {
 		},
 	}
 
+	// args is os.Args[1:], so it excludes the program name
 	tests := []struct {
 		name     string
 		args     []string
 		expected string
 	}{
-		{"root command", []string{"asc"}, "asc"},
-		{"single level subcommand", []string{"asc", "builds"}, "asc builds"},
-		{"nested subcommand", []string{"asc", "builds", "list"}, "asc builds list"},
-		{"another nested subcommand", []string{"asc", "apps", "list"}, "asc apps list"},
+		{"root command", []string{}, "asc"},
+		{"single level subcommand", []string{"builds"}, "asc builds"},
+		{"nested subcommand", []string{"builds", "list"}, "asc builds list"},
+		{"another nested subcommand", []string{"apps", "list"}, "asc apps list"},
 	}
 
 	for _, tt := range tests {
