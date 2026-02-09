@@ -11,7 +11,7 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 ## Phase 0 - Planning and Tracking
 
 - [x] Create `plan.md`
-- [ ] Keep this file updated after every phase commit
+- [x] Keep this file updated after every phase commit
 
 ## Phase 1 - Core Utility and Small Command Packages
 
@@ -74,6 +74,15 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 
 - [x] `github.com/rudrankriyam/App-Store-Connect-CLI` (main package)
 - [x] Commit Phase 6
+
+## Phase 7 - High-Risk Package Behavior Depth
+
+- [x] `internal/cli/subscriptions` (normalization + parsing behavior)
+- [x] `internal/cli/builds` (expire-all time parsing/threshold behavior)
+- [x] `internal/cli/apps` (include/field normalization behavior)
+- [x] `internal/cli/testflight` (recruitment/metrics helper behavior)
+- [x] `internal/cli/iap` (offer/schedule parsing behavior)
+- [x] Commit Phase 7
 
 ## Validation Gate (after each phase and at end)
 
