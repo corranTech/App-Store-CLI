@@ -20,7 +20,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for App Store Connect. Autom
 
 Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls)!
 
-- [CodexMonitor](https://apps.apple.com/app/id6743665276)
+- [CodexMonitor](https://github.com/Dimillian/CodexMonitor)
 - [MileIO](https://apps.apple.com/app/id6758225631)
 
 ## ASC Skills
