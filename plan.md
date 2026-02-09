@@ -23,19 +23,19 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/feedback`
 - [x] `internal/cli/submit`
 - [x] `internal/cli/routingcoverage`
-- [ ] Commit Phase 1
+- [x] Commit Phase 1
 
 ## Phase 2 - Identity/Metadata Command Families
 
-- [ ] `internal/cli/accessibility`
-- [ ] `internal/cli/actors`
-- [ ] `internal/cli/agerating`
-- [ ] `internal/cli/agreements`
-- [ ] `internal/cli/categories`
-- [ ] `internal/cli/eula`
-- [ ] `internal/cli/nominations`
-- [ ] `internal/cli/merchantids`
-- [ ] `internal/cli/passtypeids`
+- [x] `internal/cli/accessibility`
+- [x] `internal/cli/actors`
+- [x] `internal/cli/agerating`
+- [x] `internal/cli/agreements`
+- [x] `internal/cli/categories`
+- [x] `internal/cli/eula`
+- [x] `internal/cli/nominations`
+- [x] `internal/cli/merchantids`
+- [x] `internal/cli/passtypeids`
 - [ ] Commit Phase 2
 
 ## Phase 3 - App Distribution/Release Command Families
