@@ -101,6 +101,9 @@ func (r *JUnitReport) MarshalXML() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
 
 	return []byte(sb.String()), nil
 }

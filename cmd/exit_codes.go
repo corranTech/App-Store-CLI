@@ -19,11 +19,10 @@ const (
 	ExitConflict = 5 // Conflict / resource already exists
 
 	// HTTP 4xx range: 10 + (status - 400)
+	// Note: 404 and 409 are mapped to ExitNotFound and ExitConflict above.
 	ExitHTTPBadRequest    = 10 // 400
 	ExitHTTPUnauthorized  = 11 // 401
 	ExitHTTPForbidden     = 12 // 403
-	ExitHTTPNotFound      = 14 // 404
-	ExitHTTPConflict      = 19 // 409
 	ExitHTTPUnprocessable = 22 // 422
 
 	// HTTP 5xx range: 60 + (status - 500)
