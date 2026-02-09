@@ -102,6 +102,31 @@ func TestExitCodeConstants(t *testing.T) {
 	}
 }
 
+func TestAPIErrorCodeToExitCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     string
+		expected int
+	}{
+		{"NOT_FOUND", "NOT_FOUND", ExitNotFound},
+		{"CONFLICT", "CONFLICT", ExitConflict},
+		{"UNAUTHORIZED", "UNAUTHORIZED", ExitAuth},
+		{"FORBIDDEN", "FORBIDDEN", ExitAuth},
+		{"BAD_REQUEST", "BAD_REQUEST", ExitHTTPBadRequest},
+		{"unknown code", "SOME_ERROR", ExitError},
+		{"empty code", "", ExitError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := APIErrorCodeToExitCode(tt.code)
+			if result != tt.expected {
+				t.Errorf("APIErrorCodeToExitCode(%q) = %d, want %d", tt.code, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetCommandName(t *testing.T) {
 	root := &ffcli.Command{
 		Name: "asc",
@@ -188,5 +213,88 @@ func TestJUnitReportNameWithRootFlags(t *testing.T) {
 	// The test case name should include the subcommand, not just "asc"
 	if !strings.Contains(result.Cases[0].Name, "completion") {
 		t.Errorf("Expected testcase name to contain 'completion', got %q. Full XML:\n%s", result.Cases[0].Name, data)
+	}
+}
+
+func TestJUnitReportEndToEnd(t *testing.T) {
+	// Build the binary
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	cmd.Dir = ".." // Go up from cmd/ to project root
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to build binary: %v\n%s", err, out)
+	}
+
+	tests := []struct {
+		name       string
+		args       []string
+		expectName string
+	}{
+		{
+			name:       "flags before nested subcommand",
+			args:       []string{"--report", "junit", "--report-file", "report1.xml", "builds", "list"},
+			expectName: "asc builds list",
+		},
+		{
+			name:       "single subcommand",
+			args:       []string{"--report", "junit", "--report-file", "report2.xml", "completion", "--shell", "bash"},
+			expectName: "asc completion",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Find --report-file index and use that value
+			reportFile := ""
+			for i, arg := range tt.args {
+				if arg == "--report-file" && i+1 < len(tt.args) {
+					reportFile = filepath.Join(tmpDir, tt.args[i+1])
+					break
+				}
+			}
+			if reportFile == "" {
+				t.Fatal("Could not find --report-file in args")
+			}
+
+			// Build actual args with full path
+			var fullArgs []string
+			for i := 0; i < len(tt.args); i++ {
+				arg := tt.args[i]
+				if arg == "--report-file" && i+1 < len(tt.args) {
+					fullArgs = append(fullArgs, arg, reportFile)
+					i++ // Skip the value
+				} else {
+					fullArgs = append(fullArgs, arg)
+				}
+			}
+
+			runCmd := exec.Command(binaryPath, fullArgs...)
+			runCmd.Env = append(os.Environ(), "ASC_NO_UPDATE=true")
+			_, _ = runCmd.CombinedOutput() // Ignore errors, we just care about the report
+
+			data, err := os.ReadFile(reportFile)
+			if err != nil {
+				t.Fatalf("Failed to read JUnit report: %v", err)
+			}
+
+			var result struct {
+				XMLName xml.Name `xml:"testsuite"`
+				Cases   []struct {
+					Name string `xml:"name,attr"`
+				} `xml:"testcase"`
+			}
+			if err := xml.Unmarshal(data, &result); err != nil {
+				t.Fatalf("Failed to parse JUnit XML: %v\nReport content:\n%s", err, data)
+			}
+
+			if len(result.Cases) != 1 {
+				t.Fatalf("Expected 1 test case, got %d", len(result.Cases))
+			}
+
+			if result.Cases[0].Name != tt.expectName {
+				t.Errorf("Expected testcase name %q, got %q", tt.expectName, result.Cases[0].Name)
+			}
+		})
 	}
 }

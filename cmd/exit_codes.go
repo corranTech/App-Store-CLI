@@ -44,46 +44,45 @@ func ExitCodeFromError(err error) int {
 		return ExitUsage
 	}
 
-	// Authentication errors
-	if errors.Is(err, shared.ErrMissingAuth) {
+	// Well-known error types
+	if errors.Is(err, shared.ErrMissingAuth) ||
+		errors.Is(err, asc.ErrUnauthorized) ||
+		errors.Is(err, asc.ErrForbidden) {
 		return ExitAuth
 	}
-	if errors.Is(err, asc.ErrUnauthorized) {
-		return ExitAuth
-	}
-	if errors.Is(err, asc.ErrForbidden) {
-		return ExitAuth
-	}
-
-	// Not found errors
 	if errors.Is(err, asc.ErrNotFound) {
 		return ExitNotFound
 	}
 
-	// Check for APIError with specific error codes
+	// Check for APIError with status code or known code
 	var apiErr *asc.APIError
 	if errors.As(err, &apiErr) {
-		switch apiErr.Code {
-		case "NOT_FOUND":
-			return ExitNotFound
-		case "CONFLICT":
-			return ExitConflict
-		case "UNAUTHORIZED":
-			return ExitAuth
-		case "FORBIDDEN":
-			return ExitAuth
-		case "BAD_REQUEST":
-			return ExitHTTPBadRequest
+		// Prefer HTTP status code if available
+		if apiErr.StatusCode > 0 {
+			return HTTPStatusToExitCode(apiErr.StatusCode)
 		}
-	}
-
-	// Check for HTTP status code in APIError
-	if apiErr != nil && apiErr.StatusCode > 0 {
-		return HTTPStatusToExitCode(apiErr.StatusCode)
+		// Fall back to API error code mapping
+		return APIErrorCodeToExitCode(apiErr.Code)
 	}
 
 	// Generic error
 	return ExitError
+}
+
+// APIErrorCodeToExitCode maps an API error code string to the appropriate exit code.
+func APIErrorCodeToExitCode(code string) int {
+	switch code {
+	case "NOT_FOUND":
+		return ExitNotFound
+	case "CONFLICT":
+		return ExitConflict
+	case "UNAUTHORIZED", "FORBIDDEN":
+		return ExitAuth
+	case "BAD_REQUEST":
+		return ExitHTTPBadRequest
+	default:
+		return ExitError
+	}
 }
 
 // HTTPStatusToExitCode maps an HTTP status code to the appropriate exit code.
