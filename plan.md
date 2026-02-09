@@ -165,6 +165,13 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/versions` (`versions customer-reviews list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
 - [x] Commit Phase 16
 
+## Phase 17 - `--next` Parity for Webhooks List and Delivery Surfaces
+
+- [x] `internal/cli/webhooks` (`webhooks list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/webhooks` (`webhooks deliveries` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/webhooks` (`webhooks deliveries relationships` invalid/malformed `--next` and invalid extraction path + `--paginate --next` without `--webhook-id`)
+- [x] Commit Phase 17
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
