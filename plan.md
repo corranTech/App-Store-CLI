@@ -231,6 +231,14 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/offercodes` (`offer-codes prices list` invalid/malformed `--next` validation + `--paginate --next` without `--offer-code-id`)
 - [x] Commit Phase 25
 
+## Phase 26 - `--next` Parity for Pass-Type and Merchant Certificate Surfaces
+
+- [x] `internal/cli/passtypeids` (`pass-type-ids certificates list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/passtypeids` (`pass-type-ids certificates get` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/merchantids` (`merchant-ids certificates list` invalid/malformed `--next` validation + `--paginate --next` without `--merchant-id`)
+- [x] `internal/cli/merchantids` (`merchant-ids certificates get` invalid/malformed `--next` validation + `--paginate --next` without `--merchant-id`)
+- [x] Commit Phase 26
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
