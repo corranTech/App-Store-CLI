@@ -140,6 +140,14 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/subscriptions` (`offer-codes list` invalid/malformed `--next` validation)
 - [x] Commit Phase 13
 
+## Phase 14 - `--next` Parity for TestFlight Lists and Price Points
+
+- [x] `internal/cli/testflight` (`apps list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/testflight` (`beta-groups list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/testflight` (`beta-testers list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/subscriptions` (`price-points list` invalid/malformed `--next` validation + `--paginate --next` without `--subscription-id`)
+- [x] Commit Phase 14
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
