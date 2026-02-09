@@ -167,3 +167,79 @@ func TestAppTagsListReturnsFetchFailure(t *testing.T) {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 }
+
+func TestAppTagsListPaginateRejectsRepeatedNextURL(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	const repeatedNextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=AQ"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appTags" {
+				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
+			}
+			if req.URL.Query().Get("limit") != "200" {
+				t.Fatalf("expected limit 200 for paginate first page, got %q", req.URL.Query().Get("limit"))
+			}
+			body := `{
+				"data":[{"type":"appTags","id":"tag-1"}],
+				"links":{"next":"` + repeatedNextURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			if req.Method != http.MethodGet || req.URL.String() != repeatedNextURL {
+				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			body := `{
+				"data":[{"type":"appTags","id":"tag-2"}],
+				"links":{"next":"` + repeatedNextURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"app-tags", "list", "--app", "app-1", "--paginate"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "detected repeated pagination URL") {
+		t.Fatalf("expected repeated pagination URL error, got %v", runErr)
+	}
+	if !strings.Contains(runErr.Error(), "app-tags list:") {
+		t.Fatalf("expected app-tags context, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}

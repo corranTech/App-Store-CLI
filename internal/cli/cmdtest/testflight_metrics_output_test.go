@@ -164,3 +164,81 @@ func TestTestFlightMetricsPublicLinkReturnsFetchFailure(t *testing.T) {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 }
+
+func TestTestFlightMetricsBetaTesterUsagesPaginateRejectsRepeatedNextURL(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/metrics/betaTesterUsages?limit=2"
+	const repeatedNextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/metrics/betaTesterUsages?cursor=AQ"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.String() != firstURL {
+				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
+			}
+			body := `{
+				"data":[{"id":"usage-1"}],
+				"links":{"next":"` + repeatedNextURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			if req.Method != http.MethodGet || req.URL.String() != repeatedNextURL {
+				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			body := `{
+				"data":[{"id":"usage-2"}],
+				"links":{"next":"` + repeatedNextURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"testflight", "metrics", "beta-tester-usages",
+			"--paginate",
+			"--next", firstURL,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "detected repeated pagination URL") {
+		t.Fatalf("expected repeated pagination URL error, got %v", runErr)
+	}
+	if !strings.Contains(runErr.Error(), "testflight metrics beta-tester-usages:") {
+		t.Fatalf("expected command context, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}

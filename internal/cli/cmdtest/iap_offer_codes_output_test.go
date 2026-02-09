@@ -167,3 +167,32 @@ func TestIAPOfferCodesCreateReturnsCreateFailure(t *testing.T) {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 }
+
+func TestIAPOfferCodesListRejectsInvalidNextURL(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"iap", "offer-codes", "list",
+			"--next", "https://example.com/v2/inAppPurchases/iap-1/offerCodes?cursor=AQ",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "iap offer-codes list: --next must be an App Store Connect URL") {
+		t.Fatalf("expected invalid --next error, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}

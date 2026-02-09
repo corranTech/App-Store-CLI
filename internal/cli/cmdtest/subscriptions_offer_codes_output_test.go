@@ -186,3 +186,76 @@ func TestSubscriptionsOfferCodesCreateReturnsCreateFailure(t *testing.T) {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 }
+
+func TestSubscriptionsOfferCodesListPaginateReturnsSecondPageFailure(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/offerCodes?cursor=AQ&limit=200"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/offerCodes" {
+				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
+			}
+			if req.URL.Query().Get("limit") != "200" {
+				t.Fatalf("expected limit 200 for first paginated request, got %q", req.URL.Query().Get("limit"))
+			}
+			body := `{
+				"data":[{"type":"subscriptionOfferCodes","id":"code-1"}],
+				"links":{"next":"` + nextURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			if req.Method != http.MethodGet || req.URL.String() != nextURL {
+				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			body := `{"errors":[{"status":"500","title":"Server Error","detail":"page 2 failed"}]}`
+			return &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "offer-codes", "list",
+			"--subscription-id", "sub-1",
+			"--paginate",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "subscriptions offer-codes list: page 2:") {
+		t.Fatalf("expected paginated page 2 error context, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}

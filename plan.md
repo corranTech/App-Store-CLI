@@ -102,6 +102,15 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/subscriptions` (`offer-codes create` API create failure propagation)
 - [x] Commit Phase 9
 
+## Phase 10 - Pagination and `--next` Edge Cases
+
+- [x] `internal/cli/builds` (`builds latest` repeated pre-release pagination URL detection)
+- [x] `internal/cli/apps` (`app-tags list --paginate` repeated next URL detection)
+- [x] `internal/cli/testflight` (`metrics beta-tester-usages --paginate` repeated next URL detection)
+- [x] `internal/cli/iap` (`offer-codes list` invalid `--next` host rejection)
+- [x] `internal/cli/subscriptions` (`offer-codes list --paginate` second-page API failure propagation)
+- [x] Commit Phase 10
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
