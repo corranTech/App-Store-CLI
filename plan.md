@@ -396,6 +396,13 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/backgroundassets` (`background-assets upload-files list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
 - [x] Commit Phase 46
 
+## Phase 47 - `--next` Parity for Beta App, Beta Build, and Build Localization Lists
+
+- [x] `internal/cli/betaapplocalizations` (`beta-app-localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/betabuildlocalizations` (`beta-build-localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--build`)
+- [x] `internal/cli/buildlocalizations` (`build-localizations list` invalid/malformed `--next` validation + `--paginate --next` path with build-version resolution)
+- [x] Commit Phase 47
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
