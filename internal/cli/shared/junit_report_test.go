@@ -175,17 +175,21 @@ func TestValidateReportFlags(t *testing.T) {
 	tests := []struct {
 		name      string
 		format    string
+		file      string
 		wantError bool
 	}{
-		{"empty format is valid", "", false},
-		{"junit is valid", "junit", false},
-		{"invalid format returns error", "nope", true},
-		{"another invalid format", "xml", true},
+		{"empty format is valid", "", "", false},
+		{"junit without file is error", "junit", "", true},
+		{"junit with file is valid", "junit", "/tmp/report.xml", false},
+		{"invalid format returns error", "nope", "", true},
+		{"invalid format with file is still error", "nope", "/tmp/report.xml", true},
+		{"another invalid format", "xml", "", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			SetReportFormat(tt.format)
+			SetReportFile(tt.file)
 			err := ValidateReportFlags()
 			if tt.wantError && err == nil {
 				t.Errorf("ValidateReportFlags() = nil, want error")

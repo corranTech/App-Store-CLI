@@ -5,6 +5,8 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -92,5 +94,46 @@ func TestExitCodeConstants(t *testing.T) {
 	}
 	if ExitConflict != 5 {
 		t.Errorf("ExitConflict = %d, want 5", ExitConflict)
+	}
+}
+
+func TestGetCommandName(t *testing.T) {
+	root := &ffcli.Command{
+		Name: "asc",
+		Subcommands: []*ffcli.Command{
+			{
+				Name: "builds",
+				Subcommands: []*ffcli.Command{
+					{Name: "list"},
+					{Name: "get"},
+				},
+			},
+			{
+				Name: "apps",
+				Subcommands: []*ffcli.Command{
+					{Name: "list"},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{"root command", []string{"asc"}, "asc"},
+		{"single level subcommand", []string{"asc", "builds"}, "asc builds"},
+		{"nested subcommand", []string{"asc", "builds", "list"}, "asc builds list"},
+		{"another nested subcommand", []string{"asc", "apps", "list"}, "asc apps list"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getCommandName(root, tt.args)
+			if result != tt.expected {
+				t.Errorf("getCommandName() = %q, want %q", result, tt.expected)
+			}
+		})
 	}
 }

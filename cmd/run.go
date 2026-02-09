@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -71,7 +72,7 @@ func Run(args []string, versionInfo string) int {
 	elapsed := time.Since(start)
 
 	// Get command name (full subcommand path)
-	commandName := getCommandName(root)
+	commandName := getCommandName(root, args)
 
 	// Write JUnit report if requested
 	if shared.ReportFormat() == shared.ReportFormatJUnit && shared.ReportFile() != "" {
@@ -100,10 +101,32 @@ func Run(args []string, versionInfo string) int {
 	return ExitSuccess
 }
 
-// getCommandName extracts the command name from the root command.
-func getCommandName(cmd *ffcli.Command) string {
-	name := cmd.Name
-	return name
+// getCommandName extracts the full subcommand path from the parsed args.
+// It walks the command tree to find the terminal command.
+func getCommandName(root *ffcli.Command, args []string) string {
+	// Skip the first arg (program name) and find the matching subcommand
+	current := root
+	path := []string{current.Name}
+
+	args = args[1:] // Skip program name (already accounted for in root.Name)
+
+	for len(args) > 0 {
+		found := false
+		for _, sub := range current.Subcommands {
+			if sub.Name == args[0] {
+				path = append(path, sub.Name)
+				current = sub
+				args = args[1:]
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+	}
+
+	return strings.Join(path, " ")
 }
 
 // writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.

@@ -60,6 +60,29 @@ make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
 - For new features, begin with CLI-level tests (flags, output, errors) and add unit tests for core logic.
 - Verify the test fails for the right reason before implementing; keep tests green incrementally.
 
+## Definition of Done (Single-Pass)
+
+- Do not mark work as done until all checks below are complete.
+- For CLI behavior changes (flags, exit codes, output/reporting), follow this sequence:
+  - Add/adjust failing tests first (RED), then implement (GREEN).
+  - Do not add placeholder tests; every new test must assert exit code, stderr/stdout, and/or parsed structured output.
+  - For every new or changed flag, add:
+    - one valid-path test
+    - one invalid-value test that asserts stderr and exit code `2`
+  - Never silently ignore accepted flags; unsupported values must return an error.
+  - For JSON/XML output tests, parse output (`json.Unmarshal`/`xml.Unmarshal`) instead of relying only on string matching.
+  - For report/artifact file outputs, test both successful write and write-failure behavior.
+  - Verify CLI exit behavior using a built binary (not only `go run`) for black-box checks:
+    - `go build -o /tmp/asc .`
+    - run `/tmp/asc ...` and assert exit code + stderr/stdout
+- Before opening/updating a PR, always run:
+  - `make format`
+  - `make lint`
+  - `make test`
+- In the PR description or handoff, include:
+  - commands run
+  - key exit-code scenarios validated
+
 ## CLI Implementation Checklist
 
 - Register new commands in `internal/cli/registry/registry.go`.
