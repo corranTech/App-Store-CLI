@@ -72,13 +72,13 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 
 ## Phase 6 - Remaining Non-CLI Root Packages
 
-- [ ] `github.com/rudrankriyam/App-Store-Connect-CLI` (main package)
-- [ ] Commit Phase 6
+- [x] `github.com/rudrankriyam/App-Store-Connect-CLI` (main package)
+- [x] Commit Phase 6
 
 ## Validation Gate (after each phase and at end)
 
-- [ ] `go test -short ./...`
-- [ ] `go test -short -coverprofile=coverage.out ./...`
-- [ ] verify previously-targeted packages are no longer `0.0%`
-- [ ] `make test`
-- [ ] `make lint`
+- [x] `go test -short ./...`
+- [x] `go test -short -coverprofile=coverage.out ./...`
+- [x] verify previously-targeted packages are no longer `0.0%`
+- [x] `make test`
+- [x] `make lint`
