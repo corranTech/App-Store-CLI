@@ -36,21 +36,21 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/nominations`
 - [x] `internal/cli/merchantids`
 - [x] `internal/cli/passtypeids`
-- [ ] Commit Phase 2
+- [x] Commit Phase 2
 
 ## Phase 3 - App Distribution/Release Command Families
 
-- [ ] `internal/cli/androidiosmapping`
-- [ ] `internal/cli/app_events`
-- [ ] `internal/cli/appclips`
-- [ ] `internal/cli/assets`
-- [ ] `internal/cli/betaapplocalizations`
-- [ ] `internal/cli/betabuildlocalizations`
-- [ ] `internal/cli/buildbundles`
-- [ ] `internal/cli/buildlocalizations`
-- [ ] `internal/cli/localizations`
-- [ ] `internal/cli/prerelease`
-- [ ] `internal/cli/productpages`
+- [x] `internal/cli/androidiosmapping`
+- [x] `internal/cli/app_events`
+- [x] `internal/cli/appclips`
+- [x] `internal/cli/assets`
+- [x] `internal/cli/betaapplocalizations`
+- [x] `internal/cli/betabuildlocalizations`
+- [x] `internal/cli/buildbundles`
+- [x] `internal/cli/buildlocalizations`
+- [x] `internal/cli/localizations`
+- [x] `internal/cli/prerelease`
+- [x] `internal/cli/productpages`
 - [ ] Commit Phase 3
 
 ## Phase 4 - Commerce/Security/Operational Command Families
