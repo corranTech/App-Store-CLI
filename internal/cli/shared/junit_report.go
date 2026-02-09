@@ -1,10 +1,10 @@
 package shared
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 )
@@ -33,12 +33,12 @@ func (r *JUnitReport) Write(path string) error {
 		return fmt.Errorf("report file path is empty")
 	}
 
-	data, err := r.MarshalXML()
+	data, err := r.Marshal()
 	if err != nil {
 		return fmt.Errorf("failed to marshal JUnit report: %w", err)
 	}
 
-	err = os.WriteFile(path, data, 0o644)
+	_, err = WriteStreamToFile(path, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("failed to write report file: %w", err)
 	}
@@ -47,23 +47,23 @@ func (r *JUnitReport) Write(path string) error {
 }
 
 // WriteTo writes the JUnit report to the specified writer.
-func (r *JUnitReport) WriteTo(w io.Writer) error {
-	data, err := r.MarshalXML()
+func (r *JUnitReport) WriteTo(w io.Writer) (int64, error) {
+	data, err := r.Marshal()
 	if err != nil {
-		return fmt.Errorf("failed to marshal JUnit report: %w", err)
+		return 0, fmt.Errorf("failed to marshal JUnit report: %w", err)
 	}
 
-	_, err = w.Write(data)
+	n, err := w.Write(data)
 	if err != nil {
-		return fmt.Errorf("failed to write report: %w", err)
+		return int64(n), fmt.Errorf("failed to write report: %w", err)
 	}
 
-	return nil
+	return int64(n), nil
 }
 
-// MarshalXML marshals the JUnit report to XML.
+// Marshal marshals the JUnit report to XML.
 // Note: xml.Encoder handles escaping automatically, so we don't pre-escape.
-func (r *JUnitReport) MarshalXML() ([]byte, error) {
+func (r *JUnitReport) Marshal() ([]byte, error) {
 	name := r.Name
 	if name == "" {
 		name = "asc"
