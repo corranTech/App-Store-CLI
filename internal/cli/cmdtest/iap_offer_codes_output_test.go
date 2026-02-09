@@ -3,6 +3,8 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -194,5 +196,78 @@ func TestIAPOfferCodesListRejectsInvalidNextURL(t *testing.T) {
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestIAPOfferCodesListOutputErrors(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/inAppPurchases/iap-1/offerCodes" {
+			t.Fatalf("expected path /v2/inAppPurchases/iap-1/offerCodes, got %s", req.URL.Path)
+		}
+		body := `{"data":[{"type":"inAppPurchaseOfferCodes","id":"offer-1"}],"links":{"next":""}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "unsupported output",
+			args:    []string{"iap", "offer-codes", "list", "--iap-id", "iap-1", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
+		},
+		{
+			name:    "pretty with table",
+			args:    []string{"iap", "offer-codes", "list", "--iap-id", "iap-1", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected non-help error, got %v", runErr)
+			}
+			if !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("expected error %q, got %v", test.wantErr, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
 	}
 }

@@ -3,6 +3,8 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -240,5 +242,78 @@ func TestTestFlightMetricsBetaTesterUsagesPaginateRejectsRepeatedNextURL(t *test
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}
+
+func TestTestFlightMetricsPublicLinkOutputErrors(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups/group-1/metrics/publicLinkUsages" {
+			t.Fatalf("expected path /v1/betaGroups/group-1/metrics/publicLinkUsages, got %s", req.URL.Path)
+		}
+		body := `{"data":[{"type":"betaGroupPublicLinkUsages","id":"public-usage-1"}]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "unsupported output",
+			args:    []string{"testflight", "metrics", "public-link", "--group", "group-1", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
+		},
+		{
+			name:    "pretty with table",
+			args:    []string{"testflight", "metrics", "public-link", "--group", "group-1", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected non-help error, got %v", runErr)
+			}
+			if !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("expected error %q, got %v", test.wantErr, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
 	}
 }

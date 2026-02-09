@@ -3,6 +3,8 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -241,5 +243,90 @@ func TestBuildsLatestRejectsRepeatedPreReleasePaginationURL(t *testing.T) {
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}
+
+func TestBuildsLatestOutputErrors(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		if query.Get("filter[app]") != "app-1" {
+			t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+		}
+		if query.Get("sort") != "-uploadedDate" {
+			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+		}
+		if query.Get("limit") != "1" {
+			t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+		}
+		body := `{
+			"data":[{"type":"builds","id":"build-1","attributes":{"uploadedDate":"2026-02-01T00:00:00Z"}}]
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "unsupported output",
+			args:    []string{"builds", "latest", "--app", "app-1", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
+		},
+		{
+			name:    "pretty with table",
+			args:    []string{"builds", "latest", "--app", "app-1", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected non-help error, got %v", runErr)
+			}
+			if !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("expected error %q, got %v", test.wantErr, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
 	}
 }

@@ -111,6 +111,17 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/subscriptions` (`offer-codes list --paginate` second-page API failure propagation)
 - [x] Commit Phase 10
 
+## Phase 11 - Streaming/NDJSON and Mixed Output-Mode Errors
+
+- [x] `internal/cli/subscriptions` (`price-points list --paginate --stream` repeated `next` URL detection)
+- [x] `internal/cli/subscriptions` (`price-points list --paginate --stream` second-page API failure propagation)
+- [x] `internal/cli/builds` (`builds latest` unsupported `--output` and `--pretty` non-JSON failures)
+- [x] `internal/cli/apps` (`app-tags list` unsupported `--output` and `--pretty` non-JSON failures)
+- [x] `internal/cli/testflight` (`metrics public-link` unsupported `--output` and `--pretty` non-JSON failures)
+- [x] `internal/cli/iap` (`offer-codes list` unsupported `--output` and `--pretty` non-JSON failures)
+- [x] `internal/cli/subscriptions` (`offer-codes list` unsupported `--output` and `--pretty` non-JSON failures)
+- [x] Commit Phase 11
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
