@@ -325,6 +325,30 @@ type (
 	InAppPurchaseOfferCodeCustomCodeResponse  = SingleResponse[InAppPurchaseOfferCodeCustomCodeAttributes]
 )
 
+// InAppPurchaseOfferCodeCustomCodeCreateAttributes describes attributes for creating custom codes.
+type InAppPurchaseOfferCodeCustomCodeCreateAttributes struct {
+	CustomCode     string  `json:"customCode"`
+	NumberOfCodes  int     `json:"numberOfCodes"`
+	ExpirationDate *string `json:"expirationDate,omitempty"`
+}
+
+// InAppPurchaseOfferCodeCustomCodeCreateRelationships describes relationships for creating custom codes.
+type InAppPurchaseOfferCodeCustomCodeCreateRelationships struct {
+	OfferCode Relationship `json:"offerCode"`
+}
+
+// InAppPurchaseOfferCodeCustomCodeCreateData is the data portion of a create request.
+type InAppPurchaseOfferCodeCustomCodeCreateData struct {
+	Type          ResourceType                                        `json:"type"`
+	Attributes    InAppPurchaseOfferCodeCustomCodeCreateAttributes    `json:"attributes"`
+	Relationships InAppPurchaseOfferCodeCustomCodeCreateRelationships `json:"relationships"`
+}
+
+// InAppPurchaseOfferCodeCustomCodeCreateRequest is a request to create custom codes.
+type InAppPurchaseOfferCodeCustomCodeCreateRequest struct {
+	Data InAppPurchaseOfferCodeCustomCodeCreateData `json:"data"`
+}
+
 type InAppPurchaseOfferCodeOneTimeUseCodeAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
 	CreatedDate    string `json:"createdDate,omitempty"`
@@ -337,6 +361,29 @@ type (
 	InAppPurchaseOfferCodeOneTimeUseCodesResponse = Response[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]
 	InAppPurchaseOfferCodeOneTimeUseCodeResponse  = SingleResponse[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]
 )
+
+// InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes describes attributes for generating one-time use codes.
+type InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes struct {
+	NumberOfCodes  int    `json:"numberOfCodes"`
+	ExpirationDate string `json:"expirationDate"`
+}
+
+// InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships describes relationships for creating one-time use codes.
+type InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships struct {
+	OfferCode Relationship `json:"offerCode"`
+}
+
+// InAppPurchaseOfferCodeOneTimeUseCodeCreateData is the data portion of a create request.
+type InAppPurchaseOfferCodeOneTimeUseCodeCreateData struct {
+	Type          ResourceType                                            `json:"type"`
+	Attributes    InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes    `json:"attributes"`
+	Relationships InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
+}
+
+// InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest is a request to generate one-time use codes.
+type InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest struct {
+	Data InAppPurchaseOfferCodeOneTimeUseCodeCreateData `json:"data"`
+}
 
 // In-app purchase submissions.
 type InAppPurchaseSubmissionResponse = SingleResponse[InAppPurchaseSubmissionAttributes]
