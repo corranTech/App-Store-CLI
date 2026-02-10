@@ -459,6 +459,14 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/gamecenter` (`game-center challenges releases list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
 - [x] Commit Phase 54
 
+## Phase 55 - `--next` Parity for Game Center App Version and Enabled Version Lists
+
+- [x] `internal/cli/gamecenter` (`game-center app-versions list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/gamecenter` (`game-center app-versions compatibility list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center enabled-versions list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/gamecenter` (`game-center enabled-versions compatible-versions` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] Commit Phase 55
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
