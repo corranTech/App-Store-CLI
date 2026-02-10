@@ -27,12 +27,14 @@ func BundleIDsCapabilitiesCommand() *ffcli.Command {
 Examples:
   asc bundle-ids capabilities list --bundle "BUNDLE_ID"
   asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD
+  asc bundle-ids capabilities update --id "CAPABILITY_ID" --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_13","enabled":true}]}]'
   asc bundle-ids capabilities remove --id "CAPABILITY_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BundleIDsCapabilitiesListCommand(),
 			BundleIDsCapabilitiesAddCommand(),
+			BundleIDsCapabilitiesUpdateCommand(),
 			BundleIDsCapabilitiesRemoveCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -163,6 +165,70 @@ Examples:
 			resp, err := client.CreateBundleIDCapability(requestCtx, bundleValue, attrs)
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// BundleIDsCapabilitiesUpdateCommand returns the bundle IDs capabilities update subcommand.
+func BundleIDsCapabilitiesUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+
+	id := fs.String("id", "", "Capability ID")
+	capabilityType := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
+	settings := fs.String("settings", "", "Capability settings as JSON array")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "update",
+		ShortUsage: "asc bundle-ids capabilities update --id \"CAPABILITY_ID\" [flags]",
+		ShortHelp:  "Update a bundle ID capability.",
+		LongHelp: `Update a bundle ID capability.
+
+Examples:
+  asc bundle-ids capabilities update --id "CAPABILITY_ID" --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_13","enabled":true}]}]'
+  asc bundle-ids capabilities update --id "CAPABILITY_ID" --capability PUSH_NOTIFICATIONS
+  asc bundle-ids capabilities update --id "CAPABILITY_ID" --output table`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			capabilityValue := strings.ToUpper(strings.TrimSpace(*capabilityType))
+			settingsValue, err := parseCapabilitySettings(*settings)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				return flag.ErrHelp
+			}
+
+			// Treat empty settings arrays as no-op updates.
+			if capabilityValue == "" && len(settingsValue) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--capability or --settings)")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("bundle-ids capabilities update: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			attrs := asc.BundleIDCapabilityUpdateAttributes{
+				CapabilityType: capabilityValue,
+				Settings:       settingsValue,
+			}
+			resp, err := client.UpdateBundleIDCapability(requestCtx, idValue, attrs)
+			if err != nil {
+				return fmt.Errorf("bundle-ids capabilities update: failed to update: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output, *pretty)

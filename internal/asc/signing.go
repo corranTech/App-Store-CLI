@@ -87,6 +87,24 @@ type BundleIDCapabilityCreateRequest struct {
 	Data BundleIDCapabilityCreateData `json:"data"`
 }
 
+// BundleIDCapabilityUpdateAttributes describes attributes for updating a capability.
+type BundleIDCapabilityUpdateAttributes struct {
+	CapabilityType string              `json:"capabilityType,omitempty"`
+	Settings       []CapabilitySetting `json:"settings,omitempty"`
+}
+
+// BundleIDCapabilityUpdateData is the data portion of a capability update request.
+type BundleIDCapabilityUpdateData struct {
+	Type       ResourceType                        `json:"type"`
+	ID         string                              `json:"id"`
+	Attributes *BundleIDCapabilityUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BundleIDCapabilityUpdateRequest is a request to update a bundle ID capability.
+type BundleIDCapabilityUpdateRequest struct {
+	Data BundleIDCapabilityUpdateData `json:"data"`
+}
+
 // BundleIDsResponse is the response from bundle IDs list endpoint.
 type BundleIDsResponse = Response[BundleIDAttributes]
 

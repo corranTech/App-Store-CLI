@@ -187,6 +187,38 @@ func (c *Client) CreateBundleIDCapability(ctx context.Context, bundleID string, 
 	return &response, nil
 }
 
+// UpdateBundleIDCapability updates an existing bundle ID capability.
+func (c *Client) UpdateBundleIDCapability(ctx context.Context, capabilityID string, attrs BundleIDCapabilityUpdateAttributes) (*BundleIDCapabilityResponse, error) {
+	capabilityID = strings.TrimSpace(capabilityID)
+	if capabilityID == "" {
+		return nil, fmt.Errorf("capability ID is required")
+	}
+	request := BundleIDCapabilityUpdateRequest{
+		Data: BundleIDCapabilityUpdateData{
+			Type:       ResourceTypeBundleIdCapabilities,
+			ID:         capabilityID,
+			Attributes: &attrs,
+		},
+	}
+
+	body, err := BuildRequestBody(request)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BundleIDCapabilityResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // DeleteBundleIDCapability deletes a bundle ID capability by ID.
 func (c *Client) DeleteBundleIDCapability(ctx context.Context, capabilityID string) error {
 	capabilityID = strings.TrimSpace(capabilityID)
