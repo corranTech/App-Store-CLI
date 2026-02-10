@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -194,21 +195,34 @@ func captureCommandOutput(t *testing.T, fn func()) (string, string) {
 	os.Stdout = stdoutW
 	os.Stderr = stderrW
 
+	outC := make(chan string)
+	errC := make(chan string)
+
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, stdoutR)
+		_ = stdoutR.Close()
+		outC <- buf.String()
+	}()
+
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, stderrR)
+		_ = stderrR.Close()
+		errC <- buf.String()
+	}()
+
+	defer func() {
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+		_ = stdoutW.Close()
+		_ = stderrW.Close()
+	}()
+
 	fn()
 
 	_ = stdoutW.Close()
 	_ = stderrW.Close()
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
 
-	stdoutBytes, err := io.ReadAll(stdoutR)
-	if err != nil {
-		t.Fatalf("ReadAll(stdout) error: %v", err)
-	}
-	stderrBytes, err := io.ReadAll(stderrR)
-	if err != nil {
-		t.Fatalf("ReadAll(stderr) error: %v", err)
-	}
-
-	return string(stdoutBytes), string(stderrBytes)
+	return <-outC, <-errC
 }
