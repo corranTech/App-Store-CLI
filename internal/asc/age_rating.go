@@ -9,15 +9,15 @@ import (
 // AgeRatingDeclarationAttributes describes the age rating declaration attributes.
 type AgeRatingDeclarationAttributes struct {
 	// Boolean content descriptors
-	Advertising          *bool `json:"advertising,omitempty"`
-	Gambling             *bool `json:"gambling,omitempty"`
+	Advertising            *bool `json:"advertising,omitempty"`
+	Gambling               *bool `json:"gambling,omitempty"`
 	HealthOrWellnessTopics *bool `json:"healthOrWellnessTopics,omitempty"`
-	LootBox              *bool `json:"lootBox,omitempty"`
-	MessagingAndChat     *bool `json:"messagingAndChat,omitempty"`
-	ParentalControls     *bool `json:"parentalControls,omitempty"`
-	AgeAssurance         *bool `json:"ageAssurance,omitempty"`
-	UnrestrictedWebAccess *bool `json:"unrestrictedWebAccess,omitempty"`
-	UserGeneratedContent *bool `json:"userGeneratedContent,omitempty"`
+	LootBox                *bool `json:"lootBox,omitempty"`
+	MessagingAndChat       *bool `json:"messagingAndChat,omitempty"`
+	ParentalControls       *bool `json:"parentalControls,omitempty"`
+	AgeAssurance           *bool `json:"ageAssurance,omitempty"`
+	UnrestrictedWebAccess  *bool `json:"unrestrictedWebAccess,omitempty"`
+	UserGeneratedContent   *bool `json:"userGeneratedContent,omitempty"`
 
 	// Enum content descriptors (NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE)
 	AlcoholTobaccoOrDrugUseOrReferences         *string `json:"alcoholTobaccoOrDrugUseOrReferences,omitempty"`
@@ -35,9 +35,9 @@ type AgeRatingDeclarationAttributes struct {
 	ViolenceRealisticProlongedGraphicOrSadistic *string `json:"violenceRealisticProlongedGraphicOrSadistic,omitempty"`
 
 	// Age rating overrides and metadata
-	KidsAgeBand              *string `json:"kidsAgeBand,omitempty"`
-	AgeRatingOverride        *string `json:"ageRatingOverride,omitempty"`
-	KoreaAgeRatingOverride   *string `json:"koreaAgeRatingOverride,omitempty"`
+	KidsAgeBand            *string `json:"kidsAgeBand,omitempty"`
+	AgeRatingOverride      *string `json:"ageRatingOverride,omitempty"`
+	KoreaAgeRatingOverride *string `json:"koreaAgeRatingOverride,omitempty"`
 
 	// Deprecated fields (kept for backward compatibility with older API responses)
 	SeventeenPlus *bool `json:"seventeenPlus,omitempty"`
