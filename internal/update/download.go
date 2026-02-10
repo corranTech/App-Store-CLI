@@ -91,11 +91,13 @@ func downloadAndReplace(ctx context.Context, opts Options, execPath, version str
 	actual := fmt.Sprintf("%x", hash.Sum(nil))
 	expected, err := fetchChecksum(ctx, opts, checksumsURL, asset)
 	if err != nil {
-		fmt.Fprintf(opts.Output, "Warning: failed to verify checksum: %v\n", err)
-	} else if expected == "" {
-		fmt.Fprintln(opts.Output, "Warning: checksum not found; skipping verification.")
-	} else if !strings.EqualFold(actual, expected) {
-		return fmt.Errorf("checksum verification failed")
+		return fmt.Errorf("failed to fetch checksum for %q: %w", asset, err)
+	}
+	if expected == "" {
+		return fmt.Errorf("checksum for %q not found", asset)
+	}
+	if !strings.EqualFold(actual, expected) {
+		return fmt.Errorf("checksum verification failed for %q", asset)
 	}
 
 	if runtime.GOOS != "windows" {

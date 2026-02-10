@@ -172,3 +172,105 @@ func TestCheckAndUpdate_AutoUpdatesBinary(t *testing.T) {
 		t.Fatalf("expected binary to be updated, got %q", string(updated))
 	}
 }
+
+func TestCheckAndUpdate_AutoUpdateFailsWhenChecksumFetchFails(t *testing.T) {
+	asset := "asc_1.1.0_macOS_amd64"
+	checksumsFile := "asc_1.1.0_checksums.txt"
+	newBinary := []byte("new-binary")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/rudrankriyam/App-Store-Connect-CLI/releases/latest":
+			_, _ = io.WriteString(w, `{"tag_name":"1.1.0"}`)
+		case "/rudrankriyam/App-Store-Connect-CLI/releases/latest/download/" + asset:
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(newBinary)))
+			_, _ = w.Write(newBinary)
+		case "/rudrankriyam/App-Store-Connect-CLI/releases/latest/download/" + checksumsFile:
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	execDir := t.TempDir()
+	execPath := filepath.Join(execDir, "asc")
+	if err := os.WriteFile(execPath, []byte("old-binary"), 0o755); err != nil {
+		t.Fatalf("os.WriteFile error: %v", err)
+	}
+
+	_, err := CheckAndUpdate(context.Background(), Options{
+		CurrentVersion:  "1.0.0",
+		AutoUpdate:      true,
+		APIBaseURL:      server.URL,
+		DownloadBaseURL: server.URL,
+		Output:          io.Discard,
+		ShowProgress:    false,
+		ExecutablePath:  execPath,
+		EvalSymlinks: func(path string) (string, error) {
+			return path, nil
+		},
+		Client:    server.Client(),
+		OS:        "darwin",
+		Arch:      "amd64",
+		CachePath: filepath.Join(t.TempDir(), "update.json"),
+	})
+	if err == nil {
+		t.Fatal("expected checksum fetch failure to fail update")
+	}
+	if !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("expected checksum-related error, got %v", err)
+	}
+}
+
+func TestCheckAndUpdate_AutoUpdateFailsWhenChecksumMissing(t *testing.T) {
+	asset := "asc_1.1.0_macOS_amd64"
+	checksumsFile := "asc_1.1.0_checksums.txt"
+	newBinary := []byte("new-binary")
+	otherAssetHash := sha256.Sum256([]byte("other-binary"))
+	checksums := fmt.Sprintf("%x  %s\n", otherAssetHash, "asc_1.1.0_linux_amd64")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/rudrankriyam/App-Store-Connect-CLI/releases/latest":
+			_, _ = io.WriteString(w, `{"tag_name":"1.1.0"}`)
+		case "/rudrankriyam/App-Store-Connect-CLI/releases/latest/download/" + asset:
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(newBinary)))
+			_, _ = w.Write(newBinary)
+		case "/rudrankriyam/App-Store-Connect-CLI/releases/latest/download/" + checksumsFile:
+			_, _ = io.WriteString(w, checksums)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	execDir := t.TempDir()
+	execPath := filepath.Join(execDir, "asc")
+	if err := os.WriteFile(execPath, []byte("old-binary"), 0o755); err != nil {
+		t.Fatalf("os.WriteFile error: %v", err)
+	}
+
+	_, err := CheckAndUpdate(context.Background(), Options{
+		CurrentVersion:  "1.0.0",
+		AutoUpdate:      true,
+		APIBaseURL:      server.URL,
+		DownloadBaseURL: server.URL,
+		Output:          io.Discard,
+		ShowProgress:    false,
+		ExecutablePath:  execPath,
+		EvalSymlinks: func(path string) (string, error) {
+			return path, nil
+		},
+		Client:    server.Client(),
+		OS:        "darwin",
+		Arch:      "amd64",
+		CachePath: filepath.Join(t.TempDir(), "update.json"),
+	})
+	if err == nil {
+		t.Fatal("expected missing checksum to fail update")
+	}
+	if !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("expected checksum-related error, got %v", err)
+	}
+}

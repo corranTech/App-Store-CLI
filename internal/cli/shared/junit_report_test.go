@@ -1,9 +1,12 @@
 package shared
 
 import (
+	"bytes"
 	"encoding/xml"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -200,4 +203,115 @@ func TestValidateReportFlags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestJUnitReport_WriteCreatesRestrictedPermissions(t *testing.T) {
+	report := JUnitReport{
+		Tests: []JUnitTestCase{
+			{Name: "test", Classname: "suite", Time: time.Second},
+		},
+		Timestamp: time.Now(),
+	}
+
+	path := filepath.Join(t.TempDir(), "junit.xml")
+	if err := report.Write(path); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if got, want := info.Mode().Perm(), os.FileMode(0o600); got != want {
+		t.Fatalf("file mode = %o, want %o", got, want)
+	}
+}
+
+func TestJUnitReport_WriteRefusesOverwrite(t *testing.T) {
+	report := JUnitReport{
+		Tests: []JUnitTestCase{
+			{Name: "test", Classname: "suite", Time: time.Second},
+		},
+		Timestamp: time.Now(),
+	}
+
+	path := filepath.Join(t.TempDir(), "junit.xml")
+	if err := os.WriteFile(path, []byte("existing"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	err := report.Write(path)
+	if err == nil {
+		t.Fatal("expected error when writing to existing file, got nil")
+	}
+}
+
+func TestJUnitReport_WriteRefusesSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink behavior differs on windows")
+	}
+
+	report := JUnitReport{
+		Tests: []JUnitTestCase{
+			{Name: "test", Classname: "suite", Time: time.Second},
+		},
+		Timestamp: time.Now(),
+	}
+
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "target.xml")
+	if err := os.WriteFile(target, []byte("target"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	link := filepath.Join(tmpDir, "report.xml")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatalf("Symlink() error = %v", err)
+	}
+
+	err := report.Write(link)
+	if err == nil {
+		t.Fatal("expected error when writing to symlink path, got nil")
+	}
+}
+
+func TestJUnitReport_WriteTo(t *testing.T) {
+	report := JUnitReport{
+		Tests: []JUnitTestCase{
+			{Name: "test", Classname: "suite", Time: time.Second},
+		},
+		Timestamp: time.Now(),
+	}
+
+	var out bytes.Buffer
+	n, err := report.WriteTo(&out)
+	if err != nil {
+		t.Fatalf("WriteTo() error = %v", err)
+	}
+	if n <= 0 {
+		t.Fatalf("WriteTo() wrote %d bytes, want > 0", n)
+	}
+	if !strings.Contains(out.String(), "<testsuite") {
+		t.Fatalf("WriteTo() output missing testsuite: %q", out.String())
+	}
+}
+
+func TestJUnitReport_WriteTo_WriterError(t *testing.T) {
+	report := JUnitReport{
+		Tests: []JUnitTestCase{
+			{Name: "test", Classname: "suite", Time: time.Second},
+		},
+		Timestamp: time.Now(),
+	}
+
+	_, err := report.WriteTo(failingWriter{})
+	if err == nil {
+		t.Fatal("expected writer error, got nil")
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) {
+	return 0, fmt.Errorf("write failed")
 }

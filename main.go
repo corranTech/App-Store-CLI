@@ -13,7 +13,14 @@ var (
 	date    = "unknown"
 )
 
+func versionInfoString() string {
+	return fmt.Sprintf("%s (commit: %s, date: %s)", version, commit, date)
+}
+
+func run(args []string) int {
+	return cmd.Run(args, versionInfoString())
+}
+
 func main() {
-	versionInfo := fmt.Sprintf("%s (commit: %s, date: %s)", version, commit, date)
-	os.Exit(cmd.Run(os.Args[1:], versionInfo))
+	os.Exit(run(os.Args[1:]))
 }

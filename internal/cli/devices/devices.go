@@ -8,11 +8,22 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+)
+
+const defaultLocalUDIDCommandTimeout = 10 * time.Second
+
+var (
+	localUDIDGOOS           = runtime.GOOS
+	localUDIDCommandTimeout = defaultLocalUDIDCommandTimeout
+	runLocalUDIDCommand     = func(ctx context.Context) ([]byte, error) {
+		return exec.CommandContext(ctx, "ioreg", "-rd1", "-c", "IOPlatformExpertDevice").CombinedOutput()
+	}
 )
 
 // DevicesCommand returns the devices command with subcommands.
@@ -480,11 +491,14 @@ func deviceFieldsList() []string {
 }
 
 func localMacUDID() (string, error) {
-	if runtime.GOOS != "darwin" {
+	if localUDIDGOOS != "darwin" {
 		return "", fmt.Errorf("--udid-from-system is only supported on macOS")
 	}
 
-	output, err := exec.Command("ioreg", "-rd1", "-c", "IOPlatformExpertDevice").CombinedOutput()
+	ctx, cancel := context.WithTimeout(context.Background(), localUDIDCommandTimeout)
+	defer cancel()
+
+	output, err := runLocalUDIDCommand(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to read local hardware UUID: %w", err)
 	}
