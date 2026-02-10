@@ -134,7 +134,7 @@ update-openapi:
 .PHONY: update-wall-of-apps
 update-wall-of-apps:
 	@echo "$(BLUE)Updating Wall of Apps snippets...$(NC)"
-	python3 scripts/update-wall-of-apps.py
+	$(GO) run ./tools/update-wall-of-apps
 
 # Clean build artifacts
 .PHONY: clean

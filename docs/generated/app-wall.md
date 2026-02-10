@@ -1,4 +1,4 @@
-<!-- Generated from docs/wall-of-apps.json by scripts/update-wall-of-apps.py. -->
+<!-- Generated from docs/wall-of-apps.json by tools/update-wall-of-apps. -->
 
 ## Wall of Apps
 
