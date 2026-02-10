@@ -234,6 +234,21 @@ func TestExtractUserIDFromNextURL_Invalid(t *testing.T) {
 	}
 }
 
+func TestExtractUserIDFromNextURL_RejectsMalformedHost(t *testing.T) {
+	tests := []string{
+		"http://localhost:80:80/v1/users/user-123/visibleApps?cursor=abc",
+		"http://::1/v1/users/user-123/visibleApps?cursor=abc",
+	}
+
+	for _, next := range tests {
+		t.Run(next, func(t *testing.T) {
+			if _, err := extractUserIDFromNextURL(next); err == nil {
+				t.Fatalf("expected error for malformed URL %q", next)
+			}
+		})
+	}
+}
+
 func TestExtractUserInvitationIDFromNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/userInvitations/invite-123/visibleApps?cursor=abc"
 	got, err := extractUserInvitationIDFromNextURL(next)
@@ -260,6 +275,21 @@ func TestExtractUserInvitationIDFromNextURL_Invalid(t *testing.T) {
 	_, err := extractUserInvitationIDFromNextURL("https://api.appstoreconnect.apple.com/v1/userInvitations")
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestExtractUserInvitationIDFromNextURL_RejectsMalformedHost(t *testing.T) {
+	tests := []string{
+		"http://localhost:80:80/v1/userInvitations/invite-123/visibleApps?cursor=abc",
+		"http://::1/v1/userInvitations/invite-123/visibleApps?cursor=abc",
+	}
+
+	for _, next := range tests {
+		t.Run(next, func(t *testing.T) {
+			if _, err := extractUserInvitationIDFromNextURL(next); err == nil {
+				t.Fatalf("expected error for malformed URL %q", next)
+			}
+		})
 	}
 }
 

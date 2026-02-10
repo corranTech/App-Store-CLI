@@ -4507,8 +4507,7 @@ func TestAuthStatusValidateFailureReturnsReportedError(t *testing.T) {
 		if err := root.Run(context.Background()); err == nil {
 			t.Fatal("expected error, got nil")
 		} else {
-			var reported ReportedError
-			if !errors.As(err, &reported) {
+			if _, ok := errors.AsType[ReportedError](err); !ok {
 				t.Fatalf("expected reported error, got %v", err)
 			}
 		}

@@ -201,14 +201,13 @@ func (e *RetryableError) Unwrap() error {
 
 // IsRetryable checks if an error indicates the request can be retried.
 func IsRetryable(err error) bool {
-	var re *RetryableError
-	return errors.As(err, &re)
+	_, ok := errors.AsType[*RetryableError](err)
+	return ok
 }
 
 // GetRetryAfter extracts the retry-after duration from an error.
 func GetRetryAfter(err error) time.Duration {
-	var re *RetryableError
-	if errors.As(err, &re) {
+	if re, ok := errors.AsType[*RetryableError](err); ok {
 		return re.RetryAfter
 	}
 	return 0

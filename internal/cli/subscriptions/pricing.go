@@ -186,13 +186,7 @@ func resolveSubscriptionPriceSummaries(
 		return []subscriptionPriceSummary{}, nil
 	}
 
-	workers := defaultSubscriptionPricingWorkers
-	if len(subs) < workers {
-		workers = len(subs)
-	}
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(subs), defaultSubscriptionPricingWorkers), 1)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -204,10 +198,7 @@ func resolveSubscriptionPriceSummaries(
 	var wg sync.WaitGroup
 
 	for idx := range subs {
-		idx := idx
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
@@ -222,7 +213,7 @@ func resolveSubscriptionPriceSummaries(
 				return
 			}
 			results[idx] = summary
-		}()
+		})
 	}
 
 	wg.Wait()

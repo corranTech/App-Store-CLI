@@ -70,7 +70,7 @@ func TestNotifySlackValidationErrors(t *testing.T) {
 }
 
 func TestNotifySlackSuccess(t *testing.T) {
-	var receivedPayload map[string]interface{}
+	var receivedPayload map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
@@ -111,7 +111,7 @@ func TestNotifySlackSuccess(t *testing.T) {
 }
 
 func TestNotifySlackWithChannel(t *testing.T) {
-	var receivedPayload map[string]interface{}
+	var receivedPayload map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		if err := json.Unmarshal(body, &receivedPayload); err != nil {
@@ -146,7 +146,7 @@ func TestNotifySlackWithChannel(t *testing.T) {
 }
 
 func TestNotifySlackWithBlocksJSON(t *testing.T) {
-	var receivedPayload map[string]interface{}
+	var receivedPayload map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		if err := json.Unmarshal(body, &receivedPayload); err != nil {
@@ -173,7 +173,7 @@ func TestNotifySlackWithBlocksJSON(t *testing.T) {
 		t.Fatalf("unexpected error: %v", runErr)
 	}
 
-	blocksValue, ok := receivedPayload["blocks"].([]interface{})
+	blocksValue, ok := receivedPayload["blocks"].([]any)
 	if !ok {
 		t.Fatalf("expected blocks array, got %T", receivedPayload["blocks"])
 	}
@@ -186,7 +186,7 @@ func TestNotifySlackWithBlocksJSON(t *testing.T) {
 }
 
 func TestNotifySlackWithBlocksFile(t *testing.T) {
-	var receivedPayload map[string]interface{}
+	var receivedPayload map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		if err := json.Unmarshal(body, &receivedPayload); err != nil {
@@ -217,7 +217,7 @@ func TestNotifySlackWithBlocksFile(t *testing.T) {
 		t.Fatalf("unexpected error: %v", runErr)
 	}
 
-	blocksValue, ok := receivedPayload["blocks"].([]interface{})
+	blocksValue, ok := receivedPayload["blocks"].([]any)
 	if !ok {
 		t.Fatalf("expected blocks array, got %T", receivedPayload["blocks"])
 	}
@@ -357,6 +357,28 @@ func TestNotifySlackRejectsInsecureScheme(t *testing.T) {
 
 	if !strings.Contains(stderr, "https") {
 		t.Fatalf("expected https validation error, got %q", stderr)
+	}
+}
+
+func TestNotifySlackRejectsMalformedWebhookURL(t *testing.T) {
+	t.Setenv(slackWebhookEnvVar, "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	cmd := SlackCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := cmd.Parse([]string{"--webhook", "http://localhost:80:80/services/test", "--message", "hi"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr := cmd.Run(context.Background())
+		if !errors.Is(runErr, flag.ErrHelp) {
+			t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+		}
+	})
+
+	if !strings.Contains(stderr, "valid Slack webhook URL") {
+		t.Fatalf("expected malformed URL validation error, got %q", stderr)
 	}
 }
 

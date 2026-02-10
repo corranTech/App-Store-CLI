@@ -52,14 +52,21 @@ Follow idiomatic Go so the code is predictable to anyone who reads Go.
 
 ### Error Checking
 
-- **Do**: Use `errors.Is()` or `errors.As()` for typed errors
+- **Do**: Use `errors.Is()` or typed extraction via `errors.AsType()` (Go 1.26+)
+- **Do**: Use `errors.As()` when you need compatibility with older Go versions
 - **Do**: Simply check `err != nil` when only verifying an error occurred
 - **Don't**: Match error strings with `strings.Contains(err.Error(), "...")` - this is fragile
 
 ```go
-// Good: Check for specific error type
-var notFoundErr *NotFoundError
-if errors.As(err, &notFoundErr) {
+// Good: Check for specific error type (Go 1.26+)
+if notFoundErr, ok := errors.AsType[*NotFoundError](err); ok {
+    // handle not found
+    _ = notFoundErr
+}
+
+// Also valid: classic errors.As pattern
+var legacyErr *NotFoundError
+if errors.As(err, &legacyErr) {
     // handle not found
 }
 
@@ -84,5 +91,6 @@ if !strings.Contains(err.Error(), "not found") {  // DON'T DO THIS
 ### Test Isolation
 
 - Use `t.TempDir()` for temporary files
+- Use `t.ArtifactDir()` for test artifacts you want to inspect with `go test -artifacts`
 - Use `t.Setenv()` to set environment variables (auto-cleaned up)
 - Isolate from user config by setting `ASC_CONFIG_PATH` to a temp path

@@ -24,7 +24,7 @@ func TestJUnitReport_Write(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	tmpDir := t.TempDir()
+	tmpDir := t.ArtifactDir()
 	path := filepath.Join(tmpDir, "junit.xml")
 
 	err := report.Write(path)
@@ -79,7 +79,7 @@ func TestJUnitReport_WriteWithFailure(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	tmpDir := t.TempDir()
+	tmpDir := t.ArtifactDir()
 	path := filepath.Join(tmpDir, "junit.xml")
 
 	err := report.Write(path)
@@ -124,7 +124,7 @@ func TestJUnitReport_EscapeSpecialChars(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	tmpDir := t.TempDir()
+	tmpDir := t.ArtifactDir()
 	path := filepath.Join(tmpDir, "junit.xml")
 
 	err := report.Write(path)
@@ -213,7 +213,7 @@ func TestJUnitReport_WriteCreatesRestrictedPermissions(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	path := filepath.Join(t.TempDir(), "junit.xml")
+	path := filepath.Join(t.ArtifactDir(), "junit.xml")
 	if err := report.Write(path); err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
@@ -235,7 +235,7 @@ func TestJUnitReport_WriteRefusesOverwrite(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	path := filepath.Join(t.TempDir(), "junit.xml")
+	path := filepath.Join(t.ArtifactDir(), "junit.xml")
 	if err := os.WriteFile(path, []byte("existing"), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
@@ -258,7 +258,7 @@ func TestJUnitReport_WriteRefusesSymlink(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	tmpDir := t.TempDir()
+	tmpDir := t.ArtifactDir()
 	target := filepath.Join(tmpDir, "target.xml")
 	if err := os.WriteFile(target, []byte("target"), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)

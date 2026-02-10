@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -167,13 +168,7 @@ func resolveIAPPriceSummaries(
 		return []iapPriceSummary{}, nil
 	}
 
-	workers := defaultIAPPricesWorkers
-	if len(iaps) < workers {
-		workers = len(iaps)
-	}
-	if workers < 1 {
-		workers = 1
-	}
+	workers := max(min(len(iaps), defaultIAPPricesWorkers), 1)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -185,10 +180,7 @@ func resolveIAPPriceSummaries(
 	var wg sync.WaitGroup
 
 	for idx := range iaps {
-		idx := idx
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
@@ -203,7 +195,7 @@ func resolveIAPPriceSummaries(
 				return
 			}
 			results[idx] = summary
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -284,9 +276,7 @@ func resolveIAPPriceSummary(
 		if _, ok := pointValues[currentEntry.PricePointID]; !ok {
 			fallbackValues, fallbackCurrency, fallbackErr := fetchManualSchedulePricePointValues(ctx, client, scheduleResp.Data.ID, targetTerritory)
 			if fallbackErr == nil {
-				for key, value := range fallbackValues {
-					pointValues[key] = value
-				}
+				maps.Copy(pointValues, fallbackValues)
 				if currency == "" {
 					currency = fallbackCurrency
 				}
@@ -476,9 +466,7 @@ func fetchManualSchedulePricePointValues(
 		if err != nil {
 			return nil, "", err
 		}
-		for key, value := range pageValues {
-			values[key] = value
-		}
+		maps.Copy(values, pageValues)
 		if currency == "" && pageCurrency != "" {
 			currency = pageCurrency
 		}
