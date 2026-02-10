@@ -298,8 +298,8 @@ func TestCreateGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *tes
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusForbidden {
@@ -352,8 +352,8 @@ func TestUpdateGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *tes
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusForbidden {
@@ -378,8 +378,8 @@ func TestDeleteGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *tes
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusForbidden {

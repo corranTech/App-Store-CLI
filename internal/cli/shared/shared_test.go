@@ -169,6 +169,32 @@ func TestDefaultOutputFormat_InvalidFallsBackToJSON(t *testing.T) {
 	}
 }
 
+func TestValidateNextURL_ValidAppStoreConnectURL(t *testing.T) {
+	err := validateNextURL("https://api.appstoreconnect.apple.com/v1/apps?cursor=abc")
+	if err != nil {
+		t.Fatalf("validateNextURL() error = %v", err)
+	}
+}
+
+func TestValidateNextURL_RejectsMalformedHost(t *testing.T) {
+	tests := []string{
+		"http://localhost:80:80/v1/apps?cursor=abc",
+		"http://::1/v1/apps?cursor=abc",
+	}
+
+	for _, next := range tests {
+		t.Run(next, func(t *testing.T) {
+			err := validateNextURL(next)
+			if err == nil {
+				t.Fatalf("expected error for malformed URL %q", next)
+			}
+			if !strings.Contains(err.Error(), "--next must be a valid URL") {
+				t.Fatalf("expected parse validation error, got %v", err)
+			}
+		})
+	}
+}
+
 func TestProgressEnabled_RespectsNoProgressFlag(t *testing.T) {
 	prevNoProgress := noProgress
 	prevIsTerminal := isTerminal

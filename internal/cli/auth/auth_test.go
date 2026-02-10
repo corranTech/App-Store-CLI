@@ -148,8 +148,7 @@ func TestDoctorHelpers(t *testing.T) {
 func TestPermissionWarningAndHooks(t *testing.T) {
 	baseErr := errors.New("permission")
 	pw := NewPermissionWarning(baseErr)
-	var target *permissionWarning
-	if !errors.As(pw, &target) {
+	if _, ok := errors.AsType[*permissionWarning](pw); !ok {
 		t.Fatal("expected NewPermissionWarning() to return permissionWarning")
 	}
 	if got := pw.Error(); !strings.Contains(got, "permission") {

@@ -32,3 +32,18 @@ func TestExtractWebhookIDFromNextURL_Invalid(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func TestExtractWebhookIDFromNextURL_RejectsMalformedHost(t *testing.T) {
+	tests := []string{
+		"http://localhost:80:80/v1/webhooks/wh-123/relationships/deliveries?cursor=abc",
+		"http://::1/v1/webhooks/wh-123/relationships/deliveries?cursor=abc",
+	}
+
+	for _, next := range tests {
+		t.Run(next, func(t *testing.T) {
+			if _, err := extractWebhookIDFromNextURL(next); err == nil {
+				t.Fatalf("expected error for malformed URL %q", next)
+			}
+		})
+	}
+}

@@ -3106,8 +3106,7 @@ func TestGetEndpoints_ReturnsParseError(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error")
 			}
-			var syntaxErr *json.SyntaxError
-			if !errors.As(err, &syntaxErr) {
+			if _, ok := errors.AsType[*json.SyntaxError](err); !ok {
 				t.Fatalf("expected JSON parse error, got %v", err)
 			}
 		})

@@ -1094,8 +1094,8 @@ func TestParseError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if !errors.Is(apiErr, ErrForbidden) {
@@ -1110,8 +1110,8 @@ func TestParseErrorWithStatus_NonJSON(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if apiErr.StatusCode != 502 {
@@ -1128,8 +1128,8 @@ func TestParseErrorWithStatus_NonJSONNotFoundMapsCode(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if apiErr.Code != "NOT_FOUND" {

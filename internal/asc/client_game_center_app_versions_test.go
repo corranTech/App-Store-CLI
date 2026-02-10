@@ -282,8 +282,8 @@ func TestCreateGameCenterAppVersion_ReturnsAPIError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusForbidden {
@@ -331,8 +331,8 @@ func TestUpdateGameCenterAppVersion_ReturnsAPIError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok {
 		t.Fatalf("expected APIError, got %T", err)
 	}
 	if apiErr.StatusCode != http.StatusForbidden {
