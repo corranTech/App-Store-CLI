@@ -489,6 +489,16 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/gamecenter` (`game-center groups details list` invalid/malformed `--next` validation + `--paginate --next` without `--group-id`)
 - [x] Commit Phase 57
 
+## Phase 58 - `--next` Parity for Game Center Leaderboard List Surfaces
+
+- [x] `internal/cli/gamecenter` (`game-center leaderboards list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboards localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--leaderboard-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboards releases list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboards v2 list` invalid/malformed `--next` validation + `--paginate --next` without `--app`/`--group-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboards v2 versions list` invalid/malformed `--next` validation + `--paginate --next` without `--leaderboard-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboards v2 localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
+- [x] Commit Phase 58
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
