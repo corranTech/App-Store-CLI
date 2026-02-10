@@ -448,8 +448,7 @@ Examples:
 
 			credentials, err := authsvc.ListCredentials()
 			if err != nil {
-				var warning *authsvc.CredentialsWarning
-				if errors.As(err, &warning) {
+				if warning, ok := errors.AsType[*authsvc.CredentialsWarning](err); ok {
 					fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
 				} else {
 					return fmt.Errorf("auth switch: failed to list credentials: %w", err)
@@ -550,9 +549,11 @@ Examples:
 			credentials, err := authsvc.ListCredentials()
 			var listWarning *authsvc.CredentialsWarning
 			if err != nil {
-				if !errors.As(err, &listWarning) {
+				warning, ok := errors.AsType[*authsvc.CredentialsWarning](err)
+				if !ok {
 					return fmt.Errorf("auth status: failed to list credentials: %w", err)
 				}
+				listWarning = warning
 			}
 
 			bypassKeychain := authsvc.ShouldBypassKeychain()
@@ -625,8 +626,7 @@ Examples:
 					fmt.Printf("  - %s (Key ID: %s)%s (stored in %s)\n", cred.Name, cred.KeyID, active, credentialStorageLabel(cred))
 					if *validate {
 						if err := statusValidateCredential(ctx, cred); err != nil {
-							var permErr *permissionWarning
-							if errors.As(err, &permErr) {
+							if _, ok := errors.AsType[*permissionWarning](err); ok {
 								fmt.Printf("    %s (Key ID: %s): works (insufficient permissions for apps list)\n", cred.Name, cred.KeyID)
 							} else {
 								validationFailures++

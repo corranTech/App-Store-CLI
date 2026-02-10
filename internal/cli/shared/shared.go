@@ -564,8 +564,7 @@ func isAppAvailabilityMissing(err error) bool {
 	if errors.Is(err, asc.ErrNotFound) {
 		return true
 	}
-	var apiErr *asc.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*asc.APIError](err); ok {
 		title := strings.ToLower(strings.TrimSpace(apiErr.Title))
 		detail := strings.ToLower(strings.TrimSpace(apiErr.Detail))
 		if strings.Contains(title, "resource does not exist") && strings.Contains(detail, "appavailabilities") {

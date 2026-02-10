@@ -156,8 +156,7 @@ func inspectProfiles() DoctorSection {
 
 	credentials, err := ListCredentials()
 	if err != nil {
-		var warning *CredentialsWarning
-		if errors.As(err, &warning) {
+		if warning, ok := errors.AsType[*CredentialsWarning](err); ok {
 			checks = append(checks, DoctorCheck{
 				Status:  DoctorWarn,
 				Message: warning.Error(),
@@ -239,8 +238,7 @@ func inspectPrivateKeys(options DoctorOptions) DoctorSection {
 	checks := []DoctorCheck{}
 	credentials, err := ListCredentials()
 	if err != nil {
-		var warning *CredentialsWarning
-		if errors.As(err, &warning) {
+		if warning, ok := errors.AsType[*CredentialsWarning](err); ok {
 			checks = append(checks, DoctorCheck{
 				Status:  DoctorWarn,
 				Message: warning.Error(),

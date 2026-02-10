@@ -358,8 +358,7 @@ func isWhatsNewUnsupportedError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var apiErr *asc.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*asc.APIError](err); ok {
 		if containsWhatsNewToken(apiErr.Code) || containsWhatsNewToken(apiErr.Title) || containsWhatsNewToken(apiErr.Detail) {
 			return true
 		}

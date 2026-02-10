@@ -87,8 +87,7 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	if runErr != nil {
-		var reported ReportedError
-		if errors.As(runErr, &reported) {
+		if _, ok := errors.AsType[ReportedError](runErr); ok {
 			return ExitCodeFromError(runErr)
 		}
 		if errors.Is(runErr, flag.ErrHelp) {

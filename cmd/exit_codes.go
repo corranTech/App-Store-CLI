@@ -57,8 +57,7 @@ func ExitCodeFromError(err error) int {
 	}
 
 	// Check for APIError with status code or known code
-	var apiErr *asc.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*asc.APIError](err); ok {
 		// Prefer HTTP status code if available
 		if apiErr.StatusCode > 0 {
 			return HTTPStatusToExitCode(apiErr.StatusCode)
