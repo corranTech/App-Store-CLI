@@ -140,6 +140,82 @@ func (c *Client) GetGameCenterAppVersionCompatibilityVersions(ctx context.Contex
 	return &response, nil
 }
 
+// CreateGameCenterAppVersion creates a new Game Center app version.
+func (c *Client) CreateGameCenterAppVersion(ctx context.Context, appStoreVersionID string) (*GameCenterAppVersionResponse, error) {
+	appStoreVersionID = strings.TrimSpace(appStoreVersionID)
+	if appStoreVersionID == "" {
+		return nil, fmt.Errorf("appStoreVersionID is required")
+	}
+
+	payload := GameCenterAppVersionCreateRequest{
+		Data: GameCenterAppVersionCreateData{
+			Type: ResourceTypeGameCenterAppVersions,
+			Relationships: &GameCenterAppVersionRelationships{
+				AppStoreVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   appStoreVersionID,
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterAppVersions", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterAppVersionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateGameCenterAppVersion updates an existing Game Center app version.
+func (c *Client) UpdateGameCenterAppVersion(ctx context.Context, appVersionID string, attrs GameCenterAppVersionUpdateAttributes) (*GameCenterAppVersionResponse, error) {
+	appVersionID = strings.TrimSpace(appVersionID)
+	if appVersionID == "" {
+		return nil, fmt.Errorf("appVersionID is required")
+	}
+	if attrs.Enabled == nil {
+		return nil, fmt.Errorf("at least one attribute is required")
+	}
+
+	payload := GameCenterAppVersionUpdateRequest{
+		Data: GameCenterAppVersionUpdateData{
+			Type:       ResourceTypeGameCenterAppVersions,
+			ID:         appVersionID,
+			Attributes: &attrs,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/gameCenterAppVersions/%s", appVersionID)
+	data, err := c.do(ctx, http.MethodPatch, path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterAppVersionResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetAppStoreVersionGameCenterAppVersion retrieves the related Game Center app version.
 func (c *Client) GetAppStoreVersionGameCenterAppVersion(ctx context.Context, versionID string) (*GameCenterAppVersionResponse, error) {
 	path := fmt.Sprintf("/v1/appStoreVersions/%s/gameCenterAppVersion", strings.TrimSpace(versionID))

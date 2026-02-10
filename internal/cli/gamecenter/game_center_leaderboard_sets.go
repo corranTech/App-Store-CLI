@@ -1060,6 +1060,9 @@ func GameCenterLeaderboardSetMemberLocalizationsCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets member-localizations list --set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID"
   asc game-center leaderboard-sets member-localizations get --id "LOCALIZATION_ID"
+  asc game-center leaderboard-sets member-localizations create --leaderboard-set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID" --locale "en-US" --name "Top Score"
+  asc game-center leaderboard-sets member-localizations update --id "LOCALIZATION_ID" --name "New Name"
+  asc game-center leaderboard-sets member-localizations delete --id "LOCALIZATION_ID" --confirm
   asc game-center leaderboard-sets member-localizations leaderboard get --id "LOCALIZATION_ID"
   asc game-center leaderboard-sets member-localizations leaderboard-set get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
@@ -1067,6 +1070,9 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			GameCenterLeaderboardSetMemberLocalizationsListCommand(),
 			GameCenterLeaderboardSetMemberLocalizationsGetCommand(),
+			GameCenterLeaderboardSetMemberLocalizationsCreateCommand(),
+			GameCenterLeaderboardSetMemberLocalizationsUpdateCommand(),
+			GameCenterLeaderboardSetMemberLocalizationsDeleteCommand(),
 			GameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand(),
 			GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand(),
 		},
@@ -1206,6 +1212,186 @@ Examples:
 			}
 
 			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterLeaderboardSetMemberLocalizationsCreateCommand returns the member localizations create subcommand.
+func GameCenterLeaderboardSetMemberLocalizationsCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("create", flag.ExitOnError)
+
+	leaderboardSetID := fs.String("leaderboard-set-id", "", "Game Center leaderboard set ID")
+	leaderboardID := fs.String("leaderboard-id", "", "Game Center leaderboard ID")
+	locale := fs.String("locale", "", "Locale code (e.g., en-US, de-DE)")
+	name := fs.String("name", "", "Display name for the member localization")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations create --leaderboard-set-id \"SET_ID\" --leaderboard-id \"LEADERBOARD_ID\" --locale \"LOCALE\" --name \"NAME\"",
+		ShortHelp:  "Create a leaderboard set member localization.",
+		LongHelp: `Create a leaderboard set member localization.
+
+Examples:
+  asc game-center leaderboard-sets member-localizations create --leaderboard-set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID" --locale en-US --name "Top Score"
+  asc game-center leaderboard-sets member-localizations create --leaderboard-set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID" --locale de-DE --name "Beste Punktzahl"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			setID := strings.TrimSpace(*leaderboardSetID)
+			if setID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --leaderboard-set-id is required")
+				return flag.ErrHelp
+			}
+
+			lbID := strings.TrimSpace(*leaderboardID)
+			if lbID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --leaderboard-id is required")
+				return flag.ErrHelp
+			}
+
+			localeVal := strings.TrimSpace(*locale)
+			if localeVal == "" {
+				fmt.Fprintln(os.Stderr, "Error: --locale is required")
+				return flag.ErrHelp
+			}
+
+			nameVal := strings.TrimSpace(*name)
+			if nameVal == "" {
+				fmt.Fprintln(os.Stderr, "Error: --name is required")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center leaderboard-sets member-localizations create: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			attrs := asc.GameCenterLeaderboardSetMemberLocalizationCreateAttributes{
+				Name:   nameVal,
+				Locale: localeVal,
+			}
+
+			resp, err := client.CreateGameCenterLeaderboardSetMemberLocalization(requestCtx, setID, lbID, attrs)
+			if err != nil {
+				return fmt.Errorf("game-center leaderboard-sets member-localizations create: failed to create: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterLeaderboardSetMemberLocalizationsUpdateCommand returns the member localizations update subcommand.
+func GameCenterLeaderboardSetMemberLocalizationsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+
+	localizationID := fs.String("id", "", "Leaderboard set member localization ID")
+	name := fs.String("name", "", "Display name for the member localization")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "update",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations update --id \"LOCALIZATION_ID\" --name \"NAME\"",
+		ShortHelp:  "Update a leaderboard set member localization.",
+		LongHelp: `Update a leaderboard set member localization.
+
+Examples:
+  asc game-center leaderboard-sets member-localizations update --id "LOCALIZATION_ID" --name "New Name"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*localizationID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			attrs := asc.GameCenterLeaderboardSetMemberLocalizationUpdateAttributes{}
+			hasUpdate := false
+
+			if strings.TrimSpace(*name) != "" {
+				nameVal := strings.TrimSpace(*name)
+				attrs.Name = &nameVal
+				hasUpdate = true
+			}
+
+			if !hasUpdate {
+				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--name)")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center leaderboard-sets member-localizations update: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.UpdateGameCenterLeaderboardSetMemberLocalization(requestCtx, id, attrs)
+			if err != nil {
+				return fmt.Errorf("game-center leaderboard-sets member-localizations update: failed to update: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterLeaderboardSetMemberLocalizationsDeleteCommand returns the member localizations delete subcommand.
+func GameCenterLeaderboardSetMemberLocalizationsDeleteCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+
+	localizationID := fs.String("id", "", "Leaderboard set member localization ID")
+	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:  "Delete a leaderboard set member localization.",
+		LongHelp: `Delete a leaderboard set member localization.
+
+Examples:
+  asc game-center leaderboard-sets member-localizations delete --id "LOCALIZATION_ID" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*localizationID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center leaderboard-sets member-localizations delete: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			if err := client.DeleteGameCenterLeaderboardSetMemberLocalization(requestCtx, id); err != nil {
+				return fmt.Errorf("game-center leaderboard-sets member-localizations delete: failed to delete: %w", err)
+			}
+
+			result := &asc.GameCenterLeaderboardSetMemberLocalizationDeleteResult{
+				ID:      id,
+				Deleted: true,
+			}
+
+			return shared.PrintOutput(result, *output, *pretty)
 		},
 	}
 }

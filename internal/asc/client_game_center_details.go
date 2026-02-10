@@ -105,6 +105,111 @@ func (c *Client) GetGameCenterGroupGameCenterDetails(ctx context.Context, groupI
 	return &response, nil
 }
 
+// CreateGameCenterDetail creates a new Game Center detail.
+func (c *Client) CreateGameCenterDetail(ctx context.Context, appID string, attrs *GameCenterDetailCreateAttributes) (*GameCenterDetailResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+	if attrs != nil && attrs.ChallengeEnabled != nil {
+		return nil, fmt.Errorf("challengeEnabled is no longer supported by App Store Connect")
+	}
+
+	payload := GameCenterDetailCreateRequest{
+		Data: GameCenterDetailCreateData{
+			Type:       ResourceTypeGameCenterDetails,
+			Attributes: attrs,
+			Relationships: &GameCenterDetailCreateRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterDetails", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterDetailResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateGameCenterDetail updates an existing Game Center detail.
+func (c *Client) UpdateGameCenterDetail(ctx context.Context, detailID string, attrs *GameCenterDetailUpdateAttributes, rels *GameCenterDetailUpdateRelationships) (*GameCenterDetailResponse, error) {
+	detailID = strings.TrimSpace(detailID)
+	if detailID == "" {
+		return nil, fmt.Errorf("detailID is required")
+	}
+	if attrs != nil && attrs.ChallengeEnabled != nil {
+		return nil, fmt.Errorf("challengeEnabled is no longer supported by App Store Connect")
+	}
+
+	hasAttributeUpdate := false
+	hasRelationshipUpdate := false
+	if rels != nil {
+		if rels.GameCenterGroup != nil {
+			groupID := strings.TrimSpace(rels.GameCenterGroup.Data.ID)
+			if groupID == "" {
+				return nil, fmt.Errorf("gameCenterGroup relationship ID is required")
+			}
+			rels.GameCenterGroup.Data.ID = groupID
+			hasRelationshipUpdate = true
+		}
+		if rels.DefaultLeaderboard != nil {
+			leaderboardID := strings.TrimSpace(rels.DefaultLeaderboard.Data.ID)
+			if leaderboardID == "" {
+				return nil, fmt.Errorf("defaultLeaderboard relationship ID is required")
+			}
+			rels.DefaultLeaderboard.Data.ID = leaderboardID
+			hasRelationshipUpdate = true
+		}
+	}
+	if !hasAttributeUpdate && !hasRelationshipUpdate {
+		return nil, fmt.Errorf("at least one update field is required")
+	}
+
+	payload := GameCenterDetailUpdateRequest{
+		Data: GameCenterDetailUpdateData{
+			Type:          ResourceTypeGameCenterDetails,
+			ID:            detailID,
+			Attributes:    attrs,
+			Relationships: rels,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/gameCenterDetails/%s", detailID)
+	data, err := c.do(ctx, http.MethodPatch, path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterDetailResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetGameCenterDetailsAchievementReleases retrieves achievement releases for a Game Center detail.
 func (c *Client) GetGameCenterDetailsAchievementReleases(ctx context.Context, gcDetailID string, opts ...GCAchievementReleasesOption) (*GameCenterAchievementReleasesResponse, error) {
 	query := &gcAchievementReleasesQuery{}

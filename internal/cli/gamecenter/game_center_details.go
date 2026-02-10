@@ -26,6 +26,8 @@ func GameCenterDetailsCommand() *ffcli.Command {
 Examples:
   asc game-center details list --app "APP_ID"
   asc game-center details get --id "DETAIL_ID"
+  asc game-center details create --app "APP_ID"
+  asc game-center details update --id "DETAIL_ID" --game-center-group-id "GROUP_ID"
   asc game-center details app-versions list --id "DETAIL_ID"
   asc game-center details group get --id "DETAIL_ID"
   asc game-center details achievements-v2 list --id "DETAIL_ID"
@@ -36,6 +38,8 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			GameCenterDetailsListCommand(),
 			GameCenterDetailsGetCommand(),
+			GameCenterDetailsCreateCommand(),
+			GameCenterDetailsUpdateCommand(),
 			GameCenterDetailsAppVersionsCommand(),
 			GameCenterDetailsGroupCommand(),
 			GameCenterDetailsAchievementsV2Command(),
@@ -158,6 +162,145 @@ Examples:
 			resp, err := client.GetGameCenterDetail(requestCtx, id)
 			if err != nil {
 				return fmt.Errorf("game-center details get: failed to fetch: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsCreateCommand returns the details create subcommand.
+func GameCenterDetailsCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("create", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	challengeEnabled := fs.String("challenge-enabled", "", "Deprecated: no longer supported by App Store Connect")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc game-center details create --app \"APP_ID\"",
+		ShortHelp:  "Create a Game Center detail for an app.",
+		LongHelp: `Create a Game Center detail for an app.
+
+Examples:
+  asc game-center details create --app "APP_ID"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return flag.ErrHelp
+			}
+
+			ceVal := strings.TrimSpace(*challengeEnabled)
+			if ceVal != "" {
+				fmt.Fprintln(os.Stderr, "Error: --challenge-enabled is deprecated and no longer supported by App Store Connect")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details create: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.CreateGameCenterDetail(requestCtx, resolvedAppID, nil)
+			if err != nil {
+				return fmt.Errorf("game-center details create: failed to create: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterDetailsUpdateCommand returns the details update subcommand.
+func GameCenterDetailsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+
+	detailID := fs.String("id", "", "Game Center detail ID")
+	challengeEnabled := fs.String("challenge-enabled", "", "Deprecated: no longer supported by App Store Connect")
+	gameCenterGroupID := fs.String("game-center-group-id", "", "Game Center group ID to associate")
+	defaultLeaderboardID := fs.String("default-leaderboard-id", "", "Default leaderboard ID")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "update",
+		ShortUsage: "asc game-center details update --id \"DETAIL_ID\" [flags]",
+		ShortHelp:  "Update a Game Center detail.",
+		LongHelp: `Update a Game Center detail.
+
+Examples:
+  asc game-center details update --id "DETAIL_ID" --game-center-group-id "GROUP_ID"
+  asc game-center details update --id "DETAIL_ID" --default-leaderboard-id "LEADERBOARD_ID"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*detailID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			var rels *asc.GameCenterDetailUpdateRelationships
+			hasUpdate := false
+
+			ceVal := strings.TrimSpace(*challengeEnabled)
+			if ceVal != "" {
+				fmt.Fprintln(os.Stderr, "Error: --challenge-enabled is deprecated and no longer supported by App Store Connect")
+				return flag.ErrHelp
+			}
+
+			gcGroupID := strings.TrimSpace(*gameCenterGroupID)
+			if gcGroupID != "" {
+				if rels == nil {
+					rels = &asc.GameCenterDetailUpdateRelationships{}
+				}
+				rels.GameCenterGroup = &asc.Relationship{
+					Data: asc.ResourceData{
+						Type: asc.ResourceTypeGameCenterGroups,
+						ID:   gcGroupID,
+					},
+				}
+				hasUpdate = true
+			}
+
+			defaultLBID := strings.TrimSpace(*defaultLeaderboardID)
+			if defaultLBID != "" {
+				if rels == nil {
+					rels = &asc.GameCenterDetailUpdateRelationships{}
+				}
+				rels.DefaultLeaderboard = &asc.Relationship{
+					Data: asc.ResourceData{
+						Type: asc.ResourceTypeGameCenterLeaderboards,
+						ID:   defaultLBID,
+					},
+				}
+				hasUpdate = true
+			}
+
+			if !hasUpdate {
+				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--game-center-group-id, --default-leaderboard-id)")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center details update: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.UpdateGameCenterDetail(requestCtx, id, nil, rels)
+			if err != nil {
+				return fmt.Errorf("game-center details update: failed to update: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output, *pretty)
