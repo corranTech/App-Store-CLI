@@ -866,3 +866,119 @@ func TestGetInAppPurchasePromotedPurchase(t *testing.T) {
 		t.Fatalf("GetInAppPurchasePromotedPurchase() error: %v", err)
 	}
 }
+
+func TestCreateInAppPurchaseOfferCodeCustomCode_UsesPostPath(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchaseOfferCodeCustomCodes","id":"cc-1","attributes":{"customCode":"SUMMER26","numberOfCodes":100}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchaseOfferCodeCustomCodes" {
+			t.Fatalf("expected path /v1/inAppPurchaseOfferCodeCustomCodes, got %s", req.URL.Path)
+		}
+
+		var payload InAppPurchaseOfferCodeCustomCodeCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeInAppPurchaseOfferCodeCustomCodes {
+			t.Fatalf("expected type %s, got %s", ResourceTypeInAppPurchaseOfferCodeCustomCodes, payload.Data.Type)
+		}
+		if payload.Data.Attributes.CustomCode != "SUMMER26" {
+			t.Fatalf("expected customCode SUMMER26, got %q", payload.Data.Attributes.CustomCode)
+		}
+		if payload.Data.Attributes.NumberOfCodes != 100 {
+			t.Fatalf("expected numberOfCodes 100, got %d", payload.Data.Attributes.NumberOfCodes)
+		}
+		if payload.Data.Relationships.OfferCode.Data.Type != ResourceTypeInAppPurchaseOfferCodes {
+			t.Fatalf("expected relationship type %s, got %s", ResourceTypeInAppPurchaseOfferCodes, payload.Data.Relationships.OfferCode.Data.Type)
+		}
+		if payload.Data.Relationships.OfferCode.Data.ID != "offer-1" {
+			t.Fatalf("expected offerCode ID offer-1, got %q", payload.Data.Relationships.OfferCode.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	req := InAppPurchaseOfferCodeCustomCodeCreateRequest{
+		Data: InAppPurchaseOfferCodeCustomCodeCreateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeCustomCodes,
+			Attributes: InAppPurchaseOfferCodeCustomCodeCreateAttributes{
+				CustomCode:    "SUMMER26",
+				NumberOfCodes: 100,
+			},
+			Relationships: InAppPurchaseOfferCodeCustomCodeCreateRelationships{
+				OfferCode: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeInAppPurchaseOfferCodes,
+						ID:   "offer-1",
+					},
+				},
+			},
+		},
+	}
+	resp, err := client.CreateInAppPurchaseOfferCodeCustomCode(context.Background(), req)
+	if err != nil {
+		t.Fatalf("CreateInAppPurchaseOfferCodeCustomCode() error: %v", err)
+	}
+	if resp.Data.ID != "cc-1" {
+		t.Fatalf("expected response id cc-1, got %q", resp.Data.ID)
+	}
+}
+
+func TestCreateInAppPurchaseOfferCodeOneTimeUseCode_UsesPostPath(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-1","attributes":{"numberOfCodes":500,"expirationDate":"2026-09-30"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchaseOfferCodeOneTimeUseCodes" {
+			t.Fatalf("expected path /v1/inAppPurchaseOfferCodeOneTimeUseCodes, got %s", req.URL.Path)
+		}
+
+		var payload InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes {
+			t.Fatalf("expected type %s, got %s", ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes, payload.Data.Type)
+		}
+		if payload.Data.Attributes.NumberOfCodes != 500 {
+			t.Fatalf("expected numberOfCodes 500, got %d", payload.Data.Attributes.NumberOfCodes)
+		}
+		if payload.Data.Attributes.ExpirationDate != "2026-09-30" {
+			t.Fatalf("expected expirationDate 2026-09-30, got %q", payload.Data.Attributes.ExpirationDate)
+		}
+		if payload.Data.Relationships.OfferCode.Data.Type != ResourceTypeInAppPurchaseOfferCodes {
+			t.Fatalf("expected relationship type %s, got %s", ResourceTypeInAppPurchaseOfferCodes, payload.Data.Relationships.OfferCode.Data.Type)
+		}
+		if payload.Data.Relationships.OfferCode.Data.ID != "offer-2" {
+			t.Fatalf("expected offerCode ID offer-2, got %q", payload.Data.Relationships.OfferCode.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	req := InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest{
+		Data: InAppPurchaseOfferCodeOneTimeUseCodeCreateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
+			Attributes: InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes{
+				NumberOfCodes:  500,
+				ExpirationDate: "2026-09-30",
+			},
+			Relationships: InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships{
+				OfferCode: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeInAppPurchaseOfferCodes,
+						ID:   "offer-2",
+					},
+				},
+			},
+		},
+	}
+	resp, err := client.CreateInAppPurchaseOfferCodeOneTimeUseCode(context.Background(), req)
+	if err != nil {
+		t.Fatalf("CreateInAppPurchaseOfferCodeOneTimeUseCode() error: %v", err)
+	}
+	if resp.Data.ID != "otuc-1" {
+		t.Fatalf("expected response id otuc-1, got %q", resp.Data.ID)
+	}
+}
