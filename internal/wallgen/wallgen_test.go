@@ -112,3 +112,64 @@ Old content.
 		t.Fatalf("expected missing creator error, got %v", err)
 	}
 }
+
+func TestGenerateAcceptsCustomPlatformLabels(t *testing.T) {
+	tmpRepo := t.TempDir()
+
+	writeFile(t, filepath.Join(tmpRepo, "docs", "wall-of-apps.json"), `[
+  {
+    "app": "Platform App",
+    "link": "https://example.com/platform",
+    "creator": "Platform Creator",
+    "platform": ["Android", "WATCH_OS", "watchOS", "TV_OS", "tvos", "IOS", "ios", "Vision OS", "visionos"]
+  }
+]`)
+
+	writeFile(t, filepath.Join(tmpRepo, "README.md"), `# Demo
+<!-- WALL-OF-APPS:START -->
+Old content.
+<!-- WALL-OF-APPS:END -->
+`)
+
+	result, err := Generate(tmpRepo)
+	if err != nil {
+		t.Fatalf("generate failed: %v", err)
+	}
+
+	generatedContentBytes, err := os.ReadFile(result.GeneratedPath)
+	if err != nil {
+		t.Fatalf("read generated app wall: %v", err)
+	}
+	generatedContent := string(generatedContentBytes)
+	row := "| Platform App | [Open](https://example.com/platform) | Platform Creator | Android, watchOS, tvOS, iOS, visionOS |"
+	if !strings.Contains(generatedContent, row) {
+		t.Fatalf("expected row with custom and normalized platform labels, got:\n%s", generatedContent)
+	}
+}
+
+func TestGenerateFailsWhenPlatformEntryEmpty(t *testing.T) {
+	tmpRepo := t.TempDir()
+
+	writeFile(t, filepath.Join(tmpRepo, "docs", "wall-of-apps.json"), `[
+  {
+    "app": "Bad Platform App",
+    "link": "https://example.com/bad-platform",
+    "creator": "Platform Creator",
+    "platform": ["iOS", "   "]
+  }
+]`)
+
+	writeFile(t, filepath.Join(tmpRepo, "README.md"), `# Demo
+<!-- WALL-OF-APPS:START -->
+Old content.
+<!-- WALL-OF-APPS:END -->
+`)
+
+	_, err := Generate(tmpRepo)
+	if err == nil {
+		t.Fatal("expected generate to fail for empty platform value")
+	}
+	if !strings.Contains(err.Error(), "'platform' entries must be non-empty strings") {
+		t.Fatalf("expected empty platform entry error, got %v", err)
+	}
+}

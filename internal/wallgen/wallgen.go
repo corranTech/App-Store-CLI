@@ -18,6 +18,7 @@ const (
 var platformDisplayNames = map[string]string{
 	"IOS":       "iOS",
 	"MAC_OS":    "macOS",
+	"WATCH_OS":  "watchOS",
 	"TV_OS":     "tvOS",
 	"VISION_OS": "visionOS",
 }
@@ -26,6 +27,8 @@ var platformAliases = map[string]string{
 	"ios":       "IOS",
 	"macos":     "MAC_OS",
 	"mac_os":    "MAC_OS",
+	"watchos":   "WATCH_OS",
+	"watch_os":  "WATCH_OS",
 	"tvos":      "TV_OS",
 	"tv_os":     "TV_OS",
 	"visionos":  "VISION_OS",
@@ -132,17 +135,11 @@ func normalizeEntry(entry wallEntry, index int) (wallEntry, error) {
 	platforms := make([]string, 0, len(entry.Platform))
 	for _, value := range entry.Platform {
 		token := strings.TrimSpace(value)
-		normalized, ok := normalizePlatform(token)
-		if !ok {
-			allowed := strings.Join(allowedPlatformDisplayValues(), ", ")
-			return wallEntry{}, fmt.Errorf(
-				"entry #%d: invalid platform %q (allowed: %s)",
-				index,
-				token,
-				allowed,
-			)
+		if token == "" {
+			return wallEntry{}, fmt.Errorf("entry #%d: 'platform' entries must be non-empty strings", index)
 		}
-		if !contains(platforms, normalized) {
+		normalized := normalizePlatform(token)
+		if !containsFold(platforms, normalized) {
 			platforms = append(platforms, normalized)
 		}
 	}
@@ -150,21 +147,19 @@ func normalizeEntry(entry wallEntry, index int) (wallEntry, error) {
 	return entry, nil
 }
 
-func normalizePlatform(value string) (string, bool) {
+func normalizePlatform(value string) string {
 	key := strings.ToLower(value)
 	key = strings.ReplaceAll(key, "-", "_")
 	key = strings.ReplaceAll(key, " ", "")
-	normalized, ok := platformAliases[key]
-	return normalized, ok
+	if normalized, ok := platformAliases[key]; ok {
+		return normalized
+	}
+	return value
 }
 
-func allowedPlatformDisplayValues() []string {
-	return []string{"iOS", "macOS", "tvOS", "visionOS"}
-}
-
-func contains(values []string, needle string) bool {
+func containsFold(values []string, needle string) bool {
 	for _, value := range values {
-		if value == needle {
+		if strings.EqualFold(value, needle) {
 			return true
 		}
 	}
