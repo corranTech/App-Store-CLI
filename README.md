@@ -24,8 +24,8 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | App | Link | Creator | Platform |
 |:----|:-----|:--------|:---------|
 | CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | MAC_OS, IOS |
-| DoubleMemory | [Open](https://doublememory.com) | DoubleMemory | IOS |
-| MileIO | [Open](https://apps.apple.com/app/id6758225631) | Rudrank Riyam | IOS |
+| DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | IOS |
+| MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | IOS |
 <!-- WALL-OF-APPS:END -->
 
 ## ASC Skills
