@@ -96,6 +96,6 @@ Format:
   "app": "App Name",
   "link": "https://apps.apple.com/app/id...",
   "creator": "Creator Name",
-  "platform": ["IOS", "MAC_OS"]
+  "platform": ["iOS", "macOS"]
 }
 ```

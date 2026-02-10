@@ -26,9 +26,31 @@ func appsWallRows(resp *AppsWallResult) ([]string, [][]string) {
 			compactWhitespace(item.Name),
 			item.AppStoreURL,
 			compactWhitespace(item.Creator),
-			strings.Join(item.Platform, ", "),
+			strings.Join(formatWallPlatformsForDisplay(item.Platform), ", "),
 			item.IconURL,
 		})
 	}
 	return headers, rows
+}
+
+func formatWallPlatformsForDisplay(platforms []string) []string {
+	if len(platforms) == 0 {
+		return nil
+	}
+	display := make([]string, 0, len(platforms))
+	for _, platform := range platforms {
+		switch platform {
+		case "IOS":
+			display = append(display, "iOS")
+		case "MAC_OS":
+			display = append(display, "macOS")
+		case "TV_OS":
+			display = append(display, "tvOS")
+		case "VISION_OS":
+			display = append(display, "visionOS")
+		default:
+			display = append(display, platform)
+		}
+	}
+	return display
 }

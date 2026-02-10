@@ -7,7 +7,23 @@ from urllib.parse import urlparse
 
 START_MARKER = "<!-- WALL-OF-APPS:START -->"
 END_MARKER = "<!-- WALL-OF-APPS:END -->"
-ALLOWED_PLATFORMS = ("IOS", "MAC_OS", "TV_OS", "VISION_OS")
+
+PLATFORM_DISPLAY_NAMES = {
+    "IOS": "iOS",
+    "MAC_OS": "macOS",
+    "TV_OS": "tvOS",
+    "VISION_OS": "visionOS",
+}
+
+PLATFORM_ALIASES = {
+    "ios": "IOS",
+    "macos": "MAC_OS",
+    "mac_os": "MAC_OS",
+    "tvos": "TV_OS",
+    "tv_os": "TV_OS",
+    "visionos": "VISION_OS",
+    "vision_os": "VISION_OS",
+}
 
 
 def read_entries(source_path: Path) -> list[dict[str, str | list[str]]]:
@@ -56,11 +72,12 @@ def normalize_entry(entry: object, index: int) -> dict[str, str | list[str]]:
 
     platforms: list[str] = []
     for value in platforms_raw:
-        platform = str(value).strip().upper()
-        if platform not in ALLOWED_PLATFORMS:
-            allowed = ", ".join(ALLOWED_PLATFORMS)
+        token = str(value).strip()
+        platform = normalize_platform(value)
+        if platform is None:
+            allowed = ", ".join(PLATFORM_DISPLAY_NAMES.values())
             raise SystemExit(
-                f"Entry #{index}: invalid platform {platform!r} (allowed: {allowed})"
+                f"Entry #{index}: invalid platform {token!r} (allowed: {allowed})"
             )
         if platform not in platforms:
             platforms.append(platform)
@@ -86,11 +103,23 @@ def build_snippet(entries: list[dict[str, str | list[str]]]) -> str:
         app = escape_cell(str(entry["app"]))
         link = str(entry["link"])
         creator = escape_cell(str(entry["creator"]))
-        platforms = ", ".join(str(value) for value in entry["platform"])
+        platforms = ", ".join(display_platform(str(value)) for value in entry["platform"])
         lines.append(
             f"| {app} | [Open]({link}) | {creator} | {escape_cell(platforms)} |"
         )
     return "\n".join(lines) + "\n"
+
+
+def normalize_platform(value: object) -> str | None:
+    token = str(value).strip()
+    if token == "":
+        return None
+    key = token.lower().replace("-", "_").replace(" ", "")
+    return PLATFORM_ALIASES.get(key)
+
+
+def display_platform(value: str) -> str:
+    return PLATFORM_DISPLAY_NAMES.get(value, value)
 
 
 def escape_cell(value: str) -> str:
