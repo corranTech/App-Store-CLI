@@ -35,9 +35,8 @@ Do not edit the Wall table in `README.md` directly. It is generated from `docs/w
 
 1. Add your entry to `docs/wall-of-apps.json`
 2. Run `make update-wall-of-apps`
-3. Commit all three files:
+3. Commit both files:
    - `docs/wall-of-apps.json`
-   - `docs/generated/app-wall.md`
    - `README.md`
 
 Template entry:

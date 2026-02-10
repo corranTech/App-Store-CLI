@@ -44,14 +44,12 @@ type wallEntry struct {
 
 // Result contains generated output paths.
 type Result struct {
-	GeneratedPath string
-	ReadmePath    string
+	ReadmePath string
 }
 
-// Generate reads docs/wall-of-apps.json and updates docs/readme wall snippets.
+// Generate reads docs/wall-of-apps.json and updates the README wall snippet.
 func Generate(repoRoot string) (Result, error) {
 	sourcePath := filepath.Join(repoRoot, "docs", "wall-of-apps.json")
-	generatedPath := filepath.Join(repoRoot, "docs", "generated", "app-wall.md")
 	readmePath := filepath.Join(repoRoot, "README.md")
 
 	entries, err := readEntries(sourcePath)
@@ -60,14 +58,11 @@ func Generate(repoRoot string) (Result, error) {
 	}
 	snippet := buildSnippet(entries)
 
-	if err := writeGenerated(snippet, generatedPath); err != nil {
-		return Result{}, err
-	}
 	if err := syncReadme(snippet, readmePath); err != nil {
 		return Result{}, err
 	}
 
-	return Result{GeneratedPath: generatedPath, ReadmePath: readmePath}, nil
+	return Result{ReadmePath: readmePath}, nil
 }
 
 func readEntries(sourcePath string) ([]wallEntry, error) {
@@ -203,17 +198,6 @@ func displayPlatform(value string) string {
 func escapeCell(value string) string {
 	escaped := strings.ReplaceAll(value, "|", "\\|")
 	return strings.TrimSpace(strings.ReplaceAll(escaped, "\n", " "))
-}
-
-func writeGenerated(snippet string, generatedPath string) error {
-	if err := os.MkdirAll(filepath.Dir(generatedPath), 0o755); err != nil {
-		return fmt.Errorf("create generated docs directory: %w", err)
-	}
-	header := "<!-- Generated from docs/wall-of-apps.json by tools/update-wall-of-apps. -->\n\n"
-	if err := os.WriteFile(generatedPath, []byte(header+snippet), 0o644); err != nil {
-		return fmt.Errorf("write generated doc: %w", err)
-	}
-	return nil
 }
 
 func syncReadme(snippet string, readmePath string) error {

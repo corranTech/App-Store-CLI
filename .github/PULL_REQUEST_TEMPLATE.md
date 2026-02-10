@@ -14,7 +14,6 @@
 - [ ] I ran `make update-wall-of-apps`
 - [ ] I committed all generated files:
   - `docs/wall-of-apps.json`
-  - `docs/generated/app-wall.md`
   - `README.md`
 
 Entry template:
