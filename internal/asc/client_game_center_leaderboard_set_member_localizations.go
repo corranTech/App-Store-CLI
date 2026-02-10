@@ -54,6 +54,83 @@ func (c *Client) GetGameCenterLeaderboardSetMemberLocalization(ctx context.Conte
 	return &response, nil
 }
 
+// CreateGameCenterLeaderboardSetMemberLocalization creates a new leaderboard set member localization.
+func (c *Client) CreateGameCenterLeaderboardSetMemberLocalization(ctx context.Context, leaderboardSetID, leaderboardID string, attrs GameCenterLeaderboardSetMemberLocalizationCreateAttributes) (*GameCenterLeaderboardSetMemberLocalizationResponse, error) {
+	payload := GameCenterLeaderboardSetMemberLocalizationCreateRequest{
+		Data: GameCenterLeaderboardSetMemberLocalizationCreateData{
+			Type:       ResourceTypeGameCenterLeaderboardSetMemberLocalizations,
+			Attributes: attrs,
+			Relationships: &GameCenterLeaderboardSetMemberLocalizationRelationships{
+				GameCenterLeaderboardSet: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterLeaderboardSets,
+						ID:   strings.TrimSpace(leaderboardSetID),
+					},
+				},
+				GameCenterLeaderboard: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterLeaderboards,
+						ID:   strings.TrimSpace(leaderboardID),
+					},
+				},
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, http.MethodPost, "/v1/gameCenterLeaderboardSetMemberLocalizations", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardSetMemberLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateGameCenterLeaderboardSetMemberLocalization updates an existing leaderboard set member localization.
+func (c *Client) UpdateGameCenterLeaderboardSetMemberLocalization(ctx context.Context, localizationID string, attrs GameCenterLeaderboardSetMemberLocalizationUpdateAttributes) (*GameCenterLeaderboardSetMemberLocalizationResponse, error) {
+	payload := GameCenterLeaderboardSetMemberLocalizationUpdateRequest{
+		Data: GameCenterLeaderboardSetMemberLocalizationUpdateData{
+			Type:       ResourceTypeGameCenterLeaderboardSetMemberLocalizations,
+			ID:         strings.TrimSpace(localizationID),
+			Attributes: &attrs,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodPatch, path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardSetMemberLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteGameCenterLeaderboardSetMemberLocalization deletes a leaderboard set member localization.
+func (c *Client) DeleteGameCenterLeaderboardSetMemberLocalization(ctx context.Context, localizationID string) error {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", strings.TrimSpace(localizationID))
+	_, err := c.do(ctx, http.MethodDelete, path, nil)
+	return err
+}
+
 // GetGameCenterLeaderboardSetMemberLocalizationLeaderboard retrieves the leaderboard for a member localization.
 func (c *Client) GetGameCenterLeaderboardSetMemberLocalizationLeaderboard(ctx context.Context, localizationID string) (*GameCenterLeaderboardResponse, error) {
 	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s/gameCenterLeaderboard", strings.TrimSpace(localizationID))

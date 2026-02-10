@@ -26,6 +26,8 @@ func GameCenterAppVersionsCommand() *ffcli.Command {
 Examples:
   asc game-center app-versions list --app "APP_ID"
   asc game-center app-versions get --id "GC_APP_VERSION_ID"
+  asc game-center app-versions create --app-store-version-id "APP_STORE_VERSION_ID"
+  asc game-center app-versions update --id "GC_APP_VERSION_ID" --enabled true
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"
   asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
@@ -33,6 +35,8 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			GameCenterAppVersionsListCommand(),
 			GameCenterAppVersionsGetCommand(),
+			GameCenterAppVersionsCreateCommand(),
+			GameCenterAppVersionsUpdateCommand(),
 			GameCenterAppVersionCompatibilityCommand(),
 			GameCenterAppVersionAppStoreVersionCommand(),
 		},
@@ -168,6 +172,112 @@ Examples:
 			resp, err := client.GetGameCenterAppVersion(requestCtx, id)
 			if err != nil {
 				return fmt.Errorf("game-center app-versions get: failed to fetch: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAppVersionsCreateCommand returns the app versions create subcommand.
+func GameCenterAppVersionsCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("create", flag.ExitOnError)
+
+	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID to associate")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc game-center app-versions create --app-store-version-id \"APP_STORE_VERSION_ID\"",
+		ShortHelp:  "Create a Game Center app version.",
+		LongHelp: `Create a Game Center app version.
+
+Examples:
+  asc game-center app-versions create --app-store-version-id "APP_STORE_VERSION_ID"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*appStoreVersionID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app-store-version-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center app-versions create: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.CreateGameCenterAppVersion(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("game-center app-versions create: failed to create: %w", err)
+			}
+
+			return shared.PrintOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// GameCenterAppVersionsUpdateCommand returns the app versions update subcommand.
+func GameCenterAppVersionsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+
+	appVersionID := fs.String("id", "", "Game Center app version ID")
+	enabled := fs.String("enabled", "", "Enable or disable the app version (true/false)")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "update",
+		ShortUsage: "asc game-center app-versions update --id \"GC_APP_VERSION_ID\" --enabled true",
+		ShortHelp:  "Update a Game Center app version.",
+		LongHelp: `Update a Game Center app version.
+
+Examples:
+  asc game-center app-versions update --id "GC_APP_VERSION_ID" --enabled true
+  asc game-center app-versions update --id "GC_APP_VERSION_ID" --enabled false`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*appVersionID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			attrs := asc.GameCenterAppVersionUpdateAttributes{}
+			hasUpdate := false
+
+			enabledVal := strings.TrimSpace(*enabled)
+			if enabledVal != "" {
+				if enabledVal != "true" && enabledVal != "false" {
+					return fmt.Errorf("game-center app-versions update: --enabled must be 'true' or 'false'")
+				}
+				b := enabledVal == "true"
+				attrs.Enabled = &b
+				hasUpdate = true
+			}
+
+			if !hasUpdate {
+				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--enabled)")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("game-center app-versions update: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.UpdateGameCenterAppVersion(requestCtx, id, attrs)
+			if err != nil {
+				return fmt.Errorf("game-center app-versions update: failed to update: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output, *pretty)
