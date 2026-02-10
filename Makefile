@@ -11,6 +11,7 @@ LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DA
 GO := go
 GOMOD := go.mod
 GOBIN := $(shell $(GO) env GOPATH)/bin
+GOLANGCI_LINT_TIMEOUT ?= 5m
 INSTALL_PREFIX ?= /usr/local/bin
 
 # Directories
@@ -74,7 +75,7 @@ test-integration:
 lint:
 	@echo "$(BLUE)Linting code...$(NC)"
 	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run ./...; \
+		golangci-lint run --timeout=$(GOLANGCI_LINT_TIMEOUT) ./...; \
 	else \
 		echo "$(YELLOW)golangci-lint not found; falling back to 'go vet ./...'.$(NC)"; \
 		echo "$(YELLOW)Install with: make tools (or: $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)$(NC)"; \

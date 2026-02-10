@@ -8,12 +8,22 @@ import (
 
 // AgeRatingDeclarationAttributes describes the age rating declaration attributes.
 type AgeRatingDeclarationAttributes struct {
-	Gambling                                    *bool   `json:"gambling,omitempty"`
-	SeventeenPlus                               *bool   `json:"seventeenPlus,omitempty"`
-	UnrestrictedWebAccess                       *bool   `json:"unrestrictedWebAccess,omitempty"`
+	// Boolean content descriptors
+	Advertising            *bool `json:"advertising,omitempty"`
+	Gambling               *bool `json:"gambling,omitempty"`
+	HealthOrWellnessTopics *bool `json:"healthOrWellnessTopics,omitempty"`
+	LootBox                *bool `json:"lootBox,omitempty"`
+	MessagingAndChat       *bool `json:"messagingAndChat,omitempty"`
+	ParentalControls       *bool `json:"parentalControls,omitempty"`
+	AgeAssurance           *bool `json:"ageAssurance,omitempty"`
+	UnrestrictedWebAccess  *bool `json:"unrestrictedWebAccess,omitempty"`
+	UserGeneratedContent   *bool `json:"userGeneratedContent,omitempty"`
+
+	// Enum content descriptors (NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE)
 	AlcoholTobaccoOrDrugUseOrReferences         *string `json:"alcoholTobaccoOrDrugUseOrReferences,omitempty"`
 	Contests                                    *string `json:"contests,omitempty"`
 	GamblingSimulated                           *string `json:"gamblingSimulated,omitempty"`
+	GunsOrOtherWeapons                          *string `json:"gunsOrOtherWeapons,omitempty"`
 	MedicalOrTreatmentInformation               *string `json:"medicalOrTreatmentInformation,omitempty"`
 	ProfanityOrCrudeHumor                       *string `json:"profanityOrCrudeHumor,omitempty"`
 	SexualContentGraphicAndNudity               *string `json:"sexualContentGraphicAndNudity,omitempty"`
@@ -23,7 +33,16 @@ type AgeRatingDeclarationAttributes struct {
 	ViolenceCartoonOrFantasy                    *string `json:"violenceCartoonOrFantasy,omitempty"`
 	ViolenceRealistic                           *string `json:"violenceRealistic,omitempty"`
 	ViolenceRealisticProlongedGraphicOrSadistic *string `json:"violenceRealisticProlongedGraphicOrSadistic,omitempty"`
-	KidsAgeBand                                 *string `json:"kidsAgeBand,omitempty"`
+
+	// Age rating overrides and metadata
+	KidsAgeBand               *string `json:"kidsAgeBand,omitempty"`
+	AgeRatingOverride         *string `json:"ageRatingOverride,omitempty"`
+	AgeRatingOverrideV2       *string `json:"ageRatingOverrideV2,omitempty"`
+	KoreaAgeRatingOverride    *string `json:"koreaAgeRatingOverride,omitempty"`
+	DeveloperAgeRatingInfoURL *string `json:"developerAgeRatingInfoUrl,omitempty"`
+
+	// Deprecated fields (kept for backward compatibility with older API responses)
+	SeventeenPlus *bool `json:"seventeenPlus,omitempty"`
 }
 
 // AppStoreAgeRating represents an App Store age rating value.

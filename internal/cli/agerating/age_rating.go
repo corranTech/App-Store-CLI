@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -17,6 +18,32 @@ var ageRatingLevelValues = []string{
 	"NONE",
 	"INFREQUENT_OR_MILD",
 	"FREQUENT_OR_INTENSE",
+	"INFREQUENT",
+	"FREQUENT",
+}
+
+var ageRatingOverrideValues = []string{
+	"NONE",
+	"NINE_PLUS",
+	"THIRTEEN_PLUS",
+	"SIXTEEN_PLUS",
+	"SEVENTEEN_PLUS",
+	"UNRATED",
+}
+
+var ageRatingOverrideV2Values = []string{
+	"NONE",
+	"NINE_PLUS",
+	"THIRTEEN_PLUS",
+	"SIXTEEN_PLUS",
+	"EIGHTEEN_PLUS",
+	"UNRATED",
+}
+
+var koreaAgeRatingOverrideValues = []string{
+	"NONE",
+	"FIFTEEN_PLUS",
+	"NINETEEN_PLUS",
 }
 
 var kidsAgeBandValues = []string{
@@ -113,10 +140,22 @@ func AgeRatingSetCommand() *ffcli.Command {
 	appInfoID := fs.String("app-info-id", "", "App info ID (optional)")
 	versionID := fs.String("version-id", "", "App Store version ID (optional)")
 
+	// Boolean content descriptors
+	advertising := fs.String("advertising", "", "Contains advertising (true/false)")
 	gambling := fs.String("gambling", "", "Real gambling content (true/false)")
-	gamblingSimulated := fs.String("gambling-simulated", "", "Simulated gambling: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
+	healthOrWellnessTopics := fs.String("health-or-wellness-topics", "", "Health or wellness topics (true/false)")
+	lootBox := fs.String("loot-box", "", "Loot box mechanics (true/false)")
+	messagingAndChat := fs.String("messaging-and-chat", "", "Messaging and chat (true/false)")
+	parentalControls := fs.String("parental-controls", "", "Parental controls (true/false)")
+	ageAssurance := fs.String("age-assurance", "", "Age assurance (true/false)")
+	unrestrictedWebAccess := fs.String("unrestricted-web-access", "", "Unrestricted web access (true/false)")
+	userGeneratedContent := fs.String("user-generated-content", "", "User-generated content (true/false)")
+
+	// Enum content descriptors (NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE)
 	alcoholTobaccoDrug := fs.String("alcohol-tobacco-drug-use", "", "Alcohol/tobacco/drug references: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	contests := fs.String("contests", "", "Contests: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
+	gamblingSimulated := fs.String("gambling-simulated", "", "Simulated gambling: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
+	gunsOrOtherWeapons := fs.String("guns-or-other-weapons", "", "Guns or other weapons: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	medicalTreatment := fs.String("medical-treatment", "", "Medical/treatment information: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	profanityHumor := fs.String("profanity-humor", "", "Profanity or crude humor: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	sexualContentNudity := fs.String("sexual-content-nudity", "", "Sexual content or nudity: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
@@ -126,9 +165,13 @@ func AgeRatingSetCommand() *ffcli.Command {
 	violenceCartoon := fs.String("violence-cartoon", "", "Cartoon/fantasy violence: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	violenceRealistic := fs.String("violence-realistic", "", "Realistic violence: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	violenceRealisticGraphic := fs.String("violence-realistic-graphic", "", "Prolonged graphic/sadistic violence: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
-	seventeenPlus := fs.String("seventeen-plus", "", "17+ content (true/false, not supported by API)")
-	unrestrictedWebAccess := fs.String("unrestricted-web-access", "", "Unrestricted web access (true/false)")
+
+	// Other
 	kidsAgeBand := fs.String("kids-age-band", "", "Kids age band: FIVE_AND_UNDER, SIX_TO_EIGHT, NINE_TO_ELEVEN")
+	ageRatingOverride := fs.String("age-rating-override", "", "Deprecated age rating override: NONE, NINE_PLUS, THIRTEEN_PLUS, SIXTEEN_PLUS, SEVENTEEN_PLUS, UNRATED")
+	ageRatingOverrideV2 := fs.String("age-rating-override-v2", "", "Age rating override v2: NONE, NINE_PLUS, THIRTEEN_PLUS, SIXTEEN_PLUS, EIGHTEEN_PLUS, UNRATED")
+	koreaAgeRatingOverride := fs.String("korea-age-rating-override", "", "Korea age rating override: NONE, FIFTEEN_PLUS, NINETEEN_PLUS")
+	developerAgeRatingInfoURL := fs.String("developer-age-rating-info-url", "", "Developer age rating information URL")
 
 	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
@@ -161,10 +204,21 @@ Examples:
 			}
 
 			attributes, err := buildAgeRatingAttributes(map[string]string{
-				"gambling":                      *gambling,
-				"gambling-simulated":            *gamblingSimulated,
+				// Boolean content descriptors
+				"advertising":               *advertising,
+				"gambling":                  *gambling,
+				"health-or-wellness-topics": *healthOrWellnessTopics,
+				"loot-box":                  *lootBox,
+				"messaging-and-chat":        *messagingAndChat,
+				"parental-controls":         *parentalControls,
+				"age-assurance":             *ageAssurance,
+				"unrestricted-web-access":   *unrestrictedWebAccess,
+				"user-generated-content":    *userGeneratedContent,
+				// Enum content descriptors
 				"alcohol-tobacco-drug-use":      *alcoholTobaccoDrug,
 				"contests":                      *contests,
+				"gambling-simulated":            *gamblingSimulated,
+				"guns-or-other-weapons":         *gunsOrOtherWeapons,
 				"medical-treatment":             *medicalTreatment,
 				"profanity-humor":               *profanityHumor,
 				"sexual-content-nudity":         *sexualContentNudity,
@@ -174,9 +228,12 @@ Examples:
 				"violence-cartoon":              *violenceCartoon,
 				"violence-realistic":            *violenceRealistic,
 				"violence-realistic-graphic":    *violenceRealisticGraphic,
-				"seventeen-plus":                *seventeenPlus,
-				"unrestricted-web-access":       *unrestrictedWebAccess,
+				// Other
 				"kids-age-band":                 *kidsAgeBand,
+				"age-rating-override":           *ageRatingOverride,
+				"age-rating-override-v2":        *ageRatingOverrideV2,
+				"korea-age-rating-override":     *koreaAgeRatingOverride,
+				"developer-age-rating-info-url": *developerAgeRatingInfoURL,
 			})
 			if err != nil {
 				return err
@@ -248,96 +305,85 @@ func resolveAgeRatingDeclarationID(ctx context.Context, client *asc.Client, appI
 func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclarationAttributes, error) {
 	var attrs asc.AgeRatingDeclarationAttributes
 
-	gambling, err := shared.ParseOptionalBoolFlag("--gambling", values["gambling"])
-	if err != nil {
-		return attrs, err
+	// Boolean content descriptors
+	boolFields := []struct {
+		flag string
+		dest **bool
+	}{
+		{"advertising", &attrs.Advertising},
+		{"gambling", &attrs.Gambling},
+		{"health-or-wellness-topics", &attrs.HealthOrWellnessTopics},
+		{"loot-box", &attrs.LootBox},
+		{"messaging-and-chat", &attrs.MessagingAndChat},
+		{"parental-controls", &attrs.ParentalControls},
+		{"age-assurance", &attrs.AgeAssurance},
+		{"unrestricted-web-access", &attrs.UnrestrictedWebAccess},
+		{"user-generated-content", &attrs.UserGeneratedContent},
 	}
-	if strings.TrimSpace(values["seventeen-plus"]) != "" {
-		return attrs, fmt.Errorf("--seventeen-plus is not supported by the App Store Connect API")
-	}
-	unrestrictedWebAccess, err := shared.ParseOptionalBoolFlag("--unrestricted-web-access", values["unrestricted-web-access"])
-	if err != nil {
-		return attrs, err
-	}
-
-	gamblingSimulated, err := parseOptionalEnumFlag("--gambling-simulated", values["gambling-simulated"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	alcoholTobaccoDrug, err := parseOptionalEnumFlag("--alcohol-tobacco-drug-use", values["alcohol-tobacco-drug-use"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	contests, err := parseOptionalEnumFlag("--contests", values["contests"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	medicalTreatment, err := parseOptionalEnumFlag("--medical-treatment", values["medical-treatment"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	profanityHumor, err := parseOptionalEnumFlag("--profanity-humor", values["profanity-humor"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	sexualContentNudity, err := parseOptionalEnumFlag("--sexual-content-nudity", values["sexual-content-nudity"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	sexualContentGraphicNudity, err := parseOptionalEnumFlag("--sexual-content-graphic-nudity", values["sexual-content-graphic-nudity"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	horrorFear, err := parseOptionalEnumFlag("--horror-fear", values["horror-fear"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	matureSuggestive, err := parseOptionalEnumFlag("--mature-suggestive", values["mature-suggestive"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	violenceCartoon, err := parseOptionalEnumFlag("--violence-cartoon", values["violence-cartoon"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	violenceRealistic, err := parseOptionalEnumFlag("--violence-realistic", values["violence-realistic"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	violenceRealisticGraphic, err := parseOptionalEnumFlag("--violence-realistic-graphic", values["violence-realistic-graphic"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	kidsAgeBand, err := parseOptionalEnumFlag("--kids-age-band", values["kids-age-band"], kidsAgeBandValues)
-	if err != nil {
-		return attrs, err
+	for _, f := range boolFields {
+		val, err := shared.ParseOptionalBoolFlag("--"+f.flag, values[f.flag])
+		if err != nil {
+			return attrs, err
+		}
+		*f.dest = val
 	}
 
-	attrs.Gambling = gambling
-	attrs.UnrestrictedWebAccess = unrestrictedWebAccess
-	attrs.GamblingSimulated = gamblingSimulated
-	attrs.AlcoholTobaccoOrDrugUseOrReferences = alcoholTobaccoDrug
-	attrs.Contests = contests
-	attrs.MedicalOrTreatmentInformation = medicalTreatment
-	attrs.ProfanityOrCrudeHumor = profanityHumor
-	attrs.SexualContentOrNudity = sexualContentNudity
-	attrs.SexualContentGraphicAndNudity = sexualContentGraphicNudity
-	attrs.HorrorOrFearThemes = horrorFear
-	attrs.MatureOrSuggestiveThemes = matureSuggestive
-	attrs.ViolenceCartoonOrFantasy = violenceCartoon
-	attrs.ViolenceRealistic = violenceRealistic
-	attrs.ViolenceRealisticProlongedGraphicOrSadistic = violenceRealisticGraphic
-	attrs.KidsAgeBand = kidsAgeBand
+	// Enum content descriptors (NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE)
+	enumFields := []struct {
+		flag    string
+		dest    **string
+		allowed []string
+	}{
+		{"alcohol-tobacco-drug-use", &attrs.AlcoholTobaccoOrDrugUseOrReferences, ageRatingLevelValues},
+		{"contests", &attrs.Contests, ageRatingLevelValues},
+		{"gambling-simulated", &attrs.GamblingSimulated, ageRatingLevelValues},
+		{"guns-or-other-weapons", &attrs.GunsOrOtherWeapons, ageRatingLevelValues},
+		{"medical-treatment", &attrs.MedicalOrTreatmentInformation, ageRatingLevelValues},
+		{"profanity-humor", &attrs.ProfanityOrCrudeHumor, ageRatingLevelValues},
+		{"sexual-content-nudity", &attrs.SexualContentOrNudity, ageRatingLevelValues},
+		{"sexual-content-graphic-nudity", &attrs.SexualContentGraphicAndNudity, ageRatingLevelValues},
+		{"horror-fear", &attrs.HorrorOrFearThemes, ageRatingLevelValues},
+		{"mature-suggestive", &attrs.MatureOrSuggestiveThemes, ageRatingLevelValues},
+		{"violence-cartoon", &attrs.ViolenceCartoonOrFantasy, ageRatingLevelValues},
+		{"violence-realistic", &attrs.ViolenceRealistic, ageRatingLevelValues},
+		{"violence-realistic-graphic", &attrs.ViolenceRealisticProlongedGraphicOrSadistic, ageRatingLevelValues},
+		{"kids-age-band", &attrs.KidsAgeBand, kidsAgeBandValues},
+		{"age-rating-override", &attrs.AgeRatingOverride, ageRatingOverrideValues},
+		{"age-rating-override-v2", &attrs.AgeRatingOverrideV2, ageRatingOverrideV2Values},
+		{"korea-age-rating-override", &attrs.KoreaAgeRatingOverride, koreaAgeRatingOverrideValues},
+	}
+	for _, f := range enumFields {
+		val, err := parseOptionalEnumFlag("--"+f.flag, values[f.flag], f.allowed)
+		if err != nil {
+			return attrs, err
+		}
+		*f.dest = val
+	}
+
+	if raw := strings.TrimSpace(values["developer-age-rating-info-url"]); raw != "" {
+		if _, err := url.ParseRequestURI(raw); err != nil {
+			return attrs, fmt.Errorf("--developer-age-rating-info-url must be a valid URL")
+		}
+		attrs.DeveloperAgeRatingInfoURL = &raw
+	}
 
 	return attrs, nil
 }
 
 func hasAgeRatingUpdates(attrs asc.AgeRatingDeclarationAttributes) bool {
-	return attrs.Gambling != nil ||
+	return attrs.Advertising != nil ||
+		attrs.Gambling != nil ||
+		attrs.HealthOrWellnessTopics != nil ||
+		attrs.LootBox != nil ||
+		attrs.MessagingAndChat != nil ||
+		attrs.ParentalControls != nil ||
+		attrs.AgeAssurance != nil ||
 		attrs.UnrestrictedWebAccess != nil ||
-		attrs.GamblingSimulated != nil ||
+		attrs.UserGeneratedContent != nil ||
 		attrs.AlcoholTobaccoOrDrugUseOrReferences != nil ||
 		attrs.Contests != nil ||
+		attrs.GamblingSimulated != nil ||
+		attrs.GunsOrOtherWeapons != nil ||
 		attrs.MedicalOrTreatmentInformation != nil ||
 		attrs.ProfanityOrCrudeHumor != nil ||
 		attrs.SexualContentOrNudity != nil ||
@@ -347,7 +393,11 @@ func hasAgeRatingUpdates(attrs asc.AgeRatingDeclarationAttributes) bool {
 		attrs.ViolenceCartoonOrFantasy != nil ||
 		attrs.ViolenceRealistic != nil ||
 		attrs.ViolenceRealisticProlongedGraphicOrSadistic != nil ||
-		attrs.KidsAgeBand != nil
+		attrs.KidsAgeBand != nil ||
+		attrs.AgeRatingOverride != nil ||
+		attrs.AgeRatingOverrideV2 != nil ||
+		attrs.KoreaAgeRatingOverride != nil ||
+		attrs.DeveloperAgeRatingInfoURL != nil
 }
 
 func parseOptionalEnumFlag(name, raw string, allowed []string) (*string, error) {
