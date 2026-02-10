@@ -535,6 +535,23 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/iap` (`iap availabilities available-territories` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
 - [x] Commit Phase 61
 
+## Phase 62 - `--next` Parity for Subscription List Surfaces
+
+- [x] `internal/cli/subscriptions` (`subscriptions availability available-territories` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/subscriptions` (`subscriptions groups list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/subscriptions` (`subscriptions groups localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--group-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions images list` invalid/malformed `--next` validation + `--paginate --next` without `--subscription-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions introductory-offers list` invalid/malformed `--next` validation + `--paginate --next` without `--subscription-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions list` invalid/malformed `--next` validation + `--paginate --next` without `--group`)
+- [x] `internal/cli/subscriptions` (`subscriptions localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--subscription-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions offer-codes custom-codes` invalid/malformed `--next` validation + `--paginate --next` without `--offer-code-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions offer-codes one-time-codes list` invalid/malformed `--next` validation + `--paginate --next` without `--offer-code-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions offer-codes prices` invalid/malformed `--next` validation + `--paginate --next` without `--offer-code-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions prices list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/subscriptions` (`subscriptions promotional-offers list` invalid/malformed `--next` validation + `--paginate --next` without `--subscription-id`)
+- [x] `internal/cli/subscriptions` (`subscriptions promotional-offers prices` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] Commit Phase 62
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
