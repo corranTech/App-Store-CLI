@@ -499,6 +499,19 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/gamecenter` (`game-center leaderboards v2 localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
 - [x] Commit Phase 58
 
+## Phase 59 - `--next` Parity for Game Center Leaderboard Set List Surfaces
+
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets list` invalid/malformed `--next` validation + `--paginate --next` without `--app`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--set-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets member-localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--set-id`/`--leaderboard-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets members list` invalid/malformed `--next` validation + `--paginate --next` without `--set-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets releases list` invalid/malformed `--next` validation + `--paginate --next` without `--set-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets v2 list` invalid/malformed `--next` validation + `--paginate --next` without `--app`/`--group-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets v2 localizations list` invalid/malformed `--next` validation + `--paginate --next` without `--version-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets v2 members list` invalid/malformed `--next` validation + `--paginate --next` without `--set-id`)
+- [x] `internal/cli/gamecenter` (`game-center leaderboard-sets v2 versions list` invalid/malformed `--next` validation + `--paginate --next` without `--set-id`)
+- [x] Commit Phase 59
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
