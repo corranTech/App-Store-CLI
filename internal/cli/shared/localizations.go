@@ -286,6 +286,17 @@ func UploadVersionLocalizations(ctx context.Context, client *asc.Client, version
 		}
 		resp, err := client.UpdateAppStoreVersionLocalization(ctx, existingID, attributes)
 		if err != nil {
+			// If the API rejects whatsNew (e.g. on an initial v1.0 release where
+			// there is no previous version), retry without it and warn the user.
+			if attributes.WhatsNew != "" && strings.Contains(err.Error(), "whatsNew") {
+				fmt.Fprintln(os.Stderr, "Warning: 'whatsNew' cannot be set for this version (initial releases have no What's New section). Retrying without it.")
+				attributes.WhatsNew = ""
+				resp, err = client.UpdateAppStoreVersionLocalization(ctx, existingID, attributes)
+				if err != nil {
+					return asc.LocalizationUploadLocaleResult{}, err
+				}
+				return asc.LocalizationUploadLocaleResult{Locale: locale, Action: "update", LocalizationID: resp.Data.ID}, nil
+			}
 			return asc.LocalizationUploadLocaleResult{}, err
 		}
 		return asc.LocalizationUploadLocaleResult{Locale: locale, Action: "update", LocalizationID: resp.Data.ID}, nil

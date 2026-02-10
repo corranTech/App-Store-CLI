@@ -117,6 +117,7 @@ func AgeRatingSetCommand() *ffcli.Command {
 	gamblingSimulated := fs.String("gambling-simulated", "", "Simulated gambling: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	alcoholTobaccoDrug := fs.String("alcohol-tobacco-drug-use", "", "Alcohol/tobacco/drug references: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	contests := fs.String("contests", "", "Contests: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
+	gunsOrOtherWeapons := fs.String("guns-or-other-weapons", "", "Guns or other weapons: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	medicalTreatment := fs.String("medical-treatment", "", "Medical/treatment information: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	profanityHumor := fs.String("profanity-humor", "", "Profanity or crude humor: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 	sexualContentNudity := fs.String("sexual-content-nudity", "", "Sexual content or nudity: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
@@ -165,6 +166,7 @@ Examples:
 				"gambling-simulated":            *gamblingSimulated,
 				"alcohol-tobacco-drug-use":      *alcoholTobaccoDrug,
 				"contests":                      *contests,
+				"guns-or-other-weapons":         *gunsOrOtherWeapons,
 				"medical-treatment":             *medicalTreatment,
 				"profanity-humor":               *profanityHumor,
 				"sexual-content-nudity":         *sexualContentNudity,
@@ -272,6 +274,10 @@ func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclaratio
 	if err != nil {
 		return attrs, err
 	}
+	gunsOrOtherWeapons, err := parseOptionalEnumFlag("--guns-or-other-weapons", values["guns-or-other-weapons"], ageRatingLevelValues)
+	if err != nil {
+		return attrs, err
+	}
 	medicalTreatment, err := parseOptionalEnumFlag("--medical-treatment", values["medical-treatment"], ageRatingLevelValues)
 	if err != nil {
 		return attrs, err
@@ -318,6 +324,7 @@ func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclaratio
 	attrs.GamblingSimulated = gamblingSimulated
 	attrs.AlcoholTobaccoOrDrugUseOrReferences = alcoholTobaccoDrug
 	attrs.Contests = contests
+	attrs.GunsOrOtherWeapons = gunsOrOtherWeapons
 	attrs.MedicalOrTreatmentInformation = medicalTreatment
 	attrs.ProfanityOrCrudeHumor = profanityHumor
 	attrs.SexualContentOrNudity = sexualContentNudity
@@ -338,6 +345,7 @@ func hasAgeRatingUpdates(attrs asc.AgeRatingDeclarationAttributes) bool {
 		attrs.GamblingSimulated != nil ||
 		attrs.AlcoholTobaccoOrDrugUseOrReferences != nil ||
 		attrs.Contests != nil ||
+		attrs.GunsOrOtherWeapons != nil ||
 		attrs.MedicalOrTreatmentInformation != nil ||
 		attrs.ProfanityOrCrudeHumor != nil ||
 		attrs.SexualContentOrNudity != nil ||

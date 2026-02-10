@@ -14,6 +14,7 @@ type AgeRatingDeclarationAttributes struct {
 	AlcoholTobaccoOrDrugUseOrReferences         *string `json:"alcoholTobaccoOrDrugUseOrReferences,omitempty"`
 	Contests                                    *string `json:"contests,omitempty"`
 	GamblingSimulated                           *string `json:"gamblingSimulated,omitempty"`
+	GunsOrOtherWeapons                          *string `json:"gunsOrOtherWeapons,omitempty"`
 	MedicalOrTreatmentInformation               *string `json:"medicalOrTreatmentInformation,omitempty"`
 	ProfanityOrCrudeHumor                       *string `json:"profanityOrCrudeHumor,omitempty"`
 	SexualContentGraphicAndNudity               *string `json:"sexualContentGraphicAndNudity,omitempty"`
