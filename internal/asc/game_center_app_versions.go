@@ -59,7 +59,7 @@ func buildGCAppVersionsQuery(query *gcAppVersionsQuery) string {
 
 // GameCenterAppVersionCreateAttributes describes attributes for creating a Game Center app version.
 type GameCenterAppVersionCreateAttributes struct {
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // GameCenterAppVersionUpdateAttributes describes attributes for updating a Game Center app version.
