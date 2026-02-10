@@ -5687,6 +5687,70 @@ func TestDeleteBundleIDCapability_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestUpdateBundleIDCapability_UsesPatchPath(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"ICLOUD","settings":[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_13","enabled":true}]}]}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIdCapabilities/cap1" {
+			t.Fatalf("expected path /v1/bundleIdCapabilities/cap1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BundleIDCapabilityUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeBundleIdCapabilities {
+			t.Fatalf("expected type bundleIdCapabilities, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "cap1" {
+			t.Fatalf("expected id cap1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes == nil {
+			t.Fatalf("expected attributes to be non-nil")
+		}
+		if len(payload.Data.Attributes.Settings) != 1 {
+			t.Fatalf("expected 1 setting, got %d", len(payload.Data.Attributes.Settings))
+		}
+		if payload.Data.Attributes.Settings[0].Key != "ICLOUD_VERSION" {
+			t.Fatalf("expected setting key ICLOUD_VERSION, got %q", payload.Data.Attributes.Settings[0].Key)
+		}
+		if len(payload.Data.Attributes.Settings[0].Options) != 1 {
+			t.Fatalf("expected 1 option, got %d", len(payload.Data.Attributes.Settings[0].Options))
+		}
+		if payload.Data.Attributes.Settings[0].Options[0].Key != "XCODE_13" {
+			t.Fatalf("expected option key XCODE_13, got %q", payload.Data.Attributes.Settings[0].Options[0].Key)
+		}
+		if payload.Data.Attributes.Settings[0].Options[0].Enabled == nil || !*payload.Data.Attributes.Settings[0].Options[0].Enabled {
+			t.Fatalf("expected option enabled true")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	enabled := true
+	attrs := BundleIDCapabilityUpdateAttributes{
+		Settings: []CapabilitySetting{
+			{
+				Key: "ICLOUD_VERSION",
+				Options: []CapabilityOption{
+					{Key: "XCODE_13", Enabled: &enabled},
+				},
+			},
+		},
+	}
+	resp, err := client.UpdateBundleIDCapability(context.Background(), "cap1", attrs)
+	if err != nil {
+		t.Fatalf("UpdateBundleIDCapability() error: %v", err)
+	}
+	if resp.Data.ID != "cap1" {
+		t.Fatalf("expected response id cap1, got %q", resp.Data.ID)
+	}
+}
+
 func TestGetCertificates_WithFilter(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
