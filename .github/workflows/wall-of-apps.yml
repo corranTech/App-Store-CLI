@@ -1,0 +1,42 @@
+name: Sync Wall of Apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/wall-of-apps.json"
+      - "scripts/update-wall-of-apps.py"
+  schedule:
+    # Run nightly at 03:15 UTC.
+    - cron: '15 3 * * *'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: github.repository == 'rudrankriyam/App-Store-Connect-CLI'
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Regenerate wall snippet files
+        run: python3 scripts/update-wall-of-apps.py
+
+      - name: Commit updates if changed
+        run: |
+          if git diff --quiet -- README.md docs/generated/app-wall.md; then
+            echo "No wall updates to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs/generated/app-wall.md
+          git commit -m "docs: refresh wall of apps"
+          git push origin HEAD:main

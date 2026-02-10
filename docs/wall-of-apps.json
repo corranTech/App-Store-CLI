@@ -1,0 +1,20 @@
+[
+  {
+    "app": "CodexMonitor",
+    "link": "https://github.com/Dimillian/CodexMonitor",
+    "creator": "Dimillian",
+    "platform": ["MAC_OS", "IOS"]
+  },
+  {
+    "app": "MileIO",
+    "link": "https://apps.apple.com/app/id6758225631",
+    "creator": "Rudrank Riyam",
+    "platform": ["IOS"]
+  },
+  {
+    "app": "DoubleMemory",
+    "link": "https://doublememory.com",
+    "creator": "DoubleMemory",
+    "platform": ["IOS"]
+  }
+]
