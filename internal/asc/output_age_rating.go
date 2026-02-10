@@ -28,10 +28,21 @@ func ageRatingFields(resp *AgeRatingDeclarationResponse) []ageRatingField {
 	fields := []ageRatingField{
 		{Name: "ID", Value: fallbackValue(resp.Data.ID)},
 		{Name: "Type", Value: fallbackValue(string(resp.Data.Type))},
+		// Boolean content descriptors
+		{Name: "Advertising", Value: formatOptionalBool(attrs.Advertising)},
 		{Name: "Gambling", Value: formatOptionalBool(attrs.Gambling)},
-		{Name: "Gambling Simulated", Value: formatOptionalString(attrs.GamblingSimulated)},
+		{Name: "Health/Wellness Topics", Value: formatOptionalBool(attrs.HealthOrWellnessTopics)},
+		{Name: "Loot Box", Value: formatOptionalBool(attrs.LootBox)},
+		{Name: "Messaging and Chat", Value: formatOptionalBool(attrs.MessagingAndChat)},
+		{Name: "Parental Controls", Value: formatOptionalBool(attrs.ParentalControls)},
+		{Name: "Age Assurance", Value: formatOptionalBool(attrs.AgeAssurance)},
+		{Name: "Unrestricted Web Access", Value: formatOptionalBool(attrs.UnrestrictedWebAccess)},
+		{Name: "User-Generated Content", Value: formatOptionalBool(attrs.UserGeneratedContent)},
+		// Enum content descriptors
 		{Name: "Alcohol/Tobacco/Drug Use", Value: formatOptionalString(attrs.AlcoholTobaccoOrDrugUseOrReferences)},
 		{Name: "Contests", Value: formatOptionalString(attrs.Contests)},
+		{Name: "Gambling Simulated", Value: formatOptionalString(attrs.GamblingSimulated)},
+		{Name: "Guns/Other Weapons", Value: formatOptionalString(attrs.GunsOrOtherWeapons)},
 		{Name: "Medical/Treatment", Value: formatOptionalString(attrs.MedicalOrTreatmentInformation)},
 		{Name: "Profanity/Crude Humor", Value: formatOptionalString(attrs.ProfanityOrCrudeHumor)},
 		{Name: "Sexual Content/Nudity", Value: formatOptionalString(attrs.SexualContentOrNudity)},
@@ -41,9 +52,10 @@ func ageRatingFields(resp *AgeRatingDeclarationResponse) []ageRatingField {
 		{Name: "Violence Cartoon/Fantasy", Value: formatOptionalString(attrs.ViolenceCartoonOrFantasy)},
 		{Name: "Violence Realistic", Value: formatOptionalString(attrs.ViolenceRealistic)},
 		{Name: "Violence Realistic Prolonged Graphic/Sadistic", Value: formatOptionalString(attrs.ViolenceRealisticProlongedGraphicOrSadistic)},
-		{Name: "Seventeen Plus", Value: formatOptionalBool(attrs.SeventeenPlus)},
-		{Name: "Unrestricted Web Access", Value: formatOptionalBool(attrs.UnrestrictedWebAccess)},
+		// Overrides and metadata
 		{Name: "Kids Age Band", Value: formatOptionalString(attrs.KidsAgeBand)},
+		{Name: "Age Rating Override", Value: formatOptionalString(attrs.AgeRatingOverride)},
+		{Name: "Korea Age Rating Override", Value: formatOptionalString(attrs.KoreaAgeRatingOverride)},
 	}
 	return fields
 }

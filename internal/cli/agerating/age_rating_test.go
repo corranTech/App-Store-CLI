@@ -61,12 +61,29 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 }
 
 func TestAgeRatingHelpers(t *testing.T) {
-	if _, err := buildAgeRatingAttributes(map[string]string{
-		"seventeen-plus": "true",
-	}); err == nil {
-		t.Fatal("expected unsupported flag error")
+	// Bool fields parse correctly
+	attrs, err := buildAgeRatingAttributes(map[string]string{
+		"advertising": "false",
+		"gambling":    "true",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if attrs.Advertising == nil || *attrs.Advertising != false {
+		t.Fatal("expected advertising=false")
+	}
+	if attrs.Gambling == nil || *attrs.Gambling != true {
+		t.Fatal("expected gambling=true")
 	}
 
+	// Invalid bool value returns error
+	if _, err := buildAgeRatingAttributes(map[string]string{
+		"gambling": "notabool",
+	}); err == nil {
+		t.Fatal("expected error for invalid bool value")
+	}
+
+	// Enum parsing
 	if got, err := parseOptionalEnumFlag("--kids-age-band", "five_and_under", kidsAgeBandValues); err != nil || got == nil || *got != "FIVE_AND_UNDER" {
 		t.Fatalf("expected normalized enum value, got %v err=%v", got, err)
 	}
@@ -74,11 +91,27 @@ func TestAgeRatingHelpers(t *testing.T) {
 		t.Fatal("expected enum validation error")
 	}
 
+	// Enum fields parse correctly via buildAgeRatingAttributes
+	attrs2, err := buildAgeRatingAttributes(map[string]string{
+		"guns-or-other-weapons": "FREQUENT_OR_INTENSE",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if attrs2.GunsOrOtherWeapons == nil || *attrs2.GunsOrOtherWeapons != "FREQUENT_OR_INTENSE" {
+		t.Fatal("expected guns-or-other-weapons=FREQUENT_OR_INTENSE")
+	}
+
+	// hasAgeRatingUpdates
 	if hasAgeRatingUpdates(asc.AgeRatingDeclarationAttributes{}) {
 		t.Fatal("expected no updates for zero-value attrs")
 	}
 	value := "NONE"
 	if !hasAgeRatingUpdates(asc.AgeRatingDeclarationAttributes{GamblingSimulated: &value}) {
 		t.Fatal("expected updates when one pointer attribute is set")
+	}
+	boolVal := false
+	if !hasAgeRatingUpdates(asc.AgeRatingDeclarationAttributes{Advertising: &boolVal}) {
+		t.Fatal("expected updates when one bool attribute is set")
 	}
 }

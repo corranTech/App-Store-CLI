@@ -1334,9 +1334,13 @@ func TestPrintTable_AgeRatingDeclaration(t *testing.T) {
 			Type: ResourceTypeAgeRatingDeclarations,
 			ID:   "age-1",
 			Attributes: AgeRatingDeclarationAttributes{
-				Gambling:          boolPtr(false),
-				KidsAgeBand:       stringPtr("FIVE_AND_UNDER"),
-				ViolenceRealistic: stringPtr("NONE"),
+				Advertising:        boolPtr(false),
+				Gambling:           boolPtr(false),
+				LootBox:            boolPtr(true),
+				UserGeneratedContent: boolPtr(false),
+				GunsOrOtherWeapons: stringPtr("NONE"),
+				KidsAgeBand:        stringPtr("FIVE_AND_UNDER"),
+				ViolenceRealistic:  stringPtr("NONE"),
 			},
 		},
 	}
@@ -1345,14 +1349,10 @@ func TestPrintTable_AgeRatingDeclaration(t *testing.T) {
 		return PrintTable(resp)
 	})
 
-	if !strings.Contains(output, "Gambling") {
-		t.Fatalf("expected gambling header, got: %s", output)
-	}
-	if !strings.Contains(output, "false") {
-		t.Fatalf("expected gambling value, got: %s", output)
-	}
-	if !strings.Contains(output, "FIVE_AND_UNDER") {
-		t.Fatalf("expected kids age band, got: %s", output)
+	for _, expected := range []string{"Gambling", "Advertising", "Loot Box", "User-Generated Content", "Guns/Other Weapons", "FIVE_AND_UNDER"} {
+		if !strings.Contains(output, expected) {
+			t.Fatalf("expected %q in output, got: %s", expected, output)
+		}
 	}
 }
 

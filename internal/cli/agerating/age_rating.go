@@ -140,7 +140,6 @@ func AgeRatingSetCommand() *ffcli.Command {
 	violenceRealisticGraphic := fs.String("violence-realistic-graphic", "", "Prolonged graphic/sadistic violence: NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE")
 
 	// Other
-	seventeenPlus := fs.String("seventeen-plus", "", "17+ content (true/false, not supported by API)")
 	kidsAgeBand := fs.String("kids-age-band", "", "Kids age band: FIVE_AND_UNDER, SIX_TO_EIGHT, NINE_TO_ELEVEN")
 
 	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
@@ -199,8 +198,7 @@ Examples:
 				"violence-realistic":            *violenceRealistic,
 				"violence-realistic-graphic":    *violenceRealisticGraphic,
 				// Other
-				"seventeen-plus":           *seventeenPlus,
-				"kids-age-band":            *kidsAgeBand,
+				"kids-age-band": *kidsAgeBand,
 			})
 			if err != nil {
 				return err
@@ -272,130 +270,57 @@ func resolveAgeRatingDeclarationID(ctx context.Context, client *asc.Client, appI
 func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclarationAttributes, error) {
 	var attrs asc.AgeRatingDeclarationAttributes
 
-	// Parse boolean content descriptors
-	advertising, err := shared.ParseOptionalBoolFlag("--advertising", values["advertising"])
-	if err != nil {
-		return attrs, err
-	}
-	gambling, err := shared.ParseOptionalBoolFlag("--gambling", values["gambling"])
-	if err != nil {
-		return attrs, err
-	}
-	healthOrWellnessTopics, err := shared.ParseOptionalBoolFlag("--health-or-wellness-topics", values["health-or-wellness-topics"])
-	if err != nil {
-		return attrs, err
-	}
-	lootBox, err := shared.ParseOptionalBoolFlag("--loot-box", values["loot-box"])
-	if err != nil {
-		return attrs, err
-	}
-	messagingAndChat, err := shared.ParseOptionalBoolFlag("--messaging-and-chat", values["messaging-and-chat"])
-	if err != nil {
-		return attrs, err
-	}
-	parentalControls, err := shared.ParseOptionalBoolFlag("--parental-controls", values["parental-controls"])
-	if err != nil {
-		return attrs, err
-	}
-	ageAssurance, err := shared.ParseOptionalBoolFlag("--age-assurance", values["age-assurance"])
-	if err != nil {
-		return attrs, err
-	}
-	unrestrictedWebAccess, err := shared.ParseOptionalBoolFlag("--unrestricted-web-access", values["unrestricted-web-access"])
-	if err != nil {
-		return attrs, err
-	}
-	userGeneratedContent, err := shared.ParseOptionalBoolFlag("--user-generated-content", values["user-generated-content"])
-	if err != nil {
-		return attrs, err
-	}
-	if strings.TrimSpace(values["seventeen-plus"]) != "" {
-		return attrs, fmt.Errorf("--seventeen-plus is not supported by the App Store Connect API")
-	}
-
-	gamblingSimulated, err := parseOptionalEnumFlag("--gambling-simulated", values["gambling-simulated"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	alcoholTobaccoDrug, err := parseOptionalEnumFlag("--alcohol-tobacco-drug-use", values["alcohol-tobacco-drug-use"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	contests, err := parseOptionalEnumFlag("--contests", values["contests"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	gunsOrOtherWeapons, err := parseOptionalEnumFlag("--guns-or-other-weapons", values["guns-or-other-weapons"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	medicalTreatment, err := parseOptionalEnumFlag("--medical-treatment", values["medical-treatment"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	profanityHumor, err := parseOptionalEnumFlag("--profanity-humor", values["profanity-humor"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	sexualContentNudity, err := parseOptionalEnumFlag("--sexual-content-nudity", values["sexual-content-nudity"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	sexualContentGraphicNudity, err := parseOptionalEnumFlag("--sexual-content-graphic-nudity", values["sexual-content-graphic-nudity"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	horrorFear, err := parseOptionalEnumFlag("--horror-fear", values["horror-fear"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	matureSuggestive, err := parseOptionalEnumFlag("--mature-suggestive", values["mature-suggestive"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	violenceCartoon, err := parseOptionalEnumFlag("--violence-cartoon", values["violence-cartoon"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	violenceRealistic, err := parseOptionalEnumFlag("--violence-realistic", values["violence-realistic"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	violenceRealisticGraphic, err := parseOptionalEnumFlag("--violence-realistic-graphic", values["violence-realistic-graphic"], ageRatingLevelValues)
-	if err != nil {
-		return attrs, err
-	}
-	kidsAgeBand, err := parseOptionalEnumFlag("--kids-age-band", values["kids-age-band"], kidsAgeBandValues)
-	if err != nil {
-		return attrs, err
-	}
-
 	// Boolean content descriptors
-	attrs.Advertising = advertising
-	attrs.Gambling = gambling
-	attrs.HealthOrWellnessTopics = healthOrWellnessTopics
-	attrs.LootBox = lootBox
-	attrs.MessagingAndChat = messagingAndChat
-	attrs.ParentalControls = parentalControls
-	attrs.AgeAssurance = ageAssurance
-	attrs.UnrestrictedWebAccess = unrestrictedWebAccess
-	attrs.UserGeneratedContent = userGeneratedContent
-	// Enum content descriptors
-	attrs.AlcoholTobaccoOrDrugUseOrReferences = alcoholTobaccoDrug
-	attrs.Contests = contests
-	attrs.GamblingSimulated = gamblingSimulated
-	attrs.GunsOrOtherWeapons = gunsOrOtherWeapons
-	attrs.MedicalOrTreatmentInformation = medicalTreatment
-	attrs.ProfanityOrCrudeHumor = profanityHumor
-	attrs.SexualContentOrNudity = sexualContentNudity
-	attrs.SexualContentGraphicAndNudity = sexualContentGraphicNudity
-	attrs.HorrorOrFearThemes = horrorFear
-	attrs.MatureOrSuggestiveThemes = matureSuggestive
-	attrs.ViolenceCartoonOrFantasy = violenceCartoon
-	attrs.ViolenceRealistic = violenceRealistic
-	attrs.ViolenceRealisticProlongedGraphicOrSadistic = violenceRealisticGraphic
-	// Other
-	attrs.KidsAgeBand = kidsAgeBand
+	boolFields := []struct {
+		flag string
+		dest **bool
+	}{
+		{"advertising", &attrs.Advertising},
+		{"gambling", &attrs.Gambling},
+		{"health-or-wellness-topics", &attrs.HealthOrWellnessTopics},
+		{"loot-box", &attrs.LootBox},
+		{"messaging-and-chat", &attrs.MessagingAndChat},
+		{"parental-controls", &attrs.ParentalControls},
+		{"age-assurance", &attrs.AgeAssurance},
+		{"unrestricted-web-access", &attrs.UnrestrictedWebAccess},
+		{"user-generated-content", &attrs.UserGeneratedContent},
+	}
+	for _, f := range boolFields {
+		val, err := shared.ParseOptionalBoolFlag("--"+f.flag, values[f.flag])
+		if err != nil {
+			return attrs, err
+		}
+		*f.dest = val
+	}
+
+	// Enum content descriptors (NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE)
+	enumFields := []struct {
+		flag    string
+		dest    **string
+		allowed []string
+	}{
+		{"alcohol-tobacco-drug-use", &attrs.AlcoholTobaccoOrDrugUseOrReferences, ageRatingLevelValues},
+		{"contests", &attrs.Contests, ageRatingLevelValues},
+		{"gambling-simulated", &attrs.GamblingSimulated, ageRatingLevelValues},
+		{"guns-or-other-weapons", &attrs.GunsOrOtherWeapons, ageRatingLevelValues},
+		{"medical-treatment", &attrs.MedicalOrTreatmentInformation, ageRatingLevelValues},
+		{"profanity-humor", &attrs.ProfanityOrCrudeHumor, ageRatingLevelValues},
+		{"sexual-content-nudity", &attrs.SexualContentOrNudity, ageRatingLevelValues},
+		{"sexual-content-graphic-nudity", &attrs.SexualContentGraphicAndNudity, ageRatingLevelValues},
+		{"horror-fear", &attrs.HorrorOrFearThemes, ageRatingLevelValues},
+		{"mature-suggestive", &attrs.MatureOrSuggestiveThemes, ageRatingLevelValues},
+		{"violence-cartoon", &attrs.ViolenceCartoonOrFantasy, ageRatingLevelValues},
+		{"violence-realistic", &attrs.ViolenceRealistic, ageRatingLevelValues},
+		{"violence-realistic-graphic", &attrs.ViolenceRealisticProlongedGraphicOrSadistic, ageRatingLevelValues},
+		{"kids-age-band", &attrs.KidsAgeBand, kidsAgeBandValues},
+	}
+	for _, f := range enumFields {
+		val, err := parseOptionalEnumFlag("--"+f.flag, values[f.flag], f.allowed)
+		if err != nil {
+			return attrs, err
+		}
+		*f.dest = val
+	}
 
 	return attrs, nil
 }
@@ -423,9 +348,7 @@ func hasAgeRatingUpdates(attrs asc.AgeRatingDeclarationAttributes) bool {
 		attrs.ViolenceCartoonOrFantasy != nil ||
 		attrs.ViolenceRealistic != nil ||
 		attrs.ViolenceRealisticProlongedGraphicOrSadistic != nil ||
-		attrs.KidsAgeBand != nil ||
-		attrs.AgeRatingOverride != nil ||
-		attrs.KoreaAgeRatingOverride != nil
+		attrs.KidsAgeBand != nil
 }
 
 func parseOptionalEnumFlag(name, raw string, allowed []string) (*string, error) {
