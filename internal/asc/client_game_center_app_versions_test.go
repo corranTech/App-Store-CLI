@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -261,6 +262,81 @@ func TestUpdateGameCenterAppVersion(t *testing.T) {
 	}
 	if !resp.Data.Attributes.Enabled {
 		t.Fatalf("expected enabled true, got false")
+	}
+}
+
+func TestCreateGameCenterAppVersion_RequiresID(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	_, err := client.CreateGameCenterAppVersion(context.Background(), " ")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCreateGameCenterAppVersion_ReturnsAPIError(t *testing.T) {
+	response := jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	client := newTestClient(t, nil, response)
+
+	_, err := client.CreateGameCenterAppVersion(context.Background(), "version-123")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
+	}
+}
+
+func TestUpdateGameCenterAppVersion_ValidationErrors(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	enabled := true
+	tests := []struct {
+		name string
+		id   string
+		attr GameCenterAppVersionUpdateAttributes
+	}{
+		{
+			name: "missing id",
+			id:   " ",
+			attr: GameCenterAppVersionUpdateAttributes{Enabled: &enabled},
+		},
+		{
+			name: "missing attributes",
+			id:   "gcav-1",
+			attr: GameCenterAppVersionUpdateAttributes{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := client.UpdateGameCenterAppVersion(context.Background(), test.id, test.attr)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+		})
+	}
+}
+
+func TestUpdateGameCenterAppVersion_ReturnsAPIError(t *testing.T) {
+	response := jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	client := newTestClient(t, nil, response)
+
+	enabled := true
+	_, err := client.UpdateGameCenterAppVersion(context.Background(), "gcav-1", GameCenterAppVersionUpdateAttributes{Enabled: &enabled})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
 	}
 }
 

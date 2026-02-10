@@ -56,6 +56,24 @@ func (c *Client) GetGameCenterLeaderboardSetMemberLocalization(ctx context.Conte
 
 // CreateGameCenterLeaderboardSetMemberLocalization creates a new leaderboard set member localization.
 func (c *Client) CreateGameCenterLeaderboardSetMemberLocalization(ctx context.Context, leaderboardSetID, leaderboardID string, attrs GameCenterLeaderboardSetMemberLocalizationCreateAttributes) (*GameCenterLeaderboardSetMemberLocalizationResponse, error) {
+	leaderboardSetID = strings.TrimSpace(leaderboardSetID)
+	if leaderboardSetID == "" {
+		return nil, fmt.Errorf("leaderboardSetID is required")
+	}
+	leaderboardID = strings.TrimSpace(leaderboardID)
+	if leaderboardID == "" {
+		return nil, fmt.Errorf("leaderboardID is required")
+	}
+
+	attrs.Name = strings.TrimSpace(attrs.Name)
+	if attrs.Name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	attrs.Locale = strings.TrimSpace(attrs.Locale)
+	if attrs.Locale == "" {
+		return nil, fmt.Errorf("locale is required")
+	}
+
 	payload := GameCenterLeaderboardSetMemberLocalizationCreateRequest{
 		Data: GameCenterLeaderboardSetMemberLocalizationCreateData{
 			Type:       ResourceTypeGameCenterLeaderboardSetMemberLocalizations,
@@ -64,13 +82,13 @@ func (c *Client) CreateGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 				GameCenterLeaderboardSet: &Relationship{
 					Data: ResourceData{
 						Type: ResourceTypeGameCenterLeaderboardSets,
-						ID:   strings.TrimSpace(leaderboardSetID),
+						ID:   leaderboardSetID,
 					},
 				},
 				GameCenterLeaderboard: &Relationship{
 					Data: ResourceData{
 						Type: ResourceTypeGameCenterLeaderboards,
-						ID:   strings.TrimSpace(leaderboardID),
+						ID:   leaderboardID,
 					},
 				},
 			},
@@ -97,10 +115,23 @@ func (c *Client) CreateGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 
 // UpdateGameCenterLeaderboardSetMemberLocalization updates an existing leaderboard set member localization.
 func (c *Client) UpdateGameCenterLeaderboardSetMemberLocalization(ctx context.Context, localizationID string, attrs GameCenterLeaderboardSetMemberLocalizationUpdateAttributes) (*GameCenterLeaderboardSetMemberLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	if attrs.Name == nil {
+		return nil, fmt.Errorf("at least one attribute is required")
+	}
+	trimmedName := strings.TrimSpace(*attrs.Name)
+	if trimmedName == "" {
+		return nil, fmt.Errorf("name must not be empty")
+	}
+	attrs.Name = &trimmedName
+
 	payload := GameCenterLeaderboardSetMemberLocalizationUpdateRequest{
 		Data: GameCenterLeaderboardSetMemberLocalizationUpdateData{
 			Type:       ResourceTypeGameCenterLeaderboardSetMemberLocalizations,
-			ID:         strings.TrimSpace(localizationID),
+			ID:         localizationID,
 			Attributes: &attrs,
 		},
 	}
@@ -110,7 +141,7 @@ func (c *Client) UpdateGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 		return nil, err
 	}
 
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", strings.TrimSpace(localizationID))
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID)
 	data, err := c.do(ctx, http.MethodPatch, path, body)
 	if err != nil {
 		return nil, err
@@ -126,7 +157,11 @@ func (c *Client) UpdateGameCenterLeaderboardSetMemberLocalization(ctx context.Co
 
 // DeleteGameCenterLeaderboardSetMemberLocalization deletes a leaderboard set member localization.
 func (c *Client) DeleteGameCenterLeaderboardSetMemberLocalization(ctx context.Context, localizationID string) error {
-	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", strings.TrimSpace(localizationID))
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetMemberLocalizations/%s", localizationID)
 	_, err := c.do(ctx, http.MethodDelete, path, nil)
 	return err
 }

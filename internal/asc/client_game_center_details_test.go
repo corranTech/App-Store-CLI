@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -336,7 +337,7 @@ func TestCreateGameCenterDetail(t *testing.T) {
 }
 
 func TestUpdateGameCenterDetail(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"detail-1","attributes":{"challengeEnabled":true}}}`)
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"detail-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPatch {
 			t.Fatalf("expected PATCH, got %s", req.Method)
@@ -361,18 +362,27 @@ func TestUpdateGameCenterDetail(t *testing.T) {
 		if payload.Data.ID != "detail-1" {
 			t.Fatalf("expected id detail-1, got %s", payload.Data.ID)
 		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.ChallengeEnabled == nil {
-			t.Fatalf("expected challengeEnabled attribute to be set")
+		if payload.Data.Attributes != nil {
+			t.Fatalf("expected attributes to be omitted")
 		}
-		if *payload.Data.Attributes.ChallengeEnabled != true {
-			t.Fatalf("expected challengeEnabled true, got %v", *payload.Data.Attributes.ChallengeEnabled)
+		if payload.Data.Relationships == nil || payload.Data.Relationships.DefaultLeaderboard == nil {
+			t.Fatalf("expected defaultLeaderboard relationship to be set")
+		}
+		if payload.Data.Relationships.DefaultLeaderboard.Data.ID != "lb-1" {
+			t.Fatalf("expected defaultLeaderboard id lb-1, got %s", payload.Data.Relationships.DefaultLeaderboard.Data.ID)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	enabled := true
-	attrs := &GameCenterDetailUpdateAttributes{ChallengeEnabled: &enabled}
-	resp, err := client.UpdateGameCenterDetail(context.Background(), "detail-1", attrs, nil)
+	rels := &GameCenterDetailUpdateRelationships{
+		DefaultLeaderboard: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterLeaderboards,
+				ID:   "lb-1",
+			},
+		},
+	}
+	resp, err := client.UpdateGameCenterDetail(context.Background(), "detail-1", nil, rels)
 	if err != nil {
 		t.Fatalf("UpdateGameCenterDetail() error: %v", err)
 	}
@@ -380,7 +390,125 @@ func TestUpdateGameCenterDetail(t *testing.T) {
 	if resp.Data.ID != "detail-1" {
 		t.Fatalf("expected ID detail-1, got %s", resp.Data.ID)
 	}
-	if !resp.Data.Attributes.ChallengeEnabled {
-		t.Fatalf("expected challengeEnabled true, got false")
+}
+
+func TestCreateGameCenterDetail_RequiresAppID(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	_, err := client.CreateGameCenterDetail(context.Background(), " ", nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCreateGameCenterDetail_ReturnsAPIError(t *testing.T) {
+	response := jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	client := newTestClient(t, nil, response)
+
+	_, err := client.CreateGameCenterDetail(context.Background(), "app-123", nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
+	}
+}
+
+func TestUpdateGameCenterDetail_ValidationErrors(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	tests := []struct {
+		name  string
+		id    string
+		attrs *GameCenterDetailUpdateAttributes
+		rels  *GameCenterDetailUpdateRelationships
+	}{
+		{
+			name: "missing detail ID",
+			id:   " ",
+			rels: &GameCenterDetailUpdateRelationships{
+				DefaultLeaderboard: &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterLeaderboards, ID: "lb-1"}},
+			},
+		},
+		{
+			name: "no update fields",
+			id:   "detail-1",
+		},
+		{
+			name: "empty gameCenterGroup relationship ID",
+			id:   "detail-1",
+			rels: &GameCenterDetailUpdateRelationships{
+				GameCenterGroup:    &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterGroups, ID: " "}},
+				DefaultLeaderboard: &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterLeaderboards, ID: "lb-1"}},
+			},
+		},
+		{
+			name: "empty defaultLeaderboard relationship ID",
+			id:   "detail-1",
+			rels: &GameCenterDetailUpdateRelationships{
+				GameCenterGroup:    &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterGroups, ID: "group-1"}},
+				DefaultLeaderboard: &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterLeaderboards, ID: " "}},
+			},
+		},
+		{
+			name: "deprecated challengeEnabled attribute",
+			id:   "detail-1",
+			attrs: &GameCenterDetailUpdateAttributes{
+				ChallengeEnabled: func() *bool { b := true; return &b }(),
+			},
+			rels: &GameCenterDetailUpdateRelationships{
+				DefaultLeaderboard: &Relationship{Data: ResourceData{Type: ResourceTypeGameCenterLeaderboards, ID: "lb-1"}},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := client.UpdateGameCenterDetail(context.Background(), test.id, test.attrs, test.rels)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+		})
+	}
+}
+
+func TestUpdateGameCenterDetail_ReturnsAPIError(t *testing.T) {
+	response := jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	client := newTestClient(t, nil, response)
+
+	rels := &GameCenterDetailUpdateRelationships{
+		DefaultLeaderboard: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterLeaderboards,
+				ID:   "lb-1",
+			},
+		},
+	}
+	_, err := client.UpdateGameCenterDetail(context.Background(), "detail-1", nil, rels)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
+	}
+}
+
+func TestCreateGameCenterDetail_RejectsDeprecatedChallengeEnabled(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+	value := true
+
+	_, err := client.CreateGameCenterDetail(context.Background(), "app-123", &GameCenterDetailCreateAttributes{
+		ChallengeEnabled: &value,
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

@@ -142,6 +142,11 @@ func (c *Client) GetGameCenterAppVersionCompatibilityVersions(ctx context.Contex
 
 // CreateGameCenterAppVersion creates a new Game Center app version.
 func (c *Client) CreateGameCenterAppVersion(ctx context.Context, appStoreVersionID string) (*GameCenterAppVersionResponse, error) {
+	appStoreVersionID = strings.TrimSpace(appStoreVersionID)
+	if appStoreVersionID == "" {
+		return nil, fmt.Errorf("appStoreVersionID is required")
+	}
+
 	payload := GameCenterAppVersionCreateRequest{
 		Data: GameCenterAppVersionCreateData{
 			Type: ResourceTypeGameCenterAppVersions,
@@ -149,7 +154,7 @@ func (c *Client) CreateGameCenterAppVersion(ctx context.Context, appStoreVersion
 				AppStoreVersion: &Relationship{
 					Data: ResourceData{
 						Type: ResourceTypeAppStoreVersions,
-						ID:   strings.TrimSpace(appStoreVersionID),
+						ID:   appStoreVersionID,
 					},
 				},
 			},
@@ -176,10 +181,18 @@ func (c *Client) CreateGameCenterAppVersion(ctx context.Context, appStoreVersion
 
 // UpdateGameCenterAppVersion updates an existing Game Center app version.
 func (c *Client) UpdateGameCenterAppVersion(ctx context.Context, appVersionID string, attrs GameCenterAppVersionUpdateAttributes) (*GameCenterAppVersionResponse, error) {
+	appVersionID = strings.TrimSpace(appVersionID)
+	if appVersionID == "" {
+		return nil, fmt.Errorf("appVersionID is required")
+	}
+	if attrs.Enabled == nil {
+		return nil, fmt.Errorf("at least one attribute is required")
+	}
+
 	payload := GameCenterAppVersionUpdateRequest{
 		Data: GameCenterAppVersionUpdateData{
 			Type:       ResourceTypeGameCenterAppVersions,
-			ID:         strings.TrimSpace(appVersionID),
+			ID:         appVersionID,
 			Attributes: &attrs,
 		},
 	}
@@ -189,7 +202,7 @@ func (c *Client) UpdateGameCenterAppVersion(ctx context.Context, appVersionID st
 		return nil, err
 	}
 
-	path := fmt.Sprintf("/v1/gameCenterAppVersions/%s", strings.TrimSpace(appVersionID))
+	path := fmt.Sprintf("/v1/gameCenterAppVersions/%s", appVersionID)
 	data, err := c.do(ctx, http.MethodPatch, path, body)
 	if err != nil {
 		return nil, err

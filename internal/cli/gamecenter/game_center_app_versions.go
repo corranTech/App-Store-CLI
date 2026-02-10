@@ -255,7 +255,8 @@ Examples:
 			enabledVal := strings.TrimSpace(*enabled)
 			if enabledVal != "" {
 				if enabledVal != "true" && enabledVal != "false" {
-					return fmt.Errorf("game-center app-versions update: --enabled must be 'true' or 'false'")
+					fmt.Fprintln(os.Stderr, "Error: --enabled must be 'true' or 'false'")
+					return flag.ErrHelp
 				}
 				b := enabledVal == "true"
 				attrs.Enabled = &b

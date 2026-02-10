@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -240,6 +241,149 @@ func TestDeleteGameCenterLeaderboardSetMemberLocalization(t *testing.T) {
 	err := client.DeleteGameCenterLeaderboardSetMemberLocalization(context.Background(), "loc-1")
 	if err != nil {
 		t.Fatalf("DeleteGameCenterLeaderboardSetMemberLocalization() error: %v", err)
+	}
+}
+
+func TestCreateGameCenterLeaderboardSetMemberLocalization_ValidationErrors(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	tests := []struct {
+		name           string
+		leaderboardSet string
+		leaderboard    string
+		attrs          GameCenterLeaderboardSetMemberLocalizationCreateAttributes
+	}{
+		{
+			name:           "missing leaderboard set ID",
+			leaderboardSet: " ",
+			leaderboard:    "lb-1",
+			attrs:          GameCenterLeaderboardSetMemberLocalizationCreateAttributes{Name: "Top Score", Locale: "en-US"},
+		},
+		{
+			name:           "missing leaderboard ID",
+			leaderboardSet: "set-1",
+			leaderboard:    " ",
+			attrs:          GameCenterLeaderboardSetMemberLocalizationCreateAttributes{Name: "Top Score", Locale: "en-US"},
+		},
+		{
+			name:           "missing name",
+			leaderboardSet: "set-1",
+			leaderboard:    "lb-1",
+			attrs:          GameCenterLeaderboardSetMemberLocalizationCreateAttributes{Name: " ", Locale: "en-US"},
+		},
+		{
+			name:           "missing locale",
+			leaderboardSet: "set-1",
+			leaderboard:    "lb-1",
+			attrs:          GameCenterLeaderboardSetMemberLocalizationCreateAttributes{Name: "Top Score", Locale: " "},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := client.CreateGameCenterLeaderboardSetMemberLocalization(context.Background(), test.leaderboardSet, test.leaderboard, test.attrs)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+		})
+	}
+}
+
+func TestCreateGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *testing.T) {
+	response := jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	client := newTestClient(t, nil, response)
+
+	attrs := GameCenterLeaderboardSetMemberLocalizationCreateAttributes{Name: "Top Score", Locale: "en-US"}
+	_, err := client.CreateGameCenterLeaderboardSetMemberLocalization(context.Background(), "set-1", "lb-1", attrs)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
+	}
+}
+
+func TestUpdateGameCenterLeaderboardSetMemberLocalization_ValidationErrors(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	newName := "Updated Name"
+	tests := []struct {
+		name string
+		id   string
+		attr GameCenterLeaderboardSetMemberLocalizationUpdateAttributes
+	}{
+		{
+			name: "missing localization ID",
+			id:   " ",
+			attr: GameCenterLeaderboardSetMemberLocalizationUpdateAttributes{Name: &newName},
+		},
+		{
+			name: "missing attributes",
+			id:   "loc-1",
+			attr: GameCenterLeaderboardSetMemberLocalizationUpdateAttributes{},
+		},
+		{
+			name: "empty name",
+			id:   "loc-1",
+			attr: GameCenterLeaderboardSetMemberLocalizationUpdateAttributes{Name: func() *string { s := " "; return &s }()},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := client.UpdateGameCenterLeaderboardSetMemberLocalization(context.Background(), test.id, test.attr)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+		})
+	}
+}
+
+func TestUpdateGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *testing.T) {
+	response := jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	client := newTestClient(t, nil, response)
+
+	newName := "Updated Name"
+	_, err := client.UpdateGameCenterLeaderboardSetMemberLocalization(context.Background(), "loc-1", GameCenterLeaderboardSetMemberLocalizationUpdateAttributes{Name: &newName})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
+	}
+}
+
+func TestDeleteGameCenterLeaderboardSetMemberLocalization_RequiresID(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	err := client.DeleteGameCenterLeaderboardSetMemberLocalization(context.Background(), " ")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestDeleteGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *testing.T) {
+	response := jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	client := newTestClient(t, nil, response)
+
+	err := client.DeleteGameCenterLeaderboardSetMemberLocalization(context.Background(), "loc-1")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
 	}
 }
 
