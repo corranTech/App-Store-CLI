@@ -467,6 +467,17 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/gamecenter` (`game-center enabled-versions compatible-versions` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
 - [x] Commit Phase 55
 
+## Phase 56 - `--next` Parity for Game Center Details List Surfaces
+
+- [x] `internal/cli/gamecenter` (`game-center details app-versions list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center details achievements-v2 list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center details leaderboards-v2 list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center details leaderboard-sets-v2 list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center details achievement-releases list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center details leaderboard-releases list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] `internal/cli/gamecenter` (`game-center details leaderboard-set-releases list` invalid/malformed `--next` validation + `--paginate --next` without `--id`)
+- [x] Commit Phase 56
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
