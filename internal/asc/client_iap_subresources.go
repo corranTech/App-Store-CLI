@@ -977,6 +977,40 @@ func (c *Client) GetInAppPurchaseOfferCodeCustomCode(ctx context.Context, custom
 	return &response, nil
 }
 
+// CreateInAppPurchaseOfferCodeCustomCode creates a custom code for an offer code.
+func (c *Client) CreateInAppPurchaseOfferCodeCustomCode(ctx context.Context, req InAppPurchaseOfferCodeCustomCodeCreateRequest) (*InAppPurchaseOfferCodeCustomCodeResponse, error) {
+	offerCodeID := strings.TrimSpace(req.Data.Relationships.OfferCode.Data.ID)
+	if offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+	customCode := strings.TrimSpace(req.Data.Attributes.CustomCode)
+	if customCode == "" {
+		return nil, fmt.Errorf("customCode is required")
+	}
+	if req.Data.Attributes.NumberOfCodes <= 0 {
+		return nil, fmt.Errorf("numberOfCodes must be greater than 0")
+	}
+	req.Data.Relationships.OfferCode.Data.ID = offerCodeID
+	req.Data.Attributes.CustomCode = customCode
+
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseOfferCodeCustomCodes", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseOfferCodeCustomCodeResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetInAppPurchaseOfferCodeOneTimeUseCodes retrieves one-time use codes for an offer code.
 func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...IAPOfferCodeOneTimeUseCodesOption) (*InAppPurchaseOfferCodeOneTimeUseCodesResponse, error) {
 	query := &iapOfferCodeOneTimeUseCodesQuery{}
@@ -1021,6 +1055,40 @@ func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, on
 
 	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)
 	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseOfferCodeOneTimeUseCodeResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// CreateInAppPurchaseOfferCodeOneTimeUseCode generates a new one-time use code batch.
+func (c *Client) CreateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, req InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest) (*InAppPurchaseOfferCodeOneTimeUseCodeResponse, error) {
+	offerCodeID := strings.TrimSpace(req.Data.Relationships.OfferCode.Data.ID)
+	if offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+	if req.Data.Attributes.NumberOfCodes <= 0 {
+		return nil, fmt.Errorf("numberOfCodes must be greater than 0")
+	}
+	expirationDate := strings.TrimSpace(req.Data.Attributes.ExpirationDate)
+	if expirationDate == "" {
+		return nil, fmt.Errorf("expirationDate is required")
+	}
+	req.Data.Relationships.OfferCode.Data.ID = offerCodeID
+	req.Data.Attributes.ExpirationDate = expirationDate
+
+	body, err := BuildRequestBody(req)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseOfferCodeOneTimeUseCodes", body)
 	if err != nil {
 		return nil, err
 	}
