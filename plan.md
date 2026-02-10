@@ -512,6 +512,15 @@ Goal: eliminate current `0.0%` coverage packages by adding package-local tests i
 - [x] `internal/cli/gamecenter` (`game-center leaderboard-sets v2 versions list` invalid/malformed `--next` validation + `--paginate --next` without `--set-id`)
 - [x] Commit Phase 59
 
+## Phase 60 - `--next` Parity for Game Center Matchmaking List Surfaces
+
+- [x] `internal/cli/gamecenter` (`game-center matchmaking queues list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/gamecenter` (`game-center matchmaking rule-sets list` invalid/malformed `--next` validation + `--paginate --next` path)
+- [x] `internal/cli/gamecenter` (`game-center matchmaking rule-sets queues list` invalid/malformed `--next` validation + `--paginate --next` without `--rule-set-id`)
+- [x] `internal/cli/gamecenter` (`game-center matchmaking rules list` invalid/malformed `--next` validation + `--paginate --next` without `--rule-set-id`)
+- [x] `internal/cli/gamecenter` (`game-center matchmaking teams list` invalid/malformed `--next` validation + `--paginate --next` without `--rule-set-id`)
+- [x] Commit Phase 60
+
 ## Validation Gate (after each phase and at end)
 
 - [x] `go test -short ./...`
