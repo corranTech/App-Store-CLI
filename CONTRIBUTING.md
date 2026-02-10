@@ -87,7 +87,7 @@ To add your app:
 
 1. Fork the repo
 2. Add an entry to `docs/wall-of-apps.json`
-3. Run `make update-wall-of-apps` (optional for preview; CI/automation also regenerates)
+3. Run `make update-wall-of-apps`
 4. Open a PR
 
 Format:
