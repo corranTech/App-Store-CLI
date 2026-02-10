@@ -28,10 +28,6 @@ func (b *OptionalBool) String() string {
 	return strconv.FormatBool(b.value)
 }
 
-func (b *OptionalBool) IsBoolFlag() bool {
-	return true
-}
-
 func (b OptionalBool) IsSet() bool {
 	return b.set
 }
