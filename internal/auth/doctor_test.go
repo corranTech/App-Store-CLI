@@ -133,6 +133,7 @@ end
 
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+	clearMigrationTestEnv(t)
 
 	report := Doctor(DoctorOptions{})
 	section := findDoctorSection(t, report, "Migration Hints")
@@ -195,6 +196,7 @@ func TestDoctorMigrationHintsMissingFilesInfoOnly(t *testing.T) {
 
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+	clearMigrationTestEnv(t)
 
 	report := Doctor(DoctorOptions{})
 	section := findDoctorSection(t, report, "Migration Hints")
@@ -209,6 +211,15 @@ func TestDoctorMigrationHintsMissingFilesInfoOnly(t *testing.T) {
 	if report.Migration == nil {
 		t.Fatal("expected migration hints in report")
 	}
+	if report.Migration.DetectedFiles == nil {
+		t.Fatal("expected detected files to be an empty array, got nil")
+	}
+	if report.Migration.DetectedActions == nil {
+		t.Fatal("expected detected actions to be an empty array, got nil")
+	}
+	if report.Migration.SuggestedCommands == nil {
+		t.Fatal("expected suggested commands to be an empty array, got nil")
+	}
 	if len(report.Migration.DetectedFiles) != 0 {
 		t.Fatalf("expected no detected files, got %#v", report.Migration.DetectedFiles)
 	}
@@ -217,6 +228,186 @@ func TestDoctorMigrationHintsMissingFilesInfoOnly(t *testing.T) {
 	}
 	if len(report.Migration.SuggestedCommands) != 0 {
 		t.Fatalf("expected no suggested commands, got %#v", report.Migration.SuggestedCommands)
+	}
+}
+
+func TestDoctorMigrationHintsDetectsFromNestedWorktreePath(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, ".git"), []byte("gitdir: /tmp/worktree\n"), 0o644); err != nil {
+		t.Fatalf("write .git marker error: %v", err)
+	}
+	fastlaneDir := filepath.Join(repo, "fastlane")
+	if err := os.MkdirAll(fastlaneDir, 0o755); err != nil {
+		t.Fatalf("mkdir fastlane error: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fastlaneDir, "Fastfile"), []byte("deliver\n"), 0o644); err != nil {
+		t.Fatalf("write Fastfile error: %v", err)
+	}
+
+	nestedDir := filepath.Join(repo, "a", "b", "c", "d", "e", "f", "g", "h", "i", "j")
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+		t.Fatalf("mkdir nested dir error: %v", err)
+	}
+
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(nestedDir); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(previousDir)
+	})
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+	clearMigrationTestEnv(t)
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Migration Hints")
+	if !sectionHasStatus(section, DoctorInfo, "Detected Fastfile at fastlane/Fastfile") {
+		t.Fatalf("expected Fastfile detection from nested path, got %#v", section.Checks)
+	}
+	if report.Migration == nil {
+		t.Fatal("expected migration hints in report")
+	}
+	if !reflect.DeepEqual(report.Migration.DetectedFiles, []string{"fastlane/Fastfile"}) {
+		t.Fatalf("DetectedFiles = %#v, want %#v", report.Migration.DetectedFiles, []string{"fastlane/Fastfile"})
+	}
+	if !reflect.DeepEqual(report.Migration.DetectedActions, []string{"deliver"}) {
+		t.Fatalf("DetectedActions = %#v, want %#v", report.Migration.DetectedActions, []string{"deliver"})
+	}
+}
+
+func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatalf("create .git error: %v", err)
+	}
+	fastlaneDir := filepath.Join(repo, "fastlane")
+	if err := os.MkdirAll(fastlaneDir, 0o755); err != nil {
+		t.Fatalf("mkdir fastlane error: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fastlaneDir, "Fastfile"), []byte("upload_to_app_store\napp_store_build_number\n"), 0o644); err != nil {
+		t.Fatalf("write Fastfile error: %v", err)
+	}
+
+	xcodeprojDir := filepath.Join(repo, "Sample.xcodeproj")
+	if err := os.MkdirAll(xcodeprojDir, 0o755); err != nil {
+		t.Fatalf("mkdir xcodeproj error: %v", err)
+	}
+	pbxproj := `
+		buildSettings = {
+			MARKETING_VERSION = 2.3.4;
+		};
+	`
+	if err := os.WriteFile(filepath.Join(xcodeprojDir, "project.pbxproj"), []byte(pbxproj), 0o644); err != nil {
+		t.Fatalf("write pbxproj error: %v", err)
+	}
+
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(previousDir)
+	})
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+	t.Setenv("ASC_APP_ID", "123456789")
+	clearMigrationTestEnv(t)
+	t.Setenv("ASC_APP_ID", "123456789")
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Migration Hints")
+	if !sectionHasStatus(section, DoctorInfo, `Detected MARKETING_VERSION "2.3.4"`) {
+		t.Fatalf("expected MARKETING_VERSION detection, got %#v", section.Checks)
+	}
+	if report.Migration == nil {
+		t.Fatal("expected migration hints in report")
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc builds latest --app "123456789"`) {
+		t.Fatalf("expected personalized app id in builds latest, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc publish appstore --app "123456789" --ipa app.ipa --version "2.3.4" --submit --confirm`) {
+		t.Fatalf("expected personalized publish command, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "2.3.4" --build "BUILD_ID" --confirm`) {
+		t.Fatalf("expected personalized submit command, got %#v", report.Migration.SuggestedCommands)
+	}
+}
+
+func TestDoctorMigrationHintsUsesResolvedIDsWhenLookupSucceeds(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatalf("create .git error: %v", err)
+	}
+	fastlaneDir := filepath.Join(repo, "fastlane")
+	if err := os.MkdirAll(fastlaneDir, 0o755); err != nil {
+		t.Fatalf("mkdir fastlane error: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fastlaneDir, "Appfile"), []byte(`app_identifier "com.example.app"`), 0o644); err != nil {
+		t.Fatalf("write Appfile error: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fastlaneDir, "Fastfile"), []byte("deliver\nupload_to_app_store\napp_store_build_number\n"), 0o644); err != nil {
+		t.Fatalf("write Fastfile error: %v", err)
+	}
+
+	xcodeprojDir := filepath.Join(repo, "Sample.xcodeproj")
+	if err := os.MkdirAll(xcodeprojDir, 0o755); err != nil {
+		t.Fatalf("mkdir xcodeproj error: %v", err)
+	}
+	pbxproj := `
+		buildSettings = {
+			MARKETING_VERSION = 4.5.6;
+		};
+	`
+	if err := os.WriteFile(filepath.Join(xcodeprojDir, "project.pbxproj"), []byte(pbxproj), 0o644); err != nil {
+		t.Fatalf("write pbxproj error: %v", err)
+	}
+
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(repo); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(previousDir)
+	})
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+	clearMigrationTestEnv(t)
+
+	called := false
+	resolver := func(input MigrationSuggestionResolverInput) MigrationSuggestionResolverOutput {
+		called = true
+		return MigrationSuggestionResolverOutput{
+			AppID:     "987654321",
+			VersionID: "version-id-123",
+			BuildID:   "build-id-456",
+		}
+	}
+
+	report := DoctorWithMigrationResolver(DoctorOptions{}, resolver)
+	if !called {
+		t.Fatal("expected migration remote resolver to be called")
+	}
+	if report.Migration == nil {
+		t.Fatal("expected migration hints in report")
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc migrate import --app "987654321" --version-id "version-id-123" --fastlane-dir ./fastlane`) {
+		t.Fatalf("expected personalized migrate import command, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "987654321" --version "4.5.6" --build "build-id-456" --confirm`) {
+		t.Fatalf("expected personalized submit command with resolved build ID, got %#v", report.Migration.SuggestedCommands)
 	}
 }
 
@@ -264,4 +455,23 @@ func sectionHasStatus(section DoctorSection, status DoctorStatus, contains strin
 		}
 	}
 	return false
+}
+
+func sliceContains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func clearMigrationTestEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 }

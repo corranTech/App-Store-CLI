@@ -51,7 +51,15 @@ type DoctorOptions struct {
 }
 
 func Doctor(options DoctorOptions) DoctorReport {
-	migrationSection, migrationHints := inspectMigrationHints()
+	return doctor(options, nil)
+}
+
+func DoctorWithMigrationResolver(options DoctorOptions, resolver MigrationSuggestionResolver) DoctorReport {
+	return doctor(options, resolver)
+}
+
+func doctor(options DoctorOptions, resolver MigrationSuggestionResolver) DoctorReport {
+	migrationSection, migrationHints := inspectMigrationHints(resolver)
 	sections := []DoctorSection{
 		inspectStorage(options),
 		inspectProfiles(),

@@ -101,6 +101,98 @@ func TestAuthDoctorTextIncludesMigrationHints(t *testing.T) {
 	})
 }
 
+func TestAuthDoctorJSONMigrationHintsUseEmptyArrays(t *testing.T) {
+	withTempRepo(t, func(repo string) {
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		stdout, _ := captureOutput(t, func() {
+			if err := root.Parse([]string{"auth", "doctor", "--output", "json"}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+		})
+
+		if !strings.Contains(stdout, `"migration":{"detectedFiles":[],"detectedActions":[],"suggestedCommands":[]}`) {
+			t.Fatalf("expected migration arrays in JSON output, got %q", stdout)
+		}
+
+		var report doctorReportJSON
+		if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if report.Migration.DetectedFiles == nil {
+			t.Fatal("expected detectedFiles to decode as an empty array")
+		}
+		if report.Migration.DetectedActions == nil {
+			t.Fatal("expected detectedActions to decode as an empty array")
+		}
+		if report.Migration.SuggestedCommands == nil {
+			t.Fatal("expected suggestedCommands to decode as an empty array")
+		}
+		if len(report.Migration.DetectedFiles) != 0 || len(report.Migration.DetectedActions) != 0 || len(report.Migration.SuggestedCommands) != 0 {
+			t.Fatalf("expected empty migration arrays, got %#v", report.Migration)
+		}
+	})
+}
+
+func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
+	withTempRepo(t, func(repo string) {
+		fastlaneDir := filepath.Join(repo, "fastlane")
+		if err := os.MkdirAll(fastlaneDir, 0o755); err != nil {
+			t.Fatalf("mkdir fastlane error: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(fastlaneDir, "Fastfile"), []byte("upload_to_app_store\napp_store_build_number\n"), 0o644); err != nil {
+			t.Fatalf("write Fastfile error: %v", err)
+		}
+
+		xcodeprojDir := filepath.Join(repo, "Demo.xcodeproj")
+		if err := os.MkdirAll(xcodeprojDir, 0o755); err != nil {
+			t.Fatalf("mkdir xcodeproj error: %v", err)
+		}
+		pbxproj := `
+		buildSettings = {
+			MARKETING_VERSION = 3.2.1;
+		};
+		`
+		if err := os.WriteFile(filepath.Join(xcodeprojDir, "project.pbxproj"), []byte(pbxproj), 0o644); err != nil {
+			t.Fatalf("write pbxproj error: %v", err)
+		}
+
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+		t.Setenv("ASC_APP_ID", "123456789")
+
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		stdout, _ := captureOutput(t, func() {
+			if err := root.Parse([]string{"auth", "doctor", "--output", "json"}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+		})
+
+		var report doctorReportJSON
+		if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if !sliceContains(report.Migration.SuggestedCommands, `asc publish appstore --app "123456789" --ipa app.ipa --version "3.2.1" --submit --confirm`) {
+			t.Fatalf("expected publish command with prefilled app/version, got %#v", report.Migration.SuggestedCommands)
+		}
+		if !sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "3.2.1" --build "BUILD_ID" --confirm`) {
+			t.Fatalf("expected submit command with prefilled app/version, got %#v", report.Migration.SuggestedCommands)
+		}
+	})
+}
+
 func withTempRepo(t *testing.T, fn func(repo string)) {
 	t.Helper()
 
@@ -118,6 +210,12 @@ func withTempRepo(t *testing.T, fn func(repo string)) {
 	t.Cleanup(func() {
 		_ = os.Chdir(previousDir)
 	})
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 
 	fn(repo)
 }
