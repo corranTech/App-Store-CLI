@@ -859,6 +859,8 @@ func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pri
 			return nil, fmt.Errorf("subscriptionPricePointEqualizations: %w", err)
 		}
 		path = query.nextURL
+	} else if queryString := buildSubscriptionPricePointsQuery(query); queryString != "" {
+		path += "?" + queryString
 	}
 
 	data, err := c.do(ctx, http.MethodGet, path, nil)

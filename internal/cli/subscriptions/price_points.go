@@ -249,7 +249,13 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionPricePointEqualizations(requestCtx, id)
+			// When paginating, request with limit=200 to minimize API calls
+			var resp *asc.SubscriptionPricePointsResponse
+			if *paginate {
+				resp, err = client.GetSubscriptionPricePointEqualizations(requestCtx, id, asc.WithSubscriptionPricePointsLimit(200))
+			} else {
+				resp, err = client.GetSubscriptionPricePointEqualizations(requestCtx, id)
+			}
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points equalizations: %w", err)
 			}
