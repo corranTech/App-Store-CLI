@@ -57,6 +57,31 @@ Naming pattern:
 
 Fixture content should be the raw ASC error response body JSON object, not wrapped in extra metadata.
 
+## Foundation Models Repro Matrix
+
+Use this matrix to intentionally trigger known failure classes for Foundation Models flows and store the exact sanitized ASC responses as fixtures.
+
+As of this repository snapshot, there is no dedicated `foundation-models` CLI command yet. When that command or endpoint support lands, discover the exact commands via `asc --help` and keep the scenario naming below.
+
+Target fixture folder:
+
+- `internal/asc/testdata/error_payloads/foundation-models/`
+
+Recommended scenario files:
+
+- `400-foundation-models-validation-missing-required-field.json`
+- `409-foundation-models-state-invalid-transition.json`
+- `409-foundation-models-relationship-invalid-reference.json`
+- `403-foundation-models-permission-insufficient-role.json`
+
+For each scenario:
+
+- Reproduce the failure in a throwaway app/project
+- Capture the full non-2xx error body JSON
+- Sanitize identifiers/secrets using the rules above
+- Commit the sanitized payload as-is under the scenario filename
+- Add parser/command tests that load the fixture and assert actionable output
+
 ## Test Coverage Expectations
 
 For each new fixture variant:

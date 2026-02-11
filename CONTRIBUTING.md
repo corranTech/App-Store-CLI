@@ -77,6 +77,7 @@ To help prevent regressions in API error handling, we maintain real-world saniti
 
 - Intake process: `docs/API_ERROR_FIXTURES.md`
 - Reporting template: `.github/ISSUE_TEMPLATE/api-error-payload.yml`
+- Seed fixture folder: `internal/asc/testdata/error_payloads/foundation-models/`
 
 When reporting API parsing/output issues, please use the `API Error Payload Report` issue form and include a sanitized JSON error body.
 

@@ -11,6 +11,22 @@ body:
 
         Please include a **sanitized** error body. Do not include credentials, tokens, or private user/team information.
 
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which feature area produced this API error?
+      options:
+        - foundation-models
+        - review-submissions
+        - testflight
+        - builds
+        - iap-subscriptions
+        - localizations
+        - other
+    validations:
+      required: true
+
   - type: input
     id: asc-version
     attributes:
