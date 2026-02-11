@@ -144,8 +144,9 @@ Examples:
 			}
 
 			var screenshotPlan []ScreenshotPlan
+			var skippedScreenshots []SkippedItem
 			if screenshotsDir != "" {
-				screenshotPlan, skippedScreenshots, err := discoverScreenshotPlan(screenshotsDir)
+				screenshotPlan, skippedScreenshots, err = discoverScreenshotPlan(screenshotsDir)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
