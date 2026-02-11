@@ -71,16 +71,6 @@ Do not commit secrets.
 - Update `README.md` if behavior or scope changes.
 - Avoid committing any credentials or `.p8` files.
 
-## API Error Fixture Intake
-
-To help prevent regressions in API error handling, we maintain real-world sanitized error payload fixtures.
-
-- Intake process: `docs/API_ERROR_FIXTURES.md`
-- Reporting template: `.github/ISSUE_TEMPLATE/api-error-payload.yml`
-- Seed fixture folder: `internal/asc/testdata/error_payloads/foundation-models/`
-
-When reporting API parsing/output issues, please use the `API Error Payload Report` issue form and include a sanitized JSON error body.
-
 ## Security
 
 If you find a security issue, please report it responsibly by opening a private issue
