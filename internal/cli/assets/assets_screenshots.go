@@ -314,6 +314,11 @@ func uploadScreenshotAsset(ctx context.Context, client *asc.Client, setID, fileP
 	}, nil
 }
 
+// UploadScreenshotAsset uploads a screenshot file to a set.
+func UploadScreenshotAsset(ctx context.Context, client *asc.Client, setID, filePath string) (asc.AssetUploadResultItem, error) {
+	return uploadScreenshotAsset(ctx, client, setID, filePath)
+}
+
 func waitForScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
 	return waitForAssetDeliveryState(ctx, screenshotID, func(ctx context.Context) (*asc.AssetDeliveryState, error) {
 		resp, err := client.GetAppScreenshot(ctx, screenshotID)
