@@ -118,7 +118,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		AgeRatingDeclaration: ageRatingDecl,
 	}, opts.Strict)
 
-	if err := shared.PrintOutput(report, opts.Output, opts.Pretty); err != nil {
+	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
 		return err
 	}
 
