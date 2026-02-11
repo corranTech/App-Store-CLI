@@ -571,3 +571,61 @@ func TestSubscriptionsPricePointsEqualizationsPaginate(t *testing.T) {
 		t.Fatalf("expected aggregated paginated output, got %q", stdout)
 	}
 }
+
+func TestSubscriptionsPricePointsEqualizationsWithoutPaginateUsesSinglePage(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionPricePoints/pp-1/equalizations" {
+			t.Fatalf("unexpected path: %s", req.URL.Path)
+		}
+		if req.URL.RawQuery != "" {
+			t.Fatalf("expected empty query without --paginate, got %q", req.URL.RawQuery)
+		}
+
+		// Include next to ensure command does not follow when --paginate is absent.
+		body := `{"data":[{"type":"subscriptionPricePointEqualizations","id":"eq-1","attributes":{"territory":"USA"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/pp-1/equalizations?cursor=AQ&limit=200"}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "price-points", "equalizations",
+			"--id", "pp-1",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if requests != 1 {
+		t.Fatalf("expected exactly one request without --paginate, got %d", requests)
+	}
+	if !strings.Contains(stdout, `"id":"eq-1"`) {
+		t.Fatalf("expected first page result in output, got %q", stdout)
+	}
+}
