@@ -3,10 +3,12 @@ package migrate
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc/types"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 func TestReadFileIfExists_FileExists(t *testing.T) {
@@ -239,6 +241,56 @@ func TestReadFastlaneMetadata_SkipsFiles(t *testing.T) {
 
 	if len(locs) != 1 {
 		t.Errorf("expected 1 localization (file skipped), got %d", len(locs))
+	}
+}
+
+func TestValidateVersionLocalization_UsesSharedLimits(t *testing.T) {
+	loc := FastlaneLocalization{
+		Locale:      "en-US",
+		Description: strings.Repeat("a", validation.LimitDescription+1),
+	}
+
+	issues := validateVersionLocalization(loc)
+	if len(issues) == 0 {
+		t.Fatalf("expected issues, got none")
+	}
+
+	found := false
+	for _, issue := range issues {
+		if issue.Field == "description" {
+			found = true
+			if issue.Limit != validation.LimitDescription {
+				t.Fatalf("expected limit %d, got %d", validation.LimitDescription, issue.Limit)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected description issue")
+	}
+}
+
+func TestValidateAppInfoLocalization_UsesSharedLimits(t *testing.T) {
+	loc := AppInfoFastlaneLocalization{
+		Locale: "en-US",
+		Name:   strings.Repeat("n", validation.LimitName+1),
+	}
+
+	issues := validateAppInfoLocalization(loc)
+	if len(issues) == 0 {
+		t.Fatalf("expected issues, got none")
+	}
+
+	found := false
+	for _, issue := range issues {
+		if issue.Field == "name" {
+			found = true
+			if issue.Limit != validation.LimitName {
+				t.Fatalf("expected limit %d, got %d", validation.LimitName, issue.Limit)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected name issue")
 	}
 }
 
