@@ -50,7 +50,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		return fmt.Errorf("validate: failed to fetch app info: %w", err)
 	}
 
-	appInfoID := selectBestAppInfoID(appInfosResp)
+	appInfoID := shared.SelectBestAppInfoID(appInfosResp)
 	if strings.TrimSpace(appInfoID) == "" {
 		return fmt.Errorf("validate: failed to select app info for app")
 	}
@@ -197,65 +197,5 @@ func mapAgeRatingDeclaration(attrs asc.AgeRatingDeclarationAttributes) *validati
 		AgeRatingOverrideV2:                         attrs.AgeRatingOverrideV2,
 		KoreaAgeRatingOverride:                      attrs.KoreaAgeRatingOverride,
 		DeveloperAgeRatingInfoURL:                   attrs.DeveloperAgeRatingInfoURL,
-	}
-}
-
-func selectBestAppInfoID(appInfos *asc.AppInfosResponse) string {
-	if appInfos == nil || len(appInfos.Data) == 0 {
-		return ""
-	}
-
-	const target = "PREPARE_FOR_SUBMISSION"
-
-	var firstNonLive string
-	for _, info := range appInfos.Data {
-		state := strings.ToUpper(appInfoAttrString(info.Attributes, "state"))
-		appStoreState := strings.ToUpper(appInfoAttrString(info.Attributes, "appStoreState"))
-
-		if state == target || appStoreState == target {
-			return info.ID
-		}
-		if firstNonLive == "" && isNonLiveAppInfoState(state, appStoreState) {
-			firstNonLive = info.ID
-		}
-	}
-	if firstNonLive != "" {
-		return firstNonLive
-	}
-	return appInfos.Data[0].ID
-}
-
-func isNonLiveAppInfoState(state, appStoreState string) bool {
-	isLive := func(value string) bool {
-		switch value {
-		case "READY_FOR_DISTRIBUTION", "READY_FOR_SALE":
-			return true
-		default:
-			return false
-		}
-	}
-
-	if state != "" && !isLive(state) {
-		return true
-	}
-	if appStoreState != "" && !isLive(appStoreState) {
-		return true
-	}
-	return false
-}
-
-func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
-	if attrs == nil {
-		return ""
-	}
-	value, ok := attrs[key]
-	if !ok || value == nil {
-		return ""
-	}
-	switch typed := value.(type) {
-	case string:
-		return strings.TrimSpace(typed)
-	default:
-		return strings.TrimSpace(fmt.Sprint(typed))
 	}
 }

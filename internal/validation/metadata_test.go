@@ -47,3 +47,23 @@ func TestMetadataLengthChecks_Valid(t *testing.T) {
 		t.Fatalf("expected no checks, got %d", len(checks))
 	}
 }
+
+func TestMetadataLengthChecks_ValidUnicode(t *testing.T) {
+	loc := VersionLocalization{
+		Locale:          "ja-JP",
+		Description:     strings.Repeat("界", LimitDescription),
+		Keywords:        strings.Repeat("語", LimitKeywords),
+		WhatsNew:        strings.Repeat("新", LimitWhatsNew),
+		PromotionalText: strings.Repeat("宣", LimitPromotionalText),
+	}
+	appInfo := AppInfoLocalization{
+		Locale:   "ja-JP",
+		Name:     strings.Repeat("名", LimitName),
+		Subtitle: strings.Repeat("副", LimitSubtitle),
+	}
+
+	checks := metadataLengthChecks([]VersionLocalization{loc}, []AppInfoLocalization{appInfo})
+	if len(checks) != 0 {
+		t.Fatalf("expected no checks, got %d", len(checks))
+	}
+}

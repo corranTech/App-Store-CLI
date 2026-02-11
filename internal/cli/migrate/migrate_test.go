@@ -8,6 +8,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc/types"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
@@ -314,7 +315,7 @@ func TestSelectBestAppInfoID_PrefersPrepareForSubmission(t *testing.T) {
 		},
 	}
 
-	if got := selectBestAppInfoID(appInfos); got != "prep" {
+	if got := shared.SelectBestAppInfoID(appInfos); got != "prep" {
 		t.Fatalf("expected appInfoID %q, got %q", "prep", got)
 	}
 }
@@ -337,17 +338,17 @@ func TestSelectBestAppInfoID_FallsBackToNonReadyForSale(t *testing.T) {
 		},
 	}
 
-	if got := selectBestAppInfoID(appInfos); got != "not-ready" {
+	if got := shared.SelectBestAppInfoID(appInfos); got != "not-ready" {
 		t.Fatalf("expected appInfoID %q, got %q", "not-ready", got)
 	}
 }
 
 func TestSelectBestAppInfoID_EmptyInput(t *testing.T) {
-	if got := selectBestAppInfoID(nil); got != "" {
+	if got := shared.SelectBestAppInfoID(nil); got != "" {
 		t.Fatalf("expected empty appInfoID for nil input, got %q", got)
 	}
 
-	if got := selectBestAppInfoID(&asc.AppInfosResponse{}); got != "" {
+	if got := shared.SelectBestAppInfoID(&asc.AppInfosResponse{}); got != "" {
 		t.Fatalf("expected empty appInfoID for empty input, got %q", got)
 	}
 }
@@ -370,7 +371,7 @@ func TestSelectBestAppInfoID_UsesStateWhenAppStoreStateMissing(t *testing.T) {
 		},
 	}
 
-	if got := selectBestAppInfoID(appInfos); got != "editable" {
+	if got := shared.SelectBestAppInfoID(appInfos); got != "editable" {
 		t.Fatalf("expected appInfoID %q, got %q", "editable", got)
 	}
 }

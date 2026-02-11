@@ -1,12 +1,15 @@
 package validation
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 func metadataLengthChecks(versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
 	var checks []CheckResult
 
 	for _, loc := range versionLocs {
-		if len(loc.Description) > LimitDescription {
+		if utf8.RuneCountInString(loc.Description) > LimitDescription {
 			checks = append(checks, CheckResult{
 				ID:           "metadata.length.description",
 				Severity:     SeverityError,
@@ -18,7 +21,7 @@ func metadataLengthChecks(versionLocs []VersionLocalization, appInfoLocs []AppIn
 				Remediation:  fmt.Sprintf("Shorten description to %d characters or fewer", LimitDescription),
 			})
 		}
-		if len(loc.Keywords) > LimitKeywords {
+		if utf8.RuneCountInString(loc.Keywords) > LimitKeywords {
 			checks = append(checks, CheckResult{
 				ID:           "metadata.length.keywords",
 				Severity:     SeverityError,
@@ -30,7 +33,7 @@ func metadataLengthChecks(versionLocs []VersionLocalization, appInfoLocs []AppIn
 				Remediation:  fmt.Sprintf("Shorten keywords to %d characters or fewer", LimitKeywords),
 			})
 		}
-		if len(loc.WhatsNew) > LimitWhatsNew {
+		if utf8.RuneCountInString(loc.WhatsNew) > LimitWhatsNew {
 			checks = append(checks, CheckResult{
 				ID:           "metadata.length.whats_new",
 				Severity:     SeverityError,
@@ -42,7 +45,7 @@ func metadataLengthChecks(versionLocs []VersionLocalization, appInfoLocs []AppIn
 				Remediation:  fmt.Sprintf("Shorten what's new to %d characters or fewer", LimitWhatsNew),
 			})
 		}
-		if len(loc.PromotionalText) > LimitPromotionalText {
+		if utf8.RuneCountInString(loc.PromotionalText) > LimitPromotionalText {
 			checks = append(checks, CheckResult{
 				ID:           "metadata.length.promotional_text",
 				Severity:     SeverityError,
@@ -57,7 +60,7 @@ func metadataLengthChecks(versionLocs []VersionLocalization, appInfoLocs []AppIn
 	}
 
 	for _, loc := range appInfoLocs {
-		if len(loc.Name) > LimitName {
+		if utf8.RuneCountInString(loc.Name) > LimitName {
 			checks = append(checks, CheckResult{
 				ID:           "metadata.length.name",
 				Severity:     SeverityError,
@@ -69,7 +72,7 @@ func metadataLengthChecks(versionLocs []VersionLocalization, appInfoLocs []AppIn
 				Remediation:  fmt.Sprintf("Shorten name to %d characters or fewer", LimitName),
 			})
 		}
-		if len(loc.Subtitle) > LimitSubtitle {
+		if utf8.RuneCountInString(loc.Subtitle) > LimitSubtitle {
 			checks = append(checks, CheckResult{
 				ID:           "metadata.length.subtitle",
 				Severity:     SeverityError,

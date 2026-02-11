@@ -193,7 +193,7 @@ Examples:
 				if len(appInfos.Data) == 0 {
 					return fmt.Errorf("migrate import: no app info found for app")
 				}
-				appInfoID := selectBestAppInfoID(appInfos)
+				appInfoID := shared.SelectBestAppInfoID(appInfos)
 				if strings.TrimSpace(appInfoID) == "" {
 					return fmt.Errorf("migrate import: failed to select app info for app")
 				}
@@ -340,7 +340,7 @@ Examples:
 			// Export App Info localizations (name, subtitle)
 			appInfos, err := client.GetAppInfos(requestCtx, resolvedAppID)
 			if err == nil && len(appInfos.Data) > 0 {
-				appInfoID := selectBestAppInfoID(appInfos)
+				appInfoID := shared.SelectBestAppInfoID(appInfos)
 				if strings.TrimSpace(appInfoID) == "" {
 					return fmt.Errorf("migrate export: failed to select app info for app")
 				}
@@ -731,69 +731,6 @@ func validateVersionLocalization(loc FastlaneLocalization) []ValidationIssue {
 	}
 
 	return issues
-}
-
-func selectBestAppInfoID(appInfos *asc.AppInfosResponse) string {
-	if appInfos == nil || len(appInfos.Data) == 0 {
-		return ""
-	}
-
-	// Some apps have multiple appInfos (e.g. READY_FOR_SALE plus PREPARE_FOR_SUBMISSION).
-	// Updating name/subtitle is only allowed in certain states, so prefer the one that is
-	// actively editable for a submission.
-	const target = "PREPARE_FOR_SUBMISSION"
-
-	var firstNonLive string
-	for _, info := range appInfos.Data {
-		state := strings.ToUpper(appInfoAttrString(info.Attributes, "state"))
-		appStoreState := strings.ToUpper(appInfoAttrString(info.Attributes, "appStoreState"))
-
-		if state == target || appStoreState == target {
-			return info.ID
-		}
-		if firstNonLive == "" && isNonLiveAppInfoState(state, appStoreState) {
-			firstNonLive = info.ID
-		}
-	}
-	if firstNonLive != "" {
-		return firstNonLive
-	}
-	return appInfos.Data[0].ID
-}
-
-func isNonLiveAppInfoState(state, appStoreState string) bool {
-	isLive := func(value string) bool {
-		switch value {
-		case "READY_FOR_DISTRIBUTION", "READY_FOR_SALE":
-			return true
-		default:
-			return false
-		}
-	}
-
-	if state != "" && !isLive(state) {
-		return true
-	}
-	if appStoreState != "" && !isLive(appStoreState) {
-		return true
-	}
-	return false
-}
-
-func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
-	if attrs == nil {
-		return ""
-	}
-	v, ok := attrs[key]
-	if !ok || v == nil {
-		return ""
-	}
-	switch t := v.(type) {
-	case string:
-		return strings.TrimSpace(t)
-	default:
-		return strings.TrimSpace(fmt.Sprint(t))
-	}
 }
 
 // validateAppInfoLocalization checks app-level metadata for issues.
