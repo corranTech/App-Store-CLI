@@ -34,5 +34,11 @@
     "link": "https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903",
     "creator": "rursache",
     "platform": ["iOS"]
+  },
+  {
+    "app": "Unlimited Clipboard History",
+    "link": "https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056",
+    "creator": "yspreen",
+    "platform": ["macOS"]
   }
 ]
