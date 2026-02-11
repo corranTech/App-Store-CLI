@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -215,7 +216,7 @@ Examples:
 			var latestObservedNumber *string
 			sourcesConsidered := make([]string, 0, 2)
 
-			var latestProcessedValue int64
+			var latestProcessedValue buildNumber
 			hasProcessed := false
 			if latestBuild != nil {
 				parsed, err := parseBuildNumber(latestBuild.Data.Attributes.Version, fmt.Sprintf("processed build %s", latestBuild.Data.ID))
@@ -223,7 +224,7 @@ Examples:
 					return fmt.Errorf("builds latest: %w", err)
 				}
 				latestProcessedValue = parsed
-				value := strconv.FormatInt(parsed, 10)
+				value := parsed.String()
 				latestProcessedNumber = &value
 				hasProcessed = true
 				sourcesConsidered = append(sourcesConsidered, "processed_builds")
@@ -234,16 +235,16 @@ Examples:
 				return fmt.Errorf("builds latest: %w", err)
 			}
 
-			var latestUploadValue int64
+			var latestUploadValue buildNumber
 			hasUpload := false
 			for _, upload := range buildUploads.Data {
 				parsed, err := parseBuildNumber(upload.Attributes.CFBundleVersion, fmt.Sprintf("build upload %s", upload.ID))
 				if err != nil {
 					return fmt.Errorf("builds latest: %w", err)
 				}
-				if !hasUpload || parsed > latestUploadValue {
+				if !hasUpload || parsed.Compare(latestUploadValue) > 0 {
 					latestUploadValue = parsed
-					value := strconv.FormatInt(parsed, 10)
+					value := parsed.String()
 					latestUploadNumber = &value
 					hasUpload = true
 				}
@@ -252,29 +253,33 @@ Examples:
 				sourcesConsidered = append(sourcesConsidered, "build_uploads")
 			}
 
-			var latestObservedValue int64
+			var latestObservedValue buildNumber
 			hasObserved := false
 			if hasProcessed {
 				latestObservedValue = latestProcessedValue
 				hasObserved = true
 				latestObservedNumber = latestProcessedNumber
 			}
-			if hasUpload && (!hasObserved || latestUploadValue > latestObservedValue) {
+			if hasUpload && (!hasObserved || latestUploadValue.Compare(latestObservedValue) > 0) {
 				latestObservedValue = latestUploadValue
 				hasObserved = true
 				latestObservedNumber = latestUploadNumber
 			}
 
-			nextBuildNumberValue := int64(*initialBuildNumber)
+			nextBuildNumberValue := strconv.FormatInt(int64(*initialBuildNumber), 10)
 			if hasObserved {
-				nextBuildNumberValue = latestObservedValue + 1
+				nextValue, err := latestObservedValue.Next()
+				if err != nil {
+					return fmt.Errorf("builds latest: %w", err)
+				}
+				nextBuildNumberValue = nextValue.String()
 			}
 
 			result := &asc.BuildsLatestNextResult{
 				LatestProcessedBuildNumber: latestProcessedNumber,
 				LatestUploadBuildNumber:    latestUploadNumber,
 				LatestObservedBuildNumber:  latestObservedNumber,
-				NextBuildNumber:            strconv.FormatInt(nextBuildNumberValue, 10),
+				NextBuildNumber:            nextBuildNumberValue,
 				SourcesConsidered:          sourcesConsidered,
 			}
 
@@ -365,17 +370,87 @@ func fetchBuildUploads(ctx context.Context, client *asc.Client, appID, version, 
 	return allUploads.(*asc.BuildUploadsResponse), nil
 }
 
-func parseBuildNumber(raw, source string) (int64, error) {
+type buildNumber struct {
+	components []int64
+}
+
+func (n buildNumber) String() string {
+	if len(n.components) == 0 {
+		return ""
+	}
+	parts := make([]string, len(n.components))
+	for i, component := range n.components {
+		parts[i] = strconv.FormatInt(component, 10)
+	}
+	return strings.Join(parts, ".")
+}
+
+func (n buildNumber) Compare(other buildNumber) int {
+	maxLen := len(n.components)
+	if len(other.components) > maxLen {
+		maxLen = len(other.components)
+	}
+	for i := 0; i < maxLen; i++ {
+		var left int64
+		if i < len(n.components) {
+			left = n.components[i]
+		}
+		var right int64
+		if i < len(other.components) {
+			right = other.components[i]
+		}
+		if left > right {
+			return 1
+		}
+		if left < right {
+			return -1
+		}
+	}
+	return 0
+}
+
+func (n buildNumber) Next() (buildNumber, error) {
+	if len(n.components) == 0 {
+		return buildNumber{}, fmt.Errorf("build number is missing (expected a positive integer)")
+	}
+	nextComponents := make([]int64, len(n.components))
+	copy(nextComponents, n.components)
+	last := len(nextComponents) - 1
+	if nextComponents[last] == math.MaxInt64 {
+		return buildNumber{}, fmt.Errorf("build number %q is too large to increment", n.String())
+	}
+	nextComponents[last]++
+	return buildNumber{components: nextComponents}, nil
+}
+
+func parseBuildNumber(raw, source string) (buildNumber, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return 0, fmt.Errorf("%s build number is missing (expected a positive integer)", source)
+		return buildNumber{}, fmt.Errorf("%s build number is missing (expected a positive integer)", source)
 	}
-	value, err := strconv.ParseInt(trimmed, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("%s build number %q is not numeric (expected a positive integer)", source, raw)
+
+	segments := strings.Split(trimmed, ".")
+	components := make([]int64, 0, len(segments))
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		if segment == "" {
+			return buildNumber{}, fmt.Errorf("%s build number %q is not numeric (expected a positive integer)", source, raw)
+		}
+		for _, ch := range segment {
+			if ch < '0' || ch > '9' {
+				return buildNumber{}, fmt.Errorf("%s build number %q is not numeric (expected a positive integer)", source, raw)
+			}
+		}
+		value, err := strconv.ParseInt(segment, 10, 64)
+		if err != nil {
+			return buildNumber{}, fmt.Errorf("%s build number %q is not numeric (expected a positive integer)", source, raw)
+		}
+		components = append(components, value)
 	}
-	if value < 1 {
-		return 0, fmt.Errorf("%s build number %q must be >= 1", source, raw)
+
+	if len(components) == 0 || components[0] < 1 {
+		return buildNumber{}, fmt.Errorf("%s build number %q must be >= 1", source, raw)
 	}
-	return value, nil
+
+	return buildNumber{components: components}, nil
 }
