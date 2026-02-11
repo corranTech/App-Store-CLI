@@ -27,6 +27,8 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | iOS |
 | kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
 | MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
+| Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
+| TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
 <!-- WALL-OF-APPS:END -->
 
 ### Add Your App to the Wall
