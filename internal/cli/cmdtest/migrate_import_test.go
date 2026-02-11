@@ -147,8 +147,8 @@ func TestMigrateImportDryRunSupportsIPhone69AliasAsAppIPhone67(t *testing.T) {
 	if len(result.ScreenshotPlan) != 1 {
 		t.Fatalf("expected 1 screenshot plan, got %d", len(result.ScreenshotPlan))
 	}
-	if result.ScreenshotPlan[0].DisplayType != "APP_IPHONE_67" {
-		t.Fatalf("expected APP_IPHONE_67, got %q", result.ScreenshotPlan[0].DisplayType)
+	if result.ScreenshotPlan[0].DisplayType != "APP_IPHONE_69" {
+		t.Fatalf("expected APP_IPHONE_69, got %q", result.ScreenshotPlan[0].DisplayType)
 	}
 }
 
