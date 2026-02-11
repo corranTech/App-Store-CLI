@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -666,25 +665,6 @@ func appInfoLocalizationFiles(loc AppInfoFastlaneLocalization) []string {
 		files = append(files, "privacy_url.txt")
 	}
 	return files
-}
-
-func buildLocalizationFilePlans(locales []string, filesFor func(string) []string) []LocalizationFilePlan {
-	if len(locales) == 0 {
-		return nil
-	}
-	sort.Strings(locales)
-	result := make([]LocalizationFilePlan, 0, len(locales))
-	for _, locale := range locales {
-		files := filesFor(locale)
-		if len(files) == 0 {
-			continue
-		}
-		result = append(result, LocalizationFilePlan{
-			Locale: locale,
-			Files:  files,
-		})
-	}
-	return result
 }
 
 // App Store metadata character limits
