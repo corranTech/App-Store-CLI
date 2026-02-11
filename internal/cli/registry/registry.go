@@ -65,6 +65,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/testflight"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/users"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/versions"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/webhooks"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/winbackoffers"
@@ -145,6 +146,7 @@ func Subcommands(version string) []*ffcli.Command {
 		app_events.Command(),
 		subscriptions.SubscriptionsCommand(),
 		submit.SubmitCommand(),
+		validate.ValidateCommand(),
 		xcodecloud.XcodeCloudCommand(),
 		categories.CategoriesCommand(),
 		agerating.AgeRatingCommand(),

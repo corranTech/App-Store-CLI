@@ -107,6 +107,7 @@ Agent Skills for automating `asc` workflows including builds, TestFlight, metada
   - [Localizations](#localizations)
   - [Build Localizations](#build-localizations)
   - [Migrate (Fastlane Compatibility)](#migrate-fastlane-compatibility)
+  - [Validate (Pre-Submission)](#validate-pre-submission)
   - [Submit](#submit)
   - [Utilities](#utilities)
   - [Output Formats](#output-formats)
@@ -1551,6 +1552,27 @@ asc migrate export --app "123456789" --version-id "VERSION_ID" --output-dir ./ex
 | Promotional Text | 170 chars |
 | Name | 30 chars |
 | Subtitle | 30 chars |
+
+### Validate (Pre-Submission)
+
+Run client-side checks before submission to catch metadata, screenshot, and age rating issues early.
+
+```bash
+# Validate release readiness for a version
+asc validate --app "123456789" --version-id "VERSION_ID"
+
+# Validate with platform-specific screenshot checks and table output
+asc validate --app "123456789" --version-id "VERSION_ID" --platform IOS --output table
+
+# Treat warnings as errors for CI gating
+asc validate --app "123456789" --version-id "VERSION_ID" --strict
+```
+
+**Checks included:**
+- Metadata length limits (description, keywords, release notes, promotional text, name, subtitle)
+- Required field presence (localizations, required text fields)
+- Screenshot size compatibility (per display type)
+- Age rating completeness
 
 ### Submit
 
