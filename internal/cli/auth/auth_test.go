@@ -271,12 +271,12 @@ func TestLoginStorageMessage_BypassModes(t *testing.T) {
 
 func TestAuthLoginCommand(t *testing.T) {
 	t.Run("local requires bypass", func(t *testing.T) {
-		// Use LookupEnv to capture exact original state (including "set but empty")
-		_, origPresent := os.LookupEnv("ASC_BYPASS_KEYCHAIN")
+		// Capture exact original state, including empty-but-present values.
+		origValue, origPresent := os.LookupEnv("ASC_BYPASS_KEYCHAIN")
 		os.Unsetenv("ASC_BYPASS_KEYCHAIN")
 		t.Cleanup(func() {
 			if origPresent {
-				os.Setenv("ASC_BYPASS_KEYCHAIN", "") // restore to empty string as it was
+				os.Setenv("ASC_BYPASS_KEYCHAIN", origValue)
 			} else {
 				os.Unsetenv("ASC_BYPASS_KEYCHAIN")
 			}

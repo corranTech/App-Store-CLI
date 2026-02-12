@@ -67,6 +67,16 @@ make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
   - Multiple flags with values: `asc -a val1 -b val2 subcmd`
 - **Model tests on actual CLI usage**, not assumed patterns. Check `--help` output to understand real command structure before writing tests.
 
+## Debugging & Bug Fixing
+
+- **Reproduce first**: Before fixing, run the failing test locally to confirm the issue. Don't assume you understand the bug.
+- **One change at a time**: Make one small fix, verify it works, then move to the next. Don't batch multiple changes.
+- **Never bypass checks**: Don't use `--no-verify`, don't push directly to `main`, don't skip tests to "get around" failures.
+- **Be honest about pre-existing issues**: If a test was failing before your changes, say so. Don't claim credit for "fixing" something you didn't break.
+- **Verify before claiming done**: Run the specific failing test again to confirm it's fixed, not just "all tests pass".
+- **Avoid broad skip logic**: Don't skip tests with generic string matches (e.g., "Keychain Error") that can hide regressions. Match specific error codes instead.
+- **Use proper workflow**: Branch → change → test → PR. Not: main → change → push.
+
 ## Definition of Done (Single-Pass)
 
 - Do not mark work as done until all checks below are complete.

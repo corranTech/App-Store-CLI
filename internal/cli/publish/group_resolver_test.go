@@ -32,6 +32,10 @@ func setupTestAuth(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "AuthKey.p8")
 	writeTestECDSAPEM(t, keyPath)
+	// Force tests to use only the ephemeral env credentials set here.
+	// This prevents host keychain/profile state from leaking into CI/local runs.
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
 	t.Setenv("ASC_KEY_ID", "TEST_KEY")
 	t.Setenv("ASC_ISSUER_ID", "TEST_ISSUER")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
