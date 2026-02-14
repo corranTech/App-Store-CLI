@@ -165,11 +165,7 @@ func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]str
 		panicNilHelperFunction("response-data rows function", t)
 	}
 	registerRows(func(v *Response[T]) ([]string, [][]string) {
-		var data []Resource[T]
-		if v != nil {
-			data = v.Data
-		}
-		return rows(data)
+		return rows(ptrOrZero(v).Data)
 	})
 }
 
@@ -181,11 +177,7 @@ func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string,
 		panicNilHelperFunction("rows function", t)
 	}
 	registerRows(func(v *SingleResponse[T]) ([]string, [][]string) {
-		var data Resource[T]
-		if v != nil {
-			data = v.Data
-		}
-		return rows(&Response[T]{Data: []Resource[T]{data}})
+		return rows(&Response[T]{Data: []Resource[T]{ptrOrZero(v).Data}})
 	})
 }
 
@@ -226,12 +218,7 @@ func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string))
 	fields := validateSingleToListAdapterTypes[T, U]()
 
 	return func(v *T) ([]string, [][]string) {
-		sourcePointer := reflect.ValueOf(v)
-		if sourcePointer.IsNil() {
-			var zero T
-			sourcePointer = reflect.ValueOf(&zero)
-		}
-		source := sourcePointer.Elem()
+		source := reflect.ValueOf(ptrOrZero(v)).Elem()
 		var target U
 		targetValue := reflect.ValueOf(&target).Elem()
 
