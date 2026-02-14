@@ -55,8 +55,8 @@ func TestSubmitCreateCommand_MutuallyExclusiveVersionFlags(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 	err := cmd.Exec(context.Background(), nil)
-	if err == nil || errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected non-ErrHelp error for mutually exclusive flags, got %v", err)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for mutually exclusive flags, got %v", err)
 	}
 }
 
@@ -77,8 +77,8 @@ func TestSubmitStatusCommandValidation(t *testing.T) {
 			t.Fatalf("failed to parse flags: %v", err)
 		}
 		err := cmd.Exec(context.Background(), nil)
-		if err == nil || errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected non-ErrHelp error, got %v", err)
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected flag.ErrHelp, got %v", err)
 		}
 	})
 }
@@ -100,8 +100,8 @@ func TestSubmitCancelCommandValidation(t *testing.T) {
 			t.Fatalf("failed to parse flags: %v", err)
 		}
 		err := cmd.Exec(context.Background(), nil)
-		if err == nil || errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected non-ErrHelp error, got %v", err)
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected flag.ErrHelp, got %v", err)
 		}
 	})
 }
