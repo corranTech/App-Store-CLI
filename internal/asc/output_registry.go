@@ -26,6 +26,14 @@ func typeFor[T any]() reflect.Type {
 	return reflect.TypeFor[T]()
 }
 
+func ptrOrZero[T any](v *T) *T {
+	if v != nil {
+		return v
+	}
+	var zero T
+	return &zero
+}
+
 func panicNilHelperFunction(kind string, t reflect.Type) {
 	panic(fmt.Sprintf("output registry: nil %s for %s", kind, t))
 }
@@ -119,7 +127,7 @@ func registerSingleLinkageRows[T any](extract func(*T) ResourceData) {
 		panicNilHelperFunction("linkage extractor", t)
 	}
 	registerRows(func(v *T) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{extract(v)}})
+		return linkagesRows(&LinkagesResponse{Data: []ResourceData{extract(ptrOrZero(v))}})
 	})
 }
 
@@ -132,7 +140,7 @@ func registerIDStateRows[T any](extract func(*T) (string, string), rows func(str
 		panicNilHelperFunction("id/state rows function", t)
 	}
 	registerRows(func(v *T) ([]string, [][]string) {
-		id, state := extract(v)
+		id, state := extract(ptrOrZero(v))
 		return rows(id, state)
 	})
 }
@@ -146,7 +154,7 @@ func registerIDBoolRows[T any](extract func(*T) (string, bool), rows func(string
 		panicNilHelperFunction("id/bool rows function", t)
 	}
 	registerRows(func(v *T) ([]string, [][]string) {
-		id, deleted := extract(v)
+		id, deleted := extract(ptrOrZero(v))
 		return rows(id, deleted)
 	})
 }
@@ -157,7 +165,11 @@ func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]str
 		panicNilHelperFunction("response-data rows function", t)
 	}
 	registerRows(func(v *Response[T]) ([]string, [][]string) {
-		return rows(v.Data)
+		var data []Resource[T]
+		if v != nil {
+			data = v.Data
+		}
+		return rows(data)
 	})
 }
 
@@ -169,7 +181,11 @@ func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string,
 		panicNilHelperFunction("rows function", t)
 	}
 	registerRows(func(v *SingleResponse[T]) ([]string, [][]string) {
-		return rows(&Response[T]{Data: []Resource[T]{v.Data}})
+		var data Resource[T]
+		if v != nil {
+			data = v.Data
+		}
+		return rows(&Response[T]{Data: []Resource[T]{data}})
 	})
 }
 
@@ -210,7 +226,12 @@ func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string))
 	fields := validateSingleToListAdapterTypes[T, U]()
 
 	return func(v *T) ([]string, [][]string) {
-		source := reflect.ValueOf(v).Elem()
+		sourcePointer := reflect.ValueOf(v)
+		if sourcePointer.IsNil() {
+			var zero T
+			sourcePointer = reflect.ValueOf(&zero)
+		}
+		source := sourcePointer.Elem()
 		var target U
 		targetValue := reflect.ValueOf(&target).Elem()
 

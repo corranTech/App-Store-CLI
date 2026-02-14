@@ -300,6 +300,29 @@ func TestOutputRegistrySingleLinkageHelperRegistration(t *testing.T) {
 	assertRowContains(t, headers, rows, 2, "submission-123")
 }
 
+func TestOutputRegistrySingleLinkageHelperHandlesTypedNilPointer(t *testing.T) {
+	type linkage struct {
+		Data ResourceData
+	}
+
+	registerSingleLinkageRows(func(v *linkage) ResourceData {
+		return v.Data
+	})
+
+	key := typeKey[linkage]()
+	cleanupRegistryTypes(t, key)
+
+	handler := requireOutputHandler(t, key, "single-linkage typed nil helper")
+
+	headers, rows, err := handler((*linkage)(nil))
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) < 2 || len(rows) != 1 || len(rows[0]) < 2 {
+		t.Fatalf("expected linkage row shape from typed nil input, got headers=%v rows=%v", headers, rows)
+	}
+}
+
 func TestOutputRegistrySingleLinkageHelperPanicsOnNilExtractor(t *testing.T) {
 	type linkage struct{}
 
@@ -339,6 +362,33 @@ func TestOutputRegistryIDStateHelperRegistration(t *testing.T) {
 		t.Fatalf("handler returned error: %v", err)
 	}
 	assertRowContains(t, headers, rows, 2, "release-1", "READY_FOR_SALE")
+}
+
+func TestOutputRegistryIDStateHelperHandlesTypedNilPointer(t *testing.T) {
+	type state struct {
+		ID    string
+		State string
+	}
+
+	registerIDStateRows(
+		func(v *state) (string, string) {
+			return v.ID, v.State
+		},
+		func(id, value string) ([]string, [][]string) {
+			return []string{"id", "state"}, [][]string{{id, value}}
+		},
+	)
+
+	key := typeKey[state]()
+	cleanupRegistryTypes(t, key)
+
+	handler := requireOutputHandler(t, key, "id/state typed nil helper")
+
+	headers, rows, err := handler((*state)(nil))
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	assertSingleRowEquals(t, headers, rows, []string{"id", "state"}, []string{"", ""})
 }
 
 func TestOutputRegistryIDStateHelperPanicsOnNilExtractor(t *testing.T) {
@@ -411,6 +461,33 @@ func TestOutputRegistryIDBoolHelperRegistration(t *testing.T) {
 	assertRowContains(t, headers, rows, 2, "domain-1", "true")
 }
 
+func TestOutputRegistryIDBoolHelperHandlesTypedNilPointer(t *testing.T) {
+	type idBool struct {
+		ID      string
+		Deleted bool
+	}
+
+	registerIDBoolRows(
+		func(v *idBool) (string, bool) {
+			return v.ID, v.Deleted
+		},
+		func(id string, deleted bool) ([]string, [][]string) {
+			return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
+		},
+	)
+
+	key := typeKey[idBool]()
+	cleanupRegistryTypes(t, key)
+
+	handler := requireOutputHandler(t, key, "id/bool typed nil helper")
+
+	headers, rows, err := handler((*idBool)(nil))
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	assertSingleRowEquals(t, headers, rows, []string{"id", "deleted"}, []string{"", "false"})
+}
+
 func TestOutputRegistryIDBoolHelperPanicsOnNilRows(t *testing.T) {
 	type idBool struct{}
 
@@ -473,6 +550,25 @@ func TestOutputRegistryResponseDataHelperRegistration(t *testing.T) {
 	assertRowContains(t, headers, rows, 2, "metric-1", "installs=12")
 }
 
+func TestOutputRegistryResponseDataHelperHandlesTypedNilPointer(t *testing.T) {
+	type attrs struct{}
+
+	registerResponseDataRows(func(data []Resource[attrs]) ([]string, [][]string) {
+		return []string{"count"}, [][]string{{fmt.Sprintf("%d", len(data))}}
+	})
+
+	key := typeKey[Response[attrs]]()
+	cleanupRegistryTypes(t, key)
+
+	handler := requireOutputHandler(t, key, "response-data typed nil helper")
+
+	headers, rows, err := handler((*Response[attrs])(nil))
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	assertSingleRowEquals(t, headers, rows, []string{"count"}, []string{"0"})
+}
+
 func TestOutputRegistryResponseDataHelperPanicsOnNilRows(t *testing.T) {
 	type attrs struct{}
 
@@ -523,6 +619,30 @@ func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
 		t.Fatalf("handler returned error: %v", err)
 	}
 	assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"helper-id", "helper-name"})
+}
+
+func TestOutputRegistrySingleResourceHelperHandlesTypedNilPointer(t *testing.T) {
+	type helperAttrs struct {
+		Name string `json:"name"`
+	}
+
+	registerSingleResourceRowsAdapter(func(v *Response[helperAttrs]) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"ID", "Name"}, nil
+		}
+		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
+	})
+
+	key := typeKey[SingleResponse[helperAttrs]]()
+	cleanupRegistryTypes(t, key)
+
+	handler := requireOutputHandler(t, key, "SingleResponse typed nil helper")
+
+	headers, rows, err := handler((*SingleResponse[helperAttrs])(nil))
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"", ""})
 }
 
 func TestOutputRegistrySingleResourceHelperPanicsOnNilRowsFunction(t *testing.T) {
@@ -721,6 +841,33 @@ func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
 		t.Fatalf("handler returned error: %v", err)
 	}
 	assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{"converted"})
+}
+
+func TestOutputRegistrySingleToListHelperHandlesTypedNilPointer(t *testing.T) {
+	type single struct {
+		Data string
+	}
+	type list struct {
+		Data []string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"value"}, nil
+		}
+		return []string{"value"}, [][]string{{v.Data[0]}}
+	})
+
+	key := typeKey[single]()
+	cleanupRegistryTypes(t, key)
+
+	handler := requireOutputHandler(t, key, "single-to-list typed nil helper")
+
+	headers, rows, err := handler((*single)(nil))
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{""})
 }
 
 func TestOutputRegistryRowsWithSingleToListHelperRegistration(t *testing.T) {
