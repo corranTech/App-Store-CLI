@@ -32,6 +32,20 @@ func TestOutputRegistryExpectedTypeCount(t *testing.T) {
 	}
 }
 
+func TestTypeForPtr(t *testing.T) {
+	type sample struct{}
+	if got, want := typeForPtr[sample](), reflect.TypeOf(&sample{}); got != want {
+		t.Fatalf("typeForPtr[sample]() = %v, want %v", got, want)
+	}
+}
+
+func TestTypeFor(t *testing.T) {
+	type sample struct{}
+	if got, want := typeFor[sample](), reflect.TypeOf(sample{}); got != want {
+		t.Fatalf("typeFor[sample]() = %v, want %v", got, want)
+	}
+}
+
 func TestDirectRenderRegistryAllHandlersNonNil(t *testing.T) {
 	for typ, fn := range directRenderRegistry {
 		if fn == nil {
@@ -65,6 +79,17 @@ func TestRenderByRegistryNilFallsBackToJSON(t *testing.T) {
 	}
 }
 
+func TestRenderByRegistryTypedNilPointerFallsBackToJSON(t *testing.T) {
+	type unregistered struct{}
+
+	output := captureStdout(t, func() error {
+		return renderByRegistry((*unregistered)(nil), RenderTable)
+	})
+	if strings.TrimSpace(output) != "null" {
+		t.Fatalf("expected JSON null fallback output for typed nil pointer, got: %q", output)
+	}
+}
+
 func TestRenderByRegistryUsesRowsRegistryRenderer(t *testing.T) {
 	type registered struct {
 		Value string
@@ -87,6 +112,28 @@ func TestRenderByRegistryUsesRowsRegistryRenderer(t *testing.T) {
 		t.Fatalf("renderByRegistry returned error: %v", err)
 	}
 	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"from-registry"})
+}
+
+func TestRenderByRegistryUsesRowsRegistryRendererWithTypedNilPointer(t *testing.T) {
+	type registered struct{}
+
+	key := reflect.TypeOf(&registered{})
+	cleanupRegistryTypes(t, key)
+
+	registerRows(func(*registered) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{"typed-nil"}}
+	})
+
+	var gotHeaders []string
+	var gotRows [][]string
+	err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
+		gotHeaders = headers
+		gotRows = rows
+	})
+	if err != nil {
+		t.Fatalf("renderByRegistry returned error: %v", err)
+	}
+	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"typed-nil"})
 }
 
 func TestRenderByRegistryPropagatesRowsRegistryErrors(t *testing.T) {
@@ -135,6 +182,29 @@ func TestRenderByRegistryUsesDirectRenderer(t *testing.T) {
 		t.Fatalf("renderByRegistry returned error: %v", err)
 	}
 	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"from-direct"})
+}
+
+func TestRenderByRegistryUsesDirectRendererWithTypedNilPointer(t *testing.T) {
+	type registered struct{}
+
+	key := reflect.TypeOf(&registered{})
+	cleanupRegistryTypes(t, key)
+
+	registerDirect(func(_ *registered, render func([]string, [][]string)) error {
+		render([]string{"value"}, [][]string{{"typed-nil-direct"}})
+		return nil
+	})
+
+	var gotHeaders []string
+	var gotRows [][]string
+	err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
+		gotHeaders = headers
+		gotRows = rows
+	})
+	if err != nil {
+		t.Fatalf("renderByRegistry returned error: %v", err)
+	}
+	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"typed-nil-direct"})
 }
 
 func TestRenderByRegistryPropagatesDirectRendererErrors(t *testing.T) {
@@ -213,9 +283,8 @@ func TestRenderByRegistryPrefersDirectRegistryErrorWhenBothHandlersExist(t *test
 }
 
 func TestOutputRegistrySingleLinkageHelperRegistration(t *testing.T) {
-	handler := requireOutputHandler(
+	handler := requireOutputHandlerFor[AppStoreVersionSubmissionLinkageResponse](
 		t,
-		reflect.TypeOf(&AppStoreVersionSubmissionLinkageResponse{}),
 		"AppStoreVersionSubmissionLinkageResponse",
 	)
 
@@ -255,9 +324,8 @@ func TestOutputRegistrySingleLinkageHelperNilExtractorPanicsBeforeConflictChecks
 }
 
 func TestOutputRegistryIDStateHelperRegistration(t *testing.T) {
-	handler := requireOutputHandler(
+	handler := requireOutputHandlerFor[BackgroundAssetVersionAppStoreReleaseResponse](
 		t,
-		reflect.TypeOf(&BackgroundAssetVersionAppStoreReleaseResponse{}),
 		"BackgroundAssetVersionAppStoreReleaseResponse",
 	)
 
@@ -328,9 +396,8 @@ func TestOutputRegistryIDStateHelperNilRowsPanicsBeforeConflictChecks(t *testing
 }
 
 func TestOutputRegistryIDBoolHelperRegistration(t *testing.T) {
-	handler := requireOutputHandler(
+	handler := requireOutputHandlerFor[AlternativeDistributionDomainDeleteResult](
 		t,
-		reflect.TypeOf(&AlternativeDistributionDomainDeleteResult{}),
 		"AlternativeDistributionDomainDeleteResult",
 	)
 
@@ -387,9 +454,8 @@ func TestOutputRegistryIDBoolHelperNilExtractorPanicsBeforeConflictChecks(t *tes
 }
 
 func TestOutputRegistryResponseDataHelperRegistration(t *testing.T) {
-	handler := requireOutputHandler(
+	handler := requireOutputHandlerFor[Response[BetaGroupMetricAttributes]](
 		t,
-		reflect.TypeOf(&Response[BetaGroupMetricAttributes]{}),
 		"Response[BetaGroupMetricAttributes]",
 	)
 
@@ -1454,6 +1520,11 @@ func requireOutputHandler(t *testing.T, typ reflect.Type, label string) rowsFunc
 		t.Fatalf("expected %s handler for type %v", label, typ)
 	}
 	return handler
+}
+
+func requireOutputHandlerFor[T any](t *testing.T, label string) rowsFunc {
+	t.Helper()
+	return requireOutputHandler(t, typeKey[T](), label)
 }
 
 func registerRowsForConflict[T any](headers ...string) {
