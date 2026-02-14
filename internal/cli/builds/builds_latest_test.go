@@ -3,7 +3,6 @@ package builds
 import (
 	"context"
 	"flag"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,10 +10,26 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+func isolateBuildsAuthEnv(t *testing.T) {
+	t.Helper()
+
+	// Keep tests hermetic: avoid loading host keychain/config/env credentials.
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+}
+
 func TestBuildsLatestCommand_MissingApp(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
 	// Clear env var to ensure --app is required
 	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	cmd := BuildsLatestCommand()
 
@@ -25,6 +40,8 @@ func TestBuildsLatestCommand_MissingApp(t *testing.T) {
 }
 
 func TestBuildsLatestCommand_InvalidPlatform(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
 	cmd := BuildsLatestCommand()
 
 	// Parse flags first
@@ -39,10 +56,14 @@ func TestBuildsLatestCommand_InvalidPlatform(t *testing.T) {
 }
 
 func TestBuildsLatestCommand_ValidPlatforms(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
 	validPlatforms := []string{"IOS", "MAC_OS", "TV_OS", "VISION_OS", "ios", "mac_os"}
 
 	for _, platform := range validPlatforms {
 		t.Run(platform, func(t *testing.T) {
+			isolateBuildsAuthEnv(t)
+
 			cmd := BuildsLatestCommand()
 
 			// Parse flags - this should not error for valid platforms
@@ -62,6 +83,8 @@ func TestBuildsLatestCommand_ValidPlatforms(t *testing.T) {
 }
 
 func TestBuildsLatestCommand_InvalidInitialBuildNumber(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
 	cmd := BuildsLatestCommand()
 
 	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--next", "--initial-build-number", "0"}); err != nil {
@@ -75,6 +98,8 @@ func TestBuildsLatestCommand_InvalidInitialBuildNumber(t *testing.T) {
 }
 
 func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
 	cmd := BuildsLatestCommand()
 
 	// Verify all expected flags exist
@@ -102,9 +127,10 @@ func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 }
 
 func TestBuildsLatestCommand_UsesAppIDEnv(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
 	// Set env var
-	os.Setenv("ASC_APP_ID", "env-app-id")
-	defer os.Unsetenv("ASC_APP_ID")
+	t.Setenv("ASC_APP_ID", "env-app-id")
 
 	cmd := BuildsLatestCommand()
 

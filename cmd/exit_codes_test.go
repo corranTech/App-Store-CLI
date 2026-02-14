@@ -211,7 +211,7 @@ func TestJUnitReportNameWithRootFlags(t *testing.T) {
 	reportFile := filepath.Join(tmpDir, "junit.xml")
 	// Run with root flags before subcommand
 	runCmd := exec.Command(binaryPath, "--report", "junit", "--report-file", reportFile, "completion", "--shell", "zsh")
-	runCmd.Env = append(os.Environ(), "ASC_NO_UPDATE=true")
+	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
 	output, _ := runCmd.CombinedOutput()
 
 	// Read and parse the JUnit report
@@ -299,7 +299,7 @@ func TestJUnitReportEndToEnd(t *testing.T) {
 			}
 
 			runCmd := exec.Command(binaryPath, fullArgs...)
-			runCmd.Env = append(os.Environ(), "ASC_NO_UPDATE=true")
+			runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
 			_, _ = runCmd.CombinedOutput() // Ignore errors, we just care about the report
 
 			data, err := os.ReadFile(reportFile)
@@ -326,4 +326,45 @@ func TestJUnitReportEndToEnd(t *testing.T) {
 			}
 		})
 	}
+}
+
+func isolatedCLITestEnv(configPath string) []string {
+	env := filterEnvVars(
+		os.Environ(),
+		"ASC_KEY_ID",
+		"ASC_ISSUER_ID",
+		"ASC_PRIVATE_KEY_PATH",
+		"ASC_PRIVATE_KEY",
+		"ASC_PRIVATE_KEY_B64",
+		"ASC_PROFILE",
+		"ASC_CONFIG_PATH",
+		"ASC_BYPASS_KEYCHAIN",
+		"ASC_STRICT_AUTH",
+	)
+	return append(env,
+		"ASC_NO_UPDATE=true",
+		"ASC_BYPASS_KEYCHAIN=1",
+		"ASC_CONFIG_PATH="+configPath,
+		"HOME="+filepath.Dir(configPath),
+	)
+}
+
+func filterEnvVars(env []string, remove ...string) []string {
+	removeSet := make(map[string]struct{}, len(remove))
+	for _, key := range remove {
+		removeSet[key] = struct{}{}
+	}
+
+	filtered := make([]string, 0, len(env))
+	for _, entry := range env {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) == 0 {
+			continue
+		}
+		if _, exists := removeSet[parts[0]]; exists {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
 }

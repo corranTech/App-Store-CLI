@@ -53,13 +53,13 @@ build-debug:
 .PHONY: test
 test:
 	@echo "$(BLUE)Running tests...$(NC)"
-	$(GO) test -v ./...
+	ASC_BYPASS_KEYCHAIN=1 $(GO) test -v ./...
 
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
 	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	$(GO) test -coverprofile=coverage.out ./...
+	ASC_BYPASS_KEYCHAIN=1 $(GO) test -coverprofile=coverage.out ./...
 	$(GO) tool cover -html=coverage.out -o coverage.html
 	@echo "$(GREEN)Coverage report: coverage.html$(NC)"
 
