@@ -91,6 +91,13 @@ func ensureRegistryTypesAvailable(types ...reflect.Type) {
 	case 1:
 		ensureRegistryTypeAvailable(types[0])
 		return
+	case 2:
+		ensureRegistryTypeAvailable(types[0])
+		if types[0] == types[1] {
+			panicDuplicateRegistration(types[1])
+		}
+		ensureRegistryTypeAvailable(types[1])
+		return
 	}
 
 	seen := make(map[reflect.Type]struct{}, len(types))
@@ -105,6 +112,7 @@ func ensureRegistryTypesAvailable(types ...reflect.Type) {
 
 // registerRows registers a rows function for the given pointer type.
 // The function must accept a pointer and return (headers, rows).
+// Typed-nil pointers are normalized to zero-value pointers before invocation.
 func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 	t := typeForPtr[T]()
 	if fn == nil {
@@ -118,6 +126,7 @@ func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 }
 
 // registerRowsErr registers a rows function that can return an error.
+// Typed-nil pointers are normalized to zero-value pointers before invocation.
 func registerRowsErr[T any](fn func(*T) ([]string, [][]string, error)) {
 	t := typeForPtr[T]()
 	if fn == nil {
@@ -308,6 +317,7 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 }
 
 // registerDirect registers a type that needs direct render control (multi-table output).
+// Typed-nil pointers are normalized to zero-value pointers before invocation.
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	t := typeForPtr[T]()
 	if fn == nil {
