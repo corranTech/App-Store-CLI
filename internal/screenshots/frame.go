@@ -10,10 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"golang.org/x/mod/semver"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,7 +28,11 @@ const (
 	FrameDeviceIPhone17PM  FrameDevice = "iphone-17-pro-max"
 	FrameDeviceIPhone16e   FrameDevice = "iphone-16e"
 	FrameDeviceIPhone17    FrameDevice = "iphone-17"
+
+	pinnedKoubouVersion = "0.13.0"
 )
+
+var koubouVersionPattern = regexp.MustCompile(`(?i)\bv?(\d+\.\d+\.\d+)\b`)
 
 var supportedFrameDevices = []FrameDevice{
 	FrameDeviceIPhoneAir,
@@ -525,6 +531,10 @@ func toInt(value any) (int, bool) {
 }
 
 func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerateResult, error) {
+	if err := ensurePinnedKoubouVersion(ctx); err != nil {
+		return nil, err
+	}
+
 	cmd := exec.CommandContext(ctx, "kou", "generate", configPath, "--output", "json")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -532,7 +542,9 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
 			return nil, fmt.Errorf(
-				"kou binary not found; install Koubou first (pip install koubou or brew install bitomule/tap/koubou)",
+				"kou binary not found; install pinned Koubou %s first (%s)",
+				pinnedKoubouVersion,
+				pinnedKoubouInstallCommand(),
 			)
 		}
 		errorOutput := strings.TrimSpace(stderr.String())
@@ -554,6 +566,56 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 		return nil, fmt.Errorf("kou: parse JSON output: %w", err)
 	}
 	return results, nil
+}
+
+func ensurePinnedKoubouVersion(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "kou", "--version")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return fmt.Errorf(
+				"kou binary not found; install pinned Koubou %s first (%s)",
+				pinnedKoubouVersion,
+				pinnedKoubouInstallCommand(),
+			)
+		}
+		trimmedOutput := strings.TrimSpace(string(output))
+		if trimmedOutput == "" {
+			return fmt.Errorf("kou --version: %w", err)
+		}
+		return fmt.Errorf("kou --version: %w (output: %s)", err, trimmedOutput)
+	}
+
+	detectedVersion, ok := parseKoubouVersion(output)
+	if !ok {
+		return fmt.Errorf("kou --version output does not include a semantic version: %q", strings.TrimSpace(string(output)))
+	}
+	if detectedVersion != pinnedKoubouVersion {
+		return fmt.Errorf(
+			"unsupported Koubou version %s; this ASC release is pinned to %s. Install with: %s",
+			detectedVersion,
+			pinnedKoubouVersion,
+			pinnedKoubouInstallCommand(),
+		)
+	}
+	return nil
+}
+
+func parseKoubouVersion(output []byte) (string, bool) {
+	matches := koubouVersionPattern.FindSubmatch(output)
+	if len(matches) < 2 {
+		return "", false
+	}
+	raw := strings.TrimSpace(string(matches[1]))
+	normalized := "v" + strings.TrimPrefix(raw, "v")
+	if !semver.IsValid(normalized) {
+		return "", false
+	}
+	return strings.TrimPrefix(normalized, "v"), true
+}
+
+func pinnedKoubouInstallCommand() string {
+	return fmt.Sprintf("pip install koubou==%s", pinnedKoubouVersion)
 }
 
 // extractJSONArray finds the JSON array of objects in raw output that may

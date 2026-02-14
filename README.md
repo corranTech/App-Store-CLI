@@ -1167,6 +1167,7 @@ asc encryption documents get --id "DOC_ID"
 ### Screenshots & Video Previews
 
 > Local screenshot automation/generation commands are **experimental**.
+> Local framing is pinned to Koubou `0.13.0` (`pip install koubou==0.13.0`).
 > If you face any issues, please file feedback at:
 > https://github.com/rudrankriyam/App-Store-Connect-CLI/issues/new/choose
 

@@ -392,6 +392,10 @@ func installMockKou(t *testing.T, fixturePath, outputPath string) {
 	binDir := t.TempDir()
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "kou 0.13.0"
+  exit 0
+fi
 if [ "$1" = "generate" ]; then
   mkdir -p "$(dirname "$MOCK_KOU_OUTPUT")"
   cp "$MOCK_KOU_FIXTURE" "$MOCK_KOU_OUTPUT"

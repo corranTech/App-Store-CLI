@@ -247,6 +247,10 @@ func installFrameTestMockKou(t *testing.T, fixturePath, outputPath string) {
 	binDir := t.TempDir()
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "kou 0.13.0"
+  exit 0
+fi
 if [ "$1" = "generate" ]; then
   mkdir -p "$(dirname "$MOCK_KOU_OUTPUT")"
   cp "$MOCK_KOU_FIXTURE" "$MOCK_KOU_OUTPUT"
@@ -320,6 +324,14 @@ func TestRunKoubouGenerate_ParsesJSONFromStdoutWhenStderrHasWarnings(t *testing.
 	binDir := t.TempDir()
 	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
 set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.13.0"
+  exit 0
+fi
+if [ "$1" != "generate" ]; then
+  echo "unsupported args" >&2
+  exit 1
+fi
 echo "warning: using fallback font" 1>&2
 echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
 `)
@@ -334,6 +346,47 @@ echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
 	}
 	if !results[0].Success || results[0].Path != "output/framed.png" {
 		t.Fatalf("unexpected parsed result: %+v", results[0])
+	}
+}
+
+func TestRunKoubouGenerate_RejectsUnpinnedKoubouVersion(t *testing.T) {
+	binDir := t.TempDir()
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.12.0"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+	t.Setenv("PATH", binDir)
+
+	_, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err == nil {
+		t.Fatal("expected version pinning error")
+	}
+	if !strings.Contains(err.Error(), "unsupported Koubou version 0.12.0") {
+		t.Fatalf("expected unsupported version error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "0.13.0") {
+		t.Fatalf("expected pinned version in error, got %v", err)
+	}
+}
+
+func TestRunKoubouGenerate_NotFoundIncludesPinnedInstallHint(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+
+	_, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err == nil {
+		t.Fatal("expected not found error")
+	}
+	if !strings.Contains(err.Error(), "pip install koubou==0.13.0") {
+		t.Fatalf("expected pinned install command in error, got %v", err)
 	}
 }
 
