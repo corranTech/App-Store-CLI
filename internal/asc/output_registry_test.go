@@ -299,15 +299,7 @@ func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
-	if len(headers) != 2 || headers[0] != "ID" || headers[1] != "Name" {
-		t.Fatalf("unexpected headers: %v", headers)
-	}
-	if len(rows) != 1 || len(rows[0]) != 2 {
-		t.Fatalf("unexpected rows shape: %v", rows)
-	}
-	if rows[0][0] != "helper-id" || rows[0][1] != "helper-name" {
-		t.Fatalf("unexpected row: %v", rows[0])
-	}
+	assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"helper-id", "helper-name"})
 }
 
 func TestOutputRegistrySingleResourceHelperPanicsOnNilRowsFunction(t *testing.T) {
@@ -362,9 +354,7 @@ func TestOutputRegistryRowsWithSingleResourceHelperRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list handler returned error: %v", err)
 	}
-	if len(listRows) != 1 || len(listRows[0]) != 2 || listRows[0][0] != "list-id" || listRows[0][1] != "list-name" {
-		t.Fatalf("unexpected list rows: %v", listRows)
-	}
+	assertSingleRowEquals(t, []string{"ID", "Name"}, listRows, []string{"ID", "Name"}, []string{"list-id", "list-name"})
 
 	_, singleRows, err := singleHandler(&SingleResponse[attrs]{
 		Data: Resource[attrs]{ID: "single-id", Attributes: attrs{Name: "single-name"}},
@@ -372,9 +362,7 @@ func TestOutputRegistryRowsWithSingleResourceHelperRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("single handler returned error: %v", err)
 	}
-	if len(singleRows) != 1 || len(singleRows[0]) != 2 || singleRows[0][0] != "single-id" || singleRows[0][1] != "single-name" {
-		t.Fatalf("unexpected single rows: %v", singleRows)
-	}
+	assertSingleRowEquals(t, []string{"ID", "Name"}, singleRows, []string{"ID", "Name"}, []string{"single-id", "single-name"})
 }
 
 func TestOutputRegistryRowsWithSingleResourceHelperNoPartialRegistrationOnPanic(t *testing.T) {
@@ -509,12 +497,7 @@ func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
-	if len(headers) != 1 || headers[0] != "value" {
-		t.Fatalf("unexpected headers: %v", headers)
-	}
-	if len(rows) != 1 || len(rows[0]) != 1 || rows[0][0] != "converted" {
-		t.Fatalf("unexpected rows: %v", rows)
-	}
+	assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{"converted"})
 }
 
 func TestOutputRegistryRowsWithSingleToListHelperRegistration(t *testing.T) {
@@ -543,17 +526,13 @@ func TestOutputRegistryRowsWithSingleToListHelperRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("single handler returned error: %v", err)
 	}
-	if len(singleRows) != 1 || len(singleRows[0]) != 1 || singleRows[0][0] != "single-value" {
-		t.Fatalf("unexpected single rows: %v", singleRows)
-	}
+	assertSingleRowEquals(t, []string{"value"}, singleRows, []string{"value"}, []string{"single-value"})
 
 	_, listRows, err := listHandler(&list{Data: []string{"list-value"}})
 	if err != nil {
 		t.Fatalf("list handler returned error: %v", err)
 	}
-	if len(listRows) != 1 || len(listRows[0]) != 1 || listRows[0][0] != "list-value" {
-		t.Fatalf("unexpected list rows: %v", listRows)
-	}
+	assertSingleRowEquals(t, []string{"value"}, listRows, []string{"value"}, []string{"list-value"})
 }
 
 func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationOnPanic(t *testing.T) {
@@ -696,15 +675,7 @@ func TestOutputRegistrySingleToListHelperCopiesLinks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
 	}
-	if len(headers) != 2 || headers[0] != "id" || headers[1] != "self" {
-		t.Fatalf("unexpected headers: %v", headers)
-	}
-	if len(rows) != 1 || len(rows[0]) != 2 {
-		t.Fatalf("unexpected rows shape: %v", rows)
-	}
-	if rows[0][0] != "item-1" || rows[0][1] != "https://example.test/items/1" {
-		t.Fatalf("unexpected row: %v", rows[0])
-	}
+	assertSingleRowEquals(t, headers, rows, []string{"id", "self"}, []string{"item-1", "https://example.test/items/1"})
 }
 
 func TestOutputRegistrySingleToListHelperPanicsWithoutDataField(t *testing.T) {
@@ -833,9 +804,7 @@ func TestOutputRegistryRegisterRowsPanicsOnDuplicate(t *testing.T) {
 	preregisterRowsForConflict[duplicate](t, "value")
 
 	expectPanic(t, "expected duplicate registration panic", func() {
-		registerRows(func(v *duplicate) ([]string, [][]string) {
-			return []string{"value"}, [][]string{{"second"}}
-		})
+		registerRowsForConflict[duplicate]("value")
 	})
 }
 
@@ -865,9 +834,16 @@ func TestOutputRegistryRegisterRowsErrPanicsWhenDirectRegistered(t *testing.T) {
 	preregisterDirectForConflict[conflict](t)
 
 	expectPanic(t, "expected conflict panic when rowsErr registers after direct", func() {
-		registerRowsErr(func(v *conflict) ([]string, [][]string, error) {
-			return nil, nil, nil
-		})
+		registerRowsErrForConflict[conflict]()
+	})
+}
+
+func TestOutputRegistryRegisterRowsErrPanicsOnDuplicate(t *testing.T) {
+	type duplicate struct{}
+	preregisterRowsErrForConflict[duplicate](t)
+
+	expectPanicContains(t, "duplicate registration", func() {
+		registerRowsErrForConflict[duplicate]()
 	})
 }
 
@@ -897,9 +873,16 @@ func TestOutputRegistryRegisterDirectPanicsWhenRowsRegistered(t *testing.T) {
 	preregisterRowsForConflict[conflict](t, "value")
 
 	expectPanic(t, "expected conflict panic when direct registers after rows", func() {
-		registerDirect(func(v *conflict, render func([]string, [][]string)) error {
-			return nil
-		})
+		registerDirectForConflict[conflict]()
+	})
+}
+
+func TestOutputRegistryRegisterDirectPanicsOnDuplicate(t *testing.T) {
+	type duplicate struct{}
+	preregisterDirectForConflict[duplicate](t)
+
+	expectPanicContains(t, "duplicate registration", func() {
+		registerDirectForConflict[duplicate]()
 	})
 }
 
@@ -1033,6 +1016,19 @@ func assertRowContains(t *testing.T, headers []string, rows [][]string, minColum
 		if !strings.Contains(joined, want) {
 			t.Fatalf("expected row to contain %q, got row=%v", want, rows[0])
 		}
+	}
+}
+
+func assertSingleRowEquals(t *testing.T, headers []string, rows [][]string, wantHeaders []string, wantRow []string) {
+	t.Helper()
+	if !reflect.DeepEqual(headers, wantHeaders) {
+		t.Fatalf("unexpected headers: got=%v want=%v", headers, wantHeaders)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected exactly 1 row, got %d (%v)", len(rows), rows)
+	}
+	if !reflect.DeepEqual(rows[0], wantRow) {
+		t.Fatalf("unexpected row: got=%v want=%v", rows[0], wantRow)
 	}
 }
 

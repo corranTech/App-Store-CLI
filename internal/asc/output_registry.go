@@ -22,12 +22,16 @@ func panicNilHelperFunction(kind string, t reflect.Type) {
 	panic(fmt.Sprintf("output registry: nil %s for %s", kind, t))
 }
 
+func panicDuplicateRegistration(t reflect.Type) {
+	panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
+}
+
 func ensureRegistryTypeAvailable(t reflect.Type) {
 	if _, exists := outputRegistry[t]; exists {
-		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
+		panicDuplicateRegistration(t)
 	}
 	if _, exists := directRenderRegistry[t]; exists {
-		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
+		panicDuplicateRegistration(t)
 	}
 }
 
@@ -35,7 +39,7 @@ func ensureRegistryTypesAvailable(types ...reflect.Type) {
 	seen := make(map[reflect.Type]struct{}, len(types))
 	for _, t := range types {
 		if _, exists := seen[t]; exists {
-			panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
+			panicDuplicateRegistration(t)
 		}
 		seen[t] = struct{}{}
 		ensureRegistryTypeAvailable(t)
