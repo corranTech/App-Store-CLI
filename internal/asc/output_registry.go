@@ -55,6 +55,9 @@ func panicSingleListAdapterDataTypeMismatch(source, target reflect.Type) {
 }
 
 func isRegistryTypeRegistered(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
 	if _, exists := outputRegistry[t]; exists {
 		return true
 	}

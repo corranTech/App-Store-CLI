@@ -1237,6 +1237,24 @@ func TestEnsureRegistryTypeAvailablePanicsOnNilType(t *testing.T) {
 	})
 }
 
+func TestEnsureRegistryTypeAvailablePanicsWhenOutputTypeRegistered(t *testing.T) {
+	type outputRegistered struct{}
+	key := preregisterRowsForConflict[outputRegistered](t, "value")
+
+	expectDuplicateRegistrationPanic(t, func() {
+		ensureRegistryTypeAvailable(key)
+	})
+}
+
+func TestEnsureRegistryTypeAvailablePanicsWhenDirectTypeRegistered(t *testing.T) {
+	type directRegistered struct{}
+	key := preregisterDirectForConflict[directRegistered](t)
+
+	expectDuplicateRegistrationPanic(t, func() {
+		ensureRegistryTypeAvailable(key)
+	})
+}
+
 func TestEnsureRegistryTypesAvailableDuplicatePanicIncludesType(t *testing.T) {
 	type duplicate struct{}
 	key := typeKey[duplicate]()
@@ -1250,6 +1268,12 @@ func TestEnsureRegistryTypesAvailableDuplicatePanicIncludesType(t *testing.T) {
 func TestEnsureRegistryTypesAvailablePanicsOnNilType(t *testing.T) {
 	expectPanicContains(t, "invalid nil registration type", func() {
 		ensureRegistryTypesAvailable(nil)
+	})
+}
+
+func TestEnsureRegistryTypesAvailableNilTypePanicsBeforeDuplicateCheck(t *testing.T) {
+	expectPanicContains(t, "invalid nil registration type", func() {
+		ensureRegistryTypesAvailable(nil, nil)
 	})
 }
 
