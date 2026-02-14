@@ -42,6 +42,9 @@ func ensureRegistryTypesAvailable(types ...reflect.Type) {
 // The function must accept a pointer and return (headers, rows).
 func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 	t := reflect.TypeFor[*T]()
+	if fn == nil {
+		panic(fmt.Sprintf("output registry: nil rows function for %s", t))
+	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
 		h, r := fn(data.(*T))
@@ -52,6 +55,9 @@ func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 // registerRowsErr registers a rows function that can return an error.
 func registerRowsErr[T any](fn func(*T) ([]string, [][]string, error)) {
 	t := reflect.TypeFor[*T]()
+	if fn == nil {
+		panic(fmt.Sprintf("output registry: nil rows function for %s", t))
+	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
 		return fn(data.(*T))
@@ -87,6 +93,9 @@ func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]str
 // registerSingleResourceRowsAdapter registers rows rendering for list renderers
 // by adapting SingleResponse[T] into Response[T] with one item in Data.
 func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
+	if rows == nil {
+		panic(fmt.Sprintf("output registry: nil rows function for %s", reflect.TypeFor[*SingleResponse[T]]()))
+	}
 	registerRows(func(v *SingleResponse[T]) ([]string, [][]string) {
 		return rows(&Response[T]{Data: []Resource[T]{v.Data}})
 	})
@@ -112,6 +121,10 @@ func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]
 }
 
 func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string)) func(*T) ([]string, [][]string) {
+	if rows == nil {
+		panic(fmt.Sprintf("output registry: nil rows function for %s", reflect.TypeFor[*U]()))
+	}
+
 	sourceType := reflect.TypeFor[T]()
 	targetType := reflect.TypeFor[U]()
 	if sourceType.Kind() != reflect.Struct {
@@ -181,6 +194,9 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 // registerDirect registers a type that needs direct render control (multi-table output).
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	t := reflect.TypeFor[*T]()
+	if fn == nil {
+		panic(fmt.Sprintf("output registry: nil direct render function for %s", t))
+	}
 	ensureRegistryTypeAvailable(t)
 	directRenderRegistry[t] = func(data any, render func([]string, [][]string)) error {
 		return fn(data.(*T), render)
