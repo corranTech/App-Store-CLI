@@ -85,6 +85,14 @@ func ensureRegistryTypeAvailable(t reflect.Type) {
 }
 
 func ensureRegistryTypesAvailable(types ...reflect.Type) {
+	switch len(types) {
+	case 0:
+		return
+	case 1:
+		ensureRegistryTypeAvailable(types[0])
+		return
+	}
+
 	seen := make(map[reflect.Type]struct{}, len(types))
 	for _, t := range types {
 		if _, exists := seen[t]; exists {
@@ -104,7 +112,7 @@ func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
-		h, r := fn(data.(*T))
+		h, r := fn(ptrOrZero(data.(*T)))
 		return h, r, nil
 	}
 }
@@ -117,7 +125,7 @@ func registerRowsErr[T any](fn func(*T) ([]string, [][]string, error)) {
 	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
-		return fn(data.(*T))
+		return fn(ptrOrZero(data.(*T)))
 	}
 }
 
@@ -164,6 +172,7 @@ func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]str
 	if rows == nil {
 		panicNilHelperFunction("response-data rows function", t)
 	}
+	// Normalize typed-nil *Response[T] to zero-value Response[T] semantics.
 	registerRows(func(v *Response[T]) ([]string, [][]string) {
 		return rows(ptrOrZero(v).Data)
 	})
@@ -176,6 +185,7 @@ func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string,
 	if rows == nil {
 		panicNilHelperFunction("rows function", t)
 	}
+	// Normalize typed-nil *SingleResponse[T] to zero-value Resource[T].
 	registerRows(func(v *SingleResponse[T]) ([]string, [][]string) {
 		return rows(&Response[T]{Data: []Resource[T]{ptrOrZero(v).Data}})
 	})
@@ -190,7 +200,10 @@ func registerRowsWithSingleResourceAdapter[T any](rows func(*Response[T]) ([]str
 		panicNilHelperFunction("rows function", listType)
 	}
 	ensureRegistryTypesAvailable(listType, singleType)
-	registerRows(rows)
+	// Normalize typed-nil list handler inputs while preserving rows semantics.
+	registerRows(func(v *Response[T]) ([]string, [][]string) {
+		return rows(ptrOrZero(v))
+	})
 	registerSingleResourceRowsAdapter(rows)
 }
 
@@ -287,7 +300,10 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 	}
 	adapter := singleToListRowsAdapter[T, U](rows)
 	ensureRegistryTypesAvailable(listType, singleType)
-	registerRows(rows)
+	// Normalize typed-nil list handler inputs while preserving rows semantics.
+	registerRows(func(v *U) ([]string, [][]string) {
+		return rows(ptrOrZero(v))
+	})
 	registerRows(adapter)
 }
 
@@ -299,7 +315,7 @@ func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	}
 	ensureRegistryTypeAvailable(t)
 	directRenderRegistry[t] = func(data any, render func([]string, [][]string)) error {
-		return fn(data.(*T), render)
+		return fn(ptrOrZero(data.(*T)), render)
 	}
 }
 
