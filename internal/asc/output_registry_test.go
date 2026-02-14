@@ -200,6 +200,55 @@ func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
 	}
 }
 
+func TestOutputRegistryRowsWithSingleResourceHelperRegistration(t *testing.T) {
+	type attrs struct {
+		Name string `json:"name"`
+	}
+
+	registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"ID", "Name"}, nil
+		}
+		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
+	})
+
+	listKey := reflect.TypeOf(&Response[attrs]{})
+	singleKey := reflect.TypeOf(&SingleResponse[attrs]{})
+	t.Cleanup(func() {
+		delete(outputRegistry, listKey)
+		delete(outputRegistry, singleKey)
+	})
+
+	listHandler, ok := outputRegistry[listKey]
+	if !ok || listHandler == nil {
+		t.Fatal("expected list handler from rows+single-resource helper")
+	}
+	singleHandler, ok := outputRegistry[singleKey]
+	if !ok || singleHandler == nil {
+		t.Fatal("expected single handler from rows+single-resource helper")
+	}
+
+	_, listRows, err := listHandler(&Response[attrs]{
+		Data: []Resource[attrs]{{ID: "list-id", Attributes: attrs{Name: "list-name"}}},
+	})
+	if err != nil {
+		t.Fatalf("list handler returned error: %v", err)
+	}
+	if len(listRows) != 1 || len(listRows[0]) != 2 || listRows[0][0] != "list-id" || listRows[0][1] != "list-name" {
+		t.Fatalf("unexpected list rows: %v", listRows)
+	}
+
+	_, singleRows, err := singleHandler(&SingleResponse[attrs]{
+		Data: Resource[attrs]{ID: "single-id", Attributes: attrs{Name: "single-name"}},
+	})
+	if err != nil {
+		t.Fatalf("single handler returned error: %v", err)
+	}
+	if len(singleRows) != 1 || len(singleRows[0]) != 2 || singleRows[0][0] != "single-id" || singleRows[0][1] != "single-name" {
+		t.Fatalf("unexpected single rows: %v", singleRows)
+	}
+}
+
 func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
 	type single struct {
 		Data string
@@ -234,6 +283,54 @@ func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
 	}
 	if len(rows) != 1 || len(rows[0]) != 1 || rows[0][0] != "converted" {
 		t.Fatalf("unexpected rows: %v", rows)
+	}
+}
+
+func TestOutputRegistryRowsWithSingleToListHelperRegistration(t *testing.T) {
+	type single struct {
+		Data string
+	}
+	type list struct {
+		Data []string
+	}
+
+	registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"value"}, nil
+		}
+		return []string{"value"}, [][]string{{v.Data[0]}}
+	})
+
+	singleKey := reflect.TypeOf(&single{})
+	listKey := reflect.TypeOf(&list{})
+	t.Cleanup(func() {
+		delete(outputRegistry, singleKey)
+		delete(outputRegistry, listKey)
+	})
+
+	singleHandler, ok := outputRegistry[singleKey]
+	if !ok || singleHandler == nil {
+		t.Fatal("expected single handler from rows+single-to-list helper")
+	}
+	listHandler, ok := outputRegistry[listKey]
+	if !ok || listHandler == nil {
+		t.Fatal("expected list handler from rows+single-to-list helper")
+	}
+
+	_, singleRows, err := singleHandler(&single{Data: "single-value"})
+	if err != nil {
+		t.Fatalf("single handler returned error: %v", err)
+	}
+	if len(singleRows) != 1 || len(singleRows[0]) != 1 || singleRows[0][0] != "single-value" {
+		t.Fatalf("unexpected single rows: %v", singleRows)
+	}
+
+	_, listRows, err := listHandler(&list{Data: []string{"list-value"}})
+	if err != nil {
+		t.Fatalf("list handler returned error: %v", err)
+	}
+	if len(listRows) != 1 || len(listRows[0]) != 1 || listRows[0][0] != "list-value" {
+		t.Fatalf("unexpected list rows: %v", listRows)
 	}
 }
 
@@ -282,6 +379,99 @@ func TestOutputRegistrySingleToListHelperCopiesLinks(t *testing.T) {
 	if rows[0][0] != "item-1" || rows[0][1] != "https://example.test/items/1" {
 		t.Fatalf("unexpected row: %v", rows[0])
 	}
+}
+
+func TestOutputRegistrySingleToListHelperPanicsWithoutDataField(t *testing.T) {
+	type single struct {
+		Value string
+	}
+	type list struct {
+		Data []string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{v.Data[0]}}
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected helper handler")
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when source Data field is missing")
+		}
+	}()
+
+	_, _, _ = handler(&single{Value: "missing-data"})
+}
+
+func TestOutputRegistrySingleToListHelperPanicsWhenTargetDataIsNotSlice(t *testing.T) {
+	type single struct {
+		Data string
+	}
+	type list struct {
+		Data string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{v.Data}}
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected helper handler")
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when target Data field is not slice")
+		}
+	}()
+
+	_, _, _ = handler(&single{Data: "not-slice"})
+}
+
+func TestOutputRegistrySingleToListHelperPanicsOnDataTypeMismatch(t *testing.T) {
+	type single struct {
+		Data int
+	}
+	type list struct {
+		Data []string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, nil
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected helper handler")
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when Data element types mismatch")
+		}
+	}()
+
+	_, _, _ = handler(&single{Data: 42})
 }
 
 func contains(s, substr string) bool {
