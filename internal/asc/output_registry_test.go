@@ -8,1887 +8,901 @@ import (
 	"testing"
 )
 
-func TestOutputRegistryNotEmpty(t *testing.T) {
-	if len(outputRegistry) == 0 {
-		t.Fatal("output registry is empty; init() may not have run")
-	}
+func TestOutputRegistry(t *testing.T) {
+	t.Run("render by registry scenarios", runOutputRegistryRenderByRegistryScenarios)
+	t.Run("helper registrations", runOutputRegistryHelperRegistrations)
+	t.Run("panic scenarios", runOutputRegistryPanicScenarios)
 }
 
-func TestOutputRegistryAllHandlersNonNil(t *testing.T) {
-	for typ, fn := range outputRegistry {
-		if fn == nil {
-			t.Errorf("nil handler registered for type %s", typ)
+func runOutputRegistryRenderByRegistryScenarios(t *testing.T) {
+	t.Run("fallback to JSON for unregistered types", func(t *testing.T) {
+		type unregistered struct {
+			Value string `json:"value"`
 		}
-	}
-}
-
-func TestOutputRegistryExpectedTypeCount(t *testing.T) {
-	// Total registered types across both registries should be ~471.
-	total := len(outputRegistry) + len(directRenderRegistry)
-	const minExpected = 460
-	if total < minExpected {
-		t.Errorf("expected at least %d registered types, got %d (rows: %d, direct: %d)",
-			minExpected, total, len(outputRegistry), len(directRenderRegistry))
-	}
-}
-
-func TestTypeForPtr(t *testing.T) {
-	type sample struct{}
-	if got, want := typeForPtr[sample](), reflect.TypeOf(&sample{}); got != want {
-		t.Fatalf("typeForPtr[sample]() = %v, want %v", got, want)
-	}
-}
-
-func TestTypeFor(t *testing.T) {
-	type sample struct{}
-	if got, want := typeFor[sample](), reflect.TypeOf(sample{}); got != want {
-		t.Fatalf("typeFor[sample]() = %v, want %v", got, want)
-	}
-}
-
-func TestPtrOrZeroReturnsInputPointer(t *testing.T) {
-	type sample struct {
-		Value string
-	}
-	input := &sample{Value: "set"}
-	got := ptrOrZero(input)
-	if got != input {
-		t.Fatalf("expected ptrOrZero to return input pointer, got=%p want=%p", got, input)
-	}
-}
-
-func TestPtrOrZeroReturnsZeroValuePointerForNil(t *testing.T) {
-	type sample struct {
-		Value string
-	}
-	got := ptrOrZero[sample](nil)
-	if got == nil {
-		t.Fatal("expected non-nil pointer for nil input")
-	}
-	if got.Value != "" {
-		t.Fatalf("expected zero-value field for nil input, got %q", got.Value)
-	}
-}
-
-func TestDirectRenderRegistryAllHandlersNonNil(t *testing.T) {
-	for typ, fn := range directRenderRegistry {
-		if fn == nil {
-			t.Errorf("nil handler registered for type %s", typ)
+		output := captureStdout(t, func() error {
+			return renderByRegistry(&unregistered{Value: "test"}, RenderTable)
+		})
+		if output == "" {
+			t.Fatal("expected JSON fallback output")
 		}
-	}
-}
-
-func TestRenderByRegistryFallbackToJSON(t *testing.T) {
-	// Unregistered type should fall back to JSON without error.
-	type unregistered struct {
-		Value string `json:"value"`
-	}
-	output := captureStdout(t, func() error {
-		return renderByRegistry(&unregistered{Value: "test"}, RenderTable)
-	})
-	if output == "" {
-		t.Fatal("expected JSON fallback output")
-	}
-	if !strings.Contains(output, "test") {
-		t.Fatalf("expected JSON output to contain 'test', got: %s", output)
-	}
-}
-
-func TestRenderByRegistryNilFallsBackToJSON(t *testing.T) {
-	output := captureStdout(t, func() error {
-		return renderByRegistry(nil, RenderTable)
-	})
-	if strings.TrimSpace(output) != "null" {
-		t.Fatalf("expected JSON null fallback output, got: %q", output)
-	}
-}
-
-func TestRenderByRegistryTypedNilPointerFallsBackToJSON(t *testing.T) {
-	type unregistered struct{}
-
-	output := captureStdout(t, func() error {
-		return renderByRegistry((*unregistered)(nil), RenderTable)
-	})
-	if strings.TrimSpace(output) != "null" {
-		t.Fatalf("expected JSON null fallback output for typed nil pointer, got: %q", output)
-	}
-}
-
-func TestRenderByRegistryUsesRowsRegistryRenderer(t *testing.T) {
-	type registered struct {
-		Value string
-	}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	registerRows(func(v *registered) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{v.Value}}
-	})
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry(&registered{Value: "from-registry"}, func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"from-registry"})
-}
-
-func TestRenderByRegistryUsesRowsRegistryRendererWithTypedNilPointer(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	registerRows(func(*registered) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{"typed-nil"}}
-	})
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"typed-nil"})
-}
-
-func TestRenderByRegistryRowsHandlerTypedNilUsesZeroValue(t *testing.T) {
-	type registered struct {
-		Value string
-	}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	registerRows(func(v *registered) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{v.Value}}
-	})
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{""})
-}
-
-func TestRenderByRegistryRowsHandlerTypedNilPassesNonNilPointer(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	receivedNil := false
-	registerRows(func(v *registered) ([]string, [][]string) {
-		receivedNil = v == nil
-		return []string{"ok"}, [][]string{{"true"}}
-	})
-
-	if err := renderByRegistry((*registered)(nil), func([]string, [][]string) {}); err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	if receivedNil {
-		t.Fatal("expected registerRows callback to receive non-nil pointer for typed nil input")
-	}
-}
-
-func TestRenderByRegistryPropagatesRowsRegistryErrors(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	wantErr := errors.New("rows renderer failed")
-	registerRowsErr(func(*registered) ([]string, [][]string, error) {
-		return nil, nil, wantErr
-	})
-
-	renderCalls := 0
-	err := renderByRegistry(&registered{}, func([]string, [][]string) {
-		renderCalls++
-	})
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
-	}
-	if renderCalls != 0 {
-		t.Fatalf("expected render callback not to run on rows error, got %d calls", renderCalls)
-	}
-}
-
-func TestRenderByRegistryRowsErrHandlerTypedNilUsesZeroValue(t *testing.T) {
-	type registered struct {
-		Value string
-	}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	registerRowsErr(func(v *registered) ([]string, [][]string, error) {
-		return []string{"value"}, [][]string{{v.Value}}, nil
-	})
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{""})
-}
-
-func TestRenderByRegistryRowsErrHandlerTypedNilPassesNonNilPointer(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	receivedNil := false
-	registerRowsErr(func(v *registered) ([]string, [][]string, error) {
-		receivedNil = v == nil
-		return []string{"ok"}, [][]string{{"true"}}, nil
-	})
-
-	if err := renderByRegistry((*registered)(nil), func([]string, [][]string) {}); err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	if receivedNil {
-		t.Fatal("expected registerRowsErr callback to receive non-nil pointer for typed nil input")
-	}
-}
-
-func TestRenderByRegistryUsesDirectRenderer(t *testing.T) {
-	type registered struct {
-		Value string
-	}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	registerDirect(func(v *registered, render func([]string, [][]string)) error {
-		render([]string{"value"}, [][]string{{v.Value}})
-		return nil
-	})
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry(&registered{Value: "from-direct"}, func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"from-direct"})
-}
-
-func TestRenderByRegistryUsesDirectRendererWithTypedNilPointer(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	registerDirect(func(_ *registered, render func([]string, [][]string)) error {
-		render([]string{"value"}, [][]string{{"typed-nil-direct"}})
-		return nil
-	})
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"typed-nil-direct"})
-}
-
-func TestRenderByRegistryDirectHandlerTypedNilUsesZeroValue(t *testing.T) {
-	type registered struct {
-		Value string
-	}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	registerDirect(func(v *registered, render func([]string, [][]string)) error {
-		render([]string{"value"}, [][]string{{v.Value}})
-		return nil
-	})
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{""})
-}
-
-func TestRenderByRegistryDirectHandlerTypedNilPassesNonNilPointer(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	receivedNil := false
-	registerDirect(func(v *registered, render func([]string, [][]string)) error {
-		receivedNil = v == nil
-		render([]string{"ok"}, [][]string{{"true"}})
-		return nil
-	})
-
-	if err := renderByRegistry((*registered)(nil), func([]string, [][]string) {}); err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	if receivedNil {
-		t.Fatal("expected registerDirect callback to receive non-nil pointer for typed nil input")
-	}
-}
-
-func TestRenderByRegistryPropagatesDirectRendererErrors(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	wantErr := errors.New("direct renderer failed")
-	registerDirect(func(*registered, func([]string, [][]string)) error {
-		return wantErr
-	})
-
-	renderCalls := 0
-	err := renderByRegistry(&registered{}, func([]string, [][]string) {
-		renderCalls++
-	})
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
-	}
-	if renderCalls != 0 {
-		t.Fatalf("expected render callback not to run on direct error, got %d calls", renderCalls)
-	}
-}
-
-func TestRenderByRegistryPrefersDirectRegistryWhenBothHandlersExist(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	rowsHandlerCalled := seedRowsAndDirectHandlersForTest(
-		key,
-		renderWithRows([]string{"source"}, [][]string{{"direct"}}),
-	)
-
-	var gotHeaders []string
-	var gotRows [][]string
-	err := renderByRegistry(&registered{}, func(headers []string, rows [][]string) {
-		gotHeaders = headers
-		gotRows = rows
-	})
-	if err != nil {
-		t.Fatalf("renderByRegistry returned error: %v", err)
-	}
-	if rowsHandlerCalled() {
-		t.Fatal("expected direct handler precedence over rows handler")
-	}
-	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"source"}, []string{"direct"})
-}
-
-func TestRenderByRegistryPrefersDirectRegistryErrorWhenBothHandlersExist(t *testing.T) {
-	type registered struct{}
-
-	key := typeKey[registered]()
-	cleanupRegistryTypes(t, key)
-
-	wantErr := errors.New("direct failed")
-	rowsHandlerCalled := seedRowsAndDirectHandlersForTest(key, func(any, func([]string, [][]string)) error {
-		return wantErr
-	})
-
-	renderCalls := 0
-	err := renderByRegistry(&registered{}, func([]string, [][]string) {
-		renderCalls++
-	})
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
-	}
-	if rowsHandlerCalled() {
-		t.Fatal("expected rows handler not to run when direct handler exists")
-	}
-	if renderCalls != 0 {
-		t.Fatalf("expected render callback not to run on direct error, got %d calls", renderCalls)
-	}
-}
-
-func TestOutputRegistrySingleLinkageHelperRegistration(t *testing.T) {
-	handler := requireOutputHandlerFor[AppStoreVersionSubmissionLinkageResponse](
-		t,
-		"AppStoreVersionSubmissionLinkageResponse",
-	)
-
-	headers, rows, err := handler(&AppStoreVersionSubmissionLinkageResponse{
-		Data: ResourceData{
-			Type: ResourceType("appStoreVersionSubmissions"),
-			ID:   "submission-123",
-		},
-	})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertRowContains(t, headers, rows, 2, "submission-123")
-}
-
-func TestOutputRegistrySingleLinkageHelperHandlesTypedNilPointer(t *testing.T) {
-	type linkage struct {
-		Data ResourceData
-	}
-
-	registerSingleLinkageRows(func(v *linkage) ResourceData {
-		return v.Data
-	})
-
-	key := typeKey[linkage]()
-	cleanupRegistryTypes(t, key)
-
-	handler := requireOutputHandler(t, key, "single-linkage typed nil helper")
-
-	headers, rows, err := handler((*linkage)(nil))
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	if len(headers) < 2 || len(rows) != 1 || len(rows[0]) < 2 {
-		t.Fatalf("expected linkage row shape from typed nil input, got headers=%v rows=%v", headers, rows)
-	}
-}
-
-func TestOutputRegistrySingleLinkageHelperPanicsOnNilExtractor(t *testing.T) {
-	type linkage struct{}
-
-	key := typeKey[linkage]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRegistryPanic(t, "linkage extractor", func() {
-		registerSingleLinkageRows[linkage](nil)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistrySingleLinkageHelperNilExtractorPanicsBeforeConflictChecks(t *testing.T) {
-	type linkage struct{}
-
-	preregisterRowsForConflict[linkage](t, "id")
-
-	expectNilRegistryPanic(t, "linkage extractor", func() {
-		registerSingleLinkageRows[linkage](nil)
-	})
-}
-
-func TestOutputRegistryIDStateHelperRegistration(t *testing.T) {
-	handler := requireOutputHandlerFor[BackgroundAssetVersionAppStoreReleaseResponse](
-		t,
-		"BackgroundAssetVersionAppStoreReleaseResponse",
-	)
-
-	headers, rows, err := handler(&BackgroundAssetVersionAppStoreReleaseResponse{
-		Data: Resource[BackgroundAssetVersionAppStoreReleaseAttributes]{
-			ID:         "release-1",
-			Attributes: BackgroundAssetVersionAppStoreReleaseAttributes{State: "READY_FOR_SALE"},
-		},
-	})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertRowContains(t, headers, rows, 2, "release-1", "READY_FOR_SALE")
-}
-
-func TestOutputRegistryIDStateHelperHandlesTypedNilPointer(t *testing.T) {
-	type state struct {
-		ID    string
-		State string
-	}
-
-	registerIDStateRows(
-		func(v *state) (string, string) {
-			return v.ID, v.State
-		},
-		func(id, value string) ([]string, [][]string) {
-			return []string{"id", "state"}, [][]string{{id, value}}
-		},
-	)
-
-	key := typeKey[state]()
-	cleanupRegistryTypes(t, key)
-
-	handler := requireOutputHandler(t, key, "id/state typed nil helper")
-
-	headers, rows, err := handler((*state)(nil))
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"id", "state"}, []string{"", ""})
-}
-
-func TestOutputRegistryIDStateHelperPanicsOnNilExtractor(t *testing.T) {
-	type state struct{}
-
-	key := typeKey[state]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRegistryPanic(t, "id/state extractor", func() {
-		registerIDStateRows[state](nil, func(id, value string) ([]string, [][]string) {
-			return []string{"id", "state"}, [][]string{{id, value}}
-		})
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryIDStateHelperNilExtractorPanicsBeforeConflictChecks(t *testing.T) {
-	type state struct{}
-
-	preregisterRowsForConflict[state](t, "id", "state")
-
-	expectNilRegistryPanic(t, "id/state extractor", func() {
-		registerIDStateRows[state](nil, func(id, value string) ([]string, [][]string) {
-			return []string{"id", "state"}, [][]string{{id, value}}
-		})
-	})
-}
-
-func TestOutputRegistryIDStateHelperPanicsOnNilRows(t *testing.T) {
-	type state struct{}
-
-	key := typeKey[state]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRegistryPanic(t, "id/state rows function", func() {
-		registerIDStateRows[state](func(*state) (string, string) {
-			return "id", "value"
-		}, nil)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryIDStateHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
-	type state struct{}
-
-	preregisterRowsForConflict[state](t, "id", "state")
-
-	expectNilRegistryPanic(t, "id/state rows function", func() {
-		registerIDStateRows[state](func(*state) (string, string) {
-			return "id", "value"
-		}, nil)
-	})
-}
-
-func TestOutputRegistryIDBoolHelperRegistration(t *testing.T) {
-	handler := requireOutputHandlerFor[AlternativeDistributionDomainDeleteResult](
-		t,
-		"AlternativeDistributionDomainDeleteResult",
-	)
-
-	headers, rows, err := handler(&AlternativeDistributionDomainDeleteResult{
-		ID:      "domain-1",
-		Deleted: true,
-	})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertRowContains(t, headers, rows, 2, "domain-1", "true")
-}
-
-func TestOutputRegistryIDBoolHelperHandlesTypedNilPointer(t *testing.T) {
-	type idBool struct {
-		ID      string
-		Deleted bool
-	}
-
-	registerIDBoolRows(
-		func(v *idBool) (string, bool) {
-			return v.ID, v.Deleted
-		},
-		func(id string, deleted bool) ([]string, [][]string) {
-			return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
-		},
-	)
-
-	key := typeKey[idBool]()
-	cleanupRegistryTypes(t, key)
-
-	handler := requireOutputHandler(t, key, "id/bool typed nil helper")
-
-	headers, rows, err := handler((*idBool)(nil))
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"id", "deleted"}, []string{"", "false"})
-}
-
-func TestOutputRegistryIDBoolHelperPanicsOnNilRows(t *testing.T) {
-	type idBool struct{}
-
-	key := typeKey[idBool]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRegistryPanic(t, "id/bool rows function", func() {
-		registerIDBoolRows[idBool](func(*idBool) (string, bool) {
-			return "id", true
-		}, nil)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryIDBoolHelperPanicsOnNilExtractor(t *testing.T) {
-	type idBool struct{}
-
-	key := typeKey[idBool]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRegistryPanic(t, "id/bool extractor", func() {
-		registerIDBoolRows[idBool](nil, func(id string, deleted bool) ([]string, [][]string) {
-			return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
-		})
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryIDBoolHelperNilExtractorPanicsBeforeConflictChecks(t *testing.T) {
-	type idBool struct{}
-
-	preregisterRowsForConflict[idBool](t, "id", "deleted")
-
-	expectNilRegistryPanic(t, "id/bool extractor", func() {
-		registerIDBoolRows[idBool](nil, func(id string, deleted bool) ([]string, [][]string) {
-			return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
-		})
-	})
-}
-
-func TestOutputRegistryResponseDataHelperRegistration(t *testing.T) {
-	handler := requireOutputHandlerFor[Response[BetaGroupMetricAttributes]](
-		t,
-		"Response[BetaGroupMetricAttributes]",
-	)
-
-	headers, rows, err := handler(&Response[BetaGroupMetricAttributes]{
-		Data: []Resource[BetaGroupMetricAttributes]{
-			{
-				ID:         "metric-1",
-				Attributes: BetaGroupMetricAttributes{"installs": 12},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertRowContains(t, headers, rows, 2, "metric-1", "installs=12")
-}
-
-func TestOutputRegistryResponseDataHelperHandlesTypedNilPointer(t *testing.T) {
-	type attrs struct{}
-
-	registerResponseDataRows(func(data []Resource[attrs]) ([]string, [][]string) {
-		return []string{"count"}, [][]string{{fmt.Sprintf("%d", len(data))}}
-	})
-
-	key := typeKey[Response[attrs]]()
-	cleanupRegistryTypes(t, key)
-
-	handler := requireOutputHandler(t, key, "response-data typed nil helper")
-
-	headers, rows, err := handler((*Response[attrs])(nil))
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"count"}, []string{"0"})
-}
-
-func TestOutputRegistryResponseDataHelperPanicsOnNilRows(t *testing.T) {
-	type attrs struct{}
-
-	key := typeKey[Response[attrs]]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRegistryPanic(t, "response-data rows function", func() {
-		registerResponseDataRows[attrs](nil)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryResponseDataHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
-	type attrs struct{}
-
-	preregisterRowsForConflict[Response[attrs]](t, "id")
-
-	expectNilRegistryPanic(t, "response-data rows function", func() {
-		registerResponseDataRows[attrs](nil)
-	})
-}
-
-func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
-	type helperAttrs struct {
-		Name string `json:"name"`
-	}
-
-	registerSingleResourceRowsAdapter(func(v *Response[helperAttrs]) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"ID", "Name"}, nil
+		if !strings.Contains(output, "test") {
+			t.Fatalf("expected JSON output to contain 'test', got: %s", output)
 		}
-		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
 	})
 
-	key := typeKey[SingleResponse[helperAttrs]]()
-	cleanupRegistryTypes(t, key)
-
-	handler := requireOutputHandler(t, key, "SingleResponse helper")
-
-	headers, rows, err := handler(&SingleResponse[helperAttrs]{
-		Data: Resource[helperAttrs]{
-			ID:         "helper-id",
-			Attributes: helperAttrs{Name: "helper-name"},
-		},
-	})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"helper-id", "helper-name"})
-}
-
-func TestOutputRegistrySingleResourceHelperHandlesTypedNilPointer(t *testing.T) {
-	type helperAttrs struct {
-		Name string `json:"name"`
-	}
-
-	registerSingleResourceRowsAdapter(func(v *Response[helperAttrs]) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"ID", "Name"}, nil
+	t.Run("rows handler renders value and typed nil zero value", func(t *testing.T) {
+		type registered struct {
+			Value string
 		}
-		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
-	})
 
-	key := typeKey[SingleResponse[helperAttrs]]()
-	cleanupRegistryTypes(t, key)
+		key := typeKey[registered]()
+		cleanupRegistryTypes(t, key)
 
-	handler := requireOutputHandler(t, key, "SingleResponse typed nil helper")
+		registerRows(func(v *registered) ([]string, [][]string) {
+			return []string{"value"}, [][]string{{v.Value}}
+		})
 
-	headers, rows, err := handler((*SingleResponse[helperAttrs])(nil))
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"", ""})
-}
-
-func TestOutputRegistrySingleResourceHelperPanicsOnNilRowsFunction(t *testing.T) {
-	type helperAttrs struct {
-		Name string `json:"name"`
-	}
-
-	singleKey := typeKey[SingleResponse[helperAttrs]]()
-	cleanupRegistryTypes(t, singleKey)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerSingleResourceRowsAdapter[helperAttrs](nil)
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistrySingleResourceHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
-	type helperAttrs struct {
-		Name string `json:"name"`
-	}
-
-	preregisterRowsForConflict[SingleResponse[helperAttrs]](t, "ID")
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerSingleResourceRowsAdapter[helperAttrs](nil)
-	})
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperRegistration(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"ID", "Name"}, nil
+		cases := []struct {
+			name    string
+			data    *registered
+			wantRow []string
+		}{
+			{name: "regular value", data: &registered{Value: "from-registry"}, wantRow: []string{"from-registry"}},
+			{name: "typed nil", data: (*registered)(nil), wantRow: []string{""}},
 		}
-		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
-	})
-
-	listKey := typeKey[Response[attrs]]()
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, listKey, singleKey)
-
-	listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-resource helper")
-	singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-resource helper")
-
-	listHeaders, listRows, err := listHandler(&Response[attrs]{
-		Data: []Resource[attrs]{{ID: "list-id", Attributes: attrs{Name: "list-name"}}},
-	})
-	if err != nil {
-		t.Fatalf("list handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, listHeaders, listRows, []string{"ID", "Name"}, []string{"list-id", "list-name"})
-
-	singleHeaders, singleRows, err := singleHandler(&SingleResponse[attrs]{
-		Data: Resource[attrs]{ID: "single-id", Attributes: attrs{Name: "single-name"}},
-	})
-	if err != nil {
-		t.Fatalf("single handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, singleHeaders, singleRows, []string{"ID", "Name"}, []string{"single-id", "single-name"})
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperSingleHandlerHandlesTypedNilPointer(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"ID", "Name"}, nil
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				var gotHeaders []string
+				var gotRows [][]string
+				err := renderByRegistry(tc.data, func(headers []string, rows [][]string) {
+					gotHeaders = headers
+					gotRows = rows
+				})
+				if err != nil {
+					t.Fatalf("renderByRegistry returned error: %v", err)
+				}
+				assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, tc.wantRow)
+			})
 		}
-		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
 	})
 
-	listKey := typeKey[Response[attrs]]()
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, listKey, singleKey)
+	t.Run("rows error handler propagates error and typed nil zero value", func(t *testing.T) {
+		t.Run("propagates error", func(t *testing.T) {
+			type registered struct{}
 
-	singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-resource helper")
+			key := typeKey[registered]()
+			cleanupRegistryTypes(t, key)
 
-	headers, rows, err := singleHandler((*SingleResponse[attrs])(nil))
-	if err != nil {
-		t.Fatalf("single handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"", ""})
-}
+			wantErr := errors.New("rows renderer failed")
+			registerRowsErr(func(*registered) ([]string, [][]string, error) {
+				return nil, nil, wantErr
+			})
 
-func TestOutputRegistryRowsWithSingleResourceHelperListHandlerHandlesTypedNilPointer(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
+			renderCalls := 0
+			err := renderByRegistry(&registered{}, func([]string, [][]string) {
+				renderCalls++
+			})
+			if !errors.Is(err, wantErr) {
+				t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
+			}
+			if renderCalls != 0 {
+				t.Fatalf("expected render callback not to run on rows error, got %d calls", renderCalls)
+			}
+		})
 
-	registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
-		return []string{"count"}, [][]string{{fmt.Sprintf("%d", len(v.Data))}}
-	})
+		t.Run("typed nil zero value", func(t *testing.T) {
+			type registered struct {
+				Value string
+			}
 
-	listKey := typeKey[Response[attrs]]()
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, listKey, singleKey)
+			key := typeKey[registered]()
+			cleanupRegistryTypes(t, key)
 
-	listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-resource helper")
+			registerRowsErr(func(v *registered) ([]string, [][]string, error) {
+				return []string{"value"}, [][]string{{v.Value}}, nil
+			})
 
-	headers, rows, err := listHandler((*Response[attrs])(nil))
-	if err != nil {
-		t.Fatalf("list handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"count"}, []string{"0"})
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperNoPartialRegistrationOnPanic(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	listKey := typeKey[Response[attrs]]()
-	preregisterRowsForConflict[SingleResponse[attrs]](t, "ID")
-	cleanupRegistryTypes(t, listKey)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
-			return []string{"ID"}, nil
+			var gotHeaders []string
+			var gotRows [][]string
+			err := renderByRegistry((*registered)(nil), func(headers []string, rows [][]string) {
+				gotHeaders = headers
+				gotRows = rows
+			})
+			if err != nil {
+				t.Fatalf("renderByRegistry returned error: %v", err)
+			}
+			assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{""})
 		})
 	})
 
-	assertRegistryTypeAbsent(t, listKey)
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperNoPartialRegistrationWhenListRegistered(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	preregisterRowsForConflict[Response[attrs]](t, "ID")
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, singleKey)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
-			return []string{"ID"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperNoPartialRegistrationWhenSingleDirectRegistered(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	listKey := typeKey[Response[attrs]]()
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, listKey, singleKey)
-
-	preregisterDirectForConflict[SingleResponse[attrs]](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
-			return []string{"ID"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, listKey)
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperNoPartialRegistrationWhenListDirectRegistered(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	listKey := typeKey[Response[attrs]]()
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, listKey, singleKey)
-
-	preregisterDirectForConflict[Response[attrs]](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
-			return []string{"ID"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperNoPartialRegistrationWhenRowsNil(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	listKey := typeKey[Response[attrs]]()
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, listKey, singleKey)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRowsWithSingleResourceAdapter[attrs](nil)
-	})
-
-	assertRegistryTypesAbsent(t, listKey, singleKey)
-}
-
-func TestOutputRegistryRowsWithSingleResourceHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
-	type attrs struct {
-		Name string `json:"name"`
-	}
-
-	preregisterRowsForConflict[Response[attrs]](t, "ID")
-	singleKey := typeKey[SingleResponse[attrs]]()
-	cleanupRegistryTypes(t, singleKey)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRowsWithSingleResourceAdapter[attrs](nil)
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"value"}, nil
+	t.Run("direct handler renders value and typed nil zero value", func(t *testing.T) {
+		type registered struct {
+			Value string
 		}
-		return []string{"value"}, [][]string{{v.Data[0]}}
-	})
 
-	key := typeKey[single]()
-	cleanupRegistryTypes(t, key)
+		key := typeKey[registered]()
+		cleanupRegistryTypes(t, key)
 
-	handler := requireOutputHandler(t, key, "single-to-list helper")
+		registerDirect(func(v *registered, render func([]string, [][]string)) error {
+			render([]string{"value"}, [][]string{{v.Value}})
+			return nil
+		})
 
-	headers, rows, err := handler(&single{Data: "converted"})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{"converted"})
-}
-
-func TestOutputRegistrySingleToListHelperHandlesTypedNilPointer(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"value"}, nil
+		cases := []struct {
+			name    string
+			data    *registered
+			wantRow []string
+		}{
+			{name: "regular value", data: &registered{Value: "from-direct"}, wantRow: []string{"from-direct"}},
+			{name: "typed nil", data: (*registered)(nil), wantRow: []string{""}},
 		}
-		return []string{"value"}, [][]string{{v.Data[0]}}
-	})
-
-	key := typeKey[single]()
-	cleanupRegistryTypes(t, key)
-
-	handler := requireOutputHandler(t, key, "single-to-list typed nil helper")
-
-	headers, rows, err := handler((*single)(nil))
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{""})
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperRegistration(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"value"}, nil
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				var gotHeaders []string
+				var gotRows [][]string
+				err := renderByRegistry(tc.data, func(headers []string, rows [][]string) {
+					gotHeaders = headers
+					gotRows = rows
+				})
+				if err != nil {
+					t.Fatalf("renderByRegistry returned error: %v", err)
+				}
+				assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, tc.wantRow)
+			})
 		}
-		return []string{"value"}, [][]string{{v.Data[0]}}
 	})
 
-	singleKey := typeKey[single]()
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, singleKey, listKey)
+	t.Run("direct handler propagates error", func(t *testing.T) {
+		type registered struct{}
 
-	singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-to-list helper")
-	listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-to-list helper")
+		key := typeKey[registered]()
+		cleanupRegistryTypes(t, key)
 
-	singleHeaders, singleRows, err := singleHandler(&single{Data: "single-value"})
-	if err != nil {
-		t.Fatalf("single handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, singleHeaders, singleRows, []string{"value"}, []string{"single-value"})
+		wantErr := errors.New("direct renderer failed")
+		registerDirect(func(*registered, func([]string, [][]string)) error {
+			return wantErr
+		})
 
-	listHeaders, listRows, err := listHandler(&list{Data: []string{"list-value"}})
-	if err != nil {
-		t.Fatalf("list handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, listHeaders, listRows, []string{"value"}, []string{"list-value"})
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperSingleHandlerHandlesTypedNilPointer(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"value"}, nil
+		renderCalls := 0
+		err := renderByRegistry(&registered{}, func([]string, [][]string) {
+			renderCalls++
+		})
+		if !errors.Is(err, wantErr) {
+			t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
 		}
-		return []string{"value"}, [][]string{{v.Data[0]}}
-	})
-
-	singleKey := typeKey[single]()
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-to-list helper")
-
-	headers, rows, err := singleHandler((*single)(nil))
-	if err != nil {
-		t.Fatalf("single handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{""})
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperListHandlerHandlesTypedNilPointer(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-		return []string{"count"}, [][]string{{fmt.Sprintf("%d", len(v.Data))}}
-	})
-
-	singleKey := typeKey[single]()
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-to-list helper")
-
-	headers, rows, err := listHandler((*list)(nil))
-	if err != nil {
-		t.Fatalf("list handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"count"}, []string{"0"})
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationOnPanic(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	preregisterRowsForConflict[single](t, "value")
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, listKey)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, listKey)
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenListRegistered(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	preregisterRowsForConflict[list](t, "value")
-	cleanupRegistryTypes(t, singleKey)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenSingleDirectRegistered(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	preregisterDirectForConflict[single](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, listKey)
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenListDirectRegistered(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	preregisterDirectForConflict[list](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenAdapterPanics(t *testing.T) {
-	type single struct {
-		Value string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	expectPanicContains(t, "requires Data field", func() {
-		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-
-	assertRegistryTypesAbsent(t, singleKey, listKey)
-}
-
-func TestOutputRegistrySingleToListHelperCopiesLinks(t *testing.T) {
-	type single struct {
-		Data  ResourceData
-		Links Links
-	}
-	type list struct {
-		Data  []ResourceData
-		Links Links
-	}
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"id", "self"}, nil
+		if renderCalls != 0 {
+			t.Fatalf("expected render callback not to run on direct error, got %d calls", renderCalls)
 		}
-		return []string{"id", "self"}, [][]string{{v.Data[0].ID, v.Links.Self}}
 	})
 
-	key := typeKey[single]()
-	cleanupRegistryTypes(t, key)
+	t.Run("direct renderer preferred when both handlers exist", func(t *testing.T) {
+		type registered struct{}
 
-	handler := requireOutputHandler(t, key, "single-to-list links helper")
+		key := typeKey[registered]()
+		cleanupRegistryTypes(t, key)
 
-	headers, rows, err := handler(&single{
-		Data: ResourceData{ID: "item-1", Type: ResourceType("items")},
-		Links: Links{
-			Self: "https://example.test/items/1",
-		},
-	})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"id", "self"}, []string{"item-1", "https://example.test/items/1"})
-}
+		rowsHandlerCalled := seedRowsAndDirectHandlersForTest(
+			key,
+			renderWithRows([]string{"source"}, [][]string{{"direct"}}),
+		)
 
-func TestValidateSingleToListAdapterTypesSetsCopyLinksWhenAssignable(t *testing.T) {
-	type single struct {
-		Data  ResourceData
-		Links Links
-	}
-	type list struct {
-		Data  []ResourceData
-		Links Links
-	}
-
-	fields := validateSingleToListAdapterTypes[single, list]()
-	if !fields.copyLinks {
-		t.Fatal("expected copyLinks=true when source and target Links fields are assignable")
-	}
-	if fields.sourceDataField.Name != "Data" || fields.targetDataField.Name != "Data" {
-		t.Fatalf("expected Data fields, got source=%s target=%s", fields.sourceDataField.Name, fields.targetDataField.Name)
-	}
-	if fields.sourceLinksField.Name != "Links" || fields.targetLinksField.Name != "Links" {
-		t.Fatalf("expected Links fields, got source=%s target=%s", fields.sourceLinksField.Name, fields.targetLinksField.Name)
-	}
-}
-
-func TestValidateSingleToListAdapterTypesDisablesCopyLinksWhenMissingOnSource(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data  []string
-		Links Links
-	}
-
-	fields := validateSingleToListAdapterTypes[single, list]()
-	if fields.copyLinks {
-		t.Fatal("expected copyLinks=false when source Links field is missing")
-	}
-}
-
-func TestValidateSingleToListAdapterTypesDisablesCopyLinksWhenTypesDiffer(t *testing.T) {
-	type sourceLinks struct {
-		Self string
-	}
-	type targetLinks struct {
-		Related string
-	}
-	type single struct {
-		Data  string
-		Links sourceLinks
-	}
-	type list struct {
-		Data  []string
-		Links targetLinks
-	}
-
-	fields := validateSingleToListAdapterTypes[single, list]()
-	if fields.copyLinks {
-		t.Fatal("expected copyLinks=false when source and target Links types are not assignable")
-	}
-}
-
-func TestOutputRegistrySingleToListHelperWorksWhenTargetHasNoLinks(t *testing.T) {
-	type single struct {
-		Data  string
-		Links Links
-	}
-	type list struct {
-		Data []string
-	}
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"value"}, nil
+		var gotHeaders []string
+		var gotRows [][]string
+		err := renderByRegistry(&registered{}, func(headers []string, rows [][]string) {
+			gotHeaders = headers
+			gotRows = rows
+		})
+		if err != nil {
+			t.Fatalf("renderByRegistry returned error: %v", err)
 		}
-		return []string{"value"}, [][]string{{v.Data[0]}}
-	})
-
-	key := typeKey[single]()
-	cleanupRegistryTypes(t, key)
-
-	handler := requireOutputHandler(t, key, "single-to-list no-target-links helper")
-
-	headers, rows, err := handler(&single{
-		Data:  "converted",
-		Links: Links{Self: "https://example.test/unused"},
-	})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{"converted"})
-}
-
-func TestOutputRegistrySingleToListHelperLeavesTargetLinksZeroWhenSourceHasNoLinks(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data  []string
-		Links Links
-	}
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		if len(v.Data) == 0 {
-			return []string{"value", "self"}, nil
+		if rowsHandlerCalled() {
+			t.Fatal("expected direct handler precedence over rows handler")
 		}
-		return []string{"value", "self"}, [][]string{{v.Data[0], v.Links.Self}}
+		assertSingleRowEquals(t, gotHeaders, gotRows, []string{"source"}, []string{"direct"})
 	})
 
-	key := typeKey[single]()
-	cleanupRegistryTypes(t, key)
+	t.Run("direct renderer error still bypasses rows handler", func(t *testing.T) {
+		type registered struct{}
 
-	handler := requireOutputHandler(t, key, "single-to-list missing-source-links helper")
+		key := typeKey[registered]()
+		cleanupRegistryTypes(t, key)
 
-	headers, rows, err := handler(&single{Data: "converted"})
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	assertSingleRowEquals(t, headers, rows, []string{"value", "self"}, []string{"converted", ""})
-}
-
-func TestOutputRegistrySingleToListHelperPanicsWithoutDataField(t *testing.T) {
-	type single struct {
-		Value string
-	}
-	type list struct {
-		Data []string
-	}
-
-	expectPanicContains(t, "requires Data field", func() {
-		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, [][]string{{v.Data[0]}}
+		wantErr := errors.New("direct failed")
+		rowsHandlerCalled := seedRowsAndDirectHandlersForTest(key, func(any, func([]string, [][]string)) error {
+			return wantErr
 		})
-	})
-}
 
-func TestOutputRegistrySingleToListHelperPanicsWhenSourceIsNotStruct(t *testing.T) {
-	type single string
-	type list struct {
-		Data []string
-	}
-
-	expectPanicContainsAll(t, func() {
-		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return nil, nil
+		renderCalls := 0
+		err := renderByRegistry(&registered{}, func([]string, [][]string) {
+			renderCalls++
 		})
-	}, "source type must be a struct", typeFor[single]().String())
-}
-
-func TestOutputRegistrySingleToListHelperPanicsWhenTargetIsNotStruct(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list []string
-
-	expectPanicContainsAll(t, func() {
-		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return nil, nil
-		})
-	}, "target type must be a struct", typeFor[list]().String())
-}
-
-func TestOutputRegistrySingleToListHelperPanicsWhenTargetDataIsNotSlice(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data string
-	}
-
-	expectPanicContains(t, "target Data field must be a slice", func() {
-		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, [][]string{{v.Data}}
-		})
-	})
-}
-
-func TestOutputRegistrySingleToListHelperPanicsOnDataTypeMismatch(t *testing.T) {
-	type single struct {
-		Data int
-	}
-	type list struct {
-		Data []string
-	}
-
-	expectPanicContains(t, "Data type mismatch source=int target=string", func() {
-		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-}
-
-func TestOutputRegistrySingleToListHelperPanicsOnNilRowsFunction(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	cleanupRegistryTypes(t, singleKey)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerSingleToListRowsAdapter[single, list](nil)
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistrySingleToListHelperAdapterValidationPanicsBeforeConflictChecks(t *testing.T) {
-	type single struct {
-		Value string
-	}
-	type list struct {
-		Data []string
-	}
-
-	preregisterRowsForConflict[single](t, "value")
-
-	expectPanicContains(t, "requires Data field", func() {
-		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-}
-
-func TestOutputRegistrySingleToListHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	preregisterRowsForConflict[single](t, "value")
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerSingleToListRowsAdapter[single, list](nil)
-	})
-}
-
-func TestOutputRegistryRegisterRowsPanicsOnDuplicate(t *testing.T) {
-	type duplicate struct{}
-	preregisterRowsForConflict[duplicate](t, "value")
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsForConflict[duplicate]("value")
-	})
-}
-
-func TestOutputRegistryRegisterRowsPanicsOnNilFunction(t *testing.T) {
-	type nilRows struct{}
-	key := typeKey[nilRows]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRows[nilRows](nil)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryRegisterRowsNilFunctionPanicIncludesType(t *testing.T) {
-	type nilRows struct{}
-	key := typeKey[nilRows]()
-	cleanupRegistryTypes(t, key)
-
-	expectPanicContains(t, key.String(), func() {
-		registerRows[nilRows](nil)
-	})
-}
-
-func TestOutputRegistryRegisterRowsNilFunctionPanicsBeforeConflictChecks(t *testing.T) {
-	type nilRows struct{}
-	preregisterRowsForConflict[nilRows](t, "value")
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRows[nilRows](nil)
-	})
-}
-
-func TestOutputRegistryRegisterRowsPanicsWhenDirectRegistered(t *testing.T) {
-	type conflict struct{}
-	preregisterDirectForConflict[conflict](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsForConflict[conflict]("value")
-	})
-}
-
-func TestOutputRegistryRegisterRowsErrPanicsWhenDirectRegistered(t *testing.T) {
-	type conflict struct{}
-	preregisterDirectForConflict[conflict](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsErrForConflict[conflict]()
-	})
-}
-
-func TestOutputRegistryRegisterRowsErrPanicsWhenRowsRegistered(t *testing.T) {
-	type conflict struct{}
-	preregisterRowsForConflict[conflict](t, "value")
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsErrForConflict[conflict]()
-	})
-}
-
-func TestOutputRegistryRegisterRowsErrPanicsOnDuplicate(t *testing.T) {
-	type duplicate struct{}
-	preregisterRowsErrForConflict[duplicate](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerRowsErrForConflict[duplicate]()
-	})
-}
-
-func TestOutputRegistryRegisterRowsErrPanicsOnNilFunction(t *testing.T) {
-	type nilRowsErr struct{}
-	key := typeKey[nilRowsErr]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRowsErr[nilRowsErr](nil)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryRegisterRowsErrNilFunctionPanicsBeforeConflictChecks(t *testing.T) {
-	type nilRowsErr struct{}
-	preregisterRowsErrForConflict[nilRowsErr](t)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRowsErr[nilRowsErr](nil)
-	})
-}
-
-func TestOutputRegistryRegisterDirectPanicsWhenRowsRegistered(t *testing.T) {
-	type conflict struct{}
-	preregisterRowsForConflict[conflict](t, "value")
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerDirectForConflict[conflict]()
-	})
-}
-
-func TestOutputRegistryRegisterDirectPanicsWhenRowsErrRegistered(t *testing.T) {
-	type conflict struct{}
-	preregisterRowsErrForConflict[conflict](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerDirectForConflict[conflict]()
-	})
-}
-
-func TestOutputRegistryRegisterDirectPanicsOnDuplicate(t *testing.T) {
-	type duplicate struct{}
-	preregisterDirectForConflict[duplicate](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		registerDirectForConflict[duplicate]()
-	})
-}
-
-func TestOutputRegistryRegisterDirectPanicsOnNilFunction(t *testing.T) {
-	type nilDirect struct{}
-	key := typeKey[nilDirect]()
-	cleanupRegistryTypes(t, key)
-
-	expectNilDirectRenderFunctionPanic(t, func() {
-		registerDirect[nilDirect](nil)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestOutputRegistryRegisterDirectNilFunctionPanicsBeforeConflictChecks(t *testing.T) {
-	type nilDirect struct{}
-	preregisterDirectForConflict[nilDirect](t)
-
-	expectNilDirectRenderFunctionPanic(t, func() {
-		registerDirect[nilDirect](nil)
-	})
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenRowsNil(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	listKey := typeKey[list]()
-	cleanupRegistryTypes(t, singleKey, listKey)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRowsWithSingleToListAdapter[single, list](nil)
-	})
-
-	assertRegistryTypesAbsent(t, singleKey, listKey)
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
-	type single struct {
-		Data string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	preregisterRowsForConflict[list](t, "value")
-	cleanupRegistryTypes(t, singleKey)
-
-	expectNilRowsFunctionPanic(t, func() {
-		registerRowsWithSingleToListAdapter[single, list](nil)
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestOutputRegistryRowsWithSingleToListHelperAdapterValidationPanicsBeforeConflictChecks(t *testing.T) {
-	type single struct {
-		Value string
-	}
-	type list struct {
-		Data []string
-	}
-
-	singleKey := typeKey[single]()
-	preregisterRowsForConflict[list](t, "value")
-	cleanupRegistryTypes(t, singleKey)
-
-	expectPanicContains(t, "requires Data field", func() {
-		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
-			return []string{"value"}, nil
-		})
-	})
-
-	assertRegistryTypeAbsent(t, singleKey)
-}
-
-func TestEnsureRegistryTypesAvailablePanicsOnDuplicateTypes(t *testing.T) {
-	type duplicate struct{}
-	key := typeKey[duplicate]()
-	cleanupRegistryTypes(t, key)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		ensureRegistryTypesAvailable(key, key)
-	})
-
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestEnsureRegistryTypeAvailablePanicsOnNilType(t *testing.T) {
-	expectInvalidNilRegistrationTypePanic(t, func() {
-		ensureRegistryTypeAvailable(nil)
-	})
-}
-
-func TestEnsureRegistryTypeAvailableAllowsUnregisteredType(t *testing.T) {
-	type available struct{}
-	key := typeKey[available]()
-	cleanupRegistryTypes(t, key)
-
-	ensureRegistryTypeAvailable(key)
-	assertRegistryTypeAbsent(t, key)
-}
-
-func TestEnsureRegistryTypeAvailablePanicsWhenOutputTypeRegistered(t *testing.T) {
-	type outputRegistered struct{}
-	key := preregisterRowsForConflict[outputRegistered](t, "value")
-
-	expectDuplicateRegistrationPanic(t, func() {
-		ensureRegistryTypeAvailable(key)
-	})
-}
-
-func TestEnsureRegistryTypeAvailablePanicsWhenDirectTypeRegistered(t *testing.T) {
-	type directRegistered struct{}
-	key := preregisterDirectForConflict[directRegistered](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		ensureRegistryTypeAvailable(key)
-	})
-}
-
-func TestEnsureRegistryTypesAvailableDuplicatePanicIncludesType(t *testing.T) {
-	type duplicate struct{}
-	key := typeKey[duplicate]()
-	cleanupRegistryTypes(t, key)
-
-	expectPanicContains(t, key.String(), func() {
-		ensureRegistryTypesAvailable(key, key)
-	})
-}
-
-func TestEnsureRegistryTypesAvailablePanicsOnNilType(t *testing.T) {
-	expectInvalidNilRegistrationTypePanic(t, func() {
-		ensureRegistryTypesAvailable(nil)
-	})
-}
-
-func TestEnsureRegistryTypesAvailableNilTypePanicsBeforeDuplicateCheck(t *testing.T) {
-	expectInvalidNilRegistrationTypePanic(t, func() {
-		ensureRegistryTypesAvailable(nil, nil)
-	})
-}
-
-func TestEnsureRegistryTypesAvailablePanicsWhenTypeAlreadyRegistered(t *testing.T) {
-	type existing struct{}
-	key := preregisterRowsForConflict[existing](t, "value")
-
-	expectDuplicateRegistrationPanic(t, func() {
-		ensureRegistryTypesAvailable(key)
-	})
-}
-
-func TestEnsureRegistryTypesAvailablePanicsWhenDirectTypeAlreadyRegistered(t *testing.T) {
-	type existing struct{}
-	key := preregisterDirectForConflict[existing](t)
-
-	expectDuplicateRegistrationPanic(t, func() {
-		ensureRegistryTypesAvailable(key)
-	})
-}
-
-func TestEnsureRegistryTypesAvailableAllowsEmptyInput(t *testing.T) {
-	ensureRegistryTypesAvailable()
-}
-
-func TestEnsureRegistryTypesAvailableAllowsDistinctUnregisteredTypes(t *testing.T) {
-	type first struct{}
-	type second struct{}
-	firstKey := typeKey[first]()
-	secondKey := typeKey[second]()
-	cleanupRegistryTypes(t, firstKey, secondKey)
-
-	ensureRegistryTypesAvailable(firstKey, secondKey)
-	assertRegistryTypesAbsent(t, firstKey, secondKey)
-}
-
-func TestIsRegistryTypeRegistered(t *testing.T) {
-	type outputRegistered struct{}
-	type directRegistered struct{}
-	type missing struct{}
-
-	outputKey := preregisterRowsForConflict[outputRegistered](t, "value")
-	directKey := preregisterDirectForConflict[directRegistered](t)
-	missingKey := typeKey[missing]()
-	cleanupRegistryTypes(t, missingKey)
-
-	if !isRegistryTypeRegistered(outputKey) {
-		t.Fatalf("expected output-registered type %v to be present", outputKey)
-	}
-	if !isRegistryTypeRegistered(directKey) {
-		t.Fatalf("expected direct-registered type %v to be present", directKey)
-	}
-	if isRegistryTypeRegistered(missingKey) {
-		t.Fatalf("expected unregistered type %v to be absent", missingKey)
-	}
-}
-
-func TestIsRegistryTypeRegisteredWithNilType(t *testing.T) {
-	if isRegistryTypeRegistered(nil) {
-		t.Fatal("expected nil type to be treated as unregistered")
-	}
-}
-
-func expectPanic(t *testing.T, message string, fn func()) {
-	t.Helper()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal(message)
+		if !errors.Is(err, wantErr) {
+			t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
 		}
-	}()
-	fn()
+		if rowsHandlerCalled() {
+			t.Fatal("expected rows handler not to run when direct handler exists")
+		}
+		if renderCalls != 0 {
+			t.Fatalf("expected render callback not to run on direct error, got %d calls", renderCalls)
+		}
+	})
 }
 
-func expectPanicContains(t *testing.T, want string, fn func()) {
-	t.Helper()
-	expectPanicContainsAll(t, fn, want)
+func runOutputRegistryHelperRegistrations(t *testing.T) {
+	t.Run("registry sanity", func(t *testing.T) {
+		t.Run("registries are non-empty", func(t *testing.T) {
+			if len(outputRegistry) == 0 {
+				t.Fatal("output registry is empty; init() may not have run")
+			}
+			if len(directRenderRegistry) == 0 {
+				t.Fatal("direct render registry is empty; init() may not have run")
+			}
+		})
+
+		t.Run("all handlers non-nil", func(t *testing.T) {
+			for typ, fn := range outputRegistry {
+				if fn == nil {
+					t.Errorf("nil rows handler registered for type %s", typ)
+				}
+			}
+			for typ, fn := range directRenderRegistry {
+				if fn == nil {
+					t.Errorf("nil direct handler registered for type %s", typ)
+				}
+			}
+		})
+
+		t.Run("expected minimum total registrations", func(t *testing.T) {
+			// Total registered types across both registries should be ~471.
+			total := len(outputRegistry) + len(directRenderRegistry)
+			const minExpected = 460
+			if total < minExpected {
+				t.Errorf("expected at least %d registered types, got %d (rows: %d, direct: %d)",
+					minExpected, total, len(outputRegistry), len(directRenderRegistry))
+			}
+		})
+	})
+
+	t.Run("built-in helper registrations", func(t *testing.T) {
+		t.Run("single linkage", func(t *testing.T) {
+			handler := requireOutputHandlerFor[AppStoreVersionSubmissionLinkageResponse](
+				t,
+				"AppStoreVersionSubmissionLinkageResponse",
+			)
+
+			headers, rows, err := handler(&AppStoreVersionSubmissionLinkageResponse{
+				Data: ResourceData{
+					Type: ResourceType("appStoreVersionSubmissions"),
+					ID:   "submission-123",
+				},
+			})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertRowContains(t, headers, rows, 2, "submission-123")
+		})
+
+		t.Run("id/state", func(t *testing.T) {
+			handler := requireOutputHandlerFor[BackgroundAssetVersionAppStoreReleaseResponse](
+				t,
+				"BackgroundAssetVersionAppStoreReleaseResponse",
+			)
+
+			headers, rows, err := handler(&BackgroundAssetVersionAppStoreReleaseResponse{
+				Data: Resource[BackgroundAssetVersionAppStoreReleaseAttributes]{
+					ID:         "release-1",
+					Attributes: BackgroundAssetVersionAppStoreReleaseAttributes{State: "READY_FOR_SALE"},
+				},
+			})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertRowContains(t, headers, rows, 2, "release-1", "READY_FOR_SALE")
+		})
+
+		t.Run("id/bool", func(t *testing.T) {
+			handler := requireOutputHandlerFor[AlternativeDistributionDomainDeleteResult](
+				t,
+				"AlternativeDistributionDomainDeleteResult",
+			)
+
+			headers, rows, err := handler(&AlternativeDistributionDomainDeleteResult{
+				ID:      "domain-1",
+				Deleted: true,
+			})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertRowContains(t, headers, rows, 2, "domain-1", "true")
+		})
+	})
+
+	t.Run("response-data helper", func(t *testing.T) {
+		t.Run("existing registration renders expected rows", func(t *testing.T) {
+			handler := requireOutputHandlerFor[Response[BetaGroupMetricAttributes]](
+				t,
+				"Response[BetaGroupMetricAttributes]",
+			)
+
+			headers, rows, err := handler(&Response[BetaGroupMetricAttributes]{
+				Data: []Resource[BetaGroupMetricAttributes]{
+					{
+						ID:         "metric-1",
+						Attributes: BetaGroupMetricAttributes{"installs": 12},
+					},
+				},
+			})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertRowContains(t, headers, rows, 2, "metric-1", "installs=12")
+		})
+
+		t.Run("typed nil pointer maps to zero-value data slice", func(t *testing.T) {
+			type attrs struct{}
+
+			registerResponseDataRows(func(data []Resource[attrs]) ([]string, [][]string) {
+				return []string{"count"}, [][]string{{fmt.Sprintf("%d", len(data))}}
+			})
+
+			key := typeKey[Response[attrs]]()
+			cleanupRegistryTypes(t, key)
+
+			handler := requireOutputHandler(t, key, "response-data typed nil helper")
+
+			headers, rows, err := handler((*Response[attrs])(nil))
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, headers, rows, []string{"count"}, []string{"0"})
+		})
+	})
+
+	t.Run("single-resource helper", func(t *testing.T) {
+		type helperAttrs struct {
+			Name string `json:"name"`
+		}
+
+		registerSingleResourceRowsAdapter(func(v *Response[helperAttrs]) ([]string, [][]string) {
+			if len(v.Data) == 0 {
+				return []string{"ID", "Name"}, nil
+			}
+			return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
+		})
+
+		key := typeKey[SingleResponse[helperAttrs]]()
+		cleanupRegistryTypes(t, key)
+
+		handler := requireOutputHandler(t, key, "SingleResponse helper")
+
+		t.Run("regular payload", func(t *testing.T) {
+			headers, rows, err := handler(&SingleResponse[helperAttrs]{
+				Data: Resource[helperAttrs]{
+					ID:         "helper-id",
+					Attributes: helperAttrs{Name: "helper-name"},
+				},
+			})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"helper-id", "helper-name"})
+		})
+
+		t.Run("typed nil pointer", func(t *testing.T) {
+			headers, rows, err := handler((*SingleResponse[helperAttrs])(nil))
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, headers, rows, []string{"ID", "Name"}, []string{"", ""})
+		})
+
+		t.Run("rows+single-resource helper registers both handlers", func(t *testing.T) {
+			type attrs struct {
+				Name string `json:"name"`
+			}
+
+			registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
+				if len(v.Data) == 0 {
+					return []string{"ID", "Name"}, nil
+				}
+				return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
+			})
+
+			listKey := typeKey[Response[attrs]]()
+			singleKey := typeKey[SingleResponse[attrs]]()
+			cleanupRegistryTypes(t, listKey, singleKey)
+
+			listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-resource helper")
+			singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-resource helper")
+
+			listHeaders, listRows, err := listHandler(&Response[attrs]{
+				Data: []Resource[attrs]{{ID: "list-id", Attributes: attrs{Name: "list-name"}}},
+			})
+			if err != nil {
+				t.Fatalf("list handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, listHeaders, listRows, []string{"ID", "Name"}, []string{"list-id", "list-name"})
+
+			singleHeaders, singleRows, err := singleHandler(&SingleResponse[attrs]{
+				Data: Resource[attrs]{ID: "single-id", Attributes: attrs{Name: "single-name"}},
+			})
+			if err != nil {
+				t.Fatalf("single handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, singleHeaders, singleRows, []string{"ID", "Name"}, []string{"single-id", "single-name"})
+		})
+	})
+
+	t.Run("single-to-list helper behavior", func(t *testing.T) {
+		t.Run("single-to-list adapter handles payload and typed nil", func(t *testing.T) {
+			type single struct {
+				Data string
+			}
+			type list struct {
+				Data []string
+			}
+
+			registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+				if len(v.Data) == 0 {
+					return []string{"value"}, nil
+				}
+				return []string{"value"}, [][]string{{v.Data[0]}}
+			})
+
+			key := typeKey[single]()
+			cleanupRegistryTypes(t, key)
+			handler := requireOutputHandler(t, key, "single-to-list helper")
+
+			headers, rows, err := handler(&single{Data: "converted"})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{"converted"})
+
+			headers, rows, err = handler((*single)(nil))
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, headers, rows, []string{"value"}, []string{""})
+		})
+
+		t.Run("rows+single-to-list helper registers both handlers", func(t *testing.T) {
+			type single struct {
+				Data string
+			}
+			type list struct {
+				Data []string
+			}
+
+			registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
+				if len(v.Data) == 0 {
+					return []string{"value"}, nil
+				}
+				return []string{"value"}, [][]string{{v.Data[0]}}
+			})
+
+			singleKey := typeKey[single]()
+			listKey := typeKey[list]()
+			cleanupRegistryTypes(t, singleKey, listKey)
+
+			singleHandler := requireOutputHandler(t, singleKey, "single handler from rows+single-to-list helper")
+			listHandler := requireOutputHandler(t, listKey, "list handler from rows+single-to-list helper")
+
+			singleHeaders, singleRows, err := singleHandler(&single{Data: "single-value"})
+			if err != nil {
+				t.Fatalf("single handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, singleHeaders, singleRows, []string{"value"}, []string{"single-value"})
+
+			listHeaders, listRows, err := listHandler(&list{Data: []string{"list-value"}})
+			if err != nil {
+				t.Fatalf("list handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, listHeaders, listRows, []string{"value"}, []string{"list-value"})
+		})
+
+		t.Run("rows+single-to-list helper avoids partial registration on adapter panic", func(t *testing.T) {
+			type single struct {
+				Value string
+			}
+			type list struct {
+				Data []string
+			}
+
+			singleKey := typeKey[single]()
+			listKey := typeKey[list]()
+			cleanupRegistryTypes(t, singleKey, listKey)
+
+			expectPanicContainsAll(t, func() {
+				registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
+					return []string{"value"}, nil
+				})
+			}, "requires Data field")
+
+			assertRegistryTypeAbsent(t, singleKey)
+			assertRegistryTypeAbsent(t, listKey)
+		})
+
+		t.Run("copies links when compatible", func(t *testing.T) {
+			type single struct {
+				Data  ResourceData
+				Links Links
+			}
+			type list struct {
+				Data  []ResourceData
+				Links Links
+			}
+
+			registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+				if len(v.Data) == 0 {
+					return []string{"id", "self"}, nil
+				}
+				return []string{"id", "self"}, [][]string{{v.Data[0].ID, v.Links.Self}}
+			})
+
+			key := typeKey[single]()
+			cleanupRegistryTypes(t, key)
+			handler := requireOutputHandler(t, key, "single-to-list links helper")
+
+			headers, rows, err := handler(&single{
+				Data: ResourceData{ID: "item-1", Type: ResourceType("items")},
+				Links: Links{
+					Self: "https://example.test/items/1",
+				},
+			})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, headers, rows, []string{"id", "self"}, []string{"item-1", "https://example.test/items/1"})
+		})
+
+		t.Run("leaves target links zero when source has no links", func(t *testing.T) {
+			type single struct {
+				Data string
+			}
+			type list struct {
+				Data  []string
+				Links Links
+			}
+
+			registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+				if len(v.Data) == 0 {
+					return []string{"value", "self"}, nil
+				}
+				return []string{"value", "self"}, [][]string{{v.Data[0], v.Links.Self}}
+			})
+
+			key := typeKey[single]()
+			cleanupRegistryTypes(t, key)
+			handler := requireOutputHandler(t, key, "single-to-list missing-source-links helper")
+
+			headers, rows, err := handler(&single{Data: "converted"})
+			if err != nil {
+				t.Fatalf("handler returned error: %v", err)
+			}
+			assertSingleRowEquals(t, headers, rows, []string{"value", "self"}, []string{"converted", ""})
+		})
+
+		t.Run("disables link copy when link types differ", func(t *testing.T) {
+			type sourceLinks struct {
+				Self string
+			}
+			type targetLinks struct {
+				Related string
+			}
+			type single struct {
+				Data  string
+				Links sourceLinks
+			}
+			type list struct {
+				Data  []string
+				Links targetLinks
+			}
+
+			fields := validateSingleToListAdapterTypes[single, list]()
+			if fields.copyLinks {
+				t.Fatal("expected copyLinks=false when source and target Links types are not assignable")
+			}
+		})
+	})
+}
+
+func runOutputRegistryPanicScenarios(t *testing.T) {
+	t.Run("helper nil callback panics", func(t *testing.T) {
+		t.Run("single linkage nil extractor", func(t *testing.T) {
+			type linkage struct{}
+			key := typeKey[linkage]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRegistryPanic(t, "linkage extractor", func() {
+				registerSingleLinkageRows[linkage](nil)
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("id/state nil extractor", func(t *testing.T) {
+			type state struct{}
+			key := typeKey[state]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRegistryPanic(t, "id/state extractor", func() {
+				registerIDStateRows[state](nil, func(id, value string) ([]string, [][]string) {
+					return []string{"id", "state"}, [][]string{{id, value}}
+				})
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("id/state nil rows", func(t *testing.T) {
+			type state struct{}
+			key := typeKey[state]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRegistryPanic(t, "id/state rows function", func() {
+				registerIDStateRows[state](func(*state) (string, string) {
+					return "id", "value"
+				}, nil)
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("id/bool nil rows", func(t *testing.T) {
+			type idBool struct{}
+			key := typeKey[idBool]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRegistryPanic(t, "id/bool rows function", func() {
+				registerIDBoolRows[idBool](func(*idBool) (string, bool) {
+					return "id", true
+				}, nil)
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("id/bool nil extractor", func(t *testing.T) {
+			type idBool struct{}
+			key := typeKey[idBool]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRegistryPanic(t, "id/bool extractor", func() {
+				registerIDBoolRows[idBool](nil, func(id string, deleted bool) ([]string, [][]string) {
+					return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
+				})
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("response-data nil rows", func(t *testing.T) {
+			type attrs struct{}
+			key := typeKey[Response[attrs]]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRegistryPanic(t, "response-data rows function", func() {
+				registerResponseDataRows[attrs](nil)
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("single-resource nil rows", func(t *testing.T) {
+			type helperAttrs struct {
+				Name string `json:"name"`
+			}
+			key := typeKey[SingleResponse[helperAttrs]]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRowsFunctionPanic(t, func() {
+				registerSingleResourceRowsAdapter[helperAttrs](nil)
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+	})
+
+	t.Run("single-to-list helper validation panics", func(t *testing.T) {
+		t.Run("missing data field", func(t *testing.T) {
+			type single struct {
+				Value string
+			}
+			type list struct {
+				Data []string
+			}
+
+			expectPanicContainsAll(t, func() {
+				registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+					return []string{"value"}, [][]string{{v.Data[0]}}
+				})
+			}, "requires Data field")
+		})
+
+		t.Run("source not struct", func(t *testing.T) {
+			type single string
+			type list struct {
+				Data []string
+			}
+
+			expectPanicContainsAll(t, func() {
+				registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+					return nil, nil
+				})
+			}, "source type must be a struct", typeFor[single]().String())
+		})
+
+		t.Run("target not struct", func(t *testing.T) {
+			type single struct {
+				Data string
+			}
+			type list []string
+
+			expectPanicContainsAll(t, func() {
+				registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+					return nil, nil
+				})
+			}, "target type must be a struct", typeFor[list]().String())
+		})
+
+		t.Run("target data not slice", func(t *testing.T) {
+			type single struct {
+				Data string
+			}
+			type list struct {
+				Data string
+			}
+
+			expectPanicContainsAll(t, func() {
+				registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+					return []string{"value"}, [][]string{{v.Data}}
+				})
+			}, "target Data field must be a slice")
+		})
+
+		t.Run("data type mismatch", func(t *testing.T) {
+			type single struct {
+				Data int
+			}
+			type list struct {
+				Data []string
+			}
+
+			expectPanicContainsAll(t, func() {
+				registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+					return []string{"value"}, nil
+				})
+			}, "Data type mismatch source=int target=string")
+		})
+
+		t.Run("nil rows function", func(t *testing.T) {
+			type single struct {
+				Data string
+			}
+			type list struct {
+				Data []string
+			}
+
+			singleKey := typeKey[single]()
+			cleanupRegistryTypes(t, singleKey)
+
+			expectNilRowsFunctionPanic(t, func() {
+				registerSingleToListRowsAdapter[single, list](nil)
+			})
+
+			assertRegistryTypeAbsent(t, singleKey)
+		})
+	})
+
+	t.Run("registrar panics", func(t *testing.T) {
+		t.Run("registerRows duplicate and conflict", func(t *testing.T) {
+			type duplicate struct{}
+			preregisterRowsForConflict[duplicate](t, "value")
+			expectDuplicateRegistrationPanic(t, func() {
+				registerRowsForConflict[duplicate]("value")
+			})
+
+			type conflict struct{}
+			preregisterDirectForConflict[conflict](t)
+			expectDuplicateRegistrationPanic(t, func() {
+				registerRowsForConflict[conflict]("value")
+			})
+		})
+
+		t.Run("registerRows nil function", func(t *testing.T) {
+			type nilRows struct{}
+			key := typeKey[nilRows]()
+			cleanupRegistryTypes(t, key)
+
+			expectNilRowsFunctionPanic(t, func() {
+				registerRows[nilRows](nil)
+			})
+
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("registerRowsErr duplicate conflict and nil", func(t *testing.T) {
+			type conflictDirect struct{}
+			preregisterDirectForConflict[conflictDirect](t)
+			expectDuplicateRegistrationPanic(t, func() {
+				registerRowsErrForConflict[conflictDirect]()
+			})
+
+			type conflictRows struct{}
+			preregisterRowsForConflict[conflictRows](t, "value")
+			expectDuplicateRegistrationPanic(t, func() {
+				registerRowsErrForConflict[conflictRows]()
+			})
+
+			type duplicate struct{}
+			preregisterRowsErrForConflict[duplicate](t)
+			expectDuplicateRegistrationPanic(t, func() {
+				registerRowsErrForConflict[duplicate]()
+			})
+
+			type nilRowsErr struct{}
+			key := typeKey[nilRowsErr]()
+			cleanupRegistryTypes(t, key)
+			expectNilRowsFunctionPanic(t, func() {
+				registerRowsErr[nilRowsErr](nil)
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("registerDirect duplicate conflict and nil", func(t *testing.T) {
+			type conflictRows struct{}
+			preregisterRowsForConflict[conflictRows](t, "value")
+			expectDuplicateRegistrationPanic(t, func() {
+				registerDirectForConflict[conflictRows]()
+			})
+
+			type conflictRowsErr struct{}
+			preregisterRowsErrForConflict[conflictRowsErr](t)
+			expectDuplicateRegistrationPanic(t, func() {
+				registerDirectForConflict[conflictRowsErr]()
+			})
+
+			type duplicate struct{}
+			preregisterDirectForConflict[duplicate](t)
+			expectDuplicateRegistrationPanic(t, func() {
+				registerDirectForConflict[duplicate]()
+			})
+
+			type nilDirect struct{}
+			key := typeKey[nilDirect]()
+			cleanupRegistryTypes(t, key)
+			expectNilDirectRenderFunctionPanic(t, func() {
+				registerDirect[nilDirect](nil)
+			})
+			assertRegistryTypeAbsent(t, key)
+		})
+	})
+
+	t.Run("registry precheck panics", func(t *testing.T) {
+		t.Run("types available duplicate types", func(t *testing.T) {
+			type duplicate struct{}
+			key := typeKey[duplicate]()
+			cleanupRegistryTypes(t, key)
+
+			expectDuplicateRegistrationPanic(t, func() {
+				ensureRegistryTypesAvailable(key, key)
+			})
+
+			assertRegistryTypeAbsent(t, key)
+		})
+
+		t.Run("type available nil type", func(t *testing.T) {
+			expectInvalidNilRegistrationTypePanic(t, func() {
+				ensureRegistryTypeAvailable(nil)
+			})
+		})
+
+		t.Run("types available nil type", func(t *testing.T) {
+			expectInvalidNilRegistrationTypePanic(t, func() {
+				ensureRegistryTypesAvailable(nil)
+			})
+		})
+
+		t.Run("types available nil before duplicate", func(t *testing.T) {
+			expectInvalidNilRegistrationTypePanic(t, func() {
+				ensureRegistryTypesAvailable(nil, nil)
+			})
+		})
+	})
 }
 
 func expectPanicContainsAll(t *testing.T, fn func(), wants ...string) {
@@ -1910,17 +924,17 @@ func expectPanicContainsAll(t *testing.T, fn func(), wants ...string) {
 
 func expectDuplicateRegistrationPanic(t *testing.T, fn func()) {
 	t.Helper()
-	expectPanicContains(t, "duplicate registration", fn)
+	expectPanicContainsAll(t, fn, "duplicate registration")
 }
 
 func expectInvalidNilRegistrationTypePanic(t *testing.T, fn func()) {
 	t.Helper()
-	expectPanicContains(t, "invalid nil registration type", fn)
+	expectPanicContainsAll(t, fn, "invalid nil registration type")
 }
 
 func expectNilRegistryPanic(t *testing.T, kind string, fn func()) {
 	t.Helper()
-	expectPanicContains(t, "nil "+kind, fn)
+	expectPanicContainsAll(t, fn, "nil "+kind)
 }
 
 func expectNilRowsFunctionPanic(t *testing.T, fn func()) {
@@ -1934,19 +948,19 @@ func expectNilDirectRenderFunctionPanic(t *testing.T, fn func()) {
 }
 
 func renderWithRows(headers []string, rows [][]string) directRenderFunc {
-	return func(data any, render func([]string, [][]string)) error {
+	return func(_ any, render func([]string, [][]string)) error {
 		render(headers, rows)
 		return nil
 	}
 }
 
-func seedRowsAndDirectHandlersForTest(t reflect.Type, directFn directRenderFunc) func() bool {
+func seedRowsAndDirectHandlersForTest(typ reflect.Type, directFn directRenderFunc) func() bool {
 	rowsHandlerCalled := false
-	outputRegistry[t] = func(any) ([]string, [][]string, error) {
+	outputRegistry[typ] = func(any) ([]string, [][]string, error) {
 		rowsHandlerCalled = true
 		return []string{"source"}, [][]string{{"rows"}}, nil
 	}
-	directRenderRegistry[t] = directFn
+	directRenderRegistry[typ] = directFn
 
 	return func() bool {
 		return rowsHandlerCalled
@@ -1999,13 +1013,6 @@ func assertRegistryTypeAbsent(t *testing.T, typ reflect.Type) {
 	}
 	if _, exists := directRenderRegistry[typ]; exists {
 		t.Fatalf("registry type %v should be absent from direct render registry", typ)
-	}
-}
-
-func assertRegistryTypesAbsent(t *testing.T, types ...reflect.Type) {
-	t.Helper()
-	for _, typ := range types {
-		assertRegistryTypeAbsent(t, typ)
 	}
 }
 

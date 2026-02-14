@@ -34,6 +34,10 @@ func ptrOrZero[T any](v *T) *T {
 	return &zero
 }
 
+func dataAsPtrOrZero[T any](data any) *T {
+	return ptrOrZero(data.(*T))
+}
+
 func panicNilHelperFunction(kind string, t reflect.Type) {
 	panic(fmt.Sprintf("output registry: nil %s for %s", kind, t))
 }
@@ -120,7 +124,7 @@ func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
-		h, r := fn(ptrOrZero(data.(*T)))
+		h, r := fn(dataAsPtrOrZero[T](data))
 		return h, r, nil
 	}
 }
@@ -134,7 +138,7 @@ func registerRowsErr[T any](fn func(*T) ([]string, [][]string, error)) {
 	}
 	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
-		return fn(ptrOrZero(data.(*T)))
+		return fn(dataAsPtrOrZero[T](data))
 	}
 }
 
@@ -325,7 +329,7 @@ func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	}
 	ensureRegistryTypeAvailable(t)
 	directRenderRegistry[t] = func(data any, render func([]string, [][]string)) error {
-		return fn(ptrOrZero(data.(*T)), render)
+		return fn(dataAsPtrOrZero[T](data), render)
 	}
 }
 
