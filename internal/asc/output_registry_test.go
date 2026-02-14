@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -53,6 +54,130 @@ func TestRenderByRegistryFallbackToJSON(t *testing.T) {
 	if !strings.Contains(output, "test") {
 		t.Fatalf("expected JSON output to contain 'test', got: %s", output)
 	}
+}
+
+func TestRenderByRegistryUsesRowsRegistryRenderer(t *testing.T) {
+	type registered struct {
+		Value string
+	}
+
+	key := reflect.TypeOf(&registered{})
+	cleanupRegistryTypes(t, key)
+
+	registerRows(func(v *registered) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{v.Value}}
+	})
+
+	var gotHeaders []string
+	var gotRows [][]string
+	err := renderByRegistry(&registered{Value: "from-registry"}, func(headers []string, rows [][]string) {
+		gotHeaders = headers
+		gotRows = rows
+	})
+	if err != nil {
+		t.Fatalf("renderByRegistry returned error: %v", err)
+	}
+	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"from-registry"})
+}
+
+func TestRenderByRegistryPropagatesRowsRegistryErrors(t *testing.T) {
+	type registered struct{}
+
+	key := reflect.TypeOf(&registered{})
+	cleanupRegistryTypes(t, key)
+
+	wantErr := errors.New("rows renderer failed")
+	registerRowsErr(func(*registered) ([]string, [][]string, error) {
+		return nil, nil, wantErr
+	})
+
+	renderCalls := 0
+	err := renderByRegistry(&registered{}, func([]string, [][]string) {
+		renderCalls++
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
+	}
+	if renderCalls != 0 {
+		t.Fatalf("expected render callback not to run on rows error, got %d calls", renderCalls)
+	}
+}
+
+func TestRenderByRegistryUsesDirectRenderer(t *testing.T) {
+	type registered struct {
+		Value string
+	}
+
+	key := reflect.TypeOf(&registered{})
+	cleanupRegistryTypes(t, key)
+
+	registerDirect(func(v *registered, render func([]string, [][]string)) error {
+		render([]string{"value"}, [][]string{{v.Value}})
+		return nil
+	})
+
+	var gotHeaders []string
+	var gotRows [][]string
+	err := renderByRegistry(&registered{Value: "from-direct"}, func(headers []string, rows [][]string) {
+		gotHeaders = headers
+		gotRows = rows
+	})
+	if err != nil {
+		t.Fatalf("renderByRegistry returned error: %v", err)
+	}
+	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"value"}, []string{"from-direct"})
+}
+
+func TestRenderByRegistryPropagatesDirectRendererErrors(t *testing.T) {
+	type registered struct{}
+
+	key := reflect.TypeOf(&registered{})
+	cleanupRegistryTypes(t, key)
+
+	wantErr := errors.New("direct renderer failed")
+	registerDirect(func(*registered, func([]string, [][]string)) error {
+		return wantErr
+	})
+
+	renderCalls := 0
+	err := renderByRegistry(&registered{}, func([]string, [][]string) {
+		renderCalls++
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
+	}
+	if renderCalls != 0 {
+		t.Fatalf("expected render callback not to run on direct error, got %d calls", renderCalls)
+	}
+}
+
+func TestRenderByRegistryPrefersDirectRegistryWhenBothHandlersExist(t *testing.T) {
+	type registered struct{}
+
+	key := reflect.TypeOf(&registered{})
+	cleanupRegistryTypes(t, key)
+
+	rowsHandlerCalled := false
+	outputRegistry[key] = func(any) ([]string, [][]string, error) {
+		rowsHandlerCalled = true
+		return []string{"source"}, [][]string{{"rows"}}, nil
+	}
+
+	directRenderRegistry[key] = renderWithRows([]string{"source"}, [][]string{{"direct"}})
+
+	var gotHeaders []string
+	var gotRows [][]string
+	err := renderByRegistry(&registered{}, func(headers []string, rows [][]string) {
+		gotHeaders = headers
+		gotRows = rows
+	})
+	if err != nil {
+		t.Fatalf("renderByRegistry returned error: %v", err)
+	}
+	if rowsHandlerCalled {
+		t.Fatal("expected direct handler precedence over rows handler")
+	}
+	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"source"}, []string{"direct"})
 }
 
 func TestOutputRegistrySingleLinkageHelperRegistration(t *testing.T) {
@@ -862,7 +987,7 @@ func TestOutputRegistryRegisterRowsPanicsOnDuplicate(t *testing.T) {
 	type duplicate struct{}
 	preregisterRowsForConflict[duplicate](t, "value")
 
-	expectPanic(t, "expected duplicate registration panic", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerRowsForConflict[duplicate]("value")
 	})
 }
@@ -892,7 +1017,7 @@ func TestOutputRegistryRegisterRowsPanicsWhenDirectRegistered(t *testing.T) {
 	type conflict struct{}
 	preregisterDirectForConflict[conflict](t)
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerRowsForConflict[conflict]("value")
 	})
 }
@@ -901,7 +1026,7 @@ func TestOutputRegistryRegisterRowsErrPanicsWhenDirectRegistered(t *testing.T) {
 	type conflict struct{}
 	preregisterDirectForConflict[conflict](t)
 
-	expectPanic(t, "expected conflict panic when rowsErr registers after direct", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerRowsErrForConflict[conflict]()
 	})
 }
@@ -910,7 +1035,7 @@ func TestOutputRegistryRegisterRowsErrPanicsWhenRowsRegistered(t *testing.T) {
 	type conflict struct{}
 	preregisterRowsForConflict[conflict](t, "value")
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerRowsErrForConflict[conflict]()
 	})
 }
@@ -919,7 +1044,7 @@ func TestOutputRegistryRegisterRowsErrPanicsOnDuplicate(t *testing.T) {
 	type duplicate struct{}
 	preregisterRowsErrForConflict[duplicate](t)
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerRowsErrForConflict[duplicate]()
 	})
 }
@@ -949,7 +1074,7 @@ func TestOutputRegistryRegisterDirectPanicsWhenRowsRegistered(t *testing.T) {
 	type conflict struct{}
 	preregisterRowsForConflict[conflict](t, "value")
 
-	expectPanic(t, "expected conflict panic when direct registers after rows", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerDirectForConflict[conflict]()
 	})
 }
@@ -958,7 +1083,7 @@ func TestOutputRegistryRegisterDirectPanicsWhenRowsErrRegistered(t *testing.T) {
 	type conflict struct{}
 	preregisterRowsErrForConflict[conflict](t)
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerDirectForConflict[conflict]()
 	})
 }
@@ -967,7 +1092,7 @@ func TestOutputRegistryRegisterDirectPanicsOnDuplicate(t *testing.T) {
 	type duplicate struct{}
 	preregisterDirectForConflict[duplicate](t)
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		registerDirectForConflict[duplicate]()
 	})
 }
@@ -1057,7 +1182,7 @@ func TestEnsureRegistryTypesAvailablePanicsOnDuplicateTypes(t *testing.T) {
 	key := reflect.TypeOf(&duplicate{})
 	cleanupRegistryTypes(t, key)
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		ensureRegistryTypesAvailable(key, key)
 	})
 
@@ -1068,7 +1193,7 @@ func TestEnsureRegistryTypesAvailablePanicsWhenTypeAlreadyRegistered(t *testing.
 	type existing struct{}
 	key := preregisterRowsForConflict[existing](t, "value")
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		ensureRegistryTypesAvailable(key)
 	})
 }
@@ -1077,7 +1202,7 @@ func TestEnsureRegistryTypesAvailablePanicsWhenDirectTypeAlreadyRegistered(t *te
 	type existing struct{}
 	key := preregisterDirectForConflict[existing](t)
 
-	expectPanicContains(t, "duplicate registration", func() {
+	expectDuplicateRegistrationPanic(t, func() {
 		ensureRegistryTypesAvailable(key)
 	})
 }
@@ -1105,6 +1230,18 @@ func expectPanicContains(t *testing.T, want string, fn func()) {
 		}
 	}()
 	fn()
+}
+
+func expectDuplicateRegistrationPanic(t *testing.T, fn func()) {
+	t.Helper()
+	expectPanicContains(t, "duplicate registration", fn)
+}
+
+func renderWithRows(headers []string, rows [][]string) directRenderFunc {
+	return func(data any, render func([]string, [][]string)) error {
+		render(headers, rows)
+		return nil
+	}
 }
 
 func assertRowContains(t *testing.T, headers []string, rows [][]string, minColumns int, expected ...string) {
