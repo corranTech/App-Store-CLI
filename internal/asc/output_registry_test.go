@@ -87,6 +87,21 @@ func TestOutputRegistrySingleLinkageHelperPanicsOnNilExtractor(t *testing.T) {
 	assertRegistryTypeAbsent(t, key)
 }
 
+func TestOutputRegistrySingleLinkageHelperNilExtractorPanicsBeforeConflictChecks(t *testing.T) {
+	type linkage struct{}
+
+	key := reflect.TypeOf(&linkage{})
+	cleanupRegistryTypes(t, key)
+
+	registerRows(func(v *linkage) ([]string, [][]string) {
+		return []string{"id"}, nil
+	})
+
+	expectPanicContains(t, "nil linkage extractor", func() {
+		registerSingleLinkageRows[linkage](nil)
+	})
+}
+
 func TestOutputRegistryIDStateHelperRegistration(t *testing.T) {
 	handler := requireOutputHandler(
 		t,
@@ -134,6 +149,23 @@ func TestOutputRegistryIDStateHelperPanicsOnNilRows(t *testing.T) {
 	})
 
 	assertRegistryTypeAbsent(t, key)
+}
+
+func TestOutputRegistryIDStateHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
+	type state struct{}
+
+	key := reflect.TypeOf(&state{})
+	cleanupRegistryTypes(t, key)
+
+	registerRows(func(v *state) ([]string, [][]string) {
+		return []string{"id", "state"}, nil
+	})
+
+	expectPanicContains(t, "nil id/state rows function", func() {
+		registerIDStateRows[state](func(*state) (string, string) {
+			return "id", "value"
+		}, nil)
+	})
 }
 
 func TestOutputRegistryIDBoolHelperRegistration(t *testing.T) {
@@ -215,6 +247,21 @@ func TestOutputRegistryResponseDataHelperPanicsOnNilRows(t *testing.T) {
 	})
 
 	assertRegistryTypeAbsent(t, key)
+}
+
+func TestOutputRegistryResponseDataHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
+	type attrs struct{}
+
+	key := reflect.TypeOf(&Response[attrs]{})
+	cleanupRegistryTypes(t, key)
+
+	registerRows(func(v *Response[attrs]) ([]string, [][]string) {
+		return []string{"id"}, nil
+	})
+
+	expectPanicContains(t, "nil response-data rows function", func() {
+		registerResponseDataRows[attrs](nil)
+	})
 }
 
 func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
@@ -427,8 +474,7 @@ func TestOutputRegistryRowsWithSingleResourceHelperNoPartialRegistrationWhenRows
 		registerRowsWithSingleResourceAdapter[attrs](nil)
 	})
 
-	assertRegistryTypeAbsent(t, listKey)
-	assertRegistryTypeAbsent(t, singleKey)
+	assertRegistryTypesAbsent(t, listKey, singleKey)
 }
 
 func TestOutputRegistryRowsWithSingleResourceHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
@@ -640,8 +686,7 @@ func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenAdapte
 		})
 	})
 
-	assertRegistryTypeAbsent(t, singleKey)
-	assertRegistryTypeAbsent(t, listKey)
+	assertRegistryTypesAbsent(t, singleKey, listKey)
 }
 
 func TestOutputRegistrySingleToListHelperCopiesLinks(t *testing.T) {
@@ -937,8 +982,7 @@ func TestOutputRegistryRowsWithSingleToListHelperNoPartialRegistrationWhenRowsNi
 		registerRowsWithSingleToListAdapter[single, list](nil)
 	})
 
-	assertRegistryTypeAbsent(t, singleKey)
-	assertRegistryTypeAbsent(t, listKey)
+	assertRegistryTypesAbsent(t, singleKey, listKey)
 }
 
 func TestOutputRegistryRowsWithSingleToListHelperNilRowsPanicsBeforeConflictChecks(t *testing.T) {
@@ -959,6 +1003,31 @@ func TestOutputRegistryRowsWithSingleToListHelperNilRowsPanicsBeforeConflictChec
 
 	expectPanicContains(t, "nil rows function", func() {
 		registerRowsWithSingleToListAdapter[single, list](nil)
+	})
+
+	assertRegistryTypeAbsent(t, singleKey)
+}
+
+func TestOutputRegistryRowsWithSingleToListHelperAdapterValidationPanicsBeforeConflictChecks(t *testing.T) {
+	type single struct {
+		Value string
+	}
+	type list struct {
+		Data []string
+	}
+
+	singleKey := reflect.TypeOf(&single{})
+	listKey := reflect.TypeOf(&list{})
+	cleanupRegistryTypes(t, singleKey, listKey)
+
+	registerRows(func(v *list) ([]string, [][]string) {
+		return []string{"value"}, nil
+	})
+
+	expectPanicContains(t, "requires Data field", func() {
+		registerRowsWithSingleToListAdapter[single, list](func(v *list) ([]string, [][]string) {
+			return []string{"value"}, nil
+		})
 	})
 
 	assertRegistryTypeAbsent(t, singleKey)
@@ -1034,6 +1103,13 @@ func assertRegistryTypeAbsent(t *testing.T, typ reflect.Type) {
 	}
 	if _, exists := directRenderRegistry[typ]; exists {
 		t.Fatalf("registry type %v should be absent from direct render registry", typ)
+	}
+}
+
+func assertRegistryTypesAbsent(t *testing.T, types ...reflect.Type) {
+	t.Helper()
+	for _, typ := range types {
+		assertRegistryTypeAbsent(t, typ)
 	}
 }
 

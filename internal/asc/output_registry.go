@@ -206,11 +206,11 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 	if rows == nil {
 		panic(fmt.Sprintf("output registry: nil rows function for %s", reflect.TypeFor[*U]()))
 	}
+	adapter := singleToListRowsAdapter[T, U](rows)
 	ensureRegistryTypesAvailable(
 		reflect.TypeFor[*U](),
 		reflect.TypeFor[*T](),
 	)
-	adapter := singleToListRowsAdapter[T, U](rows)
 	registerRows(rows)
 	registerRows(adapter)
 }
