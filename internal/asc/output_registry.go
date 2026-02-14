@@ -194,11 +194,44 @@ func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]
 	registerRows(singleToListRowsAdapter[T, U](rows))
 }
 
+type singleToListAdapterFields struct {
+	sourceDataField  reflect.StructField
+	targetDataField  reflect.StructField
+	sourceLinksField reflect.StructField
+	targetLinksField reflect.StructField
+	copyLinks        bool
+}
+
 func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string)) func(*T) ([]string, [][]string) {
 	if rows == nil {
 		panicNilHelperFunction("rows function", typeForPtr[U]())
 	}
 
+	fields := validateSingleToListAdapterTypes[T, U]()
+
+	return func(v *T) ([]string, [][]string) {
+		source := reflect.ValueOf(v).Elem()
+		var target U
+		targetValue := reflect.ValueOf(&target).Elem()
+
+		sourceData := source.FieldByIndex(fields.sourceDataField.Index)
+		targetData := targetValue.FieldByIndex(fields.targetDataField.Index)
+
+		rowsSlice := reflect.MakeSlice(targetData.Type(), 1, 1)
+		rowsSlice.Index(0).Set(sourceData)
+		targetData.Set(rowsSlice)
+
+		if fields.copyLinks {
+			sourceLinks := source.FieldByIndex(fields.sourceLinksField.Index)
+			targetLinks := targetValue.FieldByIndex(fields.targetLinksField.Index)
+			targetLinks.Set(sourceLinks)
+		}
+
+		return rows(&target)
+	}
+}
+
+func validateSingleToListAdapterTypes[T any, U any]() singleToListAdapterFields {
 	sourceType := typeFor[T]()
 	targetType := typeFor[U]()
 	if sourceType.Kind() != reflect.Struct {
@@ -227,25 +260,12 @@ func singleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string))
 		targetHasLinks &&
 		sourceLinksField.Type.AssignableTo(targetLinksField.Type)
 
-	return func(v *T) ([]string, [][]string) {
-		source := reflect.ValueOf(v).Elem()
-		var target U
-		targetValue := reflect.ValueOf(&target).Elem()
-
-		sourceData := source.FieldByIndex(sourceDataField.Index)
-		targetData := targetValue.FieldByIndex(targetDataField.Index)
-
-		rowsSlice := reflect.MakeSlice(targetData.Type(), 1, 1)
-		rowsSlice.Index(0).Set(sourceData)
-		targetData.Set(rowsSlice)
-
-		if copyLinks {
-			sourceLinks := source.FieldByIndex(sourceLinksField.Index)
-			targetLinks := targetValue.FieldByIndex(targetLinksField.Index)
-			targetLinks.Set(sourceLinks)
-		}
-
-		return rows(&target)
+	return singleToListAdapterFields{
+		sourceDataField:  sourceDataField,
+		targetDataField:  targetDataField,
+		sourceLinksField: sourceLinksField,
+		targetLinksField: targetLinksField,
+		copyLinks:        copyLinks,
 	}
 }
 

@@ -981,11 +981,11 @@ func TestOutputRegistrySingleToListHelperPanicsWhenSourceIsNotStruct(t *testing.
 		Data []string
 	}
 
-	expectPanicContains(t, "source type must be a struct", func() {
+	expectPanicContainsAll(t, func() {
 		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
 			return nil, nil
 		})
-	})
+	}, "source type must be a struct", typeFor[single]().String())
 }
 
 func TestOutputRegistrySingleToListHelperPanicsWhenTargetIsNotStruct(t *testing.T) {
@@ -994,11 +994,11 @@ func TestOutputRegistrySingleToListHelperPanicsWhenTargetIsNotStruct(t *testing.
 	}
 	type list []string
 
-	expectPanicContains(t, "target type must be a struct", func() {
+	expectPanicContainsAll(t, func() {
 		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
 			return nil, nil
 		})
-	})
+	}, "target type must be a struct", typeFor[list]().String())
 }
 
 func TestOutputRegistrySingleToListHelperPanicsWhenTargetDataIsNotSlice(t *testing.T) {
@@ -1298,7 +1298,7 @@ func TestEnsureRegistryTypesAvailablePanicsOnDuplicateTypes(t *testing.T) {
 }
 
 func TestEnsureRegistryTypeAvailablePanicsOnNilType(t *testing.T) {
-	expectPanicContains(t, "invalid nil registration type", func() {
+	expectInvalidNilRegistrationTypePanic(t, func() {
 		ensureRegistryTypeAvailable(nil)
 	})
 }
@@ -1332,13 +1332,13 @@ func TestEnsureRegistryTypesAvailableDuplicatePanicIncludesType(t *testing.T) {
 }
 
 func TestEnsureRegistryTypesAvailablePanicsOnNilType(t *testing.T) {
-	expectPanicContains(t, "invalid nil registration type", func() {
+	expectInvalidNilRegistrationTypePanic(t, func() {
 		ensureRegistryTypesAvailable(nil)
 	})
 }
 
 func TestEnsureRegistryTypesAvailableNilTypePanicsBeforeDuplicateCheck(t *testing.T) {
-	expectPanicContains(t, "invalid nil registration type", func() {
+	expectInvalidNilRegistrationTypePanic(t, func() {
 		ensureRegistryTypesAvailable(nil, nil)
 	})
 }
@@ -1404,14 +1404,21 @@ func expectPanic(t *testing.T, message string, fn func()) {
 
 func expectPanicContains(t *testing.T, want string, fn func()) {
 	t.Helper()
+	expectPanicContainsAll(t, fn, want)
+}
+
+func expectPanicContainsAll(t *testing.T, fn func(), wants ...string) {
+	t.Helper()
 	defer func() {
 		r := recover()
 		if r == nil {
-			t.Fatalf("expected panic containing %q", want)
+			t.Fatalf("expected panic containing all %q", wants)
 		}
 		got := fmt.Sprint(r)
-		if !strings.Contains(got, want) {
-			t.Fatalf("panic %q does not contain %q", r, want)
+		for _, want := range wants {
+			if !strings.Contains(got, want) {
+				t.Fatalf("panic %q does not contain %q", r, want)
+			}
 		}
 	}()
 	fn()
@@ -1420,6 +1427,11 @@ func expectPanicContains(t *testing.T, want string, fn func()) {
 func expectDuplicateRegistrationPanic(t *testing.T, fn func()) {
 	t.Helper()
 	expectPanicContains(t, "duplicate registration", fn)
+}
+
+func expectInvalidNilRegistrationTypePanic(t *testing.T, fn func()) {
+	t.Helper()
+	expectPanicContains(t, "invalid nil registration type", fn)
 }
 
 func expectNilRegistryPanic(t *testing.T, kind string, fn func()) {
