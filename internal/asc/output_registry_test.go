@@ -166,13 +166,10 @@ func TestRenderByRegistryPrefersDirectRegistryWhenBothHandlersExist(t *testing.T
 	key := reflect.TypeOf(&registered{})
 	cleanupRegistryTypes(t, key)
 
-	rowsHandlerCalled := false
-	outputRegistry[key] = func(any) ([]string, [][]string, error) {
-		rowsHandlerCalled = true
-		return []string{"source"}, [][]string{{"rows"}}, nil
-	}
-
-	directRenderRegistry[key] = renderWithRows([]string{"source"}, [][]string{{"direct"}})
+	rowsHandlerCalled := seedRowsAndDirectHandlersForTest(
+		key,
+		renderWithRows([]string{"source"}, [][]string{{"direct"}}),
+	)
 
 	var gotHeaders []string
 	var gotRows [][]string
@@ -183,7 +180,7 @@ func TestRenderByRegistryPrefersDirectRegistryWhenBothHandlersExist(t *testing.T
 	if err != nil {
 		t.Fatalf("renderByRegistry returned error: %v", err)
 	}
-	if rowsHandlerCalled {
+	if rowsHandlerCalled() {
 		t.Fatal("expected direct handler precedence over rows handler")
 	}
 	assertSingleRowEquals(t, gotHeaders, gotRows, []string{"source"}, []string{"direct"})
@@ -195,16 +192,10 @@ func TestRenderByRegistryPrefersDirectRegistryErrorWhenBothHandlersExist(t *test
 	key := reflect.TypeOf(&registered{})
 	cleanupRegistryTypes(t, key)
 
-	rowsHandlerCalled := false
-	outputRegistry[key] = func(any) ([]string, [][]string, error) {
-		rowsHandlerCalled = true
-		return []string{"source"}, [][]string{{"rows"}}, nil
-	}
-
 	wantErr := errors.New("direct failed")
-	directRenderRegistry[key] = func(any, func([]string, [][]string)) error {
+	rowsHandlerCalled := seedRowsAndDirectHandlersForTest(key, func(any, func([]string, [][]string)) error {
 		return wantErr
-	}
+	})
 
 	renderCalls := 0
 	err := renderByRegistry(&registered{}, func([]string, [][]string) {
@@ -213,7 +204,7 @@ func TestRenderByRegistryPrefersDirectRegistryErrorWhenBothHandlersExist(t *test
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("renderByRegistry error = %v, want %v", err, wantErr)
 	}
-	if rowsHandlerCalled {
+	if rowsHandlerCalled() {
 		t.Fatal("expected rows handler not to run when direct handler exists")
 	}
 	if renderCalls != 0 {
@@ -1268,6 +1259,31 @@ func TestEnsureRegistryTypesAvailablePanicsWhenDirectTypeAlreadyRegistered(t *te
 	})
 }
 
+func TestEnsureRegistryTypesAvailableAllowsEmptyInput(t *testing.T) {
+	ensureRegistryTypesAvailable()
+}
+
+func TestIsRegistryTypeRegistered(t *testing.T) {
+	type outputRegistered struct{}
+	type directRegistered struct{}
+	type missing struct{}
+
+	outputKey := preregisterRowsForConflict[outputRegistered](t, "value")
+	directKey := preregisterDirectForConflict[directRegistered](t)
+	missingKey := reflect.TypeOf(&missing{})
+	cleanupRegistryTypes(t, missingKey)
+
+	if !isRegistryTypeRegistered(outputKey) {
+		t.Fatalf("expected output-registered type %v to be present", outputKey)
+	}
+	if !isRegistryTypeRegistered(directKey) {
+		t.Fatalf("expected direct-registered type %v to be present", directKey)
+	}
+	if isRegistryTypeRegistered(missingKey) {
+		t.Fatalf("expected unregistered type %v to be absent", missingKey)
+	}
+}
+
 func expectPanic(t *testing.T, message string, fn func()) {
 	t.Helper()
 	defer func() {
@@ -1317,6 +1333,19 @@ func renderWithRows(headers []string, rows [][]string) directRenderFunc {
 	return func(data any, render func([]string, [][]string)) error {
 		render(headers, rows)
 		return nil
+	}
+}
+
+func seedRowsAndDirectHandlersForTest(t reflect.Type, directFn directRenderFunc) func() bool {
+	rowsHandlerCalled := false
+	outputRegistry[t] = func(any) ([]string, [][]string, error) {
+		rowsHandlerCalled = true
+		return []string{"source"}, [][]string{{"rows"}}, nil
+	}
+	directRenderRegistry[t] = directFn
+
+	return func() bool {
+		return rowsHandlerCalled
 	}
 }
 

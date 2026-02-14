@@ -50,11 +50,18 @@ func panicSingleListAdapterDataTypeMismatch(source, target reflect.Type) {
 	))
 }
 
-func ensureRegistryTypeAvailable(t reflect.Type) {
+func isRegistryTypeRegistered(t reflect.Type) bool {
 	if _, exists := outputRegistry[t]; exists {
-		panicDuplicateRegistration(t)
+		return true
 	}
 	if _, exists := directRenderRegistry[t]; exists {
+		return true
+	}
+	return false
+}
+
+func ensureRegistryTypeAvailable(t reflect.Type) {
+	if isRegistryTypeRegistered(t) {
 		panicDuplicateRegistration(t)
 	}
 }
