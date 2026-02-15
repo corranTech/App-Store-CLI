@@ -45,10 +45,16 @@ This command updates `docs/wall-of-apps.json` and re-syncs the generated Wall sn
 
 Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills
 
+## Acknowledgements
+
+Local screenshot framing in ASC uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
+GitHub: https://github.com/bitomule/koubou
+
 ## Table of Contents
 
 - [Why ASC?](#why-asc)
 - [ASC Skills](#asc-skills)
+- [Acknowledgements](#acknowledgements)
 - [Quick Start](#quick-start)
   - [Install](#install)
   - [Authenticate](#authenticate)
