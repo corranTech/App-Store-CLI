@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/wallgen"
 )
 
 func writeFile(t *testing.T, path string, content string) {
@@ -35,13 +37,13 @@ func withWorkingDirectory(t *testing.T, path string) {
 	})
 }
 
-func readJSONEntries(t *testing.T, path string) []wallEntry {
+func readJSONEntries(t *testing.T, path string) []wallgen.WallEntry {
 	t.Helper()
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read JSON file %s: %v", path, err)
 	}
-	var entries []wallEntry
+	var entries []wallgen.WallEntry
 	if err := json.Unmarshal(raw, &entries); err != nil {
 		t.Fatalf("unmarshal JSON file %s: %v", path, err)
 	}

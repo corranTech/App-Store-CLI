@@ -15,8 +15,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/wallgen"
 )
 
-type wallEntry = wallgen.WallEntry
-
 func main() {
 	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -73,30 +71,30 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 	return nil
 }
 
-func buildEntry(app, link, creator, platformCSV string) (wallEntry, error) {
+func buildEntry(app, link, creator, platformCSV string) (wallgen.WallEntry, error) {
 	app = strings.TrimSpace(app)
 	link = strings.TrimSpace(link)
 	creator = strings.TrimSpace(creator)
 
 	if app == "" {
-		return wallEntry{}, fmt.Errorf("--app is required")
+		return wallgen.WallEntry{}, fmt.Errorf("--app is required")
 	}
 	if link == "" {
-		return wallEntry{}, fmt.Errorf("--link is required")
+		return wallgen.WallEntry{}, fmt.Errorf("--link is required")
 	}
 	if creator == "" {
-		return wallEntry{}, fmt.Errorf("--creator is required")
+		return wallgen.WallEntry{}, fmt.Errorf("--creator is required")
 	}
 	if err := validateHTTPURL(link); err != nil {
-		return wallEntry{}, fmt.Errorf("--link must be a valid http/https URL")
+		return wallgen.WallEntry{}, fmt.Errorf("--link must be a valid http/https URL")
 	}
 
 	platforms := splitPlatforms(platformCSV)
 	if len(platforms) == 0 {
-		return wallEntry{}, fmt.Errorf("--platform is required")
+		return wallgen.WallEntry{}, fmt.Errorf("--platform is required")
 	}
 
-	return wallEntry{
+	return wallgen.WallEntry{
 		App:      app,
 		Link:     link,
 		Creator:  creator,
@@ -108,7 +106,7 @@ func sourcePath(repoRoot string) string {
 	return filepath.Join(repoRoot, "docs", "wall-of-apps.json")
 }
 
-func readEntries(path string) ([]wallEntry, error) {
+func readEntries(path string) ([]wallgen.WallEntry, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("missing source file: %s", path)
@@ -117,7 +115,7 @@ func readEntries(path string) ([]wallEntry, error) {
 		return nil, fmt.Errorf("source file is empty: %s", path)
 	}
 
-	var entries []wallEntry
+	var entries []wallgen.WallEntry
 	if err := json.Unmarshal(raw, &entries); err != nil {
 		return nil, fmt.Errorf("invalid JSON in %s: %w", path, err)
 	}
@@ -127,7 +125,7 @@ func readEntries(path string) ([]wallEntry, error) {
 	return entries, nil
 }
 
-func upsertByApp(entries []wallEntry, candidate wallEntry) ([]wallEntry, string) {
+func upsertByApp(entries []wallgen.WallEntry, candidate wallgen.WallEntry) ([]wallgen.WallEntry, string) {
 	for i := range entries {
 		if strings.EqualFold(strings.TrimSpace(entries[i].App), candidate.App) {
 			entries[i] = candidate
@@ -137,7 +135,7 @@ func upsertByApp(entries []wallEntry, candidate wallEntry) ([]wallEntry, string)
 	return append(entries, candidate), "Added"
 }
 
-func writeEntries(path string, entries []wallEntry) error {
+func writeEntries(path string, entries []wallgen.WallEntry) error {
 	content, err := renderEntries(entries)
 	if err != nil {
 		return fmt.Errorf("marshal source JSON: %w", err)
@@ -148,7 +146,7 @@ func writeEntries(path string, entries []wallEntry) error {
 	return nil
 }
 
-func renderEntries(entries []wallEntry) (string, error) {
+func renderEntries(entries []wallgen.WallEntry) (string, error) {
 	var builder strings.Builder
 	builder.WriteString("[\n")
 	for i, entry := range entries {
