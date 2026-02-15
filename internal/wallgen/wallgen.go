@@ -35,7 +35,8 @@ var platformAliases = map[string]string{
 	"vision_os": "VISION_OS",
 }
 
-type wallEntry struct {
+// WallEntry defines a single docs/wall-of-apps.json entry.
+type WallEntry struct {
 	App      string   `json:"app"`
 	Link     string   `json:"link"`
 	Creator  string   `json:"creator"`
@@ -65,7 +66,7 @@ func Generate(repoRoot string) (Result, error) {
 	return Result{ReadmePath: readmePath}, nil
 }
 
-func readEntries(sourcePath string) ([]wallEntry, error) {
+func readEntries(sourcePath string) ([]WallEntry, error) {
 	raw, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("missing source file: %s", sourcePath)
@@ -74,7 +75,7 @@ func readEntries(sourcePath string) ([]wallEntry, error) {
 		return nil, fmt.Errorf("source file is empty: %s", sourcePath)
 	}
 
-	var parsed []wallEntry
+	var parsed []WallEntry
 	if err := json.Unmarshal(raw, &parsed); err != nil {
 		return nil, fmt.Errorf("invalid JSON in %s: %w", sourcePath, err)
 	}
@@ -82,7 +83,7 @@ func readEntries(sourcePath string) ([]wallEntry, error) {
 		return nil, fmt.Errorf("source file has no entries: %s", sourcePath)
 	}
 
-	normalized := make([]wallEntry, 0, len(parsed))
+	normalized := make([]WallEntry, 0, len(parsed))
 	for idx, entry := range parsed {
 		item, err := normalizeEntry(entry, idx+1)
 		if err != nil {
@@ -103,35 +104,35 @@ func readEntries(sourcePath string) ([]wallEntry, error) {
 	return normalized, nil
 }
 
-func normalizeEntry(entry wallEntry, index int) (wallEntry, error) {
+func normalizeEntry(entry WallEntry, index int) (WallEntry, error) {
 	entry.App = strings.TrimSpace(entry.App)
 	entry.Link = strings.TrimSpace(entry.Link)
 	entry.Creator = strings.TrimSpace(entry.Creator)
 	if entry.App == "" {
-		return wallEntry{}, fmt.Errorf("entry #%d: 'app' is required", index)
+		return WallEntry{}, fmt.Errorf("entry #%d: 'app' is required", index)
 	}
 	if entry.Link == "" {
-		return wallEntry{}, fmt.Errorf("entry #%d: 'link' is required", index)
+		return WallEntry{}, fmt.Errorf("entry #%d: 'link' is required", index)
 	}
 	if entry.Creator == "" {
-		return wallEntry{}, fmt.Errorf("entry #%d: 'creator' is required", index)
+		return WallEntry{}, fmt.Errorf("entry #%d: 'creator' is required", index)
 	}
 	parsedURL, err := url.Parse(entry.Link)
 	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return wallEntry{}, fmt.Errorf("entry #%d: 'link' must be a valid http/https URL", index)
+		return WallEntry{}, fmt.Errorf("entry #%d: 'link' must be a valid http/https URL", index)
 	}
 	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
-		return wallEntry{}, fmt.Errorf("entry #%d: 'link' must be a valid http/https URL", index)
+		return WallEntry{}, fmt.Errorf("entry #%d: 'link' must be a valid http/https URL", index)
 	}
 	if len(entry.Platform) == 0 {
-		return wallEntry{}, fmt.Errorf("entry #%d: 'platform' must be a non-empty array", index)
+		return WallEntry{}, fmt.Errorf("entry #%d: 'platform' must be a non-empty array", index)
 	}
 
 	platforms := make([]string, 0, len(entry.Platform))
 	for _, value := range entry.Platform {
 		token := strings.TrimSpace(value)
 		if token == "" {
-			return wallEntry{}, fmt.Errorf("entry #%d: 'platform' entries must be non-empty strings", index)
+			return WallEntry{}, fmt.Errorf("entry #%d: 'platform' entries must be non-empty strings", index)
 		}
 		normalized := normalizePlatform(token)
 		if !containsFold(platforms, normalized) {
@@ -161,7 +162,7 @@ func containsFold(values []string, needle string) bool {
 	return false
 }
 
-func buildSnippet(entries []wallEntry) string {
+func buildSnippet(entries []WallEntry) string {
 	lines := []string{
 		"## Wall of Apps",
 		"",
