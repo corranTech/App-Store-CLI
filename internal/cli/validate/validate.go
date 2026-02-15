@@ -194,7 +194,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		if !asc.IsNotFound(err) {
 			return fmt.Errorf("validate: failed to fetch attached build: %w", err)
 		}
-	} else {
+	} else if strings.TrimSpace(buildResp.Data.ID) != "" {
 		attrs := buildResp.Data.Attributes
 		attachedBuild = &validation.Build{
 			ID:              buildResp.Data.ID,
