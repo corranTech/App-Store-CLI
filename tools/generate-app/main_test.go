@@ -168,3 +168,52 @@ func TestRunFailsWhenPlatformMissing(t *testing.T) {
 		t.Fatalf("expected missing platform error, got %v", err)
 	}
 }
+
+func TestRunRestoresJSONWhenReadmeSyncFails(t *testing.T) {
+	tmpRepo := t.TempDir()
+	withWorkingDirectory(t, tmpRepo)
+
+	originalJSON := `[
+  {
+    "app": "CodexMonitor",
+    "link": "https://github.com/Dimillian/CodexMonitor",
+    "creator": "Dimillian",
+    "platform": ["macOS", "iOS"]
+  }
+]`
+	originalReadme := "# Demo\nNo wall markers.\n"
+
+	writeFile(t, filepath.Join(tmpRepo, "docs", "wall-of-apps.json"), originalJSON)
+	writeFile(t, filepath.Join(tmpRepo, "README.md"), originalReadme)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	err := run([]string{
+		"--app", "Dandelion",
+		"--link", "https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901",
+		"--creator", "joeycast",
+		"--platform", "iOS, macOS",
+	}, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("expected run to fail when README markers are missing")
+	}
+	if !strings.Contains(err.Error(), "README markers not found") {
+		t.Fatalf("expected README marker error, got %v", err)
+	}
+
+	rawJSON, err := os.ReadFile(filepath.Join(tmpRepo, "docs", "wall-of-apps.json"))
+	if err != nil {
+		t.Fatalf("read JSON: %v", err)
+	}
+	if string(rawJSON) != originalJSON {
+		t.Fatalf("expected JSON to be restored after failure, got:\n%s", string(rawJSON))
+	}
+
+	readmeBytes, err := os.ReadFile(filepath.Join(tmpRepo, "README.md"))
+	if err != nil {
+		t.Fatalf("read README: %v", err)
+	}
+	if string(readmeBytes) != originalReadme {
+		t.Fatalf("expected README to remain unchanged, got:\n%s", string(readmeBytes))
+	}
+}

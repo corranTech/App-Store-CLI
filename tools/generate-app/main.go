@@ -51,6 +51,10 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 		return err
 	}
 	jsonPath := sourcePath(repoRoot)
+	originalJSON, err := os.ReadFile(jsonPath)
+	if err != nil {
+		return fmt.Errorf("missing source file: %s", jsonPath)
+	}
 
 	entries, err := readEntries(jsonPath)
 	if err != nil {
@@ -63,6 +67,10 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 	}
 	result, err := wallgen.Generate(repoRoot)
 	if err != nil {
+		restoreErr := os.WriteFile(jsonPath, originalJSON, 0o644)
+		if restoreErr != nil {
+			return fmt.Errorf("%w (also failed to restore source JSON: %v)", err, restoreErr)
+		}
 		return err
 	}
 
