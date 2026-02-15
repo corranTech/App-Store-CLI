@@ -35,12 +35,15 @@ var platformAliases = map[string]string{
 	"vision_os": "VISION_OS",
 }
 
-type wallEntry struct {
+// WallEntry defines a single docs/wall-of-apps.json entry.
+type WallEntry struct {
 	App      string   `json:"app"`
 	Link     string   `json:"link"`
 	Creator  string   `json:"creator"`
 	Platform []string `json:"platform"`
 }
+
+type wallEntry = WallEntry
 
 // Result contains generated output paths.
 type Result struct {

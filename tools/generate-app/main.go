@@ -15,12 +15,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/wallgen"
 )
 
-type wallEntry struct {
-	App      string   `json:"app"`
-	Link     string   `json:"link"`
-	Creator  string   `json:"creator"`
-	Platform []string `json:"platform"`
-}
+type wallEntry = wallgen.WallEntry
 
 func main() {
 	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
