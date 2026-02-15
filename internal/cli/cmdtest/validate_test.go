@@ -626,6 +626,49 @@ func TestValidateFailsWhenBuildMissing(t *testing.T) {
 	}
 }
 
+func TestValidateFailsWhenBuildMissingWithNullData(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.build = `{"data":null}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "build.required.missing" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected build.required.missing check, got %+v", report.Checks)
+	}
+}
+
 func TestValidateFailsWhenBuildIsProcessing(t *testing.T) {
 	fixture := validValidateFixture()
 	fixture.build = `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"PROCESSING","expired":false}}}`
