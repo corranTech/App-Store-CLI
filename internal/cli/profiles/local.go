@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -18,6 +19,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+// profileUUIDValidationRegex ensures the UUID from a provisioning profile is safe to use
+// as a filename component (prevents absolute paths / path traversal).
+var profileUUIDValidationRegex = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+func isValidProfileUUID(uuid string) bool {
+	return profileUUIDValidationRegex.MatchString(uuid)
+}
 
 type localProfile struct {
 	UUID      string    `json:"uuid"`
@@ -192,11 +201,15 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("profiles local install: %w", err)
 			}
-			if strings.TrimSpace(parsed.UUID) == "" {
+			uuid := strings.TrimSpace(parsed.UUID)
+			if uuid == "" {
 				return fmt.Errorf("profiles local install: profile UUID is missing")
 			}
+			if !isValidProfileUUID(uuid) {
+				return fmt.Errorf("profiles local install: invalid profile UUID %q", uuid)
+			}
 
-			destPath := filepath.Join(resolvedInstallDir, strings.TrimSpace(parsed.UUID)+".mobileprovision")
+			destPath := filepath.Join(resolvedInstallDir, uuid+".mobileprovision")
 			action := "installed"
 			hadExisting := false
 			if _, err := os.Lstat(destPath); err == nil {
@@ -216,7 +229,7 @@ Examples:
 			}
 
 			item := localProfile{
-				UUID:      strings.TrimSpace(parsed.UUID),
+				UUID:      uuid,
 				Name:      strings.TrimSpace(parsed.Name),
 				TeamID:    strings.TrimSpace(parsed.TeamID()),
 				BundleID:  strings.TrimSpace(parsed.BundleID()),
