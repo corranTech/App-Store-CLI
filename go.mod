@@ -10,6 +10,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/tidwall/jsonc v0.3.2
+	go.mozilla.org/pkcs7 v0.9.0
 	golang.org/x/mod v0.32.0
 	golang.org/x/sys v0.40.0
 	golang.org/x/term v0.39.0
