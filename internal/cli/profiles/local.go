@@ -198,6 +198,12 @@ Examples:
 
 			destPath := filepath.Join(resolvedInstallDir, strings.TrimSpace(parsed.UUID)+".mobileprovision")
 			action := "installed"
+			hadExisting := false
+			if _, err := os.Lstat(destPath); err == nil {
+				hadExisting = true
+			} else if !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("profiles local install: stat output path: %w", err)
+			}
 
 			if err := writeProfileFile(destPath, content, *force); err != nil {
 				if errors.Is(err, os.ErrExist) {
@@ -205,7 +211,7 @@ Examples:
 				}
 				return fmt.Errorf("profiles local install: %w", err)
 			}
-			if *force {
+			if *force && hadExisting {
 				action = "replaced"
 			}
 
@@ -342,6 +348,10 @@ Examples:
 			if !*dryRun && !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return flag.ErrHelp
+			}
+			if !*expiredOnly {
+				// At least one clean mode is required; currently only --expired exists.
+				return shared.UsageError("at least one clean mode is required (e.g. --expired)")
 			}
 
 			resolvedInstallDir, err := resolveProfilesInstallDir(*installDir)
