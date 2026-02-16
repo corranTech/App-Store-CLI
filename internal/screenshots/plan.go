@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/tidwall/jsonc"
 )
 
 var (
@@ -120,6 +122,8 @@ func LoadPlanUnvalidated(path string) (*Plan, error) {
 	}
 
 	var plan Plan
+	// Allow JSONC-style comments (// and /* */) in plan files.
+	data = jsonc.ToJSON(data)
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrPlanParseJSON, err)
 	}
