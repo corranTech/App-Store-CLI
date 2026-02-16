@@ -2,7 +2,6 @@ package assets
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -129,101 +128,14 @@ func downloadURLToFile(ctx context.Context, rawURL string, outputPath string, ov
 }
 
 func writeDownloadedFile(path string, reader io.Reader, overwrite bool) (int64, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return 0, err
-	}
-
-	if !overwrite {
-		file, err := shared.OpenNewFileNoFollow(path, 0o600)
-		if err != nil {
-			if errors.Is(err, os.ErrExist) {
-				return 0, fmt.Errorf("output file already exists: %w", err)
-			}
-			return 0, err
-		}
-		defer file.Close()
-
-		written, err := io.Copy(file, reader)
-		if err != nil {
-			return 0, err
-		}
-		return written, file.Sync()
-	}
-
-	// Best-effort protection: refuse overwriting symlinks; use temp+rename.
-	// Important: do not remove the destination until the new file is fully written.
-	hadExisting := false
-	if info, err := os.Lstat(path); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 {
-			return 0, fmt.Errorf("refusing to overwrite symlink %q", path)
-		}
-		if info.IsDir() {
-			return 0, fmt.Errorf("output path %q is a directory", path)
-		}
-		hadExisting = true
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return 0, err
-	}
-
-	tempFile, err := os.CreateTemp(filepath.Dir(path), ".asc-download-*")
-	if err != nil {
-		return 0, err
-	}
-	defer tempFile.Close()
-
-	tempPath := tempFile.Name()
-	success := false
-	defer func() {
-		if !success {
-			_ = os.Remove(tempPath)
-		}
-	}()
-
-	if err := tempFile.Chmod(0o600); err != nil {
-		return 0, err
-	}
-
-	written, err := io.Copy(tempFile, reader)
-	if err != nil {
-		return 0, err
-	}
-	if err := tempFile.Sync(); err != nil {
-		return 0, err
-	}
-	if err := tempFile.Close(); err != nil {
-		return 0, err
-	}
-
-	// On Unix, rename replaces the destination atomically. On Windows, rename fails if the
-	// destination exists, so we fall back to a safe replace that preserves the original
-	// file if the final move fails.
-	if err := os.Rename(tempPath, path); err != nil {
-		if !hadExisting {
-			return 0, err
-		}
-
-		backupFile, backupErr := os.CreateTemp(filepath.Dir(path), ".asc-download-backup-*")
-		if backupErr != nil {
-			return 0, err
-		}
-		backupPath := backupFile.Name()
-		if closeErr := backupFile.Close(); closeErr != nil {
-			return 0, closeErr
-		}
-		if removeErr := os.Remove(backupPath); removeErr != nil {
-			return 0, removeErr
-		}
-
-		if moveErr := os.Rename(path, backupPath); moveErr != nil {
-			return 0, moveErr
-		}
-		if moveErr := os.Rename(tempPath, path); moveErr != nil {
-			_ = os.Rename(backupPath, path)
-			return 0, moveErr
-		}
-		_ = os.Remove(backupPath)
-	}
-
-	success = true
-	return written, nil
+	return shared.SafeWriteFileNoSymlink(
+		path,
+		0o600,
+		overwrite,
+		".asc-download-*",
+		".asc-download-backup-*",
+		func(f *os.File) (int64, error) {
+			return io.Copy(f, reader)
+		},
+	)
 }

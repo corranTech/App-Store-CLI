@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -237,94 +236,16 @@ func writeFileBytesNoSymlink(path string, data []byte, perm os.FileMode, force b
 		return fmt.Errorf("output path must be a file")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(trimmed), 0o755); err != nil {
-		return err
-	}
-
-	if !force {
-		file, err := shared.OpenNewFileNoFollow(trimmed, perm)
-		if err != nil {
-			if errors.Is(err, os.ErrExist) {
-				return fmt.Errorf("output file already exists: %w", err)
-			}
-			return err
-		}
-		defer file.Close()
-
-		if _, err := file.Write(data); err != nil {
-			return err
-		}
-		return file.Sync()
-	}
-
-	// Overwrite mode: do not remove the destination until the new file is fully written.
-	hadExisting := false
-	if info, err := os.Lstat(trimmed); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("refusing to overwrite symlink %q", trimmed)
-		}
-		if info.IsDir() {
-			return fmt.Errorf("output path %q is a directory", trimmed)
-		}
-		hadExisting = true
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-
-	tempFile, err := os.CreateTemp(filepath.Dir(trimmed), ".asc-csr-*")
-	if err != nil {
-		return err
-	}
-	defer tempFile.Close()
-
-	tempPath := tempFile.Name()
-	success := false
-	defer func() {
-		if !success {
-			_ = os.Remove(tempPath)
-		}
-	}()
-
-	if err := tempFile.Chmod(perm); err != nil {
-		return err
-	}
-	if _, err := tempFile.Write(data); err != nil {
-		return err
-	}
-	if err := tempFile.Sync(); err != nil {
-		return err
-	}
-	if err := tempFile.Close(); err != nil {
-		return err
-	}
-
-	if err := os.Rename(tempPath, trimmed); err != nil {
-		if !hadExisting {
-			return err
-		}
-
-		backupFile, backupErr := os.CreateTemp(filepath.Dir(trimmed), ".asc-csr-backup-*")
-		if backupErr != nil {
-			return err
-		}
-		backupPath := backupFile.Name()
-		if closeErr := backupFile.Close(); closeErr != nil {
-			return closeErr
-		}
-		if removeErr := os.Remove(backupPath); removeErr != nil {
-			return removeErr
-		}
-
-		if moveErr := os.Rename(trimmed, backupPath); moveErr != nil {
-			return moveErr
-		}
-		if moveErr := os.Rename(tempPath, trimmed); moveErr != nil {
-			_ = os.Rename(backupPath, trimmed)
-			return moveErr
-		}
-		_ = os.Remove(backupPath)
-	}
-
-	success = true
-	return nil
+	_, err := shared.SafeWriteFileNoSymlink(
+		trimmed,
+		perm,
+		force,
+		".asc-csr-*",
+		".asc-csr-backup-*",
+		func(f *os.File) (int64, error) {
+			n, err := f.Write(data)
+			return int64(n), err
+		},
+	)
+	return err
 }
