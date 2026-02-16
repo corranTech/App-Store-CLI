@@ -31,6 +31,32 @@ func TestLoadPlan_Valid(t *testing.T) {
 	}
 }
 
+func TestLoadPlan_Valid_WithJSONCComments(t *testing.T) {
+	path := writePlanFile(t, `{
+  // This is a JSONC plan file (comments allowed).
+  "version": 1,
+  "app": {
+    "bundle_id": "com.example.app" // bundle id for simctl launch
+  },
+  "steps": [
+    { "action": "launch" }, // open app
+    /* wait for the UI to settle */ { "action": "wait", "duration_ms": 1 },
+    { "action": "screenshot", "name": "home" }
+  ]
+}`)
+
+	plan, err := LoadPlan(path)
+	if err != nil {
+		t.Fatalf("LoadPlan returned error: %v", err)
+	}
+	if plan.App.BundleID != "com.example.app" {
+		t.Fatalf("unexpected bundle_id: %q", plan.App.BundleID)
+	}
+	if len(plan.Steps) != 3 {
+		t.Fatalf("expected 3 steps, got %d", len(plan.Steps))
+	}
+}
+
 func TestLoadPlan_MissingBundleID(t *testing.T) {
 	path := writePlanFile(t, `{
   "version": 1,
