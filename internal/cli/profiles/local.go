@@ -38,9 +38,26 @@ type localInstallResult struct {
 }
 
 type localCleanItem struct {
-	UUID string `json:"uuid,omitempty"`
-	Name string `json:"name,omitempty"`
-	Path string `json:"path"`
+	UUID   string `json:"uuid,omitempty"`
+	Name   string `json:"name,omitempty"`
+	Path   string `json:"path"`
+	Reason string `json:"reason,omitempty"`
+}
+
+type localSkippedItem struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+type localListResult struct {
+	InstallDir string `json:"installDir"`
+
+	Total   int `json:"total"`
+	Listed  int `json:"listed"`
+	Skipped int `json:"skipped"`
+
+	Items        []localProfile     `json:"items,omitempty"`
+	SkippedItems []localSkippedItem `json:"skippedItems,omitempty"`
 }
 
 type localCleanResult struct {
@@ -249,13 +266,13 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 
-			items, err := listLocalProfiles(resolvedInstallDir, time.Now())
+			scanned, skipped, err := scanLocalProfiles(resolvedInstallDir, time.Now())
 			if err != nil {
 				return fmt.Errorf("profiles local list: %w", err)
 			}
 
-			filtered := make([]localProfile, 0, len(items))
-			for _, item := range items {
+			filtered := make([]localProfile, 0, len(scanned))
+			for _, item := range scanned {
 				if *expiredOnly && !item.Expired {
 					continue
 				}
@@ -276,12 +293,25 @@ Examples:
 				return filtered[i].UUID < filtered[j].UUID
 			})
 
+			sort.Slice(skipped, func(i, j int) bool {
+				return skipped[i].Path < skipped[j].Path
+			})
+
+			result := &localListResult{
+				InstallDir:   resolvedInstallDir,
+				Total:        len(scanned) + len(skipped),
+				Listed:       len(filtered),
+				Skipped:      len(skipped),
+				Items:        filtered,
+				SkippedItems: skipped,
+			}
+
 			return shared.PrintOutputWithRenderers(
-				filtered,
+				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderLocalProfileList(filtered, false) },
-				func() error { return renderLocalProfileList(filtered, true) },
+				func() error { return renderLocalListResult(result, false) },
+				func() error { return renderLocalListResult(result, true) },
 			)
 		},
 	}
@@ -320,7 +350,7 @@ Examples:
 			}
 
 			now := time.Now()
-			items, err := listLocalProfiles(resolvedInstallDir, now)
+			items, skipped, err := scanLocalProfiles(resolvedInstallDir, now)
 			if err != nil {
 				return fmt.Errorf("profiles local clean: %w", err)
 			}
@@ -343,6 +373,13 @@ Examples:
 				DryRun:     *dryRun,
 				Planned:    len(toDelete),
 			}
+			for _, item := range skipped {
+				result.Skipped++
+				result.SkippedItems = append(result.SkippedItems, localCleanItem{
+					Path:   item.Path,
+					Reason: item.Reason,
+				})
+			}
 			for _, item := range toDelete {
 				result.Items = append(result.Items, localCleanItem{
 					UUID: item.UUID,
@@ -364,7 +401,7 @@ Examples:
 			for _, item := range toDelete {
 				if err := deleteLocalProfileFile(item.Path); err != nil {
 					result.Skipped++
-					result.SkippedItems = append(result.SkippedItems, localCleanItem{UUID: item.UUID, Name: item.Name, Path: item.Path})
+					result.SkippedItems = append(result.SkippedItems, localCleanItem{UUID: item.UUID, Name: item.Name, Path: item.Path, Reason: err.Error()})
 					continue
 				}
 				result.Deleted++
@@ -397,21 +434,20 @@ func resolveProfilesInstallDir(value string) (string, error) {
 	return filepath.Join(home, "Library", "MobileDevice", "Provisioning Profiles"), nil
 }
 
-func listLocalProfiles(installDir string, now time.Time) ([]localProfile, error) {
+func scanLocalProfiles(installDir string, now time.Time) ([]localProfile, []localSkippedItem, error) {
 	entries, err := os.ReadDir(installDir)
 	if err != nil {
 		// If directory doesn't exist, treat as empty.
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	items := make([]localProfile, 0, len(entries))
+	skipped := make([]localSkippedItem, 0, 4)
+
 	for _, entry := range entries {
-		if entry.Type()&os.ModeSymlink != 0 {
-			return nil, fmt.Errorf("refusing to follow symlink %q", filepath.Join(installDir, entry.Name()))
-		}
 		if entry.IsDir() {
 			continue
 		}
@@ -420,23 +456,55 @@ func listLocalProfiles(installDir string, now time.Time) ([]localProfile, error)
 		}
 
 		fullPath := filepath.Join(installDir, entry.Name())
+
+		// Do not follow symlinks; skip and report instead of failing the whole command.
+		if entry.Type()&os.ModeSymlink != 0 {
+			skipped = append(skipped, localSkippedItem{
+				Path:   fullPath,
+				Reason: "refusing to follow symlink",
+			})
+			continue
+		}
+
 		file, err := shared.OpenExistingNoFollow(fullPath)
 		if err != nil {
-			return nil, err
+			skipped = append(skipped, localSkippedItem{
+				Path:   fullPath,
+				Reason: fmt.Sprintf("open: %v", err),
+			})
+			continue
 		}
-		data, err := io.ReadAll(file)
+
+		data, readErr := io.ReadAll(file)
 		_ = file.Close()
-		if err != nil {
-			return nil, err
+		if readErr != nil {
+			skipped = append(skipped, localSkippedItem{
+				Path:   fullPath,
+				Reason: fmt.Sprintf("read: %v", readErr),
+			})
+			continue
 		}
 
 		parsed, err := parseMobileProvision(data)
 		if err != nil {
-			return nil, fmt.Errorf("parse %s: %w", entry.Name(), err)
+			skipped = append(skipped, localSkippedItem{
+				Path:   fullPath,
+				Reason: fmt.Sprintf("parse: %v", err),
+			})
+			continue
 		}
 
-		item := localProfile{
-			UUID:      strings.TrimSpace(parsed.UUID),
+		uuid := strings.TrimSpace(parsed.UUID)
+		if uuid == "" {
+			skipped = append(skipped, localSkippedItem{
+				Path:   fullPath,
+				Reason: "profile UUID is missing",
+			})
+			continue
+		}
+
+		items = append(items, localProfile{
+			UUID:      uuid,
 			Name:      strings.TrimSpace(parsed.Name),
 			TeamID:    strings.TrimSpace(parsed.TeamID()),
 			BundleID:  strings.TrimSpace(parsed.BundleID()),
@@ -444,10 +512,10 @@ func listLocalProfiles(installDir string, now time.Time) ([]localProfile, error)
 			CreatedAt: parsed.CreationDate,
 			Path:      fullPath,
 			Expired:   isExpired(parsed.ExpirationDate, now),
-		}
-		items = append(items, item)
+		})
 	}
-	return items, nil
+
+	return items, skipped, nil
 }
 
 func isExpired(expiresAt time.Time, now time.Time) bool {
@@ -496,13 +564,28 @@ func renderLocalInstallResult(result *localInstallResult, markdown bool) error {
 	return nil
 }
 
-func renderLocalProfileList(items []localProfile, markdown bool) error {
+func renderLocalListResult(result *localListResult, markdown bool) error {
+	if result == nil {
+		return fmt.Errorf("result is nil")
+	}
+
 	render := asc.RenderTable
 	if markdown {
 		render = asc.RenderMarkdown
 	}
-	rows := make([][]string, 0, len(items))
-	for _, item := range items {
+
+	render(
+		[]string{"Install Dir", "Total", "Listed", "Skipped"},
+		[][]string{{
+			result.InstallDir,
+			fmt.Sprintf("%d", result.Total),
+			fmt.Sprintf("%d", result.Listed),
+			fmt.Sprintf("%d", result.Skipped),
+		}},
+	)
+
+	rows := make([][]string, 0, len(result.Items))
+	for _, item := range result.Items {
 		rows = append(rows, []string{
 			item.UUID,
 			item.Name,
@@ -514,6 +597,14 @@ func renderLocalProfileList(items []localProfile, markdown bool) error {
 		})
 	}
 	render([]string{"UUID", "Name", "Team ID", "Bundle ID", "Expires At", "Expired", "Path"}, rows)
+
+	if len(result.SkippedItems) > 0 {
+		skippedRows := make([][]string, 0, len(result.SkippedItems))
+		for _, item := range result.SkippedItems {
+			skippedRows = append(skippedRows, []string{item.Path, item.Reason})
+		}
+		render([]string{"Skipped Path", "Reason"}, skippedRows)
+	}
 	return nil
 }
 
@@ -545,6 +636,14 @@ func renderLocalCleanResult(result *localCleanResult, markdown bool) error {
 			rows = append(rows, []string{item.UUID, item.Name, item.Path})
 		}
 		render([]string{"UUID", "Name", "Path"}, rows)
+	}
+
+	if len(result.SkippedItems) > 0 {
+		rows := make([][]string, 0, len(result.SkippedItems))
+		for _, item := range result.SkippedItems {
+			rows = append(rows, []string{item.UUID, item.Name, item.Path, item.Reason})
+		}
+		render([]string{"UUID", "Name", "Path", "Reason"}, rows)
 	}
 	return nil
 }

@@ -35,6 +35,21 @@ type localProfileItem struct {
 	Expired   bool   `json:"expired"`
 }
 
+type localSkippedItem struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+type localListResult struct {
+	InstallDir string             `json:"installDir"`
+	Total      int                `json:"total"`
+	Listed     int                `json:"listed"`
+	Skipped    int                `json:"skipped"`
+	Items      []localProfileItem `json:"items"`
+
+	SkippedItems []localSkippedItem `json:"skippedItems"`
+}
+
 func TestProfilesLocal_InstallListCleanExpired(t *testing.T) {
 	run := func(args []string) (string, string, error) {
 		root := RootCommand("1.2.3")
@@ -97,12 +112,15 @@ func TestProfilesLocal_InstallListCleanExpired(t *testing.T) {
 		t.Fatalf("run error: %v", err)
 	}
 
-	var items []localProfileItem
-	if err := json.Unmarshal([]byte(stdout), &items); err != nil {
+	var list localListResult
+	if err := json.Unmarshal([]byte(stdout), &list); err != nil {
 		t.Fatalf("decode list JSON: %v (stdout=%q)", err, stdout)
 	}
-	if len(items) != 2 {
-		t.Fatalf("expected 2 profiles, got %d", len(items))
+	if list.Listed != 2 || len(list.Items) != 2 {
+		t.Fatalf("expected 2 profiles, got listed=%d len(items)=%d", list.Listed, len(list.Items))
+	}
+	if list.Skipped != 0 || len(list.SkippedItems) != 0 {
+		t.Fatalf("expected 0 skipped, got skipped=%d len(skippedItems)=%d", list.Skipped, len(list.SkippedItems))
 	}
 
 	// Dry-run clean should plan deletion but not delete.
@@ -139,6 +157,73 @@ func TestProfilesLocal_InstallListCleanExpired(t *testing.T) {
 	}
 	if _, err := os.Stat(activeInstalled); err != nil {
 		t.Fatalf("expected active profile to remain, stat error: %v", err)
+	}
+}
+
+func TestProfilesLocalList_SkipsUnreadableProfilesAndReports(t *testing.T) {
+	run := func(args []string) (string, string, error) {
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		var runErr error
+		stdout, stderr := captureOutput(t, func() {
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr = root.Run(context.Background())
+		})
+		return stdout, stderr, runErr
+	}
+
+	installDir := t.TempDir()
+
+	goodUUID := "00000000-0000-0000-0000-000000000003"
+	goodSource := filepath.Join(t.TempDir(), "good.mobileprovision")
+	goodBytes := buildMobileprovision(t, goodUUID, "Good Profile", "TEAM12345", "com.example.app", time.Now().Add(24*time.Hour))
+	if err := os.WriteFile(goodSource, goodBytes, 0o600); err != nil {
+		t.Fatalf("WriteFile(goodSource) error: %v", err)
+	}
+
+	_, stderr, err := run([]string{"profiles", "local", "install", "--path", goodSource, "--install-dir", installDir, "--output", "json"})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+
+	// Drop an unreadable/corrupt profile file into the install dir.
+	badPath := filepath.Join(installDir, "bad.mobileprovision")
+	if err := os.WriteFile(badPath, []byte("not a valid profile"), 0o600); err != nil {
+		t.Fatalf("WriteFile(badPath) error: %v", err)
+	}
+
+	stdout, stderr, err := run([]string{"profiles", "local", "list", "--install-dir", installDir, "--output", "json"})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+
+	var list localListResult
+	if err := json.Unmarshal([]byte(stdout), &list); err != nil {
+		t.Fatalf("decode list JSON: %v (stdout=%q)", err, stdout)
+	}
+	if list.Total != 2 {
+		t.Fatalf("expected total=2, got %d", list.Total)
+	}
+	if list.Listed != 1 || len(list.Items) != 1 {
+		t.Fatalf("expected listed=1, got listed=%d len(items)=%d", list.Listed, len(list.Items))
+	}
+	if list.Skipped != 1 || len(list.SkippedItems) != 1 {
+		t.Fatalf("expected skipped=1, got skipped=%d len(skippedItems)=%d", list.Skipped, len(list.SkippedItems))
+	}
+	if filepath.Clean(list.SkippedItems[0].Path) != filepath.Clean(badPath) {
+		t.Fatalf("expected skipped path %q, got %q", badPath, list.SkippedItems[0].Path)
+	}
+	if strings.TrimSpace(list.SkippedItems[0].Reason) == "" {
+		t.Fatalf("expected skipped reason, got empty")
 	}
 }
 
