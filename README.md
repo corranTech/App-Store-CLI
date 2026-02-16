@@ -32,6 +32,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
 | Lumical: Scan to Calendar | [Open](https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309) | arunavo4 | iOS |
 | MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
+| Mixtape | [Open](https://apps.apple.com/us/app/mixtape-personal-music-gift/id6756442910) | jimripple | iOS |
 | Morning Pages | [Open](https://apps.apple.com/us/app/morning-pages/id6738604034) | zchwyng | iOS, macOS |
 | Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
 | TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
