@@ -17,6 +17,7 @@ func OpenNewFileNoFollow(path string, perm os.FileMode) (*os.File, error) {
 
 // OpenExistingNoFollow opens an existing file without following symlinks.
 func OpenExistingNoFollow(path string) (*os.File, error) {
-	flags := os.O_RDONLY | unix.O_NOFOLLOW
+	// O_NONBLOCK prevents hanging when opening FIFOs/devices in untrusted paths.
+	flags := os.O_RDONLY | unix.O_NOFOLLOW | unix.O_NONBLOCK
 	return os.OpenFile(path, flags, 0)
 }
