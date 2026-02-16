@@ -26,6 +26,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | macOS, iOS |
 | Dandelion | [Open](https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901) | joeycast | iOS, macOS |
 | DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | iOS |
+| Dripped | [Open](https://apps.apple.com/app/id6749790183) | mithileshchellapan | iOS |
 | Fisherman SMS Filtering | [Open](https://apps.apple.com/app/id6449192504) | MGidnian | iOS |
 | kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
 | Lumical: Scan to Calendar | [Open](https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309) | arunavo4 | iOS |
