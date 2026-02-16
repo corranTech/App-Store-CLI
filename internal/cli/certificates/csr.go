@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -124,6 +125,21 @@ Examples:
 			}
 			if subject.CommonName == "" {
 				subject.CommonName = "asc"
+			}
+
+			// Pre-check output paths to avoid leaving an orphaned key when CSR write fails.
+			// This is not atomic (TOCTOU), but it prevents the common confusing case.
+			if !*force {
+				if _, err := os.Lstat(keyOutValue); err == nil {
+					return fmt.Errorf("certificates csr generate: write --key-out: output file already exists: %w", os.ErrExist)
+				} else if !errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("certificates csr generate: write --key-out: %w", err)
+				}
+				if _, err := os.Lstat(csrOutValue); err == nil {
+					return fmt.Errorf("certificates csr generate: write --csr-out: output file already exists: %w", os.ErrExist)
+				} else if !errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("certificates csr generate: write --csr-out: %w", err)
+				}
 			}
 
 			// Generate RSA private key.

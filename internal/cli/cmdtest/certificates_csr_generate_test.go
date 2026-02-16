@@ -206,6 +206,53 @@ func TestCertificatesCSRGenerate_RefusesOverwriteWithoutForce(t *testing.T) {
 	}
 }
 
+func TestCertificatesCSRGenerate_DoesNotOrphanKeyWhenCSROutExistsWithoutForce(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	dir := t.TempDir()
+	keyOut := filepath.Join(dir, "cert.key")
+	csrOut := filepath.Join(dir, "cert.csr")
+
+	if err := os.WriteFile(csrOut, []byte("OLD-CSR"), 0o600); err != nil {
+		t.Fatalf("WriteFile(csrOut) error: %v", err)
+	}
+
+	var runErr error
+	_, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"certificates", "csr", "generate",
+			"--key-out", keyOut,
+			"--csr-out", csrOut,
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if !strings.Contains(strings.ToLower(runErr.Error()), "exists") {
+		t.Fatalf("expected exists error, got %v", runErr)
+	}
+
+	if _, err := os.Stat(keyOut); err == nil {
+		t.Fatalf("expected key file to not be created when csr-out exists")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Stat(keyOut) unexpected error: %v", err)
+	}
+
+	csrData, err := os.ReadFile(csrOut)
+	if err != nil {
+		t.Fatalf("ReadFile(csrOut) error: %v", err)
+	}
+	if string(csrData) != "OLD-CSR" {
+		t.Fatalf("expected csr file unchanged, got %q", string(csrData))
+	}
+}
+
 func TestCertificatesCSRGenerate_RefusesSymlinkOutputs(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
