@@ -514,6 +514,26 @@ func scanLocalProfiles(installDir string, now time.Time) ([]localProfile, []loca
 			continue
 		}
 
+		// Re-check after open to close the TOCTOU gap between the Lstat pre-check
+		// and the actual open (the file may have been replaced).
+		openedInfo, statErr := file.Stat()
+		if statErr != nil {
+			_ = file.Close()
+			skipped = append(skipped, localSkippedItem{
+				Path:   fullPath,
+				Reason: fmt.Sprintf("stat (opened): %v", statErr),
+			})
+			continue
+		}
+		if !openedInfo.Mode().IsRegular() {
+			_ = file.Close()
+			skipped = append(skipped, localSkippedItem{
+				Path:   fullPath,
+				Reason: "refusing to read non-regular file",
+			})
+			continue
+		}
+
 		data, readErr := io.ReadAll(file)
 		_ = file.Close()
 		if readErr != nil {
@@ -561,7 +581,8 @@ func isExpired(expiresAt time.Time, now time.Time) bool {
 	if expiresAt.IsZero() {
 		return false
 	}
-	return now.After(expiresAt)
+	// Expiration is inclusive: if now == expiresAt, treat as expired.
+	return !now.Before(expiresAt)
 }
 
 func deleteLocalProfileFile(path string) error {
