@@ -205,7 +205,7 @@ Examples:
 					missingFields = append(missingFields, "CFBundleVersion")
 					missingFlags = append(missingFlags, "--build-number")
 				}
-				return fmt.Errorf("builds upload: Info.plist missing %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
+				return fmt.Errorf("builds upload: missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
 			}
 
 			client, err := shared.GetASCClient()
