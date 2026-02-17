@@ -65,6 +65,8 @@ var (
 	debug               OptionalBool
 	apiDebug            OptionalBool
 	noUpdate            bool
+
+	getCredentialsWithSourceFn = auth.GetCredentialsWithSource
 )
 
 var (
@@ -318,10 +320,15 @@ func resolveCredentials() (resolvedCredentials, error) {
 	}
 
 	// Priority 1: Stored credentials (keychain/config)
-	cfg, storedSource, err := auth.GetCredentialsWithSource(profile)
+	cfg, storedSource, err := getCredentialsWithSourceFn(profile)
 	if err != nil {
 		if profile != "" {
 			return resolvedCredentials{}, err
+		}
+		// If the user explicitly denied keychain access, fail fast instead of
+		// silently falling back to env/config credentials.
+		if errors.Is(err, auth.ErrKeychainAccessDenied) {
+			return resolvedCredentials{}, fmt.Errorf("keychain access denied; set ASC_BYPASS_KEYCHAIN=1 to bypass: %w", err)
 		}
 	} else if cfg != nil {
 		actualKeyID = cfg.KeyID
