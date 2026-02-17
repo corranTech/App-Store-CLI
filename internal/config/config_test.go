@@ -98,7 +98,7 @@ func TestConfigSaveLoadRemove(t *testing.T) {
 		t.Fatalf("Remove() error: %v", err)
 	}
 
-	if _, err := Load(); err != ErrNotFound {
+	if _, err := Load(); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound after Remove(), got %v", err)
 	}
 }
@@ -107,7 +107,7 @@ func TestLoadMissingConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
 
-	if _, err := Load(); err != ErrNotFound {
+	if _, err := Load(); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound for missing config, got %v", err)
 	}
 }

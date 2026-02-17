@@ -493,7 +493,7 @@ func GetCredentialsWithSource(profile string) (*config.Config, string, error) {
 	}
 	if !isKeyringUnavailable(err) {
 		if isKeychainAccessDeniedError(err) {
-			return nil, "", fmt.Errorf("%w: %v", ErrKeychainAccessDenied, err)
+			return nil, "", fmt.Errorf("%w: %w", ErrKeychainAccessDenied, err)
 		}
 		return nil, "", err
 	}
@@ -584,7 +584,7 @@ func selectCredential(profile string, credentials []Credential) (*config.Config,
 
 func getCredentialsFromConfig(profile string) (*config.Config, error) {
 	cfg, err := config.Load()
-	if err != nil && err != config.ErrNotFound {
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return nil, err
 	}
 	if cfg != nil {
@@ -599,8 +599,8 @@ func getCredentialsFromConfig(profile string) (*config.Config, error) {
 
 	globalCfg, _, globalErr := loadGlobalConfigForCredentials()
 	if globalErr != nil {
-		if globalErr == config.ErrNotFound {
-			if err == config.ErrNotFound {
+		if errors.Is(globalErr, config.ErrNotFound) {
+			if errors.Is(err, config.ErrNotFound) {
 				return nil, err
 			}
 			return nil, fmt.Errorf("default credentials not found")
@@ -830,7 +830,7 @@ func storeInConfig(name string, payload credentialPayload) error {
 
 func storeInConfigAt(name string, payload credentialPayload, configPath string) error {
 	cfg, err := config.LoadAt(configPath)
-	if err != nil && err != config.ErrNotFound {
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return err
 	}
 	if cfg == nil {
@@ -1052,7 +1052,7 @@ func listFromConfig() ([]Credential, error) {
 	}
 	cfg, err := config.LoadAt(path)
 	if err != nil {
-		if err == config.ErrNotFound {
+		if errors.Is(err, config.ErrNotFound) {
 			return []Credential{}, nil
 		}
 		return nil, err
@@ -1063,7 +1063,7 @@ func listFromConfig() ([]Credential, error) {
 		}
 		globalCfg, globalPath, err := loadGlobalConfigForCredentials()
 		if err != nil {
-			if err == config.ErrNotFound {
+			if errors.Is(err, config.ErrNotFound) {
 				return []Credential{}, nil
 			}
 			return nil, err
@@ -1107,7 +1107,7 @@ func SetDefaultCredentials(name string) error {
 
 func saveDefaultName(name string) error {
 	cfg, err := config.Load()
-	if err != nil && err != config.ErrNotFound {
+	if err != nil && !errors.Is(err, config.ErrNotFound) {
 		return err
 	}
 	if cfg == nil {
@@ -1140,7 +1140,7 @@ func saveDefaultName(name string) error {
 func defaultName() (string, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		if err == config.ErrNotFound {
+		if errors.Is(err, config.ErrNotFound) {
 			return "", nil
 		}
 		return "", err
@@ -1151,7 +1151,7 @@ func defaultName() (string, error) {
 func clearDefaultNameIf(name string) error {
 	cfg, err := config.Load()
 	if err != nil {
-		if err == config.ErrNotFound {
+		if errors.Is(err, config.ErrNotFound) {
 			return nil
 		}
 		return err

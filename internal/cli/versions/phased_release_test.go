@@ -2,6 +2,7 @@ package versions
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestPhasedReleaseGetCommand_MissingVersion(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --version is missing, got %v", err)
 	}
 }
@@ -29,7 +30,7 @@ func TestPhasedReleaseCreateCommand_MissingVersion(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --version is missing, got %v", err)
 	}
 }
@@ -42,7 +43,7 @@ func TestPhasedReleaseCreateCommand_InvalidState(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp for invalid state, got %v", err)
 	}
 }
@@ -62,7 +63,7 @@ func TestPhasedReleaseCreateCommand_ValidStates(t *testing.T) {
 
 			err := cmd.Exec(context.Background(), []string{})
 			// Should not be flag.ErrHelp for valid states (will fail later due to no auth)
-			if err == flag.ErrHelp {
+			if errors.Is(err, flag.ErrHelp) {
 				t.Errorf("state %s should be valid but got flag.ErrHelp", state)
 			}
 		})
@@ -77,7 +78,7 @@ func TestPhasedReleaseUpdateCommand_MissingID(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -90,7 +91,7 @@ func TestPhasedReleaseUpdateCommand_MissingState(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --state is missing, got %v", err)
 	}
 }
@@ -103,7 +104,7 @@ func TestPhasedReleaseUpdateCommand_InvalidState(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp for invalid state, got %v", err)
 	}
 }
@@ -123,7 +124,7 @@ func TestPhasedReleaseUpdateCommand_ValidStates(t *testing.T) {
 
 			err := cmd.Exec(context.Background(), []string{})
 			// Should not be flag.ErrHelp for valid states (will fail later due to no auth)
-			if err == flag.ErrHelp {
+			if errors.Is(err, flag.ErrHelp) {
 				t.Errorf("state %s should be valid but got flag.ErrHelp", state)
 			}
 		})
@@ -138,7 +139,7 @@ func TestPhasedReleaseDeleteCommand_MissingID(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -151,7 +152,7 @@ func TestPhasedReleaseDeleteCommand_MissingConfirm(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }

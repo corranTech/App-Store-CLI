@@ -2580,7 +2580,7 @@ func TestWithRetry_ZeroRetries(t *testing.T) {
 	if callCount != 1 {
 		t.Fatalf("expected 1 call (no retries), got %d", callCount)
 	}
-	if err != wantErr {
+	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected error %v, got %v", wantErr, err)
 	}
 }
@@ -2644,7 +2644,7 @@ func TestWithRetry_NonRetryableErrorFailsFast(t *testing.T) {
 	if callCount != 1 {
 		t.Fatalf("expected 1 call (no retries for non-retryable error), got %d", callCount)
 	}
-	if err != wantErr {
+	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected error %v, got %v", wantErr, err)
 	}
 }
