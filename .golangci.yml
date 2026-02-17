@@ -12,8 +12,16 @@ linters:
     - errcheck
     - ineffassign
     - unused
-    # (intentionally NOT enabling `misspell` or `unparam` yet; both create large
-    # cleanup churn with current codebase conventions)
+    - misspell
+    # (intentionally NOT enabling `unparam` yet; creates large cleanup churn
+    # with current codebase conventions)
+
+linters-settings:
+  misspell:
+    # Words used intentionally in Apple/ASC API context.
+    ignore-words:
+      - cancelled
+      - cancelling
 
 issues:
   # Keep defaults, but avoid noisy duplicates.
