@@ -108,6 +108,10 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir non-locale dir: %v", err)
 	}
 	writeFile(t, filepath.Join(nonLocaleDir, "first_name.txt"), "Rita")
+	nonLocaleDirResolved, err := filepath.EvalSymlinks(nonLocaleDir)
+	if err != nil {
+		t.Fatalf("eval symlinks non-locale dir: %v", err)
+	}
 
 	// Ensure default screenshots directory exists so it isn't reported as skipped.
 	if err := os.MkdirAll(filepath.Join(root, "screenshots"), 0o755); err != nil {
@@ -153,7 +157,11 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 
 	found := false
 	for _, item := range result.Skipped {
-		if item.Path == nonLocaleDir && strings.Contains(item.Reason, "skipped non-locale directory") {
+		itemPathResolved, err := filepath.EvalSymlinks(item.Path)
+		if err != nil {
+			itemPathResolved = item.Path
+		}
+		if itemPathResolved == nonLocaleDirResolved && strings.Contains(item.Reason, "skipped non-locale directory") {
 			found = true
 			break
 		}
