@@ -1,8 +1,11 @@
 package shared
 
 import (
+	"errors"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -189,4 +192,160 @@ func TestSpinnerEnabled_FlagsDisableSpinner(t *testing.T) {
 			t.Fatal("expected SpinnerEnabled() to be false when --retry-log enables noisy stderr logging")
 		}
 	})
+}
+
+func TestSpinnerEnabled_DisabledWhenNoProgress(t *testing.T) {
+	resetSpinnerTestState(t)
+	withTTYStub(t, true, true)
+
+	noProgress = true
+	if SpinnerEnabled() {
+		t.Fatal("expected SpinnerEnabled() to be false when progress is globally suppressed")
+	}
+}
+
+func TestWithSpinner_NoOpWhenDisabled(t *testing.T) {
+	resetSpinnerTestState(t)
+
+	stdout, stderr := captureOutput(t, func() {
+		withTTYStub(t, false, true) // stdout not a TTY => SpinnerEnabled() false
+
+		ran := false
+		if err := WithSpinner("ignored", func() error {
+			ran = true
+			return nil
+		}); err != nil {
+			t.Fatalf("WithSpinner() error: %v", err)
+		}
+		if !ran {
+			t.Fatal("expected WithSpinner() to run fn when spinner is disabled")
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr when spinner is disabled, got %q", stderr)
+	}
+}
+
+func TestWithSpinner_EnabledWritesAndClearsLine_NoANSI(t *testing.T) {
+	resetSpinnerTestState(t)
+
+	// Force spinner enabled in test environment even if the developer has
+	// ASC_SPINNER_DISABLED set globally.
+	t.Setenv(spinnerDisabledEnvVar, "0")
+
+	stdout, stderr := captureOutput(t, func() {
+		withTTYStub(t, true, true)
+
+		if err := WithSpinner("Working", func() error { return nil }); err != nil {
+			t.Fatalf("WithSpinner() error: %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "\r"+spinnerFrames[0]+" Working") {
+		t.Fatalf("expected spinner to render initial frame + label, got %q", stderr)
+	}
+	if !strings.HasSuffix(stderr, "\r") {
+		t.Fatalf("expected stderr to end with carriage return after clear, got %q", stderr)
+	}
+	if strings.Contains(stderr, "\x1b") {
+		t.Fatalf("expected no ANSI escape codes in spinner output, got %q", stderr)
+	}
+}
+
+func TestWithSpinner_ReturnsError(t *testing.T) {
+	resetSpinnerTestState(t)
+	t.Setenv(spinnerDisabledEnvVar, "0")
+
+	_, _ = captureOutput(t, func() {
+		withTTYStub(t, true, true)
+
+		want := errors.New("boom")
+		err := WithSpinner("", func() error { return want })
+		if !errors.Is(err, want) {
+			t.Fatalf("expected error %v, got %v", want, err)
+		}
+	})
+}
+
+func TestWithSpinner_RePanics(t *testing.T) {
+	resetSpinnerTestState(t)
+	t.Setenv(spinnerDisabledEnvVar, "0")
+
+	_, _ = captureOutput(t, func() {
+		withTTYStub(t, true, true)
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected WithSpinner() to re-panic")
+			}
+		}()
+		_ = WithSpinner("", func() error { panic("kaboom") })
+	})
+}
+
+func TestWithSpinner_NilFuncIsNoOp(t *testing.T) {
+	resetSpinnerTestState(t)
+	t.Setenv(spinnerDisabledEnvVar, "0")
+
+	stdout, stderr := captureOutput(t, func() {
+		withTTYStub(t, true, true)
+
+		if err := WithSpinner("ignored", nil); err != nil {
+			t.Fatalf("expected nil error for nil fn, got %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr for nil fn, got %q", stderr)
+	}
+}
+
+func TestWithSpinnerDelayed_NoOpWhenFast(t *testing.T) {
+	resetSpinnerTestState(t)
+	t.Setenv(spinnerDisabledEnvVar, "0")
+
+	stdout, stderr := captureOutput(t, func() {
+		withTTYStub(t, true, true)
+
+		if err := WithSpinnerDelayed("Working", 200*time.Millisecond, func() error { return nil }); err != nil {
+			t.Fatalf("WithSpinnerDelayed() error: %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr when fn returns before delay, got %q", stderr)
+	}
+}
+
+func TestWithSpinnerDelayed_StartsWhenSlow(t *testing.T) {
+	resetSpinnerTestState(t)
+	t.Setenv(spinnerDisabledEnvVar, "0")
+
+	stdout, stderr := captureOutput(t, func() {
+		withTTYStub(t, true, true)
+
+		if err := WithSpinnerDelayed("Working", 10*time.Millisecond, func() error {
+			time.Sleep(30 * time.Millisecond)
+			return nil
+		}); err != nil {
+			t.Fatalf("WithSpinnerDelayed() error: %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "\r"+spinnerFrames[0]+" Working") {
+		t.Fatalf("expected delayed spinner to render initial frame + label, got %q", stderr)
+	}
 }

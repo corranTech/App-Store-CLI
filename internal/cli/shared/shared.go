@@ -815,7 +815,16 @@ func validateSort(value string, allowed ...string) error {
 
 // Exported wrappers for shared helpers.
 func GetASCClient() (*asc.Client, error) {
-	return getASCClient()
+	// Auth resolution can block on macOS keychain prompts. Show a subtle spinner on stderr
+	// (interactive runs only) so the CLI doesn’t look “stuck”.
+	const authSpinnerDelay = 200 * time.Millisecond
+	var client *asc.Client
+	err := WithSpinnerDelayed("", authSpinnerDelay, func() error {
+		var innerErr error
+		client, innerErr = getASCClient()
+		return innerErr
+	})
+	return client, err
 }
 
 func ResolveProfileName() string {

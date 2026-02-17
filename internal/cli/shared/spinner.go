@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -65,6 +66,52 @@ func WithSpinner(label string, fn func() error) (err error) {
 	return fn()
 }
 
+// WithSpinnerDelayed runs fn while rendering a gh-style indeterminate spinner on stderr,
+// but only starts the spinner after delay has elapsed.
+//
+// This avoids spinner “flicker” for fast operations while still providing feedback
+// for slower operations (e.g., keychain prompts).
+func WithSpinnerDelayed(label string, delay time.Duration, fn func() error) (err error) {
+	if fn == nil {
+		return nil
+	}
+	if delay <= 0 {
+		return WithSpinner(label, fn)
+	}
+	if !SpinnerEnabled() {
+		return fn()
+	}
+
+	s := newSpinner(os.Stderr)
+	done := make(chan struct{})
+	started := make(chan bool, 1)
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	go func() {
+		select {
+		case <-timer.C:
+			s.Start(label)
+			started <- true
+		case <-done:
+			started <- false
+		}
+	}()
+
+	defer func() {
+		close(done)
+		if <-started {
+			s.Stop()
+		}
+		if r := recover(); r != nil {
+			panic(r)
+		}
+	}()
+
+	return fn()
+}
+
 func spinnerDisabledByEnv() bool {
 	value, ok := os.LookupEnv(spinnerDisabledEnvVar)
 	if !ok {
@@ -81,6 +128,26 @@ func spinnerDisabledByEnv() bool {
 		// “invalid => disabled” is intentional to keep CI safe by default.
 		return true
 	}
+}
+
+// FetchFunc fetches the first page of a paginated resource.
+type FetchFunc func(ctx context.Context) (asc.PaginatedResponse, error)
+
+// PaginateWithSpinner fetches all pages with a spinner on stderr.
+// It wraps both the initial fetch and the pagination loop so the spinner
+// is visible even for single-page results.
+func PaginateWithSpinner(ctx context.Context, fetch FetchFunc, next asc.PaginateFunc) (asc.PaginatedResponse, error) {
+	var result asc.PaginatedResponse
+	err := WithSpinner("", func() error {
+		firstPage, fetchErr := fetch(ctx)
+		if fetchErr != nil {
+			return fetchErr
+		}
+		var paginateErr error
+		result, paginateErr = asc.PaginateAll(ctx, firstPage, next)
+		return paginateErr
+	})
+	return result, err
 }
 
 func debugOrRetryLogsEnabled() bool {
