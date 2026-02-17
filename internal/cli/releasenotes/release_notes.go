@@ -159,7 +159,8 @@ Examples:
 			switch normalizedOutput {
 			case "json":
 				return shared.PrintOutput(&result, "json", *output.Pretty)
-			case "text":
+			case "text", "markdown":
+				// Notes body output (markdown is a bullet list).
 				body := shared.SanitizeTerminal(truncatedNotes)
 				if strings.TrimSpace(body) == "" {
 					return nil
@@ -175,14 +176,6 @@ Examples:
 					fmt.Fprintf(tw, "%s\t%s\n", sha, subject)
 				}
 				return tw.Flush()
-			case "markdown":
-				// Markdown output is the notes body (bullet list).
-				body := shared.SanitizeTerminal(truncatedNotes)
-				if strings.TrimSpace(body) == "" {
-					return nil
-				}
-				_, err := fmt.Fprintln(os.Stdout, body)
-				return err
 			default:
 				// shared.ValidateOutputFormatAllowed should prevent this.
 				return fmt.Errorf("release-notes generate: unsupported format: %s", normalizedOutput)
