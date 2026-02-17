@@ -1670,6 +1670,21 @@ brew tap rudrankriyam/tap
 brew install rudrankriyam/tap/asc
 ```
 
+### GitHub Actions (CI/CD)
+
+Install `asc` in CI using the official setup action:
+
+```yaml
+- uses: rudrankriyam/setup-asc@v1
+  with:
+    version: latest
+
+- run: asc --help
+```
+
+For end-to-end CI examples (publish to TestFlight, upload localizations, etc.), see:
+https://github.com/rudrankriyam/setup-asc
+
 ### From Source
 
 ```bash
