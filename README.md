@@ -1733,6 +1733,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | Steps: Workout & Pedometer | [Open](https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378) | Hieu Dinh | iOS |
 | TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
 | Unlimited Clipboard History | [Open](https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056) | yspreen | macOS |
+| Video Annotation | [Open](https://apps.apple.com/us/app/video-annotation/id6758316355) | antranapp | iOS |
 | XO: Have I Ever | [Open](https://apps.apple.com/us/app/xo-have-i-ever/id6757594745) | arunavo4 | iOS |
 <!-- WALL-OF-APPS:END -->
 

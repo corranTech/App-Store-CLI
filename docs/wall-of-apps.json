@@ -101,5 +101,11 @@
     "link": "https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378",
     "creator": "Hieu Dinh",
     "platform": ["iOS"]
+  },
+  {
+    "app": "Video Annotation",
+    "link": "https://apps.apple.com/us/app/video-annotation/id6758316355",
+    "creator": "antranapp",
+    "platform": ["iOS"]
   }
 ]
