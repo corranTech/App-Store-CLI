@@ -61,7 +61,7 @@ func ReleaseNotesGenerateCommand() *ffcli.Command {
 	format := fs.String("format", "plain", "Notes format: plain (default), markdown")
 	maxChars := fs.Int("max-chars", 4000, "Maximum characters in generated notes")
 	includeMerges := fs.Bool("include-merges", false, "Include merge commits")
-	output := shared.BindOutputFlagsWith(fs, "output", shared.DefaultOutputFormat(), "Output format: json (default), text, table, markdown")
+	output := shared.BindOutputFlagsWith(fs, "output", shared.DefaultOutputFormat(), "Output format: json, text, table, markdown")
 
 	return &ffcli.Command{
 		Name:       "generate",
@@ -78,6 +78,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				fmt.Fprintln(os.Stderr, "Error: unexpected arguments")
+				return flag.ErrHelp
+			}
+
 			sinceTagValue := strings.TrimSpace(*sinceTag)
 			sinceRefValue := strings.TrimSpace(*sinceRef)
 			if sinceTagValue != "" && sinceRefValue != "" {
