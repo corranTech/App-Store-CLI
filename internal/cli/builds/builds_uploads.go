@@ -121,8 +121,13 @@ Examples:
 					return fmt.Errorf("builds uploads list: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildUploads(ctx, resolvedAppID, asc.WithBuildUploadsNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBuildUploads(ctx, resolvedAppID, asc.WithBuildUploadsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("builds uploads list: %w", err)
@@ -318,8 +323,13 @@ Examples:
 					return fmt.Errorf("builds uploads files list: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildUploadFiles(ctx, uploadValue, asc.WithBuildUploadFilesNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBuildUploadFiles(ctx, uploadValue, asc.WithBuildUploadFilesNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("builds uploads files list: %w", err)

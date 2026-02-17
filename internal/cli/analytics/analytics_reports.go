@@ -140,8 +140,13 @@ Examples:
 					return fmt.Errorf("analytics reports relationships: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAnalyticsReportInstancesRelationships(ctx, id, asc.WithLinkagesNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAnalyticsReportInstancesRelationships(ctx, id, asc.WithLinkagesNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("analytics reports relationships: %w", err)

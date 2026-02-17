@@ -355,8 +355,13 @@ func xcodeCloudWorkflowsList(ctx context.Context, appID string, limit int, next 
 			return fmt.Errorf("xcode-cloud workflows: failed to fetch: %w", err)
 		}
 
-		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetCiWorkflows(ctx, productID, asc.WithCiWorkflowsNextURL(nextURL))
+		var resp asc.PaginatedResponse
+		err = shared.WithSpinner("", func() error {
+			var paginateErr error
+			resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetCiWorkflows(ctx, productID, asc.WithCiWorkflowsNextURL(nextURL))
+			})
+			return paginateErr
 		})
 		if err != nil {
 			return fmt.Errorf("xcode-cloud workflows: %w", err)

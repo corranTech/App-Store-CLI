@@ -124,8 +124,13 @@ Examples:
 					return fmt.Errorf("testflight beta-groups relationships get: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return getBetaGroupRelationshipList(ctx, client, relationshipType, groupValue, asc.WithLinkagesNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return getBetaGroupRelationshipList(ctx, client, relationshipType, groupValue, asc.WithLinkagesNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("testflight beta-groups relationships get: %w", err)

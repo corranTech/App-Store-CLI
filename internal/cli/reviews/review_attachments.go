@@ -89,8 +89,13 @@ Examples:
 					return fmt.Errorf("review attachments-list: failed to fetch: %w", err)
 				}
 
-				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
+				var pages asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					pages, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("review attachments-list: %w", err)

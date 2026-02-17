@@ -94,8 +94,13 @@ Examples:
 						return fmt.Errorf("review submissions-list: failed to fetch: %w", err)
 					}
 
-					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.ListReviewSubmissions(ctx, asc.WithReviewSubmissionsNextURL(nextURL))
+					var resp asc.PaginatedResponse
+					err = shared.WithSpinner("", func() error {
+						var paginateErr error
+						resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+							return client.ListReviewSubmissions(ctx, asc.WithReviewSubmissionsNextURL(nextURL))
+						})
+						return paginateErr
 					})
 					if err != nil {
 						return fmt.Errorf("review submissions-list: %w", err)
@@ -119,8 +124,13 @@ Examples:
 					return fmt.Errorf("review submissions-list: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetReviewSubmissions(ctx, resolvedAppID, asc.WithReviewSubmissionsNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetReviewSubmissions(ctx, resolvedAppID, asc.WithReviewSubmissionsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("review submissions-list: %w", err)
@@ -430,8 +440,13 @@ Examples:
 					return fmt.Errorf("review submissions-items-ids: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetReviewSubmissionItemsRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetReviewSubmissionItemsRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("review submissions-items-ids: %w", err)

@@ -148,8 +148,13 @@ Examples:
 				}
 
 				// Fetch all remaining pages
-				apps, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+				var apps asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					apps, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("testflight apps list: %w", err)

@@ -107,8 +107,13 @@ Examples:
 					return fmt.Errorf("profiles list: failed to fetch: %w", err)
 				}
 
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfiles(ctx, asc.WithProfilesNextURL(nextURL))
+				var paginated asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					paginated, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetProfiles(ctx, asc.WithProfilesNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("profiles list: %w", err)

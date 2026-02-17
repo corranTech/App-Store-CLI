@@ -170,8 +170,13 @@ Examples:
 					}
 
 					// Fetch all remaining pages
-					paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+					var paginated asc.PaginatedResponse
+					err = shared.WithSpinner("", func() error {
+						var paginateErr error
+						paginated, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+						})
+						return paginateErr
 					})
 					if err != nil {
 						return fmt.Errorf("analytics requests: %w", err)

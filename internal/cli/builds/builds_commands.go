@@ -493,8 +493,13 @@ Examples:
 				}
 
 				// Fetch all remaining pages
-				builds, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuilds(ctx, resolvedAppID, asc.WithBuildsNextURL(nextURL))
+				var builds asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					builds, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBuilds(ctx, resolvedAppID, asc.WithBuildsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("builds: %w", err)

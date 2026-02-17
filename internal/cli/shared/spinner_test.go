@@ -190,4 +190,3 @@ func TestSpinnerEnabled_FlagsDisableSpinner(t *testing.T) {
 		}
 	})
 }
-

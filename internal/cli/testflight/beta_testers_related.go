@@ -101,8 +101,13 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers apps list: failed to fetch: %w", err)
 				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaTesterApps(ctx, testerValue, asc.WithBetaTesterAppsNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterApps(ctx, testerValue, asc.WithBetaTesterAppsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers apps list: %w", err)
@@ -208,8 +213,13 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers beta-groups list: failed to fetch: %w", err)
 				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaTesterBetaGroups(ctx, testerValue, asc.WithBetaTesterBetaGroupsNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterBetaGroups(ctx, testerValue, asc.WithBetaTesterBetaGroupsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers beta-groups list: %w", err)
@@ -315,8 +325,13 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers builds list: failed to fetch: %w", err)
 				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaTesterBuilds(ctx, testerValue, asc.WithBetaTesterBuildsNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBetaTesterBuilds(ctx, testerValue, asc.WithBetaTesterBuildsNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("testflight beta-testers builds list: %w", err)

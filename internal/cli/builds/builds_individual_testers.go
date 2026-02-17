@@ -100,8 +100,13 @@ Examples:
 					return fmt.Errorf("builds individual-testers list: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildIndividualTesters(ctx, buildValue, asc.WithBuildIndividualTestersNextURL(nextURL))
+				var resp asc.PaginatedResponse
+				err = shared.WithSpinner("", func() error {
+					var paginateErr error
+					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetBuildIndividualTesters(ctx, buildValue, asc.WithBuildIndividualTestersNextURL(nextURL))
+					})
+					return paginateErr
 				})
 				if err != nil {
 					return fmt.Errorf("builds individual-testers list: %w", err)

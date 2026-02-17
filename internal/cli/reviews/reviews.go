@@ -155,8 +155,13 @@ func executeReviewsList(ctx context.Context, appID, output string, pretty bool, 
 		}
 
 		// Fetch all remaining pages
-		reviews, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
+		var reviews asc.PaginatedResponse
+		err = shared.WithSpinner("", func() error {
+			var paginateErr error
+			reviews, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
+			})
+			return paginateErr
 		})
 		if err != nil {
 			return fmt.Errorf("reviews: %w", err)

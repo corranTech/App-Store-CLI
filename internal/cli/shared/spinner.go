@@ -200,4 +200,3 @@ func (s *spinner) clearLine() {
 	_, _ = io.WriteString(s.w, "\r"+strings.Repeat(" ", s.maxLen)+"\r")
 	s.maxLen = 0
 }
-
