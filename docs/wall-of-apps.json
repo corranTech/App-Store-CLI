@@ -95,4 +95,11 @@
     "creator": "sambitcreate",
     "platform": ["iOS"]
   }
+  ,
+  {
+    "app": "Steps: Workout & Pedometer",
+    "link": "https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378",
+    "creator": "Hieu Dinh",
+    "platform": ["iOS"]
+  }
 ]
