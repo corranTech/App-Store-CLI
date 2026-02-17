@@ -34,7 +34,7 @@ func ExtractBundleInfoFromIPA(ipaPath string) (IPABundleInfo, error) {
 		return readBundleInfoFromInfoPlist(file)
 	}
 
-	return IPABundleInfo{}, fmt.Errorf("Info.plist not found in IPA")
+	return IPABundleInfo{}, fmt.Errorf("info.plist not found in IPA")
 }
 
 func isTopLevelAppInfoPlist(name string) bool {
