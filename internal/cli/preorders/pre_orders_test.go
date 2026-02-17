@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"path/filepath"
 	"testing"
@@ -22,7 +23,7 @@ func TestPreOrdersGetCommand_MissingApp(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --app is missing, got %v", err)
 	}
 }
@@ -34,7 +35,7 @@ func TestPreOrdersListCommand_MissingAvailability(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --availability is missing, got %v", err)
 	}
 }
@@ -60,7 +61,7 @@ func TestPreOrdersEnableCommand_MissingFlags(t *testing.T) {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected flag.ErrHelp, got %v", err)
 			}
 		})
@@ -78,7 +79,7 @@ func TestPreOrdersEnableCommand_InvalidDate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid release date")
 	}
-	if err == flag.ErrHelp {
+	if errors.Is(err, flag.ErrHelp) {
 		t.Fatal("expected non-ErrHelp error for invalid release date")
 	}
 }
@@ -90,7 +91,7 @@ func TestPreOrdersUpdateCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --territory-availability is missing, got %v", err)
 	}
 }
@@ -102,7 +103,7 @@ func TestPreOrdersUpdateCommand_MissingReleaseDate(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --release-date is missing, got %v", err)
 	}
 }
@@ -118,7 +119,7 @@ func TestPreOrdersUpdateCommand_InvalidDate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid release date")
 	}
-	if err == flag.ErrHelp {
+	if errors.Is(err, flag.ErrHelp) {
 		t.Fatal("expected non-ErrHelp error for invalid release date")
 	}
 }
@@ -130,7 +131,7 @@ func TestPreOrdersDisableCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --territory-availability is missing, got %v", err)
 	}
 }
@@ -142,7 +143,7 @@ func TestPreOrdersEndCommand_MissingIDs(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --territory-availability is missing, got %v", err)
 	}
 }

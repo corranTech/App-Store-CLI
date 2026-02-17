@@ -2,6 +2,7 @@ package apps
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"path/filepath"
 	"testing"
@@ -18,7 +19,7 @@ func TestAppSetupInfoSetCommand_MissingApp(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --app is missing, got %v", err)
 	}
 }
@@ -30,7 +31,7 @@ func TestAppSetupInfoSetCommand_MissingUpdates(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when no update flags provided, got %v", err)
 	}
 }
@@ -42,7 +43,7 @@ func TestAppSetupInfoSetCommand_MissingLocale(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when locale is missing, got %v", err)
 	}
 }
@@ -94,7 +95,7 @@ func TestAppSetupAvailabilitySetCommand_MissingFlags(t *testing.T) {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected flag.ErrHelp, got %v", err)
 			}
 		})
@@ -120,7 +121,7 @@ func TestAppSetupPricingSetCommand_MissingFlags(t *testing.T) {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected flag.ErrHelp, got %v", err)
 			}
 		})
@@ -134,7 +135,7 @@ func TestAppSetupLocalizationsUploadCommand_MissingPath(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --path is missing, got %v", err)
 	}
 }

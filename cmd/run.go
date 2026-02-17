@@ -35,7 +35,7 @@ func Run(args []string, versionInfo string) int {
 	defer shared.CleanupTempPrivateKeys()
 
 	if err := root.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return ExitSuccess
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))

@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"path/filepath"
 	"strings"
@@ -34,7 +35,7 @@ func TestBuildsLatestCommand_MissingApp(t *testing.T) {
 	cmd := BuildsLatestCommand()
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --app is missing, got %v", err)
 	}
 }
@@ -50,7 +51,7 @@ func TestBuildsLatestCommand_InvalidPlatform(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp for invalid platform, got %v", err)
 	}
 }
@@ -75,7 +76,7 @@ func TestBuildsLatestCommand_ValidPlatforms(t *testing.T) {
 			err := cmd.Exec(context.Background(), []string{})
 
 			// Should not be flag.ErrHelp for valid platforms (will fail later due to no auth)
-			if err == flag.ErrHelp {
+			if errors.Is(err, flag.ErrHelp) {
 				t.Errorf("platform %s should be valid but got flag.ErrHelp", platform)
 			}
 		})
@@ -92,7 +93,7 @@ func TestBuildsLatestCommand_InvalidInitialBuildNumber(t *testing.T) {
 	}
 
 	err := cmd.Exec(context.Background(), []string{})
-	if err != flag.ErrHelp {
+	if !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp for invalid initial build number, got %v", err)
 	}
 }
@@ -142,7 +143,7 @@ func TestBuildsLatestCommand_UsesAppIDEnv(t *testing.T) {
 	err := cmd.Exec(context.Background(), []string{})
 
 	// Should not be flag.ErrHelp since env var provides the app ID
-	if err == flag.ErrHelp {
+	if errors.Is(err, flag.ErrHelp) {
 		t.Errorf("should use ASC_APP_ID env var but got flag.ErrHelp")
 	}
 }

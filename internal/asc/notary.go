@@ -396,14 +396,14 @@ func uploadMultipartToS3(ctx context.Context, creds S3Credentials, data io.Reade
 	parts, err := uploadMultipartParts(ctx, host, encodedPath, creds, uploadID, data, contentLength)
 	if err != nil {
 		if abortErr := abortMultipartUpload(ctx, host, encodedPath, creds, uploadID); abortErr != nil {
-			return fmt.Errorf("%w (abort failed: %v)", err, abortErr)
+			return fmt.Errorf("%w (abort failed: %w)", err, abortErr)
 		}
 		return err
 	}
 
 	if err := completeMultipartUpload(ctx, host, encodedPath, creds, uploadID, parts); err != nil {
 		if abortErr := abortMultipartUpload(ctx, host, encodedPath, creds, uploadID); abortErr != nil {
-			return fmt.Errorf("%w (abort failed: %v)", err, abortErr)
+			return fmt.Errorf("%w (abort failed: %w)", err, abortErr)
 		}
 		return err
 	}

@@ -350,7 +350,7 @@ func (c *Config) Validate() error {
 }
 
 func wrapInvalidConfig(err error) error {
-	return fmt.Errorf("%w: %s", ErrInvalidConfig, err)
+	return fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 }
 
 func validateDurationValue(field string, value DurationValue) error {

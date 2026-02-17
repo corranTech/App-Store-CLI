@@ -2,6 +2,7 @@ package pricing
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestPricingPricePointsCommand_MissingApp(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --app is missing, got %v", err)
 	}
 }
@@ -28,7 +29,7 @@ func TestPricingPricePointsGetCommand_MissingPricePoint(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --price-point is missing, got %v", err)
 	}
 }
@@ -40,7 +41,7 @@ func TestPricingPricePointsEqualizationsCommand_MissingPricePoint(t *testing.T) 
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --price-point is missing, got %v", err)
 	}
 }
@@ -53,7 +54,7 @@ func TestPricingScheduleGetCommand_MissingAppAndID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --app is missing, got %v", err)
 	}
 }
@@ -65,7 +66,7 @@ func TestPricingScheduleGetCommand_MutuallyExclusive(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --app and --id are both set, got %v", err)
 	}
 }
@@ -77,7 +78,7 @@ func TestPricingScheduleManualPricesCommand_MissingSchedule(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --schedule is missing, got %v", err)
 	}
 }
@@ -89,7 +90,7 @@ func TestPricingScheduleAutomaticPricesCommand_MissingSchedule(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --schedule is missing, got %v", err)
 	}
 }
@@ -114,7 +115,7 @@ func TestPricingScheduleCreateCommand_MissingFlags(t *testing.T) {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected flag.ErrHelp, got %v", err)
 			}
 		})
@@ -132,7 +133,7 @@ func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid start date")
 	}
-	if err == flag.ErrHelp {
+	if errors.Is(err, flag.ErrHelp) {
 		t.Fatal("expected non-ErrHelp error for invalid start date")
 	}
 }
@@ -145,7 +146,7 @@ func TestPricingAvailabilityGetCommand_MissingAppAndID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --app is missing, got %v", err)
 	}
 }
@@ -157,7 +158,7 @@ func TestPricingAvailabilityGetCommand_MutuallyExclusive(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --app and --id are both set, got %v", err)
 	}
 }
@@ -169,7 +170,7 @@ func TestPricingAvailabilityTerritoryAvailabilitiesCommand_MissingAvailability(t
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --availability is missing, got %v", err)
 	}
 }
@@ -193,7 +194,7 @@ func TestPricingAvailabilitySetCommand_MissingFlags(t *testing.T) {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected flag.ErrHelp, got %v", err)
 			}
 		})

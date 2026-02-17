@@ -3,6 +3,7 @@ package completion
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -42,7 +43,7 @@ func TestCompletionCommandValidationAndOutput(t *testing.T) {
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
-	if err := cmd.Exec(context.Background(), nil); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp for missing shell, got %v", err)
 	}
 
@@ -51,7 +52,7 @@ func TestCompletionCommandValidationAndOutput(t *testing.T) {
 	if err := cmd.FlagSet.Parse([]string{"--shell", "tcsh"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
-	if err := cmd.Exec(context.Background(), nil); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp for unsupported shell, got %v", err)
 	}
 
