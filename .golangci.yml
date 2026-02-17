@@ -17,8 +17,6 @@ linters:
 
 issues:
   # Keep defaults, but avoid noisy duplicates.
-  max-same-issues: 0
-  max-issues-per-linter: 0
   exclude-rules:
     # Ignore stylecheck naming warnings (e.g. `app_events` package) to avoid
     # massive rename churn; keep other style rules like ST1005.
