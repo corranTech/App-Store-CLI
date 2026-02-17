@@ -65,6 +65,8 @@ var (
 	debug               OptionalBool
 	apiDebug            OptionalBool
 	noUpdate            bool
+
+	getCredentialsWithSourceFn = auth.GetCredentialsWithSource
 )
 
 var (
@@ -318,10 +320,15 @@ func resolveCredentials() (resolvedCredentials, error) {
 	}
 
 	// Priority 1: Stored credentials (keychain/config)
-	cfg, storedSource, err := auth.GetCredentialsWithSource(profile)
+	cfg, storedSource, err := getCredentialsWithSourceFn(profile)
 	if err != nil {
 		if profile != "" {
 			return resolvedCredentials{}, err
+		}
+		// If the user explicitly denied keychain access, fail fast instead of
+		// silently falling back to env/config credentials.
+		if errors.Is(err, auth.ErrKeychainAccessDenied) {
+			return resolvedCredentials{}, fmt.Errorf("keychain access denied; set ASC_BYPASS_KEYCHAIN=1 to bypass: %w", err)
 		}
 	} else if cfg != nil {
 		actualKeyID = cfg.KeyID
@@ -815,7 +822,16 @@ func validateSort(value string, allowed ...string) error {
 
 // Exported wrappers for shared helpers.
 func GetASCClient() (*asc.Client, error) {
-	return getASCClient()
+	// Auth resolution can block on macOS keychain prompts. Show a subtle spinner on stderr
+	// (interactive runs only) so the CLI doesn’t look “stuck”.
+	const authSpinnerDelay = 200 * time.Millisecond
+	var client *asc.Client
+	err := WithSpinnerDelayed("", authSpinnerDelay, func() error {
+		var innerErr error
+		client, innerErr = getASCClient()
+		return innerErr
+	})
+	return client, err
 }
 
 func ResolveProfileName() string {
