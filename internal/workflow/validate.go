@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -49,7 +50,10 @@ func Validate(def *Definition) []*ValidationError {
 		return errs
 	}
 
-	for name := range def.Workflows {
+	// Sort workflow names for deterministic error ordering.
+	names := slices.Sorted(maps.Keys(def.Workflows))
+
+	for _, name := range names {
 		if !validWorkflowName.MatchString(name) {
 			errs = append(errs, &ValidationError{
 				Code:     ErrInvalidWorkflowName,
@@ -59,7 +63,8 @@ func Validate(def *Definition) []*ValidationError {
 		}
 	}
 
-	for name, wf := range def.Workflows {
+	for _, name := range names {
+		wf := def.Workflows[name]
 		if len(wf.Steps) == 0 {
 			errs = append(errs, &ValidationError{
 				Code:     ErrEmptySteps,
@@ -179,7 +184,8 @@ func detectCycles(def *Definition) *ValidationError {
 		return nil
 	}
 
-	for name := range def.Workflows {
+	sortedNames := slices.Sorted(maps.Keys(def.Workflows))
+	for _, name := range sortedNames {
 		if colors[name] == white {
 			if err := dfs(name); err != nil {
 				return err
