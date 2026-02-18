@@ -27,7 +27,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 - **Workflow** -- multi-step automation in `.asc/workflow.json` (JSON stdout)
 - **Agent-friendly** -- JSON-first output, explicit flags, no interactive prompts, clean exit codes
 
-## Why ASC?
+## Why asc?
 
 | Problem | Solution |
 |---------|----------|
@@ -38,7 +38,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 ## Table of Contents
 
 - [Features](#features)
-- [Why ASC?](#why-asc)
+- [Why asc?](#why-asc)
 - [Quick Start](#quick-start)
   - [Install](#install)
   - [Authenticate](#authenticate)
@@ -97,7 +97,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 - [Documentation](#documentation)
 - [How to test in <10 minutes](#how-to-test-in-10-minutes)
 - [Security](#security)
-- [ASC Skills](#asc-skills)
+- [asc skills](#asc-skills)
 - [Wall of Apps](#wall-of-apps)
 - [Acknowledgements](#acknowledgements)
 - [Contributing](#contributing)
@@ -1750,7 +1750,7 @@ make build
 - Report/artifact file helpers use atomic `O_NOFOLLOW` on Unix-like systems
 - On platforms without a portable `O_NOFOLLOW`, helpers use best-effort pre/post `Lstat` checks to reject symlinks and detect path swaps (residual TOCTOU window remains)
 
-## ASC Skills
+## asc skills
 
 Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills
 

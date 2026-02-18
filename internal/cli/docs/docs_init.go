@@ -322,7 +322,7 @@ func updateAgentsLink(path string, relRef string) (bool, error) {
 		return writeIfChanged(path, strings.Join(lines, "\n"))
 	}
 
-	section := fmt.Sprintf("## ASC CLI Reference\n\n%s", desiredLine)
+	section := fmt.Sprintf("## asc cli reference\n\n%s", desiredLine)
 	updated := appendSection(string(data), section)
 	return writeIfChanged(path, updated)
 }
