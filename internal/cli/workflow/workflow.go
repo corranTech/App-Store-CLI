@@ -37,6 +37,7 @@ Security note:
   Only run workflow files you trust (especially when using --file).
   Treat .asc/workflow.json like code: review it before running.
   Steps inherit your process environment; be careful with secrets.
+  In CI, avoid running workflows on untrusted PRs with secrets/tokens.
   asc workflow validate checks structure, not safety of commands.
 
 Example workflow file (.asc/workflow.json):
@@ -142,6 +143,7 @@ func workflowRunCommand() *ffcli.Command {
 Security note:
   Workflows intentionally execute arbitrary shell commands.
   Only run workflow files you trust (especially when using --file).
+  In CI, avoid running workflows on untrusted PRs with secrets/tokens.
 
 Tip: See "asc workflow --help" for a complete workflow.json example.`,
 		FlagSet:   fs,

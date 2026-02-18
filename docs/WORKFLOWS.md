@@ -22,12 +22,17 @@ asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
 
 ## Security and Trust Model
 
-Workflows intentionally execute arbitrary shell commands. Treat `.asc/workflow.json` the same way you'd treat a script in your repo: only run workflows you trust.
+Workflows intentionally execute arbitrary shell commands. This is by design: `asc workflow run` is effectively "run a repo-local script".
 
+`asc` does not sandbox workflow execution. A workflow runs with the same permissions as the `asc` process: it can read files, make network requests, and access anything in the environment.
+
+- Treat workflow files like code. Review changes to `.asc/workflow.json` the same way you'd review any code or CI config.
 - Do not run workflow files from untrusted sources (e.g., copied from the internet, or from a PR/fork you haven't reviewed).
+- In CI, avoid running `asc workflow run` for untrusted pull requests/forks if secrets or write-capable tokens are available in the environment. A safer pattern is to run `asc workflow validate` on PRs and run workflows only on trusted branches.
 - Be careful with `--file`: it can point to any path, not just `.asc/workflow.json`.
 - Step commands inherit your process environment (`os.Environ()`), so secrets present in the environment are visible to steps.
 - Avoid printing secrets in commands; prefer passing secrets as env vars via your CI secret store.
+- Treat params as untrusted input. Quote expansions in shell commands to avoid injection issues (e.g., `--app "$APP_ID"` not `--app $APP_ID`).
 - `asc workflow validate` checks structure and references, not safety of the commands.
 
 ## Example `.asc/workflow.json`
