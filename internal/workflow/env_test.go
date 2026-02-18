@@ -263,10 +263,14 @@ func TestRunShellCommand_FallsBackToShWhenBashUnavailable(t *testing.T) {
 	})
 
 	lookPathFn = func(file string) (string, error) {
-		if file == "bash" {
+		switch file {
+		case "bash":
 			return "", exec.ErrNotFound
+		case "sh":
+			return "/bin/sh", nil
+		default:
+			return "", errors.New("unexpected lookup: " + file)
 		}
-		return "", errors.New("unexpected lookup: " + file)
 	}
 
 	var gotName string
@@ -287,5 +291,35 @@ func TestRunShellCommand_FallsBackToShWhenBashUnavailable(t *testing.T) {
 	wantArgs := []string{"-c", "echo hi"}
 	if !reflect.DeepEqual(gotArgs, wantArgs) {
 		t.Fatalf("args = %v, want %v", gotArgs, wantArgs)
+	}
+}
+
+func TestRunShellCommand_NoSupportedShellFound(t *testing.T) {
+	originalLookPathFn := lookPathFn
+	originalCommandContextFn := commandContextFn
+	t.Cleanup(func() {
+		lookPathFn = originalLookPathFn
+		commandContextFn = originalCommandContextFn
+	})
+
+	lookPathFn = func(file string) (string, error) {
+		switch file {
+		case "bash", "sh":
+			return "", exec.ErrNotFound
+		default:
+			return "", errors.New("unexpected lookup: " + file)
+		}
+	}
+	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		t.Fatalf("commandContextFn should not be called when no shell is available (got name=%q args=%v)", name, args)
+		return nil
+	}
+
+	err := runShellCommand(context.Background(), "echo hi", nil, nil, nil)
+	if err == nil {
+		t.Fatal("expected error when no shell is available")
+	}
+	if !strings.Contains(err.Error(), "no supported shell") {
+		t.Fatalf("expected 'no supported shell' error, got %v", err)
 	}
 }

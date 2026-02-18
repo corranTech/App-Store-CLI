@@ -62,11 +62,19 @@ func buildEnvSlice(env map[string]string) []string {
 // is available. It falls back to sh -c when bash is unavailable.
 // Bash preserves pipeline failures (e.g., "false | cat") for CI correctness.
 func runShellCommand(ctx context.Context, command string, env map[string]string, stdout, stderr io.Writer) error {
-	shell := "sh"
-	args := []string{"-c", command}
+	var (
+		shell string
+		args  []string
+	)
+
 	if _, err := lookPathFn("bash"); err == nil {
 		shell = "bash"
 		args = []string{"-o", "pipefail", "-c", command}
+	} else if _, err := lookPathFn("sh"); err == nil {
+		shell = "sh"
+		args = []string{"-c", command}
+	} else {
+		return fmt.Errorf("workflow: no supported shell found (need bash or sh)")
 	}
 
 	cmd := commandContextFn(ctx, shell, args...)

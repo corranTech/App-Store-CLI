@@ -27,6 +27,9 @@ func WorkflowCommand() *ffcli.Command {
 		ShortHelp:  "Run multi-step automation workflows.",
 		LongHelp: `Define named, multi-step automation sequences in .asc/workflow.json.
 Each workflow composes existing asc commands and shell commands.
+Hooks are supported at the definition level: before_all, after_all, and error.
+Commands run via bash (with pipefail) when available, otherwise sh; at least one must be in PATH.
+On failure, stdout remains JSON-only and includes a top-level error message plus hook results.
 
 Examples:
   asc workflow list
