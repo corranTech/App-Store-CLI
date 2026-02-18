@@ -36,6 +36,8 @@ Security note:
   Workflows intentionally execute arbitrary shell commands.
   Only run workflow files you trust (especially when using --file).
   Treat .asc/workflow.json like code: review it before running.
+  Steps inherit your process environment; be careful with secrets.
+  asc workflow validate checks structure, not safety of commands.
 
 Example workflow file (.asc/workflow.json):
 
@@ -135,8 +137,15 @@ func workflowRunCommand() *ffcli.Command {
 		Name:       "run",
 		ShortUsage: "asc workflow run [flags] <name> [KEY:VALUE ...]",
 		ShortHelp:  "Run a named workflow.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		LongHelp: `Run a named workflow from workflow.json.
+
+Security note:
+  Workflows intentionally execute arbitrary shell commands.
+  Only run workflow files you trust (especially when using --file).
+
+Tip: See "asc workflow --help" for a complete workflow.json example.`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {
 				return shared.UsageError("workflow name is required")
