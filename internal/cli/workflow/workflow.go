@@ -238,7 +238,10 @@ func parseRunTailArgs(args []string, fs *flag.FlagSet) ([]string, error) {
 				continue
 			case "file":
 				if !hasValue {
-					if i+1 >= len(args) || strings.HasPrefix(args[i+1], "-") {
+					if i+1 >= len(args) {
+						return nil, shared.UsageError("--file requires a value")
+					}
+					if isRunTailFlagToken(args[i+1]) || strings.HasPrefix(args[i+1], "--") {
 						return nil, shared.UsageError("--file requires a value")
 					}
 					i++
@@ -263,6 +266,20 @@ func parseRunTailArgs(args []string, fs *flag.FlagSet) ([]string, error) {
 		params = append(params, token)
 	}
 	return params, nil
+}
+
+func isRunTailFlagToken(token string) bool {
+	if !strings.HasPrefix(token, "--") {
+		return false
+	}
+	nameValue := strings.TrimPrefix(token, "--")
+	name, _, _ := strings.Cut(nameValue, "=")
+	switch name {
+	case "dry-run", "pretty", "file":
+		return true
+	default:
+		return false
+	}
 }
 
 // printJSON encodes data as JSON to the writer.

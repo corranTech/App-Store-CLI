@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+var (
+	lookPathFn       = exec.LookPath
+	commandContextFn = exec.CommandContext
+)
+
 // mergeEnv merges environment maps in order. Later values override earlier.
 func mergeEnv(maps ...map[string]string) map[string]string {
 	result := make(map[string]string)
@@ -53,10 +58,18 @@ func buildEnvSlice(env map[string]string) []string {
 	return base
 }
 
-// runShellCommand executes a command string via bash -o pipefail -c.
-// This preserves pipeline failures (e.g., "false | cat") for CI correctness.
+// runShellCommand executes a command string via bash -o pipefail -c when bash
+// is available. It falls back to sh -c when bash is unavailable.
+// Bash preserves pipeline failures (e.g., "false | cat") for CI correctness.
 func runShellCommand(ctx context.Context, command string, env map[string]string, stdout, stderr io.Writer) error {
-	cmd := exec.CommandContext(ctx, "bash", "-o", "pipefail", "-c", command)
+	shell := "sh"
+	args := []string{"-c", command}
+	if _, err := lookPathFn("bash"); err == nil {
+		shell = "bash"
+		args = []string{"-o", "pipefail", "-c", command}
+	}
+
+	cmd := commandContextFn(ctx, shell, args...)
 	cmd.Env = buildEnvSlice(env)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr

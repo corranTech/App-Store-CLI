@@ -1,6 +1,10 @@
 package workflow
 
 import (
+	"context"
+	"errors"
+	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -211,5 +215,77 @@ func TestParseParams_ColonAtStart(t *testing.T) {
 	_, err := ParseParams([]string{":value"})
 	if err == nil {
 		t.Fatal("expected error for key starting with ':'")
+	}
+}
+
+func TestRunShellCommand_UsesBashWithPipefailWhenAvailable(t *testing.T) {
+	originalLookPathFn := lookPathFn
+	originalCommandContextFn := commandContextFn
+	t.Cleanup(func() {
+		lookPathFn = originalLookPathFn
+		commandContextFn = originalCommandContextFn
+	})
+
+	lookPathFn = func(file string) (string, error) {
+		if file == "bash" {
+			return "/usr/bin/bash", nil
+		}
+		return "", exec.ErrNotFound
+	}
+
+	var gotName string
+	var gotArgs []string
+	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		gotName = name
+		gotArgs = append([]string{}, args...)
+		return exec.CommandContext(ctx, "go", "version")
+	}
+
+	if err := runShellCommand(context.Background(), "echo hi", nil, nil, nil); err != nil {
+		t.Fatalf("runShellCommand() error: %v", err)
+	}
+
+	if gotName != "bash" {
+		t.Fatalf("shell = %q, want bash", gotName)
+	}
+	wantArgs := []string{"-o", "pipefail", "-c", "echo hi"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", gotArgs, wantArgs)
+	}
+}
+
+func TestRunShellCommand_FallsBackToShWhenBashUnavailable(t *testing.T) {
+	originalLookPathFn := lookPathFn
+	originalCommandContextFn := commandContextFn
+	t.Cleanup(func() {
+		lookPathFn = originalLookPathFn
+		commandContextFn = originalCommandContextFn
+	})
+
+	lookPathFn = func(file string) (string, error) {
+		if file == "bash" {
+			return "", exec.ErrNotFound
+		}
+		return "", errors.New("unexpected lookup: " + file)
+	}
+
+	var gotName string
+	var gotArgs []string
+	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		gotName = name
+		gotArgs = append([]string{}, args...)
+		return exec.CommandContext(ctx, "go", "version")
+	}
+
+	if err := runShellCommand(context.Background(), "echo hi", nil, nil, nil); err != nil {
+		t.Fatalf("runShellCommand() error: %v", err)
+	}
+
+	if gotName != "sh" {
+		t.Fatalf("shell = %q, want sh", gotName)
+	}
+	wantArgs := []string{"-c", "echo hi"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", gotArgs, wantArgs)
 	}
 }

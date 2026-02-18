@@ -306,6 +306,75 @@ func TestWorkflowRun_FileFlagAfterName_MissingValue(t *testing.T) {
 	}
 }
 
+func TestWorkflowRun_FileFlagAfterName_UnknownLongFlagIsMissingValue(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta": {"steps": ["echo hello"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--file", "--unknown"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "--file requires a value") {
+		t.Fatalf("expected missing file value error, got %q", stderr)
+	}
+}
+
+func TestWorkflowRun_FileFlagAfterName_AllowsDashPrefixedPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "-workflow.json")
+	if err := os.WriteFile(path, []byte(`{
+		"workflows": {
+			"beta": {"steps": ["echo hello"]}
+		}
+	}`), 0o600); err != nil {
+		t.Fatalf("write workflow file: %v", err)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir temp dir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "run", "beta", "--file", "-workflow.json", "--dry-run"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected JSON stdout, got %q: %v", stdout, err)
+	}
+	if result["status"] != "ok" {
+		t.Fatalf("expected status=ok, got %v", result["status"])
+	}
+}
+
 func TestWorkflowRun_Valid_WithJSONCComments(t *testing.T) {
 	dir := t.TempDir()
 	path := writeWorkflowJSON(t, dir, `{
