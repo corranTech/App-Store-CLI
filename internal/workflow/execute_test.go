@@ -540,6 +540,31 @@ func TestRun_StepFailure(t *testing.T) {
 	}
 }
 
+func TestRun_PipelineFailure(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"test": {Steps: []Step{
+				{Run: "false | cat", Name: "pipeline"},
+			}},
+		},
+	}
+	opts := runOpts("test")
+
+	result, err := Run(context.Background(), def, opts)
+	if err == nil {
+		t.Fatal("expected error on pipeline failure")
+	}
+	if result.Status != "error" {
+		t.Fatalf("expected status error, got %q", result.Status)
+	}
+	if len(result.Steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(result.Steps))
+	}
+	if result.Steps[0].Status != "error" {
+		t.Fatalf("expected step status error, got %q", result.Steps[0].Status)
+	}
+}
+
 func TestRun_MaxCallDepthExceeded(t *testing.T) {
 	// Create a chain that exceeds MaxCallDepth
 	// We can't actually create a cycle (validation would catch it),

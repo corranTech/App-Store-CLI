@@ -53,9 +53,10 @@ func buildEnvSlice(env map[string]string) []string {
 	return base
 }
 
-// runShellCommand executes a command string via sh -c with the given environment.
+// runShellCommand executes a command string via bash -o pipefail -c.
+// This preserves pipeline failures (e.g., "false | cat") for CI correctness.
 func runShellCommand(ctx context.Context, command string, env map[string]string, stdout, stderr io.Writer) error {
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.CommandContext(ctx, "bash", "-o", "pipefail", "-c", command)
 	cmd.Env = buildEnvSlice(env)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
