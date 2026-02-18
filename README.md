@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/github/downloads/rudrankriyam/App-Store-Connect-CLI/total?style=for-the-badge&color=green" alt="Downloads">
 </p>
 
-A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect API](https://developer.apple.com/app-store-connect/api/). Automate your iOS, macOS, tvOS, and visionOS app workflows from your terminal, IDE, or CI/CD pipeline. A modern **fastlane alternative** built as a single Go binary.
+A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect API](https://developer.apple.com/app-store-connect/api/). Automate your iOS, macOS, tvOS, and visionOS app workflows from your terminal, IDE, or CI/CD pipeline. Built as a single Go binary.
 
 ### Features
 
@@ -24,6 +24,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 - **Game Center** -- achievements, leaderboards, leaderboard sets, and localizations
 - **Screenshots & Previews** -- upload, frame, and manage App Store media assets
 - **Webhooks** -- create and manage App Store Connect webhooks
+- **Workflow** -- multi-step automation in `.asc/workflow.json` (JSON stdout)
 - **Agent-friendly** -- JSON-first output, explicit flags, no interactive prompts, clean exit codes
 
 ## Why ASC?
@@ -66,6 +67,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
   - [Performance](#performance)
   - [Webhooks](#webhooks)
   - [Publish (End-to-End Workflows)](#publish-end-to-end-workflows)
+  - [Workflow](#workflow)
   - [App Clips](#app-clips)
   - [Encryption](#encryption)
   - [Screenshots & Video Previews](#screenshots--video-previews)
@@ -1104,6 +1106,33 @@ asc publish appstore --app "APP_ID" --ipa "app.ipa" --submit --confirm --wait
 Notes:
 - `--version` and `--build-number` are auto-extracted from the IPA if not provided
 - Default timeout is 30 minutes; override with `--timeout`
+
+### Workflow
+
+Define named, multi-step automation sequences in `.asc/workflow.json`.
+Workflows compose existing `asc` commands and normal shell commands, and support:
+- Sub-workflows (workflow steps)
+- Definition-level hooks (`before_all`, `after_all`, `error`)
+- Conditionals (`if`)
+- JSON-only stdout (step/hook command output streams to stderr)
+
+Docs:
+- Run `asc workflow --help` to print a full `.asc/workflow.json` example
+- See [`docs/WORKFLOWS.md`](docs/WORKFLOWS.md)
+
+```bash
+# Validate workflow.json for structural errors + cycles
+asc workflow validate
+
+# List available workflows (JSON)
+asc workflow list
+
+# Dry-run (no side effects)
+asc workflow run --dry-run beta
+
+# Run with params (KEY:VALUE or KEY=VALUE)
+asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
+```
 
 ### App Clips
 
