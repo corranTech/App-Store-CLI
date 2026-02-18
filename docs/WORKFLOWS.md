@@ -20,6 +20,16 @@ asc workflow run beta
 asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
 ```
 
+## Security and Trust Model
+
+Workflows intentionally execute arbitrary shell commands. Treat `.asc/workflow.json` the same way you'd treat a script in your repo: only run workflows you trust.
+
+- Do not run workflow files from untrusted sources (e.g., copied from the internet, or from a PR/fork you haven't reviewed).
+- Be careful with `--file`: it can point to any path, not just `.asc/workflow.json`.
+- Step commands inherit your process environment (`os.Environ()`), so secrets present in the environment are visible to steps.
+- Avoid printing secrets in commands; prefer passing secrets as env vars via your CI secret store.
+- `asc workflow validate` checks structure and references, not safety of the commands.
+
 ## Example `.asc/workflow.json`
 
 Notes:
@@ -97,6 +107,9 @@ Notes:
 ### Conditionals
 
 Add `"if": "VAR_NAME"` to a step to skip it when the variable is falsy.
+
+Conditionals check the workflow env/params first, then fall back to `os.Getenv("VAR_NAME")`.
+For deterministic behavior (especially in CI), prefer setting conditional variables in the workflow env or passing them as params.
 
 Truthy values (case-insensitive): `1`, `true`, `yes`, `y`, `on`.
 
