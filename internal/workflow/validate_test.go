@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -519,5 +520,33 @@ func TestValidationError_JSON(t *testing.T) {
 	}
 	if out["workflow"] != "beta" {
 		t.Fatalf("expected workflow=beta, got %v", out["workflow"])
+	}
+}
+
+func TestLoad_ReturnsAllValidationErrors(t *testing.T) {
+	dir := t.TempDir()
+	// Two workflows, each with a different validation error.
+	path := writeWorkflowFile(t, dir, `{
+		"workflows": {
+			"bad1": {"steps": []},
+			"bad2": {"steps": [{"name": "orphan"}]}
+		}
+	}`)
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error from Load")
+	}
+
+	// The joined error should contain messages from both workflows.
+	msg := err.Error()
+	if !strings.Contains(msg, "bad1") || !strings.Contains(msg, "bad2") {
+		t.Fatalf("expected error to mention both bad1 and bad2, got %q", msg)
+	}
+
+	// Each individual ValidationError should be extractable via errors.As.
+	var ve *ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected errors.As to find ValidationError, got %T: %v", err, err)
 	}
 }

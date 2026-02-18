@@ -28,7 +28,11 @@ func Load(path string) (*Definition, error) {
 		return nil, err
 	}
 	if errs := Validate(def); len(errs) > 0 {
-		return nil, errs[0]
+		joined := make([]error, len(errs))
+		for i, e := range errs {
+			joined[i] = e
+		}
+		return nil, errors.Join(joined...)
 	}
 	return def, nil
 }
