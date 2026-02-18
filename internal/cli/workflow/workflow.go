@@ -28,8 +28,77 @@ func WorkflowCommand() *ffcli.Command {
 		LongHelp: `Define named, multi-step automation sequences in .asc/workflow.json.
 Each workflow composes existing asc commands and shell commands.
 Hooks are supported at the definition level: before_all, after_all, and error.
+stdout is JSON-only; step/hook command output streams to stderr.
 Commands run via bash (with pipefail) when available, otherwise sh; at least one must be in PATH.
 On failure, stdout remains JSON-only and includes a top-level error message plus hook results.
+
+Example workflow file (.asc/workflow.json):
+
+{
+  "env": {
+    "APP_ID": "123456789",
+    "VERSION": "1.0.0"
+  },
+  "before_all": "asc auth status",
+  "after_all": "echo workflow_done",
+  "error": "echo workflow_failed",
+  "workflows": {
+    "beta": {
+      "description": "Distribute a build to a TestFlight group",
+      "env": {
+        "GROUP_ID": ""
+      },
+      "steps": [
+        {
+          "name": "list_builds",
+          "run": "asc builds list --app $APP_ID --sort -uploadedDate --limit 5"
+        },
+        {
+          "name": "list_groups",
+          "run": "asc testflight beta-groups list --app $APP_ID --limit 20"
+        },
+        {
+          "name": "add_build_to_group",
+          "if": "BUILD_ID",
+          "run": "asc builds add-groups --build $BUILD_ID --group $GROUP_ID"
+        }
+      ]
+    },
+    "release": {
+      "description": "Submit a version for App Store review",
+      "steps": [
+        {
+          "workflow": "sync-metadata",
+          "with": {
+            "FASTLANE_DIR": "./fastlane/metadata"
+          }
+        },
+        {
+          "name": "submit",
+          "run": "asc submit create --app $APP_ID --version $VERSION --build $BUILD_ID --confirm"
+        }
+      ]
+    },
+    "sync-metadata": {
+      "private": true,
+      "description": "Private helper workflow (callable only via workflow steps)",
+      "steps": [
+        {
+          "name": "migrate_validate",
+          "run": "asc migrate validate --fastlane-dir $FASTLANE_DIR"
+        }
+      ]
+    }
+  }
+}
+
+Try it:
+  asc workflow validate
+  asc workflow list
+  asc workflow run --dry-run beta
+  asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
+
+More docs: https://github.com/rudrankriyam/App-Store-Connect-CLI/blob/main/docs/WORKFLOWS.md
 
 Examples:
   asc workflow list
