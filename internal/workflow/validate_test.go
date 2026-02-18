@@ -436,6 +436,48 @@ func TestValidate_WorkflowStepWithAndIf(t *testing.T) {
 	}
 }
 
+func TestLoad_NullStepElement(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowFile(t, dir, `{
+		"workflows": {
+			"test": {"steps": [null]}
+		}
+	}`)
+
+	_, err := LoadUnvalidated(path)
+	if err == nil {
+		t.Fatal("expected error for null step element")
+	}
+}
+
+func TestStep_UnmarshalJSON_StringClearsFields(t *testing.T) {
+	// Start with a pre-populated Step
+	s := Step{
+		Name:     "old-name",
+		If:       "OLD_IF",
+		Workflow: "old-wf",
+		With:     map[string]string{"A": "1"},
+	}
+	if err := json.Unmarshal([]byte(`"echo new"`), &s); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if s.Run != "echo new" {
+		t.Fatalf("expected Run='echo new', got %q", s.Run)
+	}
+	if s.Name != "" {
+		t.Fatalf("expected Name cleared, got %q", s.Name)
+	}
+	if s.If != "" {
+		t.Fatalf("expected If cleared, got %q", s.If)
+	}
+	if s.Workflow != "" {
+		t.Fatalf("expected Workflow cleared, got %q", s.Workflow)
+	}
+	if s.With != nil {
+		t.Fatalf("expected With cleared, got %v", s.With)
+	}
+}
+
 func TestValidationError_ErrorInterface(t *testing.T) {
 	ve := &ValidationError{
 		Code:    ErrEmptySteps,

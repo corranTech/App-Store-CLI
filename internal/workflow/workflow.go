@@ -40,9 +40,13 @@ type Step struct {
 //   - bare string → Step{Run: "..."}
 //   - object → normal unmarshal
 func (s *Step) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return fmt.Errorf("step must be a string or object, not null")
+	}
+
 	var raw string
 	if err := json.Unmarshal(data, &raw); err == nil {
-		s.Run = raw
+		*s = Step{Run: raw}
 		return nil
 	}
 
