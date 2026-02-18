@@ -306,6 +306,32 @@ func TestWorkflowValidate_MissingFile(t *testing.T) {
 	})
 }
 
+func TestWorkflowValidate_UnexpectedArgs(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta": {"steps": ["echo hello"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "validate", "--file", path, "extra"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "unexpected argument") {
+		t.Fatalf("expected unexpected argument error, got %q", stderr)
+	}
+}
+
 func TestWorkflowList_SingleWorkflow(t *testing.T) {
 	dir := t.TempDir()
 	path := writeWorkflowJSON(t, dir, `{
@@ -461,6 +487,32 @@ func TestWorkflowList_MissingFile(t *testing.T) {
 			t.Fatal("expected error for missing file")
 		}
 	})
+}
+
+func TestWorkflowList_UnexpectedArgs(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta": {"steps": ["echo hi"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "list", "--file", path, "extra"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "unexpected argument") {
+		t.Fatalf("expected unexpected argument error, got %q", stderr)
+	}
 }
 
 func TestWorkflowRun_Success(t *testing.T) {

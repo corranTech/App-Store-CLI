@@ -115,7 +115,11 @@ func workflowValidateCommand() *ffcli.Command {
 		ShortHelp:  "Validate workflow.json for errors and cycles.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
-		Exec: func(_ context.Context, _ []string) error {
+		Exec: func(_ context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+
 			absPath, err := filepath.Abs(strings.TrimSpace(*filePath))
 			if err != nil {
 				return fmt.Errorf("workflow validate: resolve path: %w", err)
@@ -163,7 +167,11 @@ func workflowListCommand() *ffcli.Command {
 		ShortHelp:  "List available workflows.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
-		Exec: func(_ context.Context, _ []string) error {
+		Exec: func(_ context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+
 			absPath, err := filepath.Abs(strings.TrimSpace(*filePath))
 			if err != nil {
 				return fmt.Errorf("workflow list: resolve path: %w", err)
