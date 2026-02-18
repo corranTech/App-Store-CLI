@@ -66,7 +66,10 @@ func workflowRunCommand() *ffcli.Command {
 			}
 
 			workflowName := args[0]
-			paramArgs := args[1:]
+			paramArgs, err := parseRunTailArgs(args[1:], fs)
+			if err != nil {
+				return err
+			}
 
 			absPath, err := filepath.Abs(strings.TrimSpace(*filePath))
 			if err != nil {
@@ -209,6 +212,57 @@ func workflowListCommand() *ffcli.Command {
 			return printJSON(os.Stdout, workflows, *pretty)
 		},
 	}
+}
+
+func parseRunTailArgs(args []string, fs *flag.FlagSet) ([]string, error) {
+	params := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		token := args[i]
+		if token == "--" {
+			params = append(params, args[i+1:]...)
+			break
+		}
+
+		if strings.HasPrefix(token, "--") {
+			nameValue := strings.TrimPrefix(token, "--")
+			name, value, hasValue := strings.Cut(nameValue, "=")
+
+			switch name {
+			case "dry-run", "pretty":
+				if !hasValue {
+					value = "true"
+				}
+				if err := fs.Set(name, value); err != nil {
+					return nil, shared.UsageErrorf("invalid value for --%s: %v", name, err)
+				}
+				continue
+			case "file":
+				if !hasValue {
+					if i+1 >= len(args) {
+						return nil, shared.UsageError("--file requires a value")
+					}
+					i++
+					value = args[i]
+				}
+				if strings.TrimSpace(value) == "" {
+					return nil, shared.UsageError("--file requires a value")
+				}
+				if err := fs.Set(name, value); err != nil {
+					return nil, shared.UsageErrorf("invalid value for --%s: %v", name, err)
+				}
+				continue
+			default:
+				return nil, shared.UsageErrorf("unknown flag %q", token)
+			}
+		}
+
+		if strings.HasPrefix(token, "-") {
+			return nil, shared.UsageErrorf("unknown flag %q", token)
+		}
+
+		params = append(params, token)
+	}
+	return params, nil
 }
 
 // printJSON encodes data as JSON to the writer.

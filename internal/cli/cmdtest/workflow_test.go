@@ -195,6 +195,91 @@ func TestWorkflowRun_DryRun(t *testing.T) {
 	}
 }
 
+func TestWorkflowRun_DryRunFlagAfterName(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta": {"steps": ["echo hello world"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--dry-run"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "[dry-run]") {
+		t.Fatalf("expected '[dry-run]' in stderr, got %q", stderr)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected JSON stdout, got %q: %v", stdout, err)
+	}
+	if result["status"] != "ok" {
+		t.Fatalf("expected status=ok, got %v", result["status"])
+	}
+}
+
+func TestWorkflowRun_UnknownFlagAfterName(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta": {"steps": ["echo hello"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--unknown"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "unknown flag") {
+		t.Fatalf("expected unknown flag error, got %q", stderr)
+	}
+}
+
+func TestWorkflowRun_DryRunFlagAfterName_InvalidValue(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"beta": {"steps": ["echo hello"]}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta", "--dry-run=maybe"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "invalid value") {
+		t.Fatalf("expected invalid value error, got %q", stderr)
+	}
+}
+
 func TestWorkflowRun_Valid_WithJSONCComments(t *testing.T) {
 	dir := t.TempDir()
 	path := writeWorkflowJSON(t, dir, `{
