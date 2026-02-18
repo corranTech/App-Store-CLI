@@ -27,7 +27,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 - **Workflow** -- multi-step automation in `.asc/workflow.json` (JSON stdout)
 - **Agent-friendly** -- JSON-first output, explicit flags, no interactive prompts, clean exit codes
 
-## Why ASC?
+## Why asc?
 
 | Problem | Solution |
 |---------|----------|
@@ -38,7 +38,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 ## Table of Contents
 
 - [Features](#features)
-- [Why ASC?](#why-asc)
+- [Why asc?](#why-asc)
 - [Quick Start](#quick-start)
   - [Install](#install)
   - [Authenticate](#authenticate)
@@ -97,7 +97,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 - [Documentation](#documentation)
 - [How to test in <10 minutes](#how-to-test-in-10-minutes)
 - [Security](#security)
-- [ASC Skills](#asc-skills)
+- [asc skills](#asc-skills)
 - [Wall of Apps](#wall-of-apps)
 - [Acknowledgements](#acknowledgements)
 - [Contributing](#contributing)
@@ -576,7 +576,7 @@ asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
 
 Notes:
 - Sales report date formats: DAILY/WEEKLY `YYYY-MM-DD`, MONTHLY `YYYY-MM`, YEARLY `YYYY`
-- Reports may not be available yet; ASC returns availability errors when data is pending
+- Reports may not be available yet; the App Store Connect API returns availability errors when data is pending
 - Use `ASC_TIMEOUT` or `ASC_TIMEOUT_SECONDS` for long analytics pagination
 - `asc analytics get --date ... --paginate` will scan all report pages (slower, but avoids missing instances)
 
@@ -1557,7 +1557,7 @@ asc build-localizations get --id "LOCALIZATION_ID"
 
 ### Migrate (Fastlane Compatibility)
 
-Validate and migrate metadata between ASC's `.strings` format and Deliver-style directory layout.
+Validate and migrate metadata between asc cli's `.strings` format and Deliver-style directory layout.
 
 ```bash
 # Validate metadata against App Store Connect character limits (offline)
@@ -1750,7 +1750,7 @@ make build
 - Report/artifact file helpers use atomic `O_NOFOLLOW` on Unix-like systems
 - On platforms without a portable `O_NOFOLLOW`, helpers use best-effort pre/post `Lstat` checks to reject symlinks and detect path swaps (residual TOCTOU window remains)
 
-## ASC Skills
+## asc skills
 
 Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills
 
@@ -1793,7 +1793,7 @@ This command updates `docs/wall-of-apps.json` and re-syncs the generated Wall sn
 
 ## Acknowledgements
 
-Local screenshot framing in ASC uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
+Local screenshot framing in asc cli uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
 GitHub: https://github.com/bitomule/koubou
 
 ## Contributing
