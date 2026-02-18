@@ -12,8 +12,16 @@ linters:
     - errcheck
     - ineffassign
     - unused
-    # (intentionally NOT enabling `misspell` or `unparam` yet; both create large
-    # cleanup churn with current codebase conventions)
+    - misspell
+    - unparam
+    - errorlint
+
+linters-settings:
+  misspell:
+    # Words used intentionally in Apple/ASC API context.
+    ignore-words:
+      - cancelled
+      - cancelling
 
 issues:
   # Keep defaults, but avoid noisy duplicates.
@@ -22,4 +30,3 @@ issues:
     # massive rename churn; keep other style rules like ST1005.
     - linters: [stylecheck]
       text: "ST1003:"
-

@@ -2,6 +2,7 @@ package bundleids
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"testing"
 )
@@ -13,7 +14,7 @@ func TestBundleIDsGetCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -25,7 +26,7 @@ func TestBundleIDsCreateCommand_MissingIdentifier(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --identifier is missing, got %v", err)
 	}
 }
@@ -37,7 +38,7 @@ func TestBundleIDsCreateCommand_MissingName(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --name is missing, got %v", err)
 	}
 }
@@ -49,7 +50,7 @@ func TestBundleIDsUpdateCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -61,7 +62,7 @@ func TestBundleIDsUpdateCommand_MissingName(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --name is missing, got %v", err)
 	}
 }
@@ -73,7 +74,7 @@ func TestBundleIDsDeleteCommand_MissingConfirm(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }
@@ -85,7 +86,7 @@ func TestBundleIDsCapabilitiesListCommand_MissingBundle(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --bundle is missing, got %v", err)
 	}
 }
@@ -97,7 +98,7 @@ func TestBundleIDsCapabilitiesAddCommand_MissingBundle(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --bundle is missing, got %v", err)
 	}
 }
@@ -109,7 +110,7 @@ func TestBundleIDsCapabilitiesAddCommand_MissingCapability(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --capability is missing, got %v", err)
 	}
 }
@@ -121,7 +122,7 @@ func TestBundleIDsCapabilitiesRemoveCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -133,7 +134,7 @@ func TestBundleIDsCapabilitiesRemoveCommand_MissingConfirm(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }

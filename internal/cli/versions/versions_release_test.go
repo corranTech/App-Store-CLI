@@ -2,6 +2,7 @@ package versions
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"testing"
 )
@@ -13,7 +14,7 @@ func TestVersionsReleaseCommand_MissingVersionID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --version-id is missing, got %v", err)
 	}
 }
@@ -25,7 +26,7 @@ func TestVersionsReleaseCommand_MissingConfirm(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }

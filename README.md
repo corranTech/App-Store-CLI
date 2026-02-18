@@ -1670,6 +1670,21 @@ brew tap rudrankriyam/tap
 brew install rudrankriyam/tap/asc
 ```
 
+### GitHub Actions (CI/CD)
+
+Install `asc` in CI using the official setup action:
+
+```yaml
+- uses: rudrankriyam/setup-asc@v1
+  with:
+    version: latest
+
+- run: asc --help
+```
+
+For end-to-end CI examples (publish to TestFlight, upload localizations, etc.), see:
+https://github.com/rudrankriyam/setup-asc
+
 ### From Source
 
 ```bash
@@ -1720,7 +1735,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | bijou.fm | [Open](https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066) | zchwyng | iOS, macOS, tvOS, visionOS |
 | CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | macOS, iOS |
 | Dandelion | [Open](https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901) | joeycast | iOS, macOS |
-| DoubleMemory | [Open](https://doublememory.com) | Shaomeng Zhang | iOS |
+| DoubleMemory | [Open](https://apps.apple.com/app/id6737529034) | randomor | iOS, macOS |
 | Dripped | [Open](https://apps.apple.com/app/id6749790183) | mithileshchellapan | iOS |
 | Fisherman SMS Filtering | [Open](https://apps.apple.com/app/id6449192504) | MGidnian | iOS |
 | kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
@@ -1733,6 +1748,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | Steps: Workout & Pedometer | [Open](https://apps.apple.com/us/app/steps-workout-pedometer/id6746096378) | Hieu Dinh | iOS |
 | TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
 | Unlimited Clipboard History | [Open](https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056) | yspreen | macOS |
+| Video Annotation | [Open](https://apps.apple.com/us/app/video-annotation/id6758316355) | antranapp | iOS |
 | XO: Have I Ever | [Open](https://apps.apple.com/us/app/xo-have-i-ever/id6757594745) | arunavo4 | iOS |
 <!-- WALL-OF-APPS:END -->
 

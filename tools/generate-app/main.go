@@ -69,7 +69,7 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 	if err != nil {
 		restoreErr := os.WriteFile(jsonPath, originalJSON, 0o644)
 		if restoreErr != nil {
-			return fmt.Errorf("%w (also failed to restore source JSON: %v)", err, restoreErr)
+			return fmt.Errorf("%w (also failed to restore source JSON: %w)", err, restoreErr)
 		}
 		return err
 	}

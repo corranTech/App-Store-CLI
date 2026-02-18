@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"testing"
 
@@ -15,7 +16,7 @@ func TestUsersGetCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -27,7 +28,7 @@ func TestUsersUpdateCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -39,7 +40,7 @@ func TestUsersUpdateCommand_MissingRoles(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --roles is missing, got %v", err)
 	}
 }
@@ -51,7 +52,7 @@ func TestUsersDeleteCommand_MissingConfirm(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }
@@ -63,7 +64,7 @@ func TestUsersDeleteCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -75,7 +76,7 @@ func TestUsersInviteCommand_MissingEmail(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --email is missing, got %v", err)
 	}
 }
@@ -87,7 +88,7 @@ func TestUsersInviteCommand_MissingFirstName(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --first-name is missing, got %v", err)
 	}
 }
@@ -99,7 +100,7 @@ func TestUsersInviteCommand_MissingLastName(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --last-name is missing, got %v", err)
 	}
 }
@@ -111,7 +112,7 @@ func TestUsersInviteCommand_MissingRoles(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --roles is missing, got %v", err)
 	}
 }
@@ -123,7 +124,7 @@ func TestUsersInviteCommand_MissingAccess(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --all-apps or --visible-app is missing, got %v", err)
 	}
 }
@@ -139,7 +140,7 @@ func TestUsersInviteCommand_ConflictingAccess(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for conflicting access flags")
 	}
-	if err == flag.ErrHelp {
+	if errors.Is(err, flag.ErrHelp) {
 		// This is acceptable - the command shows help when there's a conflict
 		return
 	}
@@ -152,7 +153,7 @@ func TestUsersInvitesGetCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -164,7 +165,7 @@ func TestUsersInvitesRevokeCommand_MissingConfirm(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }
@@ -176,7 +177,7 @@ func TestUsersInvitesRevokeCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -188,7 +189,7 @@ func TestUsersVisibleAppsListCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
@@ -200,7 +201,7 @@ func TestUsersVisibleAppsGetCommand_MissingID(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
