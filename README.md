@@ -1762,6 +1762,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | App | Link | Creator | Platform |
 |:----|:-----|:--------|:---------|
 | bijou.fm | [Open](https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066) | zchwyng | iOS, macOS, tvOS, visionOS |
+| Bobbin | [Open](https://apps.apple.com/us/app/threads-growth-bobbin/id6756035789) | ljyjeffrey | iOS |
 | CodexMonitor | [Open](https://github.com/Dimillian/CodexMonitor) | Dimillian | macOS, iOS |
 | Dandelion | [Open](https://apps.apple.com/us/app/dandelion-write-and-let-go/id6757363901) | joeycast | iOS, macOS |
 | DoubleMemory | [Open](https://apps.apple.com/app/id6737529034) | randomor | iOS, macOS |
