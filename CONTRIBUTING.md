@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing to asc cli (App Store Connect).
+Thanks for your interest in contributing to asc cli!
 
 ## Development Setup
 
