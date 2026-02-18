@@ -32,6 +32,11 @@ stdout is JSON-only; step/hook command output streams to stderr.
 Commands run via bash (with pipefail) when available, otherwise sh; at least one must be in PATH.
 On failure, stdout remains JSON-only and includes a top-level error message plus hook results.
 
+Security note:
+  Workflows intentionally execute arbitrary shell commands.
+  Only run workflow files you trust (especially when using --file).
+  Treat .asc/workflow.json like code: review it before running.
+
 Example workflow file (.asc/workflow.json):
 
 {
