@@ -65,6 +65,15 @@ func (r *RunResult) ensureHooks() *HooksResult {
 	return r.Hooks
 }
 
+func recordErrorHook(ctx context.Context, command string, env map[string]string, opts RunOptions, result *RunResult) {
+	ehr, hookErr := runHookAndRecord(ctx, command, env, opts.DryRun, opts.Stdout, opts.Stderr)
+	if ehr == nil {
+		return
+	}
+	result.ensureHooks().Error = ehr
+	_ = hookErr // error hook failures never override the original error
+}
+
 // Run executes a named workflow from the Definition.
 func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, error) {
 	if opts.Stdout == nil {
@@ -102,10 +111,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 			result.Status = "error"
 			result.Error = wrapped.Error()
 
-			if ehr, hookErr := runHookAndRecord(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr); ehr != nil {
-				result.ensureHooks().Error = ehr
-				_ = hookErr // error hook failures never override the original error
-			}
+			recordErrorHook(ctx, def.Error, env, opts, result)
 			return result, wrapped
 		}
 	}
@@ -115,10 +121,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 		result.Status = "error"
 		result.Error = err.Error()
 
-		if ehr, hookErr := runHookAndRecord(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr); ehr != nil {
-			result.ensureHooks().Error = ehr
-			_ = hookErr // error hook failures never override the original error
-		}
+		recordErrorHook(ctx, def.Error, env, opts, result)
 		return result, err
 	}
 
@@ -130,10 +133,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 			result.Status = "error"
 			result.Error = wrapped.Error()
 
-			if ehr, hookErr := runHookAndRecord(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr); ehr != nil {
-				result.ensureHooks().Error = ehr
-				_ = hookErr // error hook failures never override the original error
-			}
+			recordErrorHook(ctx, def.Error, env, opts, result)
 			return result, wrapped
 		}
 	}

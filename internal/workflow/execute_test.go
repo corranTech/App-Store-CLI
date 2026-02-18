@@ -543,6 +543,39 @@ func TestRun_StepFailure(t *testing.T) {
 	}
 }
 
+func TestRun_AfterAllDoesNotRunOnStepFailure(t *testing.T) {
+	def := &Definition{
+		AfterAll: "echo after_all_should_not_run",
+		Error:    "echo error_hook_ran",
+		Workflows: map[string]Workflow{
+			"test": {Steps: []Step{{Run: "exit 1"}}},
+		},
+	}
+	opts := runOpts("test")
+
+	result, err := Run(context.Background(), def, opts)
+	if err == nil {
+		t.Fatal("expected error on step failure")
+	}
+	if result.Status != "error" {
+		t.Fatalf("expected status error, got %q", result.Status)
+	}
+	if result.Hooks == nil || result.Hooks.Error == nil {
+		t.Fatalf("expected error hook to be recorded, got %+v", result.Hooks)
+	}
+	if result.Hooks.AfterAll != nil {
+		t.Fatalf("expected after_all hook to not run on step failure, got %+v", result.Hooks.AfterAll)
+	}
+
+	stdout := opts.Stdout.(*bytes.Buffer).String()
+	if strings.Contains(stdout, "after_all_should_not_run") {
+		t.Fatalf("after_all hook should not have executed on step failure, got stdout %q", stdout)
+	}
+	if !strings.Contains(stdout, "error_hook_ran") {
+		t.Fatalf("expected error hook output, got stdout %q", stdout)
+	}
+}
+
 func TestRun_PipelineFailure(t *testing.T) {
 	def := &Definition{
 		Workflows: map[string]Workflow{
@@ -768,6 +801,15 @@ func TestRun_HooksDryRun(t *testing.T) {
 	stderr := opts.Stderr.(*bytes.Buffer).String()
 	if !strings.Contains(stderr, "[dry-run] hook:") {
 		t.Fatalf("expected dry-run hook preview, got stderr %q", stderr)
+	}
+	if result.Hooks == nil || result.Hooks.BeforeAll == nil || result.Hooks.AfterAll == nil {
+		t.Fatalf("expected before_all/after_all hooks to be recorded in dry-run, got %+v", result.Hooks)
+	}
+	if result.Hooks.BeforeAll.Status != "dry-run" || result.Hooks.AfterAll.Status != "dry-run" {
+		t.Fatalf("expected hooks to have status=dry-run, got before_all=%+v after_all=%+v", result.Hooks.BeforeAll, result.Hooks.AfterAll)
+	}
+	if result.Hooks.Error != nil {
+		t.Fatalf("expected hooks.error to be nil on success, got %+v", result.Hooks.Error)
 	}
 	if result.Status != "ok" {
 		t.Fatalf("expected ok, got %q", result.Status)
