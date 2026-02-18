@@ -1,4 +1,4 @@
-# App Store Connect CLI (asc)
+# asc cli
 
 Unofficial CLI for Apple's App Store Connect API. This repository provides
 `asc`, a fast, scriptable tool built for automation.

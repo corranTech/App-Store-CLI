@@ -73,8 +73,8 @@ func DocsInitCommand() *ffcli.Command {
 		"docs init",
 		"init",
 		"asc docs init [flags]",
-		"Create an ASC.md command reference in the current repo.",
-		`Create an ASC.md command reference in the current repo.
+		"Create an ASC.md command reference for the asc cli in the current repo.",
+		`Create an ASC.md command reference for the asc cli in the current repo.
 
 Examples:
   asc docs init

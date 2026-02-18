@@ -576,7 +576,7 @@ asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
 
 Notes:
 - Sales report date formats: DAILY/WEEKLY `YYYY-MM-DD`, MONTHLY `YYYY-MM`, YEARLY `YYYY`
-- Reports may not be available yet; ASC returns availability errors when data is pending
+- Reports may not be available yet; the App Store Connect API returns availability errors when data is pending
 - Use `ASC_TIMEOUT` or `ASC_TIMEOUT_SECONDS` for long analytics pagination
 - `asc analytics get --date ... --paginate` will scan all report pages (slower, but avoids missing instances)
 
@@ -1557,7 +1557,7 @@ asc build-localizations get --id "LOCALIZATION_ID"
 
 ### Migrate (Fastlane Compatibility)
 
-Validate and migrate metadata between ASC's `.strings` format and Deliver-style directory layout.
+Validate and migrate metadata between asc cli's `.strings` format and Deliver-style directory layout.
 
 ```bash
 # Validate metadata against App Store Connect character limits (offline)
@@ -1793,7 +1793,7 @@ This command updates `docs/wall-of-apps.json` and re-syncs the generated Wall sn
 
 ## Acknowledgements
 
-Local screenshot framing in ASC uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
+Local screenshot framing in asc cli uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
 GitHub: https://github.com/bitomule/koubou
 
 ## Contributing
