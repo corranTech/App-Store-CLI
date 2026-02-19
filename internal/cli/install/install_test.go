@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestInstallSkillsRunsNpxAddSkill(t *testing.T) {
+func TestInstallSkillsRunsNpxSkillsAdd(t *testing.T) {
 	originalLookup := lookupNpx
 	originalRun := runCommand
 	t.Cleanup(func() {
@@ -41,7 +41,7 @@ func TestInstallSkillsRunsNpxAddSkill(t *testing.T) {
 	if gotName != "/bin/npx" {
 		t.Fatalf("expected npx path /bin/npx, got %q", gotName)
 	}
-	expected := []string{"--yes", "add-skill", defaultSkillsPackage}
+	expected := []string{"--yes", "skills", "add", defaultSkillsPackage}
 	if !reflect.DeepEqual(gotArgs, expected) {
 		t.Fatalf("expected args %v, got %v", expected, gotArgs)
 	}
@@ -73,7 +73,7 @@ func TestInstallSkillsAllowsPackageOverride(t *testing.T) {
 		t.Fatalf("run error: %v", err)
 	}
 
-	expected := []string{"--yes", "add-skill", "example/skills"}
+	expected := []string{"--yes", "skills", "add", "example/skills"}
 	if !reflect.DeepEqual(gotArgs, expected) {
 		t.Fatalf("expected args %v, got %v", expected, gotArgs)
 	}

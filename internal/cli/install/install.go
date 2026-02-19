@@ -90,7 +90,8 @@ func installSkills(ctx context.Context, pkg string) error {
 		return fmt.Errorf("%w; install Node.js to continue", errNpxNotFound)
 	}
 
-	return runCommand(ctx, path, "--yes", "add-skill", pkg)
+	// `npx add-skill` is deprecated upstream; use the new subcommand style.
+	return runCommand(ctx, path, "--yes", "skills", "add", pkg)
 }
 
 func validatePackageName(pkg string) error {
