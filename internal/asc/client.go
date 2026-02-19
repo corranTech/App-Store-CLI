@@ -357,7 +357,6 @@ type BetaGroupUpdateAttributes struct {
 	PublicLinkLimitEnabled *bool  `json:"publicLinkLimitEnabled,omitempty"`
 	PublicLinkLimit        int    `json:"publicLinkLimit,omitempty"`
 	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
-	HasAccessToAllBuilds   *bool  `json:"hasAccessToAllBuilds,omitempty"`
 }
 
 // BetaGroupUpdateData is the data portion of a beta group update request.

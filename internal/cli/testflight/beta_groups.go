@@ -353,7 +353,6 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 	publicLinkLimitEnabled := fs.Bool("public-link-limit-enabled", false, "Enable public link limit")
 	publicLinkLimit := fs.Int("public-link-limit", 0, "Public link limit (1-10000)")
 	feedbackEnabled := fs.Bool("feedback-enabled", false, "Enable feedback")
-	allBuilds := fs.Bool("all-builds", false, "Grant access to all builds")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -389,8 +388,7 @@ Examples:
 				visited["public-link-enabled"] ||
 				visited["public-link-limit-enabled"] ||
 				visited["public-link-limit"] ||
-				visited["feedback-enabled"] ||
-				visited["all-builds"]
+				visited["feedback-enabled"]
 			if !hasUpdates {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
@@ -412,7 +410,6 @@ Examples:
 			var publicLinkEnabledAttr *bool
 			var publicLinkLimitEnabledAttr *bool
 			var feedbackEnabledAttr *bool
-			var allBuildsAttr *bool
 
 			if visited["public-link-enabled"] {
 				publicLinkEnabledAttr = publicLinkEnabled
@@ -422,9 +419,6 @@ Examples:
 			}
 			if visited["feedback-enabled"] {
 				feedbackEnabledAttr = feedbackEnabled
-			}
-			if visited["all-builds"] {
-				allBuildsAttr = allBuilds
 			}
 
 			req := asc.BetaGroupUpdateRequest{
@@ -437,7 +431,6 @@ Examples:
 						PublicLinkLimitEnabled: publicLinkLimitEnabledAttr,
 						PublicLinkLimit:        *publicLinkLimit,
 						FeedbackEnabled:        feedbackEnabledAttr,
-						HasAccessToAllBuilds:   allBuildsAttr,
 					},
 				},
 			}
