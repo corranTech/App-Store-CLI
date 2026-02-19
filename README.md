@@ -9,6 +9,10 @@
   <img src="https://img.shields.io/github/downloads/rudrankriyam/App-Store-Connect-CLI/total?style=for-the-badge&color=green" alt="Downloads">
 </p>
 
+<p align="center">
+  <img src="docs/images/banner.png" alt="asc — App Store Connect CLI" width="600">
+</p>
+
 A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect API](https://developer.apple.com/app-store-connect/api/). Automate your iOS, macOS, tvOS, and visionOS app workflows from your terminal, IDE, or CI/CD pipeline. Built as a single Go binary.
 
 ### Features
