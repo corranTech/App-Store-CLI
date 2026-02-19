@@ -118,9 +118,6 @@ func TestRun_NoArgsShowsHelpReturnsSuccess(t *testing.T) {
 	if !strings.Contains(stdout, "USAGE") || !strings.Contains(stdout, "GETTING STARTED COMMANDS") {
 		t.Fatalf("expected root help in stdout, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "Install skills: asc install skills") {
-		t.Fatalf("expected skills quick start line in stdout, got %q", stdout)
-	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -164,7 +161,7 @@ func TestRootCommand_UsageGroupsSubcommands(t *testing.T) {
 		t.Fatalf("expected GETTING STARTED group header, got %q", usage)
 	}
 
-	if !strings.Contains(usage, "  auth:") || !strings.Contains(usage, "  install:") || !strings.Contains(usage, "  init:") {
+	if !strings.Contains(usage, "  auth:") || !strings.Contains(usage, "  skills:") || !strings.Contains(usage, "  install:") || !strings.Contains(usage, "  init:") {
 		t.Fatalf("expected grouped getting started commands with gh-style spacing, got %q", usage)
 	}
 

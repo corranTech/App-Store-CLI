@@ -19,7 +19,7 @@ type rootCommandGroup struct {
 var rootUsageGroups = []rootCommandGroup{
 	{
 		title:    "GETTING STARTED COMMANDS",
-		commands: []string{"auth", "install", "init", "docs"},
+		commands: []string{"auth", "skills", "install", "init", "docs"},
 	},
 	{
 		title:    "ANALYTICS & FINANCE COMMANDS",
