@@ -112,7 +112,7 @@ A **fast**, **lightweight**, and **scriptable** CLI for the [App Store Connect A
 ```bash
 # Via Homebrew (recommended)
 brew tap rudrankriyam/tap
-brew install rudrankriyam/tap/asc
+brew install asc
 
 # Install script (macOS/Linux)
 curl -fsSL https://raw.githubusercontent.com/rudrankriyam/App-Store-Connect-CLI/main/install.sh | bash
@@ -1699,7 +1699,7 @@ asc feedback --app "123456789"
 ```bash
 # Add tap and install
 brew tap rudrankriyam/tap
-brew install rudrankriyam/tap/asc
+brew install asc
 ```
 
 ### GitHub Actions (CI/CD)
