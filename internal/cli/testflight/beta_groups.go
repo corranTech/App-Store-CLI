@@ -284,32 +284,16 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			group, err := client.CreateBetaGroup(requestCtx, resolvedAppID, strings.TrimSpace(*name))
-			if err != nil {
-				return fmt.Errorf("beta-groups create: failed to create: %w", err)
+			attrs := asc.BetaGroupAttributes{
+				Name: strings.TrimSpace(*name),
+			}
+			if *internal {
+				attrs.IsInternalGroup = true
 			}
 
-			if *internal {
-				internalTrue := true
-				groupID := strings.TrimSpace(group.Data.ID)
-				if groupID == "" {
-					return fmt.Errorf("beta-groups create: missing group id in create response")
-				}
-
-				req := asc.BetaGroupUpdateRequest{
-					Data: asc.BetaGroupUpdateData{
-						Type: asc.ResourceTypeBetaGroups,
-						ID:   groupID,
-						Attributes: &asc.BetaGroupUpdateAttributes{
-							IsInternalGroup: &internalTrue,
-						},
-					},
-				}
-
-				group, err = client.UpdateBetaGroup(requestCtx, groupID, req)
-				if err != nil {
-					return fmt.Errorf("beta-groups create: failed to mark internal: %w", err)
-				}
+			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs)
+			if err != nil {
+				return fmt.Errorf("beta-groups create: failed to create: %w", err)
 			}
 
 			return shared.PrintOutput(group, *output.Output, *output.Pretty)

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestBetaGroupsCreateInternalMakesTwoCalls(t *testing.T) {
+func TestBetaGroupsCreateInternalSetsAttributeOnCreate(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -37,34 +37,16 @@ func TestBetaGroupsCreateInternalMakesTwoCalls(t *testing.T) {
 			if !strings.Contains(string(payload), `"name":"Internal Testers"`) {
 				t.Fatalf("expected group name in body, got %s", string(payload))
 			}
+			if !strings.Contains(string(payload), `"isInternalGroup":true`) {
+				t.Fatalf("expected isInternalGroup=true in body, got %s", string(payload))
+			}
 			if !strings.Contains(string(payload), `"type":"apps"`) || !strings.Contains(string(payload), `"id":"app-1"`) {
 				t.Fatalf("expected app relationship in body, got %s", string(payload))
 			}
 
-			body := `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Internal Testers"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodPatch {
-				t.Fatalf("expected PATCH, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaGroups/bg-1" {
-				t.Fatalf("expected path /v1/betaGroups/bg-1, got %s", req.URL.Path)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("read body error: %v", err)
-			}
-			if !strings.Contains(string(payload), `"isInternalGroup":true`) {
-				t.Fatalf("expected isInternalGroup=true in body, got %s", string(payload))
-			}
-
 			body := `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Internal Testers","isInternalGroup":true}}}`
 			return &http.Response{
-				StatusCode: http.StatusOK,
+				StatusCode: http.StatusCreated,
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
