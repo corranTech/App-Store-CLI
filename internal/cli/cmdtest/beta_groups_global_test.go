@@ -266,3 +266,120 @@ func TestBetaGroupsListNextSkipsSelector(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
+
+func TestBetaGroupsListGlobalWithInternalFilter(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups" {
+			t.Fatalf("expected path /v1/betaGroups, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("filter[isInternalGroup]") != "true" {
+			t.Fatalf("expected filter[isInternalGroup]=true, got %q", req.URL.Query().Get("filter[isInternalGroup]"))
+		}
+		body := `{"data":[]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "beta-groups", "list", "--global", "--internal"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"data":[]`) {
+		t.Fatalf("expected empty data output, got %q", stdout)
+	}
+}
+
+func TestBetaGroupsListScopedWithExternalFilter(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			t.Fatalf("expected path /v1/apps/app-1/betaGroups, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("filter[isInternalGroup]") != "false" {
+			t.Fatalf("expected filter[isInternalGroup]=false, got %q", req.URL.Query().Get("filter[isInternalGroup]"))
+		}
+		body := `{"data":[]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "beta-groups", "list", "--app", "app-1", "--external"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"data":[]`) {
+		t.Fatalf("expected empty data output, got %q", stdout)
+	}
+}
+
+func TestBetaGroupsListInternalAndExternalMutuallyExclusive(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "beta-groups", "list", "--global", "--internal", "--external"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "Error: --internal and --external are mutually exclusive") {
+		t.Fatalf("expected mutually exclusive error, got %q", stderr)
+	}
+}

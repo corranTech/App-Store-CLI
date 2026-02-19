@@ -58,6 +58,8 @@ func BetaGroupsListCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	global := fs.Bool("global", false, "List beta groups across all apps (top-level endpoint)")
+	internal := fs.Bool("internal", false, "Filter to internal groups only")
+	external := fs.Bool("external", false, "Filter to external groups only")
 	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -71,10 +73,13 @@ func BetaGroupsListCommand() *ffcli.Command {
 
 Examples:
   asc testflight beta-groups list --app "APP_ID"
+  asc testflight beta-groups list --app "APP_ID" --internal
+  asc testflight beta-groups list --app "APP_ID" --external
   asc testflight beta-groups list --app "APP_ID" --limit 10
   asc testflight beta-groups list --app "APP_ID" --paginate
   asc testflight beta-groups list --global
-  asc testflight beta-groups list --global --limit 50`,
+  asc testflight beta-groups list --global --limit 50
+  asc testflight beta-groups list --global --internal`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -86,6 +91,11 @@ Examples:
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
+
+			if *internal && *external {
+				fmt.Fprintln(os.Stderr, "Error: --internal and --external are mutually exclusive")
+				return flag.ErrHelp
+			}
 
 			// Reject --global + --app combination (check explicit flag, not resolved value)
 			if *global && strings.TrimSpace(*appID) != "" {
@@ -110,6 +120,11 @@ Examples:
 			opts := []asc.BetaGroupsOption{
 				asc.WithBetaGroupsLimit(*limit),
 				asc.WithBetaGroupsNextURL(*next),
+			}
+			if *internal {
+				opts = append(opts, asc.WithBetaGroupsIsInternal(true))
+			} else if *external {
+				opts = append(opts, asc.WithBetaGroupsIsInternal(false))
 			}
 
 			if *global {
@@ -171,6 +186,7 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	name := fs.String("name", "", "Beta group name")
+	internal := fs.Bool("internal", false, "Create as internal group")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -180,7 +196,8 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 		LongHelp: `Create a TestFlight beta group.
 
 Examples:
-  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"`,
+  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
+  asc testflight beta-groups create --app "APP_ID" --name "Internal Testers" --internal`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -205,6 +222,29 @@ Examples:
 			group, err := client.CreateBetaGroup(requestCtx, resolvedAppID, strings.TrimSpace(*name))
 			if err != nil {
 				return fmt.Errorf("beta-groups create: failed to create: %w", err)
+			}
+
+			if *internal {
+				internalTrue := true
+				groupID := strings.TrimSpace(group.Data.ID)
+				if groupID == "" {
+					return fmt.Errorf("beta-groups create: missing group id in create response")
+				}
+
+				req := asc.BetaGroupUpdateRequest{
+					Data: asc.BetaGroupUpdateData{
+						Type: asc.ResourceTypeBetaGroups,
+						ID:   groupID,
+						Attributes: &asc.BetaGroupUpdateAttributes{
+							IsInternalGroup: &internalTrue,
+						},
+					},
+				}
+
+				group, err = client.UpdateBetaGroup(requestCtx, groupID, req)
+				if err != nil {
+					return fmt.Errorf("beta-groups create: failed to mark internal: %w", err)
+				}
 			}
 
 			return shared.PrintOutput(group, *output.Output, *output.Pretty)
