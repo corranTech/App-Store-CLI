@@ -118,6 +118,9 @@ func TestRun_NoArgsShowsHelpReturnsSuccess(t *testing.T) {
 	if !strings.Contains(stdout, "USAGE") || !strings.Contains(stdout, "GETTING STARTED COMMANDS") {
 		t.Fatalf("expected root help in stdout, got %q", stdout)
 	}
+	if !strings.Contains(stdout, "Install skills: asc install skills") {
+		t.Fatalf("expected skills quick start line in stdout, got %q", stdout)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}

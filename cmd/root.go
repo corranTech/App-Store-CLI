@@ -20,10 +20,11 @@ var versionRequested bool
 func RootCommand(version string) *ffcli.Command {
 	versionRequested = false
 	root := &ffcli.Command{
-		Name:        "asc",
-		ShortUsage:  "asc <subcommand> [flags]",
-		ShortHelp:   "Unofficial. asc is a fast, lightweight cli for App Store Connect. Built by AI agents, for AI agents.",
-		LongHelp:    "",
+		Name:       "asc",
+		ShortUsage: "asc <subcommand> [flags]",
+		ShortHelp:  "Unofficial. asc is a fast, lightweight cli for App Store Connect. Built by AI agents, for AI agents.",
+		LongHelp: `QUICK START
+  Install skills: asc install skills`,
 		FlagSet:     flag.NewFlagSet("asc", flag.ExitOnError),
 		UsageFunc:   RootUsageFunc,
 		Subcommands: registry.Subcommands(version),
