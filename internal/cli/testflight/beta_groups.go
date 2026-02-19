@@ -25,9 +25,10 @@ func BetaGroupsCommand() *ffcli.Command {
 
 Examples:
   asc testflight beta-groups list --app "APP_ID"
-  asc testflight beta-groups list --global
-  asc testflight beta-groups list --global --limit 50
+  asc testflight beta-groups list --app "APP_ID" --internal
+  asc testflight beta-groups list --global --internal
   asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
+  asc testflight beta-groups create --app "APP_ID" --name "Internal Testers" --internal
   asc testflight beta-groups app get --group-id "GROUP_ID"
   asc testflight beta-groups beta-recruitment-criteria get --group-id "GROUP_ID"
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check get --group-id "GROUP_ID"`,
