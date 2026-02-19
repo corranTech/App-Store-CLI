@@ -1771,6 +1771,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | DoubleMemory | [Open](https://apps.apple.com/app/id6737529034) | randomor | iOS, macOS |
 | Dripped | [Open](https://apps.apple.com/app/id6749790183) | mithileshchellapan | iOS |
 | Fisherman SMS Filtering | [Open](https://apps.apple.com/app/id6449192504) | MGidnian | iOS |
+| Inkput | [Open](https://apps.apple.com/app/id6758570182) | funclosure | iOS, macOS |
 | kora: Music Reviews & Ratings | [Open](https://apps.apple.com/app/id6502549140) | adamjhf | iOS |
 | Lumical: Scan to Calendar | [Open](https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309) | arunavo4 | iOS |
 | MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
