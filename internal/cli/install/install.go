@@ -31,8 +31,8 @@ func InstallCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "install",
 		ShortUsage: "asc install <subcommand> [flags]",
-		ShortHelp:  "Install optional asc components.",
-		LongHelp: `Install optional asc components.
+		ShortHelp:  "Install optional asc skills & components.",
+		LongHelp: `Install optional asc skills & components.
 
 Subcommands:
   skills    Install the asc skill pack for App Store Connect workflows.`,

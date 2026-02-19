@@ -82,7 +82,7 @@ asc migrate export --app "APP_ID" --output ./exported-metadata
 Use `asc <command> --help` for subcommands and flags.
 
 - `auth` - Manage authentication for the App Store Connect API.
-- `install` - Install optional asc components.
+- `install` - Install optional asc skills & components.
 - `init` - Initialize asc helper docs in the current repo.
 - `docs` - Generate asc cli reference docs for a repo.
 - `release-notes` - Generate and manage App Store release notes.
