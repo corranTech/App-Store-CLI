@@ -11,6 +11,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/wallgen"
 )
 
+func TestMain(m *testing.M) {
+	lookupAppStoreArtworkURLs = func(ids []string) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	os.Exit(m.Run())
+}
+
 func writeFile(t *testing.T, path string, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -153,6 +160,72 @@ Old wall content.
 	expectedApps := []string{"alpha", "Beta", "Zulu"}
 	if strings.Join(orderedApps, ",") != strings.Join(expectedApps, ",") {
 		t.Fatalf("expected JSON apps sorted alphabetically, got %v", orderedApps)
+	}
+}
+
+func TestRunAddsIconFromAppStoreLookup(t *testing.T) {
+	tmpRepo := t.TempDir()
+	withWorkingDirectory(t, tmpRepo)
+
+	writeFile(t, filepath.Join(tmpRepo, "docs", "wall-of-apps.json"), `[
+  {
+    "app": "CodexMonitor",
+    "link": "https://github.com/Dimillian/CodexMonitor",
+    "creator": "Dimillian",
+    "platform": ["macOS", "iOS"]
+  }
+]`)
+
+	writeFile(t, filepath.Join(tmpRepo, "README.md"), `# Demo
+<!-- WALL-OF-APPS:START -->
+Old wall content.
+<!-- WALL-OF-APPS:END -->
+`)
+
+	previousLookup := lookupAppStoreArtworkURLs
+	t.Cleanup(func() { lookupAppStoreArtworkURLs = previousLookup })
+	lookupAppStoreArtworkURLs = func(ids []string) (map[string]string, error) {
+		return map[string]string{
+			"1000000003": "https://example.com/beta-icon.png",
+		}, nil
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	err := run([]string{
+		"--app", "Beta",
+		"--link", "https://apps.apple.com/app/id1000000003",
+		"--creator", "creator-beta",
+		"--platform", "iOS",
+	}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v (stderr: %s)", err, stderr.String())
+	}
+
+	entries := readJSONEntries(t, filepath.Join(tmpRepo, "docs", "wall-of-apps.json"))
+	var betaEntry wallgen.WallEntry
+	found := false
+	for _, entry := range entries {
+		if entry.App == "Beta" {
+			betaEntry = entry
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected Beta entry in source JSON, got %+v", entries)
+	}
+	if betaEntry.Icon != "https://example.com/beta-icon.png" {
+		t.Fatalf("expected icon URL on Beta entry, got %q", betaEntry.Icon)
+	}
+
+	readmeBytes, err := os.ReadFile(filepath.Join(tmpRepo, "README.md"))
+	if err != nil {
+		t.Fatalf("read README: %v", err)
+	}
+	readme := string(readmeBytes)
+	if !strings.Contains(readme, `<img src="https://example.com/beta-icon.png" alt="Beta icon" width="72" height="72" />`) {
+		t.Fatalf("expected icon tag in README, got:\n%s", readme)
 	}
 }
 
