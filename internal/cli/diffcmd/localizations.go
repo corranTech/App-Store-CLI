@@ -199,34 +199,13 @@ func readAndValidateLocalLocalizations(inputPath string) (map[string]map[string]
 
 	normalized := make(map[string]map[string]string, len(valuesByLocale))
 	for locale, values := range valuesByLocale {
-		if err := validateVersionLocalizationFields(locale, values); err != nil {
+		if err := shared.ValidateVersionLocalizationKeys(locale, values); err != nil {
 			return nil, err
 		}
 		normalized[locale] = normalizeLocalizationValues(values)
 	}
 
 	return normalized, nil
-}
-
-func validateVersionLocalizationFields(locale string, values map[string]string) error {
-	fields := shared.VersionLocalizationKeys()
-	allowed := make(map[string]struct{}, len(fields))
-	for _, field := range fields {
-		allowed[field] = struct{}{}
-	}
-
-	unknown := make([]string, 0)
-	for key := range values {
-		if _, ok := allowed[key]; !ok {
-			unknown = append(unknown, key)
-		}
-	}
-	if len(unknown) == 0 {
-		return nil
-	}
-
-	sort.Strings(unknown)
-	return fmt.Errorf("unsupported keys for locale %q: %s", locale, strings.Join(unknown, ", "))
 }
 
 func fetchVersionLocalizations(ctx context.Context, client *asc.Client, versionID string) (map[string]map[string]string, error) {
