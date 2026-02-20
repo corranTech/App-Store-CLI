@@ -138,3 +138,47 @@ func TestPhasedReleaseProgressBar(t *testing.T) {
 		t.Fatalf("expected deterministic bar, got %q", bar)
 	}
 }
+
+func TestBuildExternalStatesByBuildID_AvoidsAmbiguousPositionalFallback(t *testing.T) {
+	buildIDs := []string{"build-2", "build-1"}
+	betaDetails := &asc.BuildBetaDetailsResponse{
+		Data: []asc.Resource[asc.BuildBetaDetailAttributes]{
+			{
+				ID: "detail-1",
+				Attributes: asc.BuildBetaDetailAttributes{
+					ExternalBuildState: "IN_BETA_TESTING",
+				},
+			},
+			{
+				ID: "detail-2",
+				Attributes: asc.BuildBetaDetailAttributes{
+					ExternalBuildState: "READY_FOR_TESTING",
+				},
+			},
+		},
+	}
+
+	statesByBuildID := buildExternalStatesByBuildID(buildIDs, betaDetails)
+	if len(statesByBuildID) != 0 {
+		t.Fatalf("expected no mapping without build relationships for multiple builds, got %+v", statesByBuildID)
+	}
+}
+
+func TestBuildExternalStatesByBuildID_UsesSingleItemPositionalFallback(t *testing.T) {
+	buildIDs := []string{"build-1"}
+	betaDetails := &asc.BuildBetaDetailsResponse{
+		Data: []asc.Resource[asc.BuildBetaDetailAttributes]{
+			{
+				ID: "detail-1",
+				Attributes: asc.BuildBetaDetailAttributes{
+					ExternalBuildState: "IN_BETA_TESTING",
+				},
+			},
+		},
+	}
+
+	statesByBuildID := buildExternalStatesByBuildID(buildIDs, betaDetails)
+	if statesByBuildID["build-1"] != "IN_BETA_TESTING" {
+		t.Fatalf("expected build-1 to map to IN_BETA_TESTING, got %q", statesByBuildID["build-1"])
+	}
+}
