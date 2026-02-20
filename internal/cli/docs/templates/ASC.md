@@ -87,6 +87,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `install-skills` - Install the asc skill pack for App Store Connect workflows.
 - `init` - Initialize asc helper docs in the current repo.
 - `docs` - Generate asc cli reference docs for a repo.
+- `status` - Show a release pipeline dashboard for an app.
 - `release-notes` - Generate and manage App Store release notes.
 - `feedback` - List TestFlight feedback from beta testers.
 - `crashes` - List and export TestFlight crash reports.
