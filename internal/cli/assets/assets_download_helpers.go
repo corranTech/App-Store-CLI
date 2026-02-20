@@ -197,6 +197,10 @@ func isRetryableDownloadError(err error) bool {
 		}
 	}
 
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return false
+	}
+
 	var netErr net.Error
 	return errors.As(err, &netErr)
 }
