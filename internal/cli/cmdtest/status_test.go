@@ -220,6 +220,16 @@ func TestStatusDefaultJSONIncludesAllSections(t *testing.T) {
 	if _, ok := payload["app"]; !ok {
 		t.Fatalf("expected app section, got %v", payload)
 	}
+	summary, ok := payload["summary"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected summary object, got %T", payload["summary"])
+	}
+	if summary["health"] == "" {
+		t.Fatalf("expected summary.health, got %v", summary)
+	}
+	if summary["nextAction"] == "" {
+		t.Fatalf("expected summary.nextAction, got %v", summary)
+	}
 	for _, key := range []string{"builds", "testflight", "appstore", "submission", "review", "phasedRelease", "links"} {
 		if _, ok := payload[key]; !ok {
 			t.Fatalf("expected %s section in payload, got %v", key, payload)
@@ -364,8 +374,86 @@ func TestStatusTableOutput(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "APP") || !strings.Contains(stdout, "BUILDS") {
-		t.Fatalf("expected section headings in table output, got %q", stdout)
+	if !strings.Contains(stdout, "APP") || !strings.Contains(stdout, "STATUS") || !strings.Contains(stdout, "BLOCKERS") {
+		t.Fatalf("expected compact status section headings in table output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "health") || !strings.Contains(stdout, "nextAction") {
+		t.Fatalf("expected health/nextAction rows in table output, got %q", stdout)
+	}
+}
+
+func TestStatusTestFlightHandlesMissingBuildRelationship(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	buildBetaDetailsCalls := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1":
+			return statusJSONResponse(`{
+				"data":{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"my-app-sku"}}
+			}`), nil
+		case "/v1/builds":
+			return statusJSONResponse(`{
+				"data":[{"type":"builds","id":"build-2","attributes":{"version":"45","uploadedDate":"2026-02-20T00:00:00Z","processingState":"VALID"}}],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/buildBetaDetails":
+			buildBetaDetailsCalls++
+			if req.URL.Query().Get("filter[build]") != "build-2" {
+				t.Fatalf("expected build beta details filter[build]=build-2, got %q", req.URL.Query().Get("filter[build]"))
+			}
+			return statusJSONResponse(`{
+				"data":[{"type":"buildBetaDetails","id":"bbd-2","attributes":{"externalBuildState":"READY_FOR_TESTING"}}],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/betaAppReviewSubmissions":
+			return statusJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "testflight"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if buildBetaDetailsCalls < 1 {
+		t.Fatal("expected build beta details request")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+
+	testflight, ok := payload["testflight"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected testflight object, got %T", payload["testflight"])
+	}
+	if testflight["latestDistributedBuildId"] != "build-2" {
+		t.Fatalf("expected latestDistributedBuildId=build-2, got %v", testflight["latestDistributedBuildId"])
+	}
+	if testflight["externalBuildState"] != "READY_FOR_TESTING" {
+		t.Fatalf("expected externalBuildState=READY_FOR_TESTING, got %v", testflight["externalBuildState"])
 	}
 }
 

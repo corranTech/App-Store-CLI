@@ -73,3 +73,68 @@ func TestSelectLatestReviewSubmission_DeterministicTieBreak(t *testing.T) {
 		t.Fatalf("expected deterministic tie-break to choose sub-2, got %q", selected.ID)
 	}
 }
+
+func TestBuildStatusSummary_RedWhenBlockingIssuesExist(t *testing.T) {
+	resp := &dashboardResponse{
+		Submission: &submissionSection{
+			InFlight:       true,
+			BlockingIssues: []string{"submission abc has unresolved issues"},
+		},
+	}
+
+	summary := buildStatusSummary(resp)
+	if summary.Health != "red" {
+		t.Fatalf("expected health=red, got %q", summary.Health)
+	}
+	if summary.NextAction == "" {
+		t.Fatal("expected next action")
+	}
+	if len(summary.Blockers) == 0 {
+		t.Fatal("expected blockers")
+	}
+}
+
+func TestBuildStatusSummary_YellowWhenReviewInFlight(t *testing.T) {
+	resp := &dashboardResponse{
+		Review: &reviewSection{
+			State: "WAITING_FOR_REVIEW",
+		},
+	}
+
+	summary := buildStatusSummary(resp)
+	if summary.Health != "yellow" {
+		t.Fatalf("expected health=yellow, got %q", summary.Health)
+	}
+}
+
+func TestBuildStatusSummary_GreenWhenReadyForSale(t *testing.T) {
+	resp := &dashboardResponse{
+		AppStore: &appStoreSection{
+			State: "READY_FOR_SALE",
+		},
+		Builds: &buildsSection{
+			Latest: &latestBuild{ID: "build-1"},
+		},
+	}
+
+	summary := buildStatusSummary(resp)
+	if summary.Health != "green" {
+		t.Fatalf("expected health=green, got %q", summary.Health)
+	}
+	if summary.NextAction != "No action needed." {
+		t.Fatalf("expected no action needed, got %q", summary.NextAction)
+	}
+}
+
+func TestPhasedReleaseProgressBar(t *testing.T) {
+	bar := phasedReleaseProgressBar(&phasedReleaseSection{
+		Configured:       true,
+		CurrentDayNumber: 3,
+	})
+	if bar == "" {
+		t.Fatal("expected progress bar")
+	}
+	if bar != "[####------] 3/7" {
+		t.Fatalf("expected deterministic bar, got %q", bar)
+	}
+}

@@ -28,6 +28,7 @@ type includeSet struct {
 
 type dashboardResponse struct {
 	App           statusApp             `json:"app"`
+	Summary       statusSummary         `json:"summary"`
 	Builds        *buildsSection        `json:"builds,omitempty"`
 	TestFlight    *testFlightSection    `json:"testflight,omitempty"`
 	AppStore      *appStoreSection      `json:"appstore,omitempty"`
@@ -41,6 +42,12 @@ type statusApp struct {
 	ID       string `json:"id"`
 	BundleID string `json:"bundleId"`
 	Name     string `json:"name"`
+}
+
+type statusSummary struct {
+	Health     string   `json:"health"`
+	NextAction string   `json:"nextAction"`
+	Blockers   []string `json:"blockers"`
 }
 
 type buildsSection struct {
@@ -272,6 +279,7 @@ func collectDashboard(ctx context.Context, client *asc.Client, appID string, inc
 	if err := runTasks(tasks, 3); err != nil {
 		return nil, err
 	}
+	resp.Summary = buildStatusSummary(resp)
 
 	return resp, nil
 }
@@ -369,15 +377,7 @@ func fillBuildsAndTestFlight(ctx context.Context, client *asc.Client, appID stri
 	if err != nil {
 		return err
 	}
-
-	externalStateByBuild := make(map[string]string, len(betaDetails.Data))
-	for _, detail := range betaDetails.Data {
-		buildID, relErr := relationshipResourceID(detail.Relationships, "build")
-		if relErr != nil {
-			return relErr
-		}
-		externalStateByBuild[buildID] = strings.TrimSpace(detail.Attributes.ExternalBuildState)
-	}
+	externalStateByBuild := buildExternalStatesByBuildID(buildIDs, betaDetails)
 
 	for _, build := range buildsResp.Data {
 		state := strings.ToUpper(strings.TrimSpace(externalStateByBuild[build.ID]))
@@ -403,6 +403,57 @@ func fillBuildsAndTestFlight(ctx context.Context, client *asc.Client, appID stri
 
 	resp.TestFlight = section
 	return nil
+}
+
+func buildExternalStatesByBuildID(buildIDs []string, betaDetails *asc.BuildBetaDetailsResponse) map[string]string {
+	// BuildBetaDetails can omit relationships.build in some real API responses.
+	// Use relationship mapping when available, otherwise fall back to positional mapping.
+	externalStateByBuild := make(map[string]string, len(buildIDs))
+	if betaDetails != nil {
+		usedRelationshipMapping := false
+		for _, detail := range betaDetails.Data {
+			buildID, ok := optionalRelationshipResourceID(detail.Relationships, "build")
+			if !ok {
+				continue
+			}
+			usedRelationshipMapping = true
+			externalStateByBuild[buildID] = strings.TrimSpace(detail.Attributes.ExternalBuildState)
+		}
+
+		if !usedRelationshipMapping {
+			for i, detail := range betaDetails.Data {
+				if i >= len(buildIDs) {
+					break
+				}
+				externalStateByBuild[buildIDs[i]] = strings.TrimSpace(detail.Attributes.ExternalBuildState)
+			}
+		}
+	}
+
+	return externalStateByBuild
+}
+
+func optionalRelationshipResourceID(relationships json.RawMessage, key string) (string, bool) {
+	if len(relationships) == 0 {
+		return "", false
+	}
+
+	var references map[string]relationshipReference
+	if err := json.Unmarshal(relationships, &references); err != nil {
+		return "", false
+	}
+
+	reference, ok := references[key]
+	if !ok {
+		return "", false
+	}
+
+	id := strings.TrimSpace(reference.Data.ID)
+	if id == "" {
+		return "", false
+	}
+
+	return id, true
 }
 
 func fillAppStoreAndPhasedRelease(ctx context.Context, client *asc.Client, appID string, includes includeSet, resp *dashboardResponse) error {
@@ -488,29 +539,6 @@ func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID stri
 	return nil
 }
 
-func relationshipResourceID(relationships json.RawMessage, key string) (string, error) {
-	if len(relationships) == 0 {
-		return "", fmt.Errorf("missing %s relationship", key)
-	}
-
-	var references map[string]relationshipReference
-	if err := json.Unmarshal(relationships, &references); err != nil {
-		return "", fmt.Errorf("parse relationships: %w", err)
-	}
-
-	reference, ok := references[key]
-	if !ok {
-		return "", fmt.Errorf("missing %s relationship", key)
-	}
-
-	id := strings.TrimSpace(reference.Data.ID)
-	if id == "" {
-		return "", fmt.Errorf("missing %s relationship id", key)
-	}
-
-	return id, nil
-}
-
 func selectLatestAppStoreVersion(versions []asc.Resource[asc.AppStoreVersionAttributes]) *asc.Resource[asc.AppStoreVersionAttributes] {
 	if len(versions) == 0 {
 		return nil
@@ -587,6 +615,160 @@ func isInFlightSubmissionState(state string) bool {
 	}
 }
 
+func buildStatusSummary(resp *dashboardResponse) statusSummary {
+	blockers := collectBlockers(resp)
+	health := resolveHealth(resp, blockers)
+	return statusSummary{
+		Health:     health,
+		NextAction: resolveNextAction(resp, blockers),
+		Blockers:   blockers,
+	}
+}
+
+func collectBlockers(resp *dashboardResponse) []string {
+	blockers := make([]string, 0)
+	if resp == nil {
+		return blockers
+	}
+
+	if resp.Submission != nil && len(resp.Submission.BlockingIssues) > 0 {
+		blockers = append(blockers, resp.Submission.BlockingIssues...)
+	}
+
+	if resp.Review != nil {
+		state := strings.ToUpper(strings.TrimSpace(resp.Review.State))
+		switch state {
+		case "UNRESOLVED_ISSUES":
+			blockers = append(blockers, "App Store review has unresolved issues")
+		case "DEVELOPER_REJECTED", "REJECTED":
+			blockers = append(blockers, "App Store review is rejected")
+		}
+	}
+
+	if resp.AppStore != nil {
+		state := strings.ToUpper(strings.TrimSpace(resp.AppStore.State))
+		switch state {
+		case "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "INVALID_BINARY":
+			blockers = append(blockers, fmt.Sprintf("App Store version is in blocking state %s", state))
+		}
+	}
+
+	if resp.Builds != nil && resp.Builds.Latest == nil {
+		blockers = append(blockers, "No builds found for this app")
+	}
+
+	slices.Sort(blockers)
+	return slices.Compact(blockers)
+}
+
+func resolveHealth(resp *dashboardResponse, blockers []string) string {
+	if len(blockers) > 0 {
+		return "red"
+	}
+	if resp == nil {
+		return "yellow"
+	}
+
+	if resp.Submission != nil && resp.Submission.InFlight {
+		return "yellow"
+	}
+	if resp.Review != nil && isInProgressReviewState(resp.Review.State) {
+		return "yellow"
+	}
+	if resp.AppStore != nil && isInProgressAppStoreState(resp.AppStore.State) {
+		return "yellow"
+	}
+
+	return "green"
+}
+
+func resolveNextAction(resp *dashboardResponse, blockers []string) string {
+	if len(blockers) > 0 {
+		return fmt.Sprintf("Resolve blocker: %s", blockers[0])
+	}
+	if resp == nil {
+		return "Review release status."
+	}
+
+	if resp.Submission != nil && resp.Submission.InFlight {
+		return "Wait for App Store review outcome."
+	}
+	if resp.Review != nil && isInProgressReviewState(resp.Review.State) {
+		return "Monitor App Store review progress."
+	}
+	if resp.AppStore != nil {
+		state := strings.ToUpper(strings.TrimSpace(resp.AppStore.State))
+		switch state {
+		case "PREPARE_FOR_SUBMISSION":
+			return "Prepare metadata and submit for review."
+		case "READY_FOR_SALE":
+			return "No action needed."
+		}
+	}
+	if resp.Builds != nil && resp.Builds.Latest == nil {
+		return "Upload a build to App Store Connect."
+	}
+	if resp.TestFlight != nil && resp.TestFlight.ExternalBuildState == "" && resp.TestFlight.BetaReviewState == "" {
+		return "Decide whether to submit a build for external TestFlight."
+	}
+
+	return "Review release status."
+}
+
+func isInProgressReviewState(state string) bool {
+	switch strings.ToUpper(strings.TrimSpace(state)) {
+	case "WAITING_FOR_REVIEW", "IN_REVIEW":
+		return true
+	default:
+		return false
+	}
+}
+
+func isInProgressAppStoreState(state string) bool {
+	switch strings.ToUpper(strings.TrimSpace(state)) {
+	case "PREPARE_FOR_SUBMISSION", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE", "PENDING_APPLE_RELEASE", "PROCESSING_FOR_DISTRIBUTION":
+		return true
+	default:
+		return false
+	}
+}
+
+func phasedReleaseProgressBar(phased *phasedReleaseSection) string {
+	if phased == nil {
+		return "n/a"
+	}
+	if !phased.Configured {
+		return "not configured"
+	}
+
+	day := phased.CurrentDayNumber
+	if day < 0 {
+		day = 0
+	}
+	if day > 7 {
+		day = 7
+	}
+
+	const barWidth = 10
+	filled := (day * barWidth) / 7
+	if day > 0 && filled == 0 {
+		filled = 1
+	}
+	if filled > barWidth {
+		filled = barWidth
+	}
+
+	return fmt.Sprintf("[%s%s] %d/7", strings.Repeat("#", filled), strings.Repeat("-", barWidth-filled), day)
+}
+
+func orNA(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "n/a"
+	}
+	return trimmed
+}
+
 func renderTable(resp *dashboardResponse) {
 	renderDashboard(resp, false)
 }
@@ -604,9 +786,14 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 			return
 		}
 
-		fmt.Fprintf(os.Stdout, "%s\n", strings.ToUpper(title))
+		fmt.Fprintf(os.Stdout, "%s\n", shared.Bold(strings.ToUpper(title)))
 		asc.RenderTable([]string{"field", "value"}, rows)
 		fmt.Fprintln(os.Stdout)
+	}
+
+	summary := resp.Summary
+	if summary.Health == "" {
+		summary = buildStatusSummary(resp)
 	}
 
 	renderSection("App", [][]string{
@@ -615,78 +802,56 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		{"bundleId", resp.App.BundleID},
 	})
 
-	if resp.Builds != nil {
-		rows := [][]string{}
-		if resp.Builds.Latest == nil {
-			rows = append(rows, []string{"latest", "none"})
-		} else {
-			rows = append(rows,
-				[]string{"latest.id", resp.Builds.Latest.ID},
-				[]string{"latest.version", resp.Builds.Latest.Version},
-				[]string{"latest.buildNumber", resp.Builds.Latest.BuildNumber},
-				[]string{"latest.processingState", resp.Builds.Latest.ProcessingState},
-				[]string{"latest.uploadedDate", resp.Builds.Latest.UploadedDate},
-				[]string{"latest.platform", resp.Builds.Latest.Platform},
-			)
-		}
-		renderSection("Builds", rows)
-	}
+	renderSection("Status", [][]string{
+		{"health", summary.Health},
+		{"nextAction", summary.NextAction},
+		{"blockerCount", fmt.Sprintf("%d", len(summary.Blockers))},
+		{"phasedReleaseProgress", phasedReleaseProgressBar(resp.PhasedRelease)},
+	})
 
+	latestBuild := "none"
+	if resp.Builds != nil && resp.Builds.Latest != nil {
+		latestBuild = fmt.Sprintf("%s (%s)", orNA(resp.Builds.Latest.Version), orNA(resp.Builds.Latest.BuildNumber))
+	}
+	testflightState := "n/a"
 	if resp.TestFlight != nil {
-		renderSection("TestFlight", [][]string{
-			{"latestDistributedBuildId", resp.TestFlight.LatestDistributedBuildID},
-			{"betaReviewState", resp.TestFlight.BetaReviewState},
-			{"externalBuildState", resp.TestFlight.ExternalBuildState},
-			{"submittedDate", resp.TestFlight.SubmittedDate},
-		})
-	}
-
-	if resp.AppStore != nil {
-		renderSection("AppStore", [][]string{
-			{"versionId", resp.AppStore.VersionID},
-			{"version", resp.AppStore.Version},
-			{"state", resp.AppStore.State},
-			{"platform", resp.AppStore.Platform},
-			{"createdDate", resp.AppStore.CreatedDate},
-		})
-	}
-
-	if resp.Submission != nil {
-		blocking := "none"
-		if len(resp.Submission.BlockingIssues) > 0 {
-			blocking = strings.Join(resp.Submission.BlockingIssues, "; ")
+		testflightState = strings.TrimSpace(resp.TestFlight.ExternalBuildState)
+		if testflightState == "" {
+			testflightState = strings.TrimSpace(resp.TestFlight.BetaReviewState)
 		}
-		renderSection("Submission", [][]string{
-			{"inFlight", fmt.Sprintf("%t", resp.Submission.InFlight)},
-			{"blockingIssues", blocking},
-		})
+		if testflightState == "" {
+			testflightState = "n/a"
+		}
 	}
-
+	appStoreState := "n/a"
+	if resp.AppStore != nil {
+		appStoreState = strings.TrimSpace(resp.AppStore.State)
+		if appStoreState == "" {
+			appStoreState = "n/a"
+		}
+	}
+	reviewState := "n/a"
 	if resp.Review != nil {
-		renderSection("Review", [][]string{
-			{"latestSubmissionId", resp.Review.LatestSubmissionID},
-			{"state", resp.Review.State},
-			{"submittedDate", resp.Review.SubmittedDate},
-			{"platform", resp.Review.Platform},
-		})
+		reviewState = strings.TrimSpace(resp.Review.State)
+		if reviewState == "" {
+			reviewState = "n/a"
+		}
 	}
 
-	if resp.PhasedRelease != nil {
-		renderSection("PhasedRelease", [][]string{
-			{"configured", fmt.Sprintf("%t", resp.PhasedRelease.Configured)},
-			{"id", resp.PhasedRelease.ID},
-			{"state", resp.PhasedRelease.State},
-			{"startDate", resp.PhasedRelease.StartDate},
-			{"currentDayNumber", fmt.Sprintf("%d", resp.PhasedRelease.CurrentDayNumber)},
-			{"totalPauseDuration", fmt.Sprintf("%d", resp.PhasedRelease.TotalPauseDuration)},
-		})
-	}
+	renderSection("Pipeline", [][]string{
+		{"latestBuild", latestBuild},
+		{"testflight", testflightState},
+		{"appstore", appStoreState},
+		{"review", reviewState},
+	})
 
-	if resp.Links != nil {
-		renderSection("Links", [][]string{
-			{"appStoreConnect", resp.Links.AppStoreConnect},
-			{"testFlight", resp.Links.TestFlight},
-			{"review", resp.Links.Review},
-		})
+	blockerRows := make([][]string, 0)
+	if len(summary.Blockers) == 0 {
+		blockerRows = append(blockerRows, []string{"none", "none"})
+	} else {
+		for i, blocker := range summary.Blockers {
+			blockerRows = append(blockerRows, []string{fmt.Sprintf("blocker_%d", i+1), blocker})
+		}
 	}
+	renderSection("Blockers", blockerRows)
 }
