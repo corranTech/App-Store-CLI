@@ -3,11 +3,13 @@ package webhooks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,6 +104,179 @@ func TestReadWebhookServeJSONPayloadAllowsMaxInt64Limit(t *testing.T) {
 	}
 	if got, want := string(payload), `{"id":"evt-max-int","eventType":"TEST_EVENT"}`; got != want {
 		t.Fatalf("expected compact payload %q, got %q", want, got)
+	}
+}
+
+func TestReadWebhookServeJSONPayloadAllowsExactLimit(t *testing.T) {
+	const rawPayload = `{"id":"evt-exact"}`
+	payload, err := readWebhookServeJSONPayload(io.NopCloser(strings.NewReader(rawPayload)), int64(len(rawPayload)))
+	if err != nil {
+		t.Fatalf("expected exact-limit payload to be accepted, got %v", err)
+	}
+	if string(payload) != rawPayload {
+		t.Fatalf("expected compact payload %q, got %q", rawPayload, string(payload))
+	}
+}
+
+func TestReadWebhookServeJSONPayloadRejectsOneByteOverLimit(t *testing.T) {
+	const rawPayload = `{"id":"evt-over"}`
+	_, err := readWebhookServeJSONPayload(io.NopCloser(strings.NewReader(rawPayload)), int64(len(rawPayload)-1))
+	if !errors.Is(err, errWebhookPayloadTooLarge) {
+		t.Fatalf("expected payload-too-large error, got %v", err)
+	}
+}
+
+func TestWebhooksServeHandlerRejectsNonPOST(t *testing.T) {
+	runtime := &webhookServeRuntime{maxBodyBytes: webhooksServeDefaultMaxBodyBytes}
+	handler := runtime.newHandler(context.Background())
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rec.Code)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON response body: %v", err)
+	}
+	if payload["error"] != "method not allowed" {
+		t.Fatalf("expected method-not-allowed response, got %v", payload)
+	}
+}
+
+func TestWebhooksServeHandlerRejectsInvalidJSON(t *testing.T) {
+	runtime := &webhookServeRuntime{maxBodyBytes: webhooksServeDefaultMaxBodyBytes}
+	handler := runtime.newHandler(context.Background())
+
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{invalid"))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON response body: %v", err)
+	}
+	if payload["error"] != "invalid JSON payload" {
+		t.Fatalf("expected invalid-json response, got %v", payload)
+	}
+}
+
+func TestWebhooksServeHandlerRejectsLargePayload(t *testing.T) {
+	runtime := &webhookServeRuntime{maxBodyBytes: 8}
+	handler := runtime.newHandler(context.Background())
+
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"id":"evt-oversized"}`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected status %d, got %d", http.StatusRequestEntityTooLarge, rec.Code)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("expected JSON response body: %v", err)
+	}
+	if payload["error"] != "payload too large" {
+		t.Fatalf("expected payload-too-large response, got %v", payload)
+	}
+}
+
+func TestPrepareWebhookServeDirectoryRejectsFilePath(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "file.txt")
+	if err := os.WriteFile(filePath, []byte("x"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := prepareWebhookServeDirectory(filePath)
+	if err == nil {
+		t.Fatal("expected error for non-directory path")
+	}
+	if !strings.Contains(err.Error(), "--dir must point to a directory") {
+		t.Fatalf("expected directory validation error, got %v", err)
+	}
+}
+
+func TestPrepareWebhookServeDirectoryRejectsSymlinkPath(t *testing.T) {
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, "target")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatalf("mkdir target: %v", err)
+	}
+
+	symlinkPath := filepath.Join(tempDir, "events-link")
+	if err := os.Symlink(targetDir, symlinkPath); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not supported") {
+			t.Skipf("symlink not supported: %v", err)
+		}
+		t.Fatalf("create symlink: %v", err)
+	}
+
+	_, err := prepareWebhookServeDirectory(symlinkPath)
+	if err == nil {
+		t.Fatal("expected symlink path error")
+	}
+	if !strings.Contains(err.Error(), "refusing to use symlink directory") {
+		t.Fatalf("expected symlink rejection error, got %v", err)
+	}
+}
+
+func TestExtractWebhookServeEventMetadataHeaderPrecedence(t *testing.T) {
+	header := make(http.Header)
+	header.Set("X-Apple-Event-Type", "HEADER_EVENT")
+	header.Set("X-Request-ID", "header-1")
+
+	eventType, eventID := extractWebhookServeEventMetadata(header, []byte(`{
+		"id":"payload-1",
+		"eventType":"PAYLOAD_EVENT"
+	}`))
+	if eventType != "HEADER_EVENT" {
+		t.Fatalf("expected header event type, got %q", eventType)
+	}
+	if eventID != "header-1" {
+		t.Fatalf("expected header event id, got %q", eventID)
+	}
+}
+
+func TestExtractWebhookServeEventMetadataPayloadFallback(t *testing.T) {
+	eventType, eventID := extractWebhookServeEventMetadata(http.Header{}, []byte(`{
+		"data": {"id":"nested-1","type":"NESTED_EVENT"}
+	}`))
+	if eventType != "NESTED_EVENT" {
+		t.Fatalf("expected payload fallback event type, got %q", eventType)
+	}
+	if eventID != "nested-1" {
+		t.Fatalf("expected payload fallback event id, got %q", eventID)
+	}
+}
+
+func TestSanitizeWebhookServeFilenameSegment(t *testing.T) {
+	got := sanitizeWebhookServeFilenameSegment("  BUILD.UPLOAD/STATE*UPDATED  ")
+	if got != "build_upload_state_updated" {
+		t.Fatalf("unexpected sanitized filename segment: %q", got)
+	}
+
+	longValue := sanitizeWebhookServeFilenameSegment(strings.Repeat("x", 120))
+	if len(longValue) > 48 {
+		t.Fatalf("expected max filename segment length 48, got %d", len(longValue))
+	}
+}
+
+func TestRunWebhookExecCommandReturnsStderrOnFailure(t *testing.T) {
+	err := runWebhookExecCommand(context.Background(), `echo "boom" 1>&2; exit 2`, []byte(`{"id":"evt-1"}`))
+	if err == nil {
+		t.Fatal("expected exec failure")
+	}
+	if !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("expected stderr content in error, got %v", err)
 	}
 }
 
