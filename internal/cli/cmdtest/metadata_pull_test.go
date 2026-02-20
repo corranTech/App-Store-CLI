@@ -1,0 +1,214 @@
+package cmdtest
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+)
+
+func TestMetadataPullValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing app",
+			args:    []string{"metadata", "pull", "--version", "1.2.3", "--dir", "./metadata"},
+			wantErr: "Error: --app is required (or set ASC_APP_ID)",
+		},
+		{
+			name:    "missing version",
+			args:    []string{"metadata", "pull", "--app", "app-1", "--dir", "./metadata"},
+			wantErr: "Error: --version is required",
+		},
+		{
+			name:    "missing dir",
+			args:    []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3"},
+			wantErr: "Error: --dir is required",
+		},
+		{
+			name:    "invalid include",
+			args:    []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3", "--dir", "./metadata", "--include", "screenshots"},
+			wantErr: "Error: --include supports only \"localizations\"",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestMetadataPullWritesCanonicalLayout(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	outputDir := filepath.Join(t.TempDir(), "metadata")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1/appInfos":
+			body := `{
+				"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/apps/app-1/appStoreVersions":
+			body := `{
+				"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
+			body := `{
+				"data":[
+					{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App Name","subtitle":"Great app"}},
+					{"type":"appInfoLocalizations","id":"appinfo-loc-2","attributes":{"locale":"ja","name":"アプリ"}}
+				],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			body := `{
+				"data":[
+					{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"English description","keywords":"one,two","whatsNew":"Bug fixes"}},
+					{"type":"appStoreVersionLocalizations","id":"version-loc-2","attributes":{"locale":"ja","description":"日本語説明"}}
+				],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected path: %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "pull",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", outputDir,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	paths := []string{
+		filepath.Join(outputDir, "app-info", "en-US.json"),
+		filepath.Join(outputDir, "app-info", "ja.json"),
+		filepath.Join(outputDir, "version", "1.2.3", "en-US.json"),
+		filepath.Join(outputDir, "version", "1.2.3", "ja.json"),
+	}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("expected file %q to exist: %v", path, err)
+		}
+		if !json.Valid(data) {
+			t.Fatalf("expected valid JSON in %q, got %q", path, string(data))
+		}
+	}
+
+	appInfoData, err := os.ReadFile(filepath.Join(outputDir, "app-info", "en-US.json"))
+	if err != nil {
+		t.Fatalf("read app-info file: %v", err)
+	}
+	if !strings.Contains(string(appInfoData), `"name":"App Name"`) {
+		t.Fatalf("expected app-info content in file, got %q", string(appInfoData))
+	}
+
+	versionData, err := os.ReadFile(filepath.Join(outputDir, "version", "1.2.3", "en-US.json"))
+	if err != nil {
+		t.Fatalf("read version file: %v", err)
+	}
+	if !strings.Contains(string(versionData), `"description":"English description"`) {
+		t.Fatalf("expected version description in file, got %q", string(versionData))
+	}
+
+	var payload struct {
+		FileCount int      `json:"fileCount"`
+		Files     []string `json:"files"`
+		Includes  []string `json:"includes"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+
+	if payload.FileCount != 4 {
+		t.Fatalf("expected fileCount 4, got %d", payload.FileCount)
+	}
+	if len(payload.Files) != 4 {
+		t.Fatalf("expected 4 files in output, got %d", len(payload.Files))
+	}
+	sortedFiles := append([]string(nil), payload.Files...)
+	slices.Sort(sortedFiles)
+	if !slices.Equal(payload.Files, sortedFiles) {
+		t.Fatalf("expected deterministic sorted file list, got %v", payload.Files)
+	}
+	if len(payload.Includes) != 1 || payload.Includes[0] != "localizations" {
+		t.Fatalf("expected includes [localizations], got %v", payload.Includes)
+	}
+}
