@@ -299,9 +299,6 @@ func readWebhookServeJSONPayload(body io.ReadCloser, maxBodyBytes int64) ([]byte
 	if err != nil {
 		return nil, err
 	}
-	if int64(len(raw)) > maxBodyBytes {
-		return nil, errWebhookPayloadTooLarge
-	}
 	if limited.N == 0 {
 		var probe [1]byte
 		n, probeErr := body.Read(probe[:])
