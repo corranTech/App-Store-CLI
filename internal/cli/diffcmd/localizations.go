@@ -409,8 +409,9 @@ func buildLocalizationDiffRows(plan localizationDiffPlan) [][]string {
 func sanitizeDiffCell(value string) string {
 	normalized := strings.ReplaceAll(value, "\n", "\\n")
 	const maxLen = 80
-	if len(normalized) <= maxLen {
+	runes := []rune(normalized)
+	if len(runes) <= maxLen {
 		return normalized
 	}
-	return normalized[:maxLen-3] + "..."
+	return string(runes[:maxLen-3]) + "..."
 }
