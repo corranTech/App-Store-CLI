@@ -1374,6 +1374,16 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--price-point is required",
 		},
 		{
+			name:    "subscriptions prices import missing id",
+			args:    []string{"subscriptions", "prices", "import", "--input", "./prices.csv"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions prices import missing input",
+			args:    []string{"subscriptions", "prices", "import", "--id", "SUB_ID"},
+			wantErr: "--input is required",
+		},
+		{
 			name:    "subscriptions prices list missing id",
 			args:    []string{"subscriptions", "prices", "list"},
 			wantErr: "--id is required",
