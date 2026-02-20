@@ -44,6 +44,11 @@ func VersionLocalizationKeys() []string {
 	return append([]string(nil), versionLocalizationKeys...)
 }
 
+// ValidateVersionLocalizationKeys validates that version localization values only contain supported keys.
+func ValidateVersionLocalizationKeys(locale string, values map[string]string) error {
+	return validateLocalizationKeys(locale, values, buildAllowedKeys(versionLocalizationKeys))
+}
+
 type versionLocalizationClient interface {
 	GetAppStoreVersionLocalizations(context.Context, string, ...asc.AppStoreVersionLocalizationsOption) (*asc.AppStoreVersionLocalizationsResponse, error)
 	CreateAppStoreVersionLocalization(context.Context, string, asc.AppStoreVersionLocalizationAttributes) (*asc.AppStoreVersionLocalizationResponse, error)
