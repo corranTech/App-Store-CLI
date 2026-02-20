@@ -119,7 +119,7 @@ Old content.
 		t.Fatalf("expected alphabetical icon group headings in README, got:\n%s", readme)
 	}
 
-	iconCell := `[<img src="https://example.com/alpha-icon.png" alt="Alpha App icon" width="72" height="72" /><br/>Alpha App](https://example.com/alpha)`
+	iconCell := `[<img src="https://example.com/alpha-icon.png" alt="Alpha App icon" width="64" height="64" /><br/>Alpha App<br/><sub>by Alpha Creator</sub>](https://example.com/alpha)`
 	if !strings.Contains(readme, iconCell) {
 		t.Fatalf("expected icon wall markdown cell in README, got:\n%s", readme)
 	}

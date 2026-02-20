@@ -224,7 +224,7 @@ Old wall content.
 		t.Fatalf("read README: %v", err)
 	}
 	readme := string(readmeBytes)
-	if !strings.Contains(readme, `<img src="https://example.com/beta-icon.png" alt="Beta icon" width="72" height="72" />`) {
+	if !strings.Contains(readme, `<img src="https://example.com/beta-icon.png" alt="Beta icon" width="64" height="64" /><br/>Beta<br/><sub>by creator-beta</sub>`) {
 		t.Fatalf("expected icon tag in README, got:\n%s", readme)
 	}
 }

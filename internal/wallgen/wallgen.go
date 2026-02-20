@@ -17,7 +17,8 @@ const (
 	endMarker           = "<!-- WALL-OF-APPS:END -->"
 	wallSourceURL       = "https://github.com/rudrankriyam/App-Store-Connect-CLI/blob/main/docs/wall-of-apps.json"
 	wallPullRequestsURL = "https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls"
-	iconGridColumns     = 5
+	iconGridColumns     = 4
+	iconTileSize        = 64
 )
 
 var platformDisplayNames = map[string]string{
@@ -185,6 +186,8 @@ func buildSnippet(entries []WallEntry) string {
 		fmt.Sprintf("Apps shipping with asc. Pulled live from [wall-of-apps.json](%s).", wallSourceURL),
 		"",
 		"### App Icons",
+		"",
+		"Grouped alphabetically. Click any tile to open the app.",
 	}
 
 	groupedEntries := make(map[string][]WallEntry)
@@ -198,7 +201,7 @@ func buildSnippet(entries []WallEntry) string {
 	}
 
 	for _, group := range groupOrder {
-		lines = append(lines, "", "#### "+group, "", "|  |  |  |  |  |", "|:--:|:--:|:--:|:--:|:--:|")
+		lines = append(lines, "", "#### "+group, "", buildIconGridHeaderRow(iconGridColumns), buildIconGridAlignRow(iconGridColumns))
 
 		iconCells := make([]string, 0, len(groupedEntries[group]))
 		for _, entry := range groupedEntries[group] {
@@ -243,16 +246,36 @@ func buildSnippet(entries []WallEntry) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
+func buildIconGridHeaderRow(columns int) string {
+	cells := make([]string, columns)
+	for i := 0; i < columns; i++ {
+		cells[i] = " "
+	}
+	return "| " + strings.Join(cells, " | ") + " |"
+}
+
+func buildIconGridAlignRow(columns int) string {
+	cells := make([]string, columns)
+	for i := 0; i < columns; i++ {
+		cells[i] = ":--:"
+	}
+	return "|" + strings.Join(cells, "|") + "|"
+}
+
 func buildIconCell(entry WallEntry) string {
-	name := escapeCell(entry.App)
+	name := escapeIconText(entry.App)
+	creator := escapeIconText(entry.Creator)
 	if entry.Icon == "" {
-		return fmt.Sprintf("[%s](%s)", name, entry.Link)
+		return fmt.Sprintf("[%s<br/><sub>by %s</sub>](%s)", name, creator, entry.Link)
 	}
 	return fmt.Sprintf(
-		`[<img src="%s" alt="%s icon" width="72" height="72" /><br/>%s](%s)`,
+		`[<img src="%s" alt="%s icon" width="%d" height="%d" /><br/>%s<br/><sub>by %s</sub>](%s)`,
 		escapeHTMLAttr(entry.Icon),
 		escapeHTMLAttr(entry.App),
+		iconTileSize,
+		iconTileSize,
 		name,
+		creator,
 		entry.Link,
 	)
 }
@@ -293,6 +316,17 @@ func escapeHTMLAttr(value string) string {
 		">", "&gt;",
 	)
 	return replacer.Replace(strings.TrimSpace(value))
+}
+
+func escapeIconText(value string) string {
+	clean := strings.TrimSpace(strings.ReplaceAll(value, "\n", " "))
+	replacer := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		"|", "&#124;",
+	)
+	return replacer.Replace(clean)
 }
 
 func syncReadme(snippet string, readmePath string) error {
