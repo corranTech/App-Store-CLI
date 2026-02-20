@@ -29,6 +29,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/completion"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/crashes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/devices"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/diffcmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/docs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/encryption"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/eula"
@@ -97,6 +98,7 @@ func Subcommands(version string) []*ffcli.Command {
 		install.InstallSkillsCommand(),
 		initcmd.InitCommand(),
 		docs.DocsCommand(),
+		diffcmd.DiffCommand(),
 		status.StatusCommand(),
 		releasenotes.ReleaseNotesCommand(),
 		feedback.FeedbackCommand(),
