@@ -160,3 +160,52 @@ func TestWriteVersionLocalizationStrings_Paginated(t *testing.T) {
 		}
 	}
 }
+
+func TestVersionLocalizationKeysReturnsDefensiveCopy(t *testing.T) {
+	keysA := VersionLocalizationKeys()
+	if len(keysA) == 0 {
+		t.Fatal("expected non-empty localization keys")
+	}
+
+	originalFirst := keysA[0]
+	keysA[0] = "mutated-key"
+
+	keysB := VersionLocalizationKeys()
+	if len(keysB) == 0 {
+		t.Fatal("expected non-empty localization keys on second call")
+	}
+	if keysB[0] != originalFirst {
+		t.Fatalf("expected defensive copy, got first key %q want %q", keysB[0], originalFirst)
+	}
+}
+
+func TestMapVersionLocalizationStrings(t *testing.T) {
+	attrs := asc.AppStoreVersionLocalizationAttributes{
+		Locale:          "en-US",
+		Description:     "Desc",
+		Keywords:        "one,two",
+		MarketingURL:    "https://example.com/marketing",
+		PromotionalText: "Promo",
+		SupportURL:      "https://example.com/support",
+		WhatsNew:        "Bug fixes",
+	}
+
+	got := MapVersionLocalizationStrings(attrs)
+	expected := map[string]string{
+		"description":     "Desc",
+		"keywords":        "one,two",
+		"marketingUrl":    "https://example.com/marketing",
+		"promotionalText": "Promo",
+		"supportUrl":      "https://example.com/support",
+		"whatsNew":        "Bug fixes",
+	}
+
+	if len(got) != len(expected) {
+		t.Fatalf("expected %d keys, got %d: %#v", len(expected), len(got), got)
+	}
+	for key, want := range expected {
+		if got[key] != want {
+			t.Fatalf("expected key %q = %q, got %q", key, want, got[key])
+		}
+	}
+}
