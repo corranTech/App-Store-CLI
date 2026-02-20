@@ -18,6 +18,7 @@ import (
 )
 
 type includeSet struct {
+	app           bool
 	builds        bool
 	testflight    bool
 	appstore      bool
@@ -28,7 +29,7 @@ type includeSet struct {
 }
 
 type dashboardResponse struct {
-	App           statusApp             `json:"app"`
+	App           *statusApp            `json:"app,omitempty"`
 	Summary       statusSummary         `json:"summary"`
 	Builds        *buildsSection        `json:"builds,omitempty"`
 	TestFlight    *testFlightSection    `json:"testflight,omitempty"`
@@ -116,6 +117,7 @@ type sectionTask struct {
 }
 
 var allowedIncludes = []string{
+	"app",
 	"builds",
 	"testflight",
 	"appstore",
@@ -130,7 +132,7 @@ func StatusCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
-	include := fs.String("include", "", "Comma-separated sections: builds,testflight,appstore,submission,review,phased-release,links")
+	include := fs.String("include", "", "Comma-separated sections: app,builds,testflight,appstore,submission,review,phased-release,links")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -193,6 +195,7 @@ func parseInclude(value string) (includeSet, error) {
 	parts := shared.SplitCSV(strings.ToLower(strings.TrimSpace(value)))
 	if len(parts) == 0 {
 		return includeSet{
+			app:           true,
 			builds:        true,
 			testflight:    true,
 			appstore:      true,
@@ -206,6 +209,8 @@ func parseInclude(value string) (includeSet, error) {
 	includes := includeSet{}
 	for _, part := range parts {
 		switch part {
+		case "app":
+			includes.app = true
 		case "builds":
 			includes.builds = true
 		case "testflight":
@@ -229,17 +234,17 @@ func parseInclude(value string) (includeSet, error) {
 }
 
 func collectDashboard(ctx context.Context, client *asc.Client, appID string, includes includeSet) (*dashboardResponse, error) {
-	appResp, err := client.GetApp(ctx, appID)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := &dashboardResponse{
-		App: statusApp{
+	resp := &dashboardResponse{}
+	if includes.app {
+		appResp, err := client.GetApp(ctx, appID)
+		if err != nil {
+			return nil, err
+		}
+		resp.App = &statusApp{
 			ID:       appResp.Data.ID,
 			BundleID: appResp.Data.Attributes.BundleID,
 			Name:     appResp.Data.Attributes.Name,
-		},
+		}
 	}
 
 	if includes.links {
@@ -807,14 +812,6 @@ func phasedReleaseProgressBar(phased *phasedReleaseSection) string {
 	return fmt.Sprintf("[%s%s] %d/7", strings.Repeat("#", filled), strings.Repeat("-", barWidth-filled), day)
 }
 
-func orNA(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "n/a"
-	}
-	return trimmed
-}
-
 func renderTable(resp *dashboardResponse) {
 	renderDashboard(resp, false)
 }
@@ -823,81 +820,213 @@ func renderMarkdown(resp *dashboardResponse) {
 	renderDashboard(resp, true)
 }
 
+var statusNow = time.Now
+
 func renderDashboard(resp *dashboardResponse, markdown bool) {
-	renderSection := func(title string, rows [][]string) {
-		if markdown {
-			fmt.Fprintf(os.Stdout, "### %s\n\n", title)
-			asc.RenderMarkdown([]string{"field", "value"}, rows)
-			fmt.Fprintln(os.Stdout)
-			return
-		}
-
-		fmt.Fprintf(os.Stdout, "%s\n", shared.Bold(strings.ToUpper(title)))
-		asc.RenderTable([]string{"field", "value"}, rows)
-		fmt.Fprintln(os.Stdout)
-	}
-
 	summary := resp.Summary
 	if summary.Health == "" {
 		summary = buildStatusSummary(resp)
 	}
 
-	renderSection("App", [][]string{
-		{"id", resp.App.ID},
-		{"name", resp.App.Name},
-		{"bundleId", resp.App.BundleID},
-	})
-
-	renderSection("Status", [][]string{
-		{"health", summary.Health},
-		{"nextAction", summary.NextAction},
+	shared.RenderSection("Summary", []string{"field", "value"}, [][]string{
+		{"health", fmt.Sprintf("%s %s", healthSymbol(summary.Health), shared.OrNA(summary.Health))},
+		{"nextAction", shared.OrNA(summary.NextAction)},
 		{"blockerCount", fmt.Sprintf("%d", len(summary.Blockers))},
-		{"phasedReleaseProgress", phasedReleaseProgressBar(resp.PhasedRelease)},
-	})
+	}, markdown)
 
-	latestBuild := "none"
-	if resp.Builds != nil && resp.Builds.Latest != nil {
-		latestBuild = fmt.Sprintf("%s (%s)", orNA(resp.Builds.Latest.Version), orNA(resp.Builds.Latest.BuildNumber))
-	}
-	testflightState := "n/a"
-	if resp.TestFlight != nil {
-		testflightState = strings.TrimSpace(resp.TestFlight.ExternalBuildState)
-		if testflightState == "" {
-			testflightState = strings.TrimSpace(resp.TestFlight.BetaReviewState)
-		}
-		if testflightState == "" {
-			testflightState = "n/a"
-		}
-	}
-	appStoreState := "n/a"
-	if resp.AppStore != nil {
-		appStoreState = strings.TrimSpace(resp.AppStore.State)
-		if appStoreState == "" {
-			appStoreState = "n/a"
-		}
-	}
-	reviewState := "n/a"
-	if resp.Review != nil {
-		reviewState = strings.TrimSpace(resp.Review.State)
-		if reviewState == "" {
-			reviewState = "n/a"
-		}
-	}
-
-	renderSection("Pipeline", [][]string{
-		{"latestBuild", latestBuild},
-		{"testflight", testflightState},
-		{"appstore", appStoreState},
-		{"review", reviewState},
-	})
-
-	blockerRows := make([][]string, 0)
+	attentionRows := make([][]string, 0)
 	if len(summary.Blockers) == 0 {
-		blockerRows = append(blockerRows, []string{"none", "none"})
+		attentionRows = append(attentionRows, []string{"[-] none", "No blockers detected."})
 	} else {
 		for i, blocker := range summary.Blockers {
-			blockerRows = append(blockerRows, []string{fmt.Sprintf("blocker_%d", i+1), blocker})
+			attentionRows = append(attentionRows, []string{fmt.Sprintf("[x] blocker_%d", i+1), blocker})
 		}
 	}
-	renderSection("Blockers", blockerRows)
+	shared.RenderSection("Needs Attention", []string{"item", "detail"}, attentionRows, markdown)
+
+	if resp.App != nil {
+		shared.RenderSection("App", []string{"field", "value"}, [][]string{
+			{"id", resp.App.ID},
+			{"name", resp.App.Name},
+			{"bundleId", resp.App.BundleID},
+		}, markdown)
+	}
+
+	if resp.Builds != nil {
+		rows := make([][]string, 0)
+		if resp.Builds.Latest == nil {
+			rows = append(rows, []string{"latest", "[-] none"})
+		} else {
+			rows = append(rows,
+				[]string{"latest.id", resp.Builds.Latest.ID},
+				[]string{"latest.version", shared.OrNA(resp.Builds.Latest.Version)},
+				[]string{"latest.buildNumber", shared.OrNA(resp.Builds.Latest.BuildNumber)},
+				[]string{"latest.processingState", prefixedState(resp.Builds.Latest.ProcessingState)},
+				[]string{"latest.uploadedDate", formatDateWithRelative(resp.Builds.Latest.UploadedDate)},
+				[]string{"latest.platform", shared.OrNA(resp.Builds.Latest.Platform)},
+			)
+		}
+		shared.RenderSection("Builds", []string{"field", "value"}, rows, markdown)
+	}
+
+	if resp.TestFlight != nil {
+		shared.RenderSection("TestFlight", []string{"field", "value"}, [][]string{
+			{"latestDistributedBuildId", shared.OrNA(resp.TestFlight.LatestDistributedBuildID)},
+			{"betaReviewState", prefixedState(resp.TestFlight.BetaReviewState)},
+			{"externalBuildState", prefixedState(resp.TestFlight.ExternalBuildState)},
+			{"submittedDate", formatDateWithRelative(resp.TestFlight.SubmittedDate)},
+		}, markdown)
+	}
+
+	if resp.AppStore != nil {
+		shared.RenderSection("App Store", []string{"field", "value"}, [][]string{
+			{"versionId", shared.OrNA(resp.AppStore.VersionID)},
+			{"version", shared.OrNA(resp.AppStore.Version)},
+			{"state", prefixedState(resp.AppStore.State)},
+			{"platform", shared.OrNA(resp.AppStore.Platform)},
+			{"createdDate", formatDateWithRelative(resp.AppStore.CreatedDate)},
+		}, markdown)
+	}
+
+	if resp.Submission != nil {
+		inFlight := "[-] false"
+		if resp.Submission.InFlight {
+			inFlight = "[~] true"
+		}
+		shared.RenderSection("Submission", []string{"field", "value"}, [][]string{
+			{"inFlight", inFlight},
+			{"blockingIssueCount", fmt.Sprintf("%d", len(resp.Submission.BlockingIssues))},
+		}, markdown)
+	}
+
+	if resp.Review != nil {
+		shared.RenderSection("Review", []string{"field", "value"}, [][]string{
+			{"latestSubmissionId", shared.OrNA(resp.Review.LatestSubmissionID)},
+			{"state", prefixedState(resp.Review.State)},
+			{"submittedDate", formatDateWithRelative(resp.Review.SubmittedDate)},
+			{"platform", shared.OrNA(resp.Review.Platform)},
+		}, markdown)
+	}
+
+	if resp.PhasedRelease != nil {
+		configured := "[-] false"
+		if resp.PhasedRelease.Configured {
+			configured = "[+] true"
+		}
+		shared.RenderSection("Phased Release", []string{"field", "value"}, [][]string{
+			{"configured", configured},
+			{"id", shared.OrNA(resp.PhasedRelease.ID)},
+			{"state", prefixedState(resp.PhasedRelease.State)},
+			{"startDate", formatDateWithRelative(resp.PhasedRelease.StartDate)},
+			{"currentDayNumber", fmt.Sprintf("%d", resp.PhasedRelease.CurrentDayNumber)},
+			{"totalPauseDuration", fmt.Sprintf("%d", resp.PhasedRelease.TotalPauseDuration)},
+			{"progress", phasedReleaseProgressBar(resp.PhasedRelease)},
+		}, markdown)
+	}
+
+	if resp.Links != nil {
+		shared.RenderSection("Links", []string{"field", "value"}, [][]string{
+			{"appStoreConnect", shared.OrNA(resp.Links.AppStoreConnect)},
+			{"testFlight", shared.OrNA(resp.Links.TestFlight)},
+			{"review", shared.OrNA(resp.Links.Review)},
+		}, markdown)
+	}
+}
+
+func healthSymbol(health string) string {
+	switch strings.ToLower(strings.TrimSpace(health)) {
+	case "green":
+		return "[+]"
+	case "yellow":
+		return "[~]"
+	case "red":
+		return "[x]"
+	default:
+		return "[-]"
+	}
+}
+
+func prefixedState(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "[-] n/a"
+	}
+	return fmt.Sprintf("%s %s", stateSymbol(trimmed), trimmed)
+}
+
+func stateSymbol(value string) string {
+	upper := strings.ToUpper(strings.TrimSpace(value))
+	if upper == "" {
+		return "[-]"
+	}
+	if strings.Contains(upper, "REJECTED") ||
+		strings.Contains(upper, "INVALID") ||
+		strings.Contains(upper, "UNRESOLVED") ||
+		strings.Contains(upper, "FAILED") ||
+		strings.Contains(upper, "ERROR") {
+		return "[x]"
+	}
+	if strings.Contains(upper, "WAITING") ||
+		strings.Contains(upper, "IN_REVIEW") ||
+		strings.Contains(upper, "FOR_REVIEW") ||
+		strings.Contains(upper, "PROCESSING") ||
+		strings.Contains(upper, "PENDING") ||
+		strings.Contains(upper, "PREPARE") ||
+		strings.Contains(upper, "SUBMITTED") ||
+		strings.Contains(upper, "IN_PROGRESS") ||
+		strings.Contains(upper, "NOT_READY") {
+		return "[~]"
+	}
+	if strings.Contains(upper, "READY") ||
+		strings.Contains(upper, "VALID") ||
+		strings.Contains(upper, "ACTIVE") ||
+		strings.Contains(upper, "APPROVED") ||
+		strings.Contains(upper, "COMPLETE") {
+		return "[+]"
+	}
+	return "[-]"
+}
+
+func formatDateWithRelative(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "n/a"
+	}
+
+	if parsed, ok := parseRelativeDate(trimmed); ok {
+		return fmt.Sprintf("%s (%s)", trimmed, relativeTimeText(parsed, statusNow().UTC()))
+	}
+
+	return trimmed
+}
+
+func parseRelativeDate(value string) (time.Time, bool) {
+	if parsed, ok := parseRFC3339Date(value); ok {
+		return parsed.UTC(), true
+	}
+	if parsed, err := time.Parse("2006-01-02", value); err == nil {
+		return time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, time.UTC), true
+	}
+	return time.Time{}, false
+}
+
+func relativeTimeText(target, now time.Time) string {
+	diff := now.Sub(target)
+	if diff < 0 {
+		return "in " + humanizeDuration(-diff)
+	}
+	return humanizeDuration(diff) + " ago"
+}
+
+func humanizeDuration(value time.Duration) string {
+	if value < time.Minute {
+		return "less than 1m"
+	}
+	if value < time.Hour {
+		return fmt.Sprintf("%dm", int(value.Minutes()))
+	}
+	if value < 24*time.Hour {
+		return fmt.Sprintf("%dh", int(value.Hours()))
+	}
+	return fmt.Sprintf("%dd", int(value.Hours()/24))
 }
