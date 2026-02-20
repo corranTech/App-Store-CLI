@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"errors"
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -44,6 +46,15 @@ func TestLoadLocalMetadataTreatsDefaultLocaleCaseInsensitively(t *testing.T) {
 	}
 	if len(bundle.version) != 0 {
 		t.Fatalf("expected no explicit version locales, got %+v", bundle.version)
+	}
+}
+
+func TestLoadLocalMetadataRejectsVersionPathTraversal(t *testing.T) {
+	dir := t.TempDir()
+
+	_, err := loadLocalMetadata(dir, "../../secret")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected usage error for invalid version, got %v", err)
 	}
 }
 

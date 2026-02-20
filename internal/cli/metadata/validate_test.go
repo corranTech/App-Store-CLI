@@ -77,3 +77,27 @@ func TestValidateDirTreatsDefaultLocaleCaseInsensitively(t *testing.T) {
 		t.Fatalf("expected no issues, got %+v", result.Issues)
 	}
 }
+
+func TestValidateDirAllowsDefaultAppInfoWithoutName(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, appInfoDirName), 0o755); err != nil {
+		t.Fatalf("mkdir app-info: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, appInfoDirName, "default.json"), []byte(`{"subtitle":"My Subtitle"}`), 0o644); err != nil {
+		t.Fatalf("write app-info default file: %v", err)
+	}
+
+	result, err := validateDir(dir)
+	if err != nil {
+		t.Fatalf("validateDir() error: %v", err)
+	}
+	if result.FilesScanned != 1 {
+		t.Fatalf("expected 1 file scanned, got %d", result.FilesScanned)
+	}
+	if len(result.Issues) != 0 {
+		t.Fatalf("expected no issues, got %+v", result.Issues)
+	}
+	if !result.Valid {
+		t.Fatalf("expected valid=true, got %+v", result)
+	}
+}
