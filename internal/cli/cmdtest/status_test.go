@@ -366,11 +366,66 @@ func TestStatusTableOutput(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "SUMMARY") || !strings.Contains(stdout, "NEEDS ATTENTION") || !strings.Contains(stdout, "BUILDS") {
+	if !strings.Contains(stdout, "SUMMARY") || !strings.Contains(stdout, "BUILDS") {
 		t.Fatalf("expected section-driven status headings in table output, got %q", stdout)
+	}
+	if strings.Contains(stdout, "NEEDS ATTENTION") {
+		t.Fatalf("did not expect NEEDS ATTENTION section without blockers, got %q", stdout)
 	}
 	if !strings.Contains(stdout, "[+") || !strings.Contains(stdout, "ago") {
 		t.Fatalf("expected symbol-prefixed states and relative time in table output, got %q", stdout)
+	}
+}
+
+func TestStatusTableOutputShowsNeedsAttentionWhenBlocked(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1/reviewSubmissions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissions",
+						"id":"review-sub-2",
+						"attributes":{"state":"UNRESOLVED_ISSUES","platform":"IOS","submittedDate":"2026-02-20T03:00:00Z"}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "review", "--output", "table"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "NEEDS ATTENTION") {
+		t.Fatalf("expected NEEDS ATTENTION section when blockers exist, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "[x] blocker_1") {
+		t.Fatalf("expected blocker row with failure symbol, got %q", stdout)
 	}
 }
 

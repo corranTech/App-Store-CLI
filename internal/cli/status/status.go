@@ -834,15 +834,13 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		{"blockerCount", fmt.Sprintf("%d", len(summary.Blockers))},
 	}, markdown)
 
-	attentionRows := make([][]string, 0)
-	if len(summary.Blockers) == 0 {
-		attentionRows = append(attentionRows, []string{"[-] none", "No blockers detected."})
-	} else {
+	if len(summary.Blockers) > 0 {
+		attentionRows := make([][]string, 0, len(summary.Blockers))
 		for i, blocker := range summary.Blockers {
 			attentionRows = append(attentionRows, []string{fmt.Sprintf("[x] blocker_%d", i+1), blocker})
 		}
+		shared.RenderSection("Needs Attention", []string{"item", "detail"}, attentionRows, markdown)
 	}
-	shared.RenderSection("Needs Attention", []string{"item", "detail"}, attentionRows, markdown)
 
 	if resp.App != nil {
 		shared.RenderSection("App", []string{"field", "value"}, [][]string{
