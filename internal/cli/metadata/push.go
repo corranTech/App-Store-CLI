@@ -340,7 +340,11 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 		}
 	}
 
-	versionDir := filepath.Join(dir, versionDirName, version)
+	resolvedVersion, err := validatePathSegment("version", version)
+	if err != nil {
+		return localMetadataBundle{}, shared.UsageError(err.Error())
+	}
+	versionDir := filepath.Join(dir, versionDirName, resolvedVersion)
 	versionEntries, err := os.ReadDir(versionDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return localMetadataBundle{}, fmt.Errorf("metadata push: failed to read %s: %w", versionDir, err)

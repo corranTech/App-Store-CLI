@@ -118,7 +118,8 @@ func validateDir(dir string) (ValidateResult, error) {
 				continue
 			}
 			locale := strings.TrimSuffix(entry.Name(), ".json")
-			if _, localeErr := validateLocale(locale); localeErr != nil {
+			resolvedLocale, localeErr := validateLocale(locale)
+			if localeErr != nil {
 				return ValidateResult{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
@@ -129,18 +130,18 @@ func validateDir(dir string) (ValidateResult, error) {
 			}
 			result.FilesScanned++
 
-			issues := ValidateAppInfoLocalization(loc, ValidationOptions{RequireName: true})
+			issues := ValidateAppInfoLocalization(loc, ValidationOptions{RequireName: resolvedLocale != DefaultLocale})
 			for _, issue := range issues {
 				result.Issues = append(result.Issues, ValidateIssue{
 					Scope:    appInfoDirName,
 					File:     filePath,
-					Locale:   locale,
+					Locale:   resolvedLocale,
 					Field:    issue.Field,
 					Severity: issueSeverityError,
 					Message:  issue.Message,
 				})
 			}
-			result.Issues = append(result.Issues, appInfoLengthIssues(filePath, locale, loc)...)
+			result.Issues = append(result.Issues, appInfoLengthIssues(filePath, resolvedLocale, loc)...)
 		}
 	}
 
