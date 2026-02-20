@@ -1822,7 +1822,7 @@ Grouped alphabetically. Click any tile to open the app.
 
 |   |   |   |   |
 |:--:|:--:|:--:|:--:|
-| [<img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/00/99/67/00996711-9110-a2bd-2f9f-d6197bfea3fd/Lumical-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg" alt="Lumical: Scan to Calendar icon" width="64" height="64" /><br/>Lumical: Scan to Calendar<br/><sub>by arunavo4</sub>](https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309) |   |   |   |
+| [<img src="https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/05/6a/92/056a928c-8748-1457-e513-43e96ce8a97e/Lumical-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg" alt="Lumical: Scan to Calendar icon" width="64" height="64" /><br/>Lumical: Scan to Calendar<br/><sub>by arunavo4</sub>](https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309) |   |   |   |
 
 #### M
 
