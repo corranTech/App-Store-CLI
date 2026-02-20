@@ -142,5 +142,11 @@
     "link": "https://apps.apple.com/app/id6567933550",
     "creator": "rudrankriyam",
     "platform": ["iOS", "macOS"]
+  },
+  {
+    "app": "Writone - Reply Assistant",
+    "link": "https://apps.apple.com/app/id6758207392",
+    "creator": "dukhyunlee",
+    "platform": ["iOS"]
   }
 ]
