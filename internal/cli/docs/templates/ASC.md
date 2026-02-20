@@ -37,6 +37,7 @@ Do not memorize flags. Always use `--help` for the current interface.
 | Task | Command |
 |------|---------|
 | Check auth status | `asc auth status` |
+| Run auth doctor | `asc doctor --output json` |
 | Check account health | `asc account status` |
 | Generate ASC.md | `asc init` |
 | List apps | `asc apps` |
@@ -86,6 +87,7 @@ asc migrate export --app "APP_ID" --output ./exported-metadata
 Use `asc <command> --help` for subcommands and flags.
 
 - `auth` - Manage authentication for the App Store Connect API.
+- `doctor` - Diagnose authentication configuration issues.
 - `account` - Inspect account-level health and access signals.
 - `install-skills` - Install the asc skill pack for App Store Connect workflows.
 - `init` - Initialize asc helper docs in the current repo.

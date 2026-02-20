@@ -97,6 +97,7 @@ func VersionCommand(version string) *ffcli.Command {
 func Subcommands(version string) []*ffcli.Command {
 	subs := []*ffcli.Command{
 		auth.AuthCommand(),
+		auth.AuthDoctorCommand(),
 		account.AccountCommand(),
 		install.InstallSkillsCommand(),
 		initcmd.InitCommand(),

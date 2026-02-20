@@ -249,10 +249,6 @@ func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
-		case "/v1/apps/app-1":
-			return statusJSONResponse(`{
-				"data":{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"my-app-sku"}}
-			}`), nil
 		case "/v1/builds":
 			return statusJSONResponse(`{
 				"data":[{"type":"builds","id":"build-2","attributes":{"version":"45","uploadedDate":"2026-02-20T00:00:00Z","processingState":"VALID"}}],
@@ -289,8 +285,8 @@ func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
 	}
 
-	if _, ok := payload["app"]; !ok {
-		t.Fatalf("expected app section, got %v", payload)
+	if _, ok := payload["app"]; ok {
+		t.Fatalf("did not expect app section when not included, got %v", payload)
 	}
 	if _, ok := payload["builds"]; !ok {
 		t.Fatalf("expected builds section, got %v", payload)
@@ -340,10 +336,6 @@ func TestStatusTableOutput(t *testing.T) {
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
-		case "/v1/apps/app-1":
-			return statusJSONResponse(`{
-				"data":{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"my-app-sku"}}
-			}`), nil
 		case "/v1/builds":
 			return statusJSONResponse(`{
 				"data":[{"type":"builds","id":"build-2","attributes":{"version":"45","uploadedDate":"2026-02-20T00:00:00Z","processingState":"VALID"}}],
@@ -374,11 +366,67 @@ func TestStatusTableOutput(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "APP") || !strings.Contains(stdout, "STATUS") || !strings.Contains(stdout, "BLOCKERS") {
-		t.Fatalf("expected compact status section headings in table output, got %q", stdout)
+	if !strings.Contains(stdout, "SUMMARY") || !strings.Contains(stdout, "NEEDS ATTENTION") || !strings.Contains(stdout, "BUILDS") {
+		t.Fatalf("expected section-driven status headings in table output, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "health") || !strings.Contains(stdout, "nextAction") {
-		t.Fatalf("expected health/nextAction rows in table output, got %q", stdout)
+	if !strings.Contains(stdout, "[+") || !strings.Contains(stdout, "ago") {
+		t.Fatalf("expected symbol-prefixed states and relative time in table output, got %q", stdout)
+	}
+}
+
+func TestStatusIncludeAppOnly(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1":
+			return statusJSONResponse(`{
+				"data":{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"my-app-sku"}}
+			}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "app"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+
+	if _, ok := payload["app"]; !ok {
+		t.Fatalf("expected app section, got %v", payload)
+	}
+	if _, ok := payload["summary"]; !ok {
+		t.Fatalf("expected summary section, got %v", payload)
+	}
+	for _, key := range []string{"builds", "testflight", "appstore", "submission", "review", "phasedRelease", "links"} {
+		if _, ok := payload[key]; ok {
+			t.Fatalf("did not expect %s section in app-only output: %v", key, payload)
+		}
 	}
 }
 
