@@ -1830,7 +1830,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  Primarily Built with Cursor and GPT-5.2 Codex Extra High
+  <img src="https://cursor.com/marketing-static/icon-192x192.png" alt="Cursor logo" width="24" height="24" />
+</p>
+
+<p align="center">
+  Built with Cursor
 </p>
 
 <p align="center">
