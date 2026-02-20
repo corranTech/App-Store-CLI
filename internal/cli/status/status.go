@@ -420,13 +420,11 @@ func buildExternalStatesByBuildID(buildIDs []string, betaDetails *asc.BuildBetaD
 			externalStateByBuild[buildID] = strings.TrimSpace(detail.Attributes.ExternalBuildState)
 		}
 
-		if !usedRelationshipMapping {
-			for i, detail := range betaDetails.Data {
-				if i >= len(buildIDs) {
-					break
-				}
-				externalStateByBuild[buildIDs[i]] = strings.TrimSpace(detail.Attributes.ExternalBuildState)
-			}
+		// Without relationships, mapping by position is ambiguous for multiple
+		// builds because the API does not guarantee response order for filters.
+		// Keep a single-item fallback where positional mapping is unambiguous.
+		if !usedRelationshipMapping && len(buildIDs) == 1 && len(betaDetails.Data) == 1 {
+			externalStateByBuild[buildIDs[0]] = strings.TrimSpace(betaDetails.Data[0].Attributes.ExternalBuildState)
 		}
 	}
 
