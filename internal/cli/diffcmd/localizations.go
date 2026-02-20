@@ -2,6 +2,7 @@ package diffcmd
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"sort"
@@ -29,13 +30,14 @@ type localizationDiffItem struct {
 }
 
 type localizationDiffPlan struct {
-	Scope   string                   `json:"scope"`
-	AppID   string                   `json:"appId"`
-	Source  localizationDiffEndpoint `json:"source"`
-	Target  localizationDiffEndpoint `json:"target"`
-	Adds    []localizationDiffItem   `json:"adds"`
-	Updates []localizationDiffItem   `json:"updates"`
-	Deletes []localizationDiffItem   `json:"deletes"`
+	Scope     string                   `json:"scope"`
+	AppID     string                   `json:"appId"`
+	Direction string                   `json:"direction"`
+	Source    localizationDiffEndpoint `json:"source"`
+	Target    localizationDiffEndpoint `json:"target"`
+	Adds      []localizationDiffItem   `json:"adds"`
+	Updates   []localizationDiffItem   `json:"updates"`
+	Deletes   []localizationDiffItem   `json:"deletes"`
 }
 
 // DiffLocalizationsCommand compares localization metadata between two sources.
@@ -112,6 +114,10 @@ Modes:
 					return fmt.Errorf("diff localizations: %w", err)
 				}
 
+				if err := validateVersionBelongsToApp(requestCtx, client, targetVersion, resolvedAppID); err != nil {
+					return err
+				}
+
 				remoteValues, err := fetchVersionLocalizations(requestCtx, client, targetVersion)
 				if err != nil {
 					return fmt.Errorf("diff localizations: %w", err)
@@ -137,6 +143,15 @@ Modes:
 				client, err := shared.GetASCClient()
 				if err != nil {
 					return fmt.Errorf("diff localizations: %w", err)
+				}
+
+				if err := validateVersionBelongsToApp(requestCtx, client, sourceVersion, resolvedAppID); err != nil {
+					return err
+				}
+				if targetToVersion != sourceVersion {
+					if err := validateVersionBelongsToApp(requestCtx, client, targetToVersion, resolvedAppID); err != nil {
+						return err
+					}
 				}
 
 				fromValues, err := fetchVersionLocalizations(requestCtx, client, sourceVersion)
@@ -279,6 +294,78 @@ func normalizeLocalizationValues(values map[string]string) map[string]string {
 	return normalized
 }
 
+func validateVersionBelongsToApp(ctx context.Context, client *asc.Client, versionID, appID string) error {
+	resolvedVersionID := strings.TrimSpace(versionID)
+	expectedAppID := strings.TrimSpace(appID)
+
+	actualAppID, err := resolveVersionAppID(ctx, client, resolvedVersionID)
+	if err != nil {
+		return fmt.Errorf("diff localizations: failed to resolve app for version %q: %w", resolvedVersionID, err)
+	}
+	if actualAppID == "" {
+		return shared.UsageErrorf("could not determine owning app for version %q", resolvedVersionID)
+	}
+	if actualAppID != expectedAppID {
+		return shared.UsageErrorf("version %q belongs to app %q, expected --app %q", resolvedVersionID, actualAppID, expectedAppID)
+	}
+
+	return nil
+}
+
+func resolveVersionAppID(ctx context.Context, client *asc.Client, versionID string) (string, error) {
+	resp, err := client.GetAppStoreVersion(
+		ctx,
+		versionID,
+		asc.WithAppStoreVersionInclude([]string{"app"}),
+	)
+	if err != nil {
+		return "", err
+	}
+	return extractVersionAppID(resp)
+}
+
+func extractVersionAppID(resp *asc.AppStoreVersionResponse) (string, error) {
+	if resp == nil {
+		return "", fmt.Errorf("empty app store version response")
+	}
+
+	if len(resp.Data.Relationships) > 0 && string(resp.Data.Relationships) != "null" {
+		var relationships struct {
+			App *struct {
+				Data *asc.ResourceData `json:"data"`
+			} `json:"app"`
+		}
+		if err := json.Unmarshal(resp.Data.Relationships, &relationships); err != nil {
+			return "", fmt.Errorf("parse app store version relationships: %w", err)
+		}
+		if relationships.App != nil && relationships.App.Data != nil {
+			if appID := strings.TrimSpace(relationships.App.Data.ID); appID != "" {
+				return appID, nil
+			}
+		}
+	}
+
+	if len(resp.Included) > 0 && string(resp.Included) != "null" {
+		var included []struct {
+			Type asc.ResourceType `json:"type"`
+			ID   string           `json:"id"`
+		}
+		if err := json.Unmarshal(resp.Included, &included); err != nil {
+			return "", fmt.Errorf("parse included resources: %w", err)
+		}
+		for _, resource := range included {
+			if resource.Type != asc.ResourceTypeApps {
+				continue
+			}
+			if appID := strings.TrimSpace(resource.ID); appID != "" {
+				return appID, nil
+			}
+		}
+	}
+
+	return "", nil
+}
+
 func buildLocalizationDiffPlan(
 	appID string,
 	source localizationDiffEndpoint,
@@ -287,13 +374,14 @@ func buildLocalizationDiffPlan(
 	targetValues map[string]map[string]string,
 ) localizationDiffPlan {
 	plan := localizationDiffPlan{
-		Scope:   "localizations",
-		AppID:   appID,
-		Source:  source,
-		Target:  target,
-		Adds:    make([]localizationDiffItem, 0),
-		Updates: make([]localizationDiffItem, 0),
-		Deletes: make([]localizationDiffItem, 0),
+		Scope:     "localizations",
+		AppID:     appID,
+		Direction: "source-to-target",
+		Source:    source,
+		Target:    target,
+		Adds:      make([]localizationDiffItem, 0),
+		Updates:   make([]localizationDiffItem, 0),
+		Deletes:   make([]localizationDiffItem, 0),
 	}
 
 	localesMap := make(map[string]struct{})
