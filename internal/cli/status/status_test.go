@@ -279,6 +279,7 @@ func TestStateSymbolClassification(t *testing.T) {
 	}{
 		{value: "READY_FOR_SALE", want: "[+]"},
 		{value: "IN_REVIEW", want: "[~]"},
+		{value: "READY_FOR_REVIEW", want: "[~]"},
 		{value: "UNRESOLVED_ISSUES", want: "[x]"},
 		{value: "", want: "[-]"},
 	}

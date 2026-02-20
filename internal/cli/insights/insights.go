@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -667,18 +666,6 @@ func isAllowedSource(name string) bool {
 }
 
 func renderWeeklyInsights(resp *weeklyInsightsResponse, markdown bool) {
-	renderSection := func(title string, headers []string, rows [][]string) {
-		if markdown {
-			fmt.Fprintf(os.Stdout, "### %s\n\n", title)
-			asc.RenderMarkdown(headers, rows)
-			fmt.Fprintln(os.Stdout)
-			return
-		}
-		fmt.Fprintf(os.Stdout, "%s\n", shared.Bold(strings.ToUpper(title)))
-		asc.RenderTable(headers, rows)
-		fmt.Fprintln(os.Stdout)
-	}
-
 	contextRows := [][]string{
 		{"appId", resp.AppID},
 		{"source", resp.Source.Name},
@@ -692,22 +679,22 @@ func renderWeeklyInsights(resp *weeklyInsightsResponse, markdown bool) {
 	if resp.Source.RequestsScanned > 0 {
 		contextRows = append(contextRows, []string{"requestsScanned", strconv.Itoa(resp.Source.RequestsScanned)})
 	}
-	renderSection("Context", []string{"field", "value"}, contextRows)
+	shared.RenderSection("Context", []string{"field", "value"}, contextRows, markdown)
 
 	metricRows := make([][]string, 0, len(resp.Metrics))
 	for _, metric := range resp.Metrics {
 		metricRows = append(metricRows, []string{
 			metric.Name,
-			orNA(metric.Unit),
+			shared.OrNA(metric.Unit),
 			formatOptionalNumber(metric.ThisWeek),
 			formatOptionalNumber(metric.LastWeek),
 			formatOptionalNumber(metric.Delta),
 			formatOptionalNumber(metric.DeltaPercent),
 			metric.Status,
-			orNA(metric.Reason),
+			shared.OrNA(metric.Reason),
 		})
 	}
-	renderSection("Metrics", []string{"metric", "unit", "thisWeek", "lastWeek", "delta", "deltaPercent", "status", "reason"}, metricRows)
+	shared.RenderSection("Metrics", []string{"metric", "unit", "thisWeek", "lastWeek", "delta", "deltaPercent", "status", "reason"}, metricRows, markdown)
 }
 
 func formatOptionalNumber(value *float64) string {
@@ -715,12 +702,4 @@ func formatOptionalNumber(value *float64) string {
 		return "n/a"
 	}
 	return fmt.Sprintf("%.2f", *value)
-}
-
-func orNA(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "n/a"
-	}
-	return trimmed
 }

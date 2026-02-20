@@ -812,14 +812,6 @@ func phasedReleaseProgressBar(phased *phasedReleaseSection) string {
 	return fmt.Sprintf("[%s%s] %d/7", strings.Repeat("#", filled), strings.Repeat("-", barWidth-filled), day)
 }
 
-func orNA(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "n/a"
-	}
-	return trimmed
-}
-
 func renderTable(resp *dashboardResponse) {
 	renderDashboard(resp, false)
 }
@@ -831,29 +823,16 @@ func renderMarkdown(resp *dashboardResponse) {
 var statusNow = time.Now
 
 func renderDashboard(resp *dashboardResponse, markdown bool) {
-	renderSection := func(title string, headers []string, rows [][]string) {
-		if markdown {
-			fmt.Fprintf(os.Stdout, "### %s\n\n", title)
-			asc.RenderMarkdown(headers, rows)
-			fmt.Fprintln(os.Stdout)
-			return
-		}
-
-		fmt.Fprintf(os.Stdout, "%s\n", shared.Bold(strings.ToUpper(title)))
-		asc.RenderTable(headers, rows)
-		fmt.Fprintln(os.Stdout)
-	}
-
 	summary := resp.Summary
 	if summary.Health == "" {
 		summary = buildStatusSummary(resp)
 	}
 
-	renderSection("Summary", []string{"field", "value"}, [][]string{
-		{"health", fmt.Sprintf("%s %s", healthSymbol(summary.Health), orNA(summary.Health))},
-		{"nextAction", orNA(summary.NextAction)},
+	shared.RenderSection("Summary", []string{"field", "value"}, [][]string{
+		{"health", fmt.Sprintf("%s %s", healthSymbol(summary.Health), shared.OrNA(summary.Health))},
+		{"nextAction", shared.OrNA(summary.NextAction)},
 		{"blockerCount", fmt.Sprintf("%d", len(summary.Blockers))},
-	})
+	}, markdown)
 
 	attentionRows := make([][]string, 0)
 	if len(summary.Blockers) == 0 {
@@ -863,14 +842,14 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 			attentionRows = append(attentionRows, []string{fmt.Sprintf("[x] blocker_%d", i+1), blocker})
 		}
 	}
-	renderSection("Needs Attention", []string{"item", "detail"}, attentionRows)
+	shared.RenderSection("Needs Attention", []string{"item", "detail"}, attentionRows, markdown)
 
 	if resp.App != nil {
-		renderSection("App", []string{"field", "value"}, [][]string{
+		shared.RenderSection("App", []string{"field", "value"}, [][]string{
 			{"id", resp.App.ID},
 			{"name", resp.App.Name},
 			{"bundleId", resp.App.BundleID},
-		})
+		}, markdown)
 	}
 
 	if resp.Builds != nil {
@@ -880,33 +859,33 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		} else {
 			rows = append(rows,
 				[]string{"latest.id", resp.Builds.Latest.ID},
-				[]string{"latest.version", orNA(resp.Builds.Latest.Version)},
-				[]string{"latest.buildNumber", orNA(resp.Builds.Latest.BuildNumber)},
+				[]string{"latest.version", shared.OrNA(resp.Builds.Latest.Version)},
+				[]string{"latest.buildNumber", shared.OrNA(resp.Builds.Latest.BuildNumber)},
 				[]string{"latest.processingState", prefixedState(resp.Builds.Latest.ProcessingState)},
 				[]string{"latest.uploadedDate", formatDateWithRelative(resp.Builds.Latest.UploadedDate)},
-				[]string{"latest.platform", orNA(resp.Builds.Latest.Platform)},
+				[]string{"latest.platform", shared.OrNA(resp.Builds.Latest.Platform)},
 			)
 		}
-		renderSection("Builds", []string{"field", "value"}, rows)
+		shared.RenderSection("Builds", []string{"field", "value"}, rows, markdown)
 	}
 
 	if resp.TestFlight != nil {
-		renderSection("TestFlight", []string{"field", "value"}, [][]string{
-			{"latestDistributedBuildId", orNA(resp.TestFlight.LatestDistributedBuildID)},
+		shared.RenderSection("TestFlight", []string{"field", "value"}, [][]string{
+			{"latestDistributedBuildId", shared.OrNA(resp.TestFlight.LatestDistributedBuildID)},
 			{"betaReviewState", prefixedState(resp.TestFlight.BetaReviewState)},
 			{"externalBuildState", prefixedState(resp.TestFlight.ExternalBuildState)},
 			{"submittedDate", formatDateWithRelative(resp.TestFlight.SubmittedDate)},
-		})
+		}, markdown)
 	}
 
 	if resp.AppStore != nil {
-		renderSection("App Store", []string{"field", "value"}, [][]string{
-			{"versionId", orNA(resp.AppStore.VersionID)},
-			{"version", orNA(resp.AppStore.Version)},
+		shared.RenderSection("App Store", []string{"field", "value"}, [][]string{
+			{"versionId", shared.OrNA(resp.AppStore.VersionID)},
+			{"version", shared.OrNA(resp.AppStore.Version)},
 			{"state", prefixedState(resp.AppStore.State)},
-			{"platform", orNA(resp.AppStore.Platform)},
+			{"platform", shared.OrNA(resp.AppStore.Platform)},
 			{"createdDate", formatDateWithRelative(resp.AppStore.CreatedDate)},
-		})
+		}, markdown)
 	}
 
 	if resp.Submission != nil {
@@ -914,19 +893,19 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		if resp.Submission.InFlight {
 			inFlight = "[~] true"
 		}
-		renderSection("Submission", []string{"field", "value"}, [][]string{
+		shared.RenderSection("Submission", []string{"field", "value"}, [][]string{
 			{"inFlight", inFlight},
 			{"blockingIssueCount", fmt.Sprintf("%d", len(resp.Submission.BlockingIssues))},
-		})
+		}, markdown)
 	}
 
 	if resp.Review != nil {
-		renderSection("Review", []string{"field", "value"}, [][]string{
-			{"latestSubmissionId", orNA(resp.Review.LatestSubmissionID)},
+		shared.RenderSection("Review", []string{"field", "value"}, [][]string{
+			{"latestSubmissionId", shared.OrNA(resp.Review.LatestSubmissionID)},
 			{"state", prefixedState(resp.Review.State)},
 			{"submittedDate", formatDateWithRelative(resp.Review.SubmittedDate)},
-			{"platform", orNA(resp.Review.Platform)},
-		})
+			{"platform", shared.OrNA(resp.Review.Platform)},
+		}, markdown)
 	}
 
 	if resp.PhasedRelease != nil {
@@ -934,23 +913,23 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		if resp.PhasedRelease.Configured {
 			configured = "[+] true"
 		}
-		renderSection("Phased Release", []string{"field", "value"}, [][]string{
+		shared.RenderSection("Phased Release", []string{"field", "value"}, [][]string{
 			{"configured", configured},
-			{"id", orNA(resp.PhasedRelease.ID)},
+			{"id", shared.OrNA(resp.PhasedRelease.ID)},
 			{"state", prefixedState(resp.PhasedRelease.State)},
 			{"startDate", formatDateWithRelative(resp.PhasedRelease.StartDate)},
 			{"currentDayNumber", fmt.Sprintf("%d", resp.PhasedRelease.CurrentDayNumber)},
 			{"totalPauseDuration", fmt.Sprintf("%d", resp.PhasedRelease.TotalPauseDuration)},
 			{"progress", phasedReleaseProgressBar(resp.PhasedRelease)},
-		})
+		}, markdown)
 	}
 
 	if resp.Links != nil {
-		renderSection("Links", []string{"field", "value"}, [][]string{
-			{"appStoreConnect", orNA(resp.Links.AppStoreConnect)},
-			{"testFlight", orNA(resp.Links.TestFlight)},
-			{"review", orNA(resp.Links.Review)},
-		})
+		shared.RenderSection("Links", []string{"field", "value"}, [][]string{
+			{"appStoreConnect", shared.OrNA(resp.Links.AppStoreConnect)},
+			{"testFlight", shared.OrNA(resp.Links.TestFlight)},
+			{"review", shared.OrNA(resp.Links.Review)},
+		}, markdown)
 	}
 }
 
@@ -989,6 +968,7 @@ func stateSymbol(value string) string {
 	}
 	if strings.Contains(upper, "WAITING") ||
 		strings.Contains(upper, "IN_REVIEW") ||
+		strings.Contains(upper, "FOR_REVIEW") ||
 		strings.Contains(upper, "PROCESSING") ||
 		strings.Contains(upper, "PENDING") ||
 		strings.Contains(upper, "PREPARE") ||

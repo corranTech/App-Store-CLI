@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -275,18 +274,6 @@ func errorsIsNotFound(err error) bool {
 }
 
 func renderAccountStatus(resp *accountStatusResponse, markdown bool) {
-	renderSection := func(title string, headers []string, rows [][]string) {
-		if markdown {
-			fmt.Fprintf(os.Stdout, "### %s\n\n", title)
-			asc.RenderMarkdown(headers, rows)
-			fmt.Fprintln(os.Stdout)
-			return
-		}
-		fmt.Fprintf(os.Stdout, "%s\n", shared.Bold(strings.ToUpper(title)))
-		asc.RenderTable(headers, rows)
-		fmt.Fprintln(os.Stdout)
-	}
-
 	summaryRows := [][]string{
 		{"health", resp.Summary.Health},
 		{"nextAction", resp.Summary.NextAction},
@@ -294,11 +281,11 @@ func renderAccountStatus(resp *accountStatusResponse, markdown bool) {
 		{"warningCount", strconv.Itoa(resp.Summary.WarningCount)},
 		{"generatedAt", resp.GeneratedAt},
 	}
-	renderSection("Summary", []string{"field", "value"}, summaryRows)
+	shared.RenderSection("Summary", []string{"field", "value"}, summaryRows, markdown)
 
 	checkRows := make([][]string, 0, len(resp.Checks))
 	for _, check := range resp.Checks {
 		checkRows = append(checkRows, []string{check.Name, check.Status, check.Message})
 	}
-	renderSection("Checks", []string{"check", "status", "message"}, checkRows)
+	shared.RenderSection("Checks", []string{"check", "status", "message"}, checkRows, markdown)
 }
