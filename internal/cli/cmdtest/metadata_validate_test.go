@@ -220,3 +220,74 @@ func TestMetadataValidateAcceptsDefaultLocaleFiles(t *testing.T) {
 		t.Fatalf("expected valid report, got %+v", payload)
 	}
 }
+
+func TestMetadataValidateReportsErrorForEmptyDirectory(t *testing.T) {
+	dir := t.TempDir()
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"metadata", "validate", "--dir", dir, "--output", "table"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected validation error for empty directory")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "no metadata .json files found") {
+		t.Fatalf("expected empty-directory issue in output, got %q", stdout)
+	}
+}
+
+func TestMetadataValidateSupportsTableAndMarkdownOutput(t *testing.T) {
+	tests := []struct {
+		name       string
+		outputFlag string
+		wantText   string
+	}{
+		{name: "table", outputFlag: "table", wantText: "Files Scanned: 1"},
+		{name: "markdown", outputFlag: "markdown", wantText: "**Files Scanned:** 1"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			appInfoDir := filepath.Join(dir, "app-info")
+			if err := os.MkdirAll(appInfoDir, 0o755); err != nil {
+				t.Fatalf("mkdir app-info: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(appInfoDir, "en-US.json"), []byte(`{"name":"App Name"}`), 0o644); err != nil {
+				t.Fatalf("write app-info file: %v", err)
+			}
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"metadata", "validate", "--dir", dir, "--output", test.outputFlag}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if !strings.Contains(stdout, test.wantText) {
+				t.Fatalf("expected %q in output, got %q", test.wantText, stdout)
+			}
+		})
+	}
+}

@@ -212,3 +212,270 @@ func TestMetadataPullWritesCanonicalLayout(t *testing.T) {
 		t.Fatalf("expected includes [localizations], got %v", payload.Includes)
 	}
 }
+
+func TestMetadataPullRejectsAmbiguousVersionWithoutPlatform(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	outputDir := filepath.Join(t.TempDir(), "metadata")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1/appInfos":
+			body := `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/apps/app-1/appStoreVersions":
+			body := `{
+				"data":[
+					{"type":"appStoreVersions","id":"version-ios","attributes":{"versionString":"1.2.3","platform":"IOS"}},
+					{"type":"appStoreVersions","id":"version-mac","attributes":{"versionString":"1.2.3","platform":"MAC_OS"}}
+				],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected path: %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "pull",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", outputDir,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, `Error: --platform is required when multiple app store versions match --version "1.2.3"`) {
+		t.Fatalf("expected ambiguous-version error, got %q", stderr)
+	}
+}
+
+func TestMetadataPullPaginatesLocalizations(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	outputDir := filepath.Join(t.TempDir(), "metadata")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1/appInfos":
+			body := `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/apps/app-1/appStoreVersions":
+			body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
+			if req.URL.RawQuery == "limit=200" {
+				body := `{
+					"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App EN"}}],
+					"links":{"next":"https://api.appstoreconnect.apple.com/v1/appInfos/appinfo-1/appInfoLocalizations?cursor=app-2"}
+				}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
+			if req.URL.RawQuery == "cursor=app-2" {
+				body := `{
+					"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-2","attributes":{"locale":"ja","name":"App JA"}}],
+					"links":{"next":""}
+				}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
+		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			if req.URL.RawQuery == "limit=200" {
+				body := `{
+					"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"Desc EN"}}],
+					"links":{"next":"https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-1/appStoreVersionLocalizations?cursor=ver-2"}
+				}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
+			if req.URL.RawQuery == "cursor=ver-2" {
+				body := `{
+					"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-2","attributes":{"locale":"ja","description":"Desc JA"}}],
+					"links":{"next":""}
+				}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
+		}
+		t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+		return nil, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "pull",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", outputDir,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		FileCount int      `json:"fileCount"`
+		Locales   []string `json:"locales"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if payload.FileCount != 4 {
+		t.Fatalf("expected 4 files after pagination, got %d", payload.FileCount)
+	}
+	if !slices.Equal(payload.Locales, []string{"en-US", "ja"}) {
+		t.Fatalf("expected locales [en-US ja], got %v", payload.Locales)
+	}
+}
+
+func TestMetadataPullSupportsTableAndMarkdownOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name       string
+		outputFlag string
+		wantText   string
+	}{
+		{name: "table", outputFlag: "table", wantText: "File Count: 2"},
+		{name: "markdown", outputFlag: "markdown", wantText: "**App ID:** app-1"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			outputDir := filepath.Join(t.TempDir(), "metadata")
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() {
+				http.DefaultTransport = originalTransport
+			})
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch req.URL.Path {
+				case "/v1/apps/app-1/appInfos":
+					body := `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				case "/v1/apps/app-1/appStoreVersions":
+					body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				case "/v1/appInfos/appinfo-1/appInfoLocalizations":
+					body := `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App EN"}}],"links":{"next":""}}`
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+					body := `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"Desc EN"}}],"links":{"next":""}}`
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Body:       io.NopCloser(strings.NewReader(body)),
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+					}, nil
+				default:
+					t.Fatalf("unexpected path: %s", req.URL.Path)
+					return nil, nil
+				}
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"metadata", "pull",
+					"--app", "app-1",
+					"--version", "1.2.3",
+					"--dir", outputDir,
+					"--output", test.outputFlag,
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if !strings.Contains(stdout, test.wantText) {
+				t.Fatalf("expected %q in output, got %q", test.wantText, stdout)
+			}
+		})
+	}
+}
