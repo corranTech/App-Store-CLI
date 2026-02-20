@@ -22,8 +22,9 @@ email,first_name,last_name,groups
 
 - Export uses **semicolon** delimiter in `groups`:
   - `Alpha;Beta`
-- Import accepts **semicolon or comma** delimiters:
+- Import accepts **semicolon** delimiters in canonical mode:
   - `Alpha;Beta`
+- For compatibility, import also accepts comma delimiters **when no semicolon is present**:
   - `Alpha,Beta`
 
 ## Compatibility Modes (Import)

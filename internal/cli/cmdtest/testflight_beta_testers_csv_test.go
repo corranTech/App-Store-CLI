@@ -802,7 +802,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 			}
 			body := `{"data":[` +
 				`{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},` +
-				`{"type":"betaGroups","id":"group-2","attributes":{"name":"Core Team"}}` +
+				`{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}` +
 				`]}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -847,7 +847,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 	csvPath := filepath.Join(t.TempDir(), "fastlane.csv")
 	csvBody := "" +
 		"First,Last,Email,Groups\n" +
-		"Grace,Hopper,grace@example.com,Beta;Core Team\n"
+		"Grace,Hopper,grace@example.com,\"Beta;Core, Team\"\n"
 	if err := os.WriteFile(csvPath, []byte(csvBody), 0o600); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}

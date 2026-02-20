@@ -33,6 +33,29 @@ func TestReadBetaTestersCSV_CanonicalHeaderWithSemicolonGroups(t *testing.T) {
 	}
 }
 
+func TestReadBetaTestersCSV_SemicolonGroupsPreserveCommaInGroupName(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "comma-in-group.csv")
+	body := strings.Join([]string{
+		"email,first_name,last_name,groups",
+		"ada@example.com,Ada,Lovelace,\"Core, Team;Beta\"",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	rows, err := readBetaTestersCSV(path)
+	if err != nil {
+		t.Fatalf("readBetaTestersCSV() error: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(rows))
+	}
+	if got := strings.Join(rows[0].groups, "|"); got != "Core, Team|Beta" {
+		t.Fatalf("expected groups Core, Team|Beta, got %q", got)
+	}
+}
+
 func TestReadBetaTestersCSV_FastlaneHeaderAliases(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "fastlane-header.csv")
 	body := strings.Join([]string{
@@ -85,6 +108,25 @@ func TestReadBetaTestersCSV_FastlaneHeaderlessRows(t *testing.T) {
 	}
 	if got := strings.Join(rows[0].groups, ","); got != "Core Team,Linux" {
 		t.Fatalf("expected groups Core Team,Linux, got %q", got)
+	}
+}
+
+func TestReadBetaTestersCSV_HeaderlessRowWithHeaderWordsParsesAsData(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "header-words-data.csv")
+	body := "First,Email,first.email@example.com,Alpha\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	rows, err := readBetaTestersCSV(path)
+	if err != nil {
+		t.Fatalf("readBetaTestersCSV() error: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(rows))
+	}
+	if rows[0].firstName != "First" || rows[0].lastName != "Email" || rows[0].email != "first.email@example.com" {
+		t.Fatalf("expected headerless row to be parsed as data, got %+v", rows[0])
 	}
 }
 

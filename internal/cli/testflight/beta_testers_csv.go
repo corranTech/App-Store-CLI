@@ -269,7 +269,8 @@ CSV formats accepted:
   3) Legacy headerless fastlane rows:
      First,Last,Email[,Groups]
 
-Groups may be comma- or semicolon-delimited in import files.
+Groups are semicolon-delimited in canonical import/export files.
+For compatibility, comma-delimited groups are also accepted when no semicolon is present.
 
 Examples:
   asc testflight beta-testers import --app "APP_ID" --input "./testflight-testers.csv" --dry-run
@@ -873,20 +874,30 @@ func parseBetaTestersCSVHeader(firstRow []string) (map[string]int, bool, error) 
 	if len(firstRow) == 0 {
 		return nil, false, shared.UsageError("CSV header row is required")
 	}
-	headerCandidate := false
+	hasEmailToken := false
+	hasAtSignValue := false
 	unknown := false
 	for _, raw := range firstRow {
-		col := strings.ToLower(strings.TrimSpace(raw))
+		trimmed := strings.TrimSpace(raw)
+		col := strings.ToLower(trimmed)
 		if col == "" {
 			continue
 		}
+		if strings.Contains(trimmed, "@") {
+			hasAtSignValue = true
+		}
 		if _, ok := canonicalBetaTestersCSVColumn(col); ok {
-			headerCandidate = true
+			if col == "email" {
+				hasEmailToken = true
+			}
 			continue
 		}
 		unknown = true
 	}
-	if !headerCandidate {
+	// Headerless legacy rows commonly contain data values (including @ in emails).
+	// Treat the first row as a header only when it explicitly contains "email"
+	// and does not look like data.
+	if !hasEmailToken || hasAtSignValue {
 		return nil, false, nil
 	}
 	if unknown {
@@ -955,9 +966,12 @@ func splitBetaTesterCSVGroups(value string) []string {
 	if trimmed == "" {
 		return nil
 	}
-	parts := strings.FieldsFunc(trimmed, func(r rune) bool {
-		return r == ',' || r == ';'
-	})
+	splitOn := ","
+	if strings.Contains(trimmed, ";") {
+		// Prefer semicolon when present to preserve commas inside group names.
+		splitOn = ";"
+	}
+	parts := strings.Split(trimmed, splitOn)
 	out := make([]string, 0, len(parts))
 	for _, part := range parts {
 		item := strings.TrimSpace(part)
