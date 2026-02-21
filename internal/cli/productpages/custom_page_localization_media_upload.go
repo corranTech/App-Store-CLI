@@ -383,31 +383,3 @@ func uploadCustomPageScreenshotAsset(ctx context.Context, client *asc.Client, se
 func uploadCustomPagePreviewAsset(ctx context.Context, client *asc.Client, setID, filePath string) (asc.AssetUploadResultItem, error) {
 	return assets.UploadPreviewAsset(ctx, client, setID, filePath)
 }
-
-func waitForCustomPageScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
-	return waitForCustomPageAssetDeliveryState(ctx, screenshotID, func(ctx context.Context) (*asc.AssetDeliveryState, error) {
-		resp, err := client.GetAppScreenshot(ctx, screenshotID)
-		if err != nil {
-			return nil, err
-		}
-		return resp.Data.Attributes.AssetDeliveryState, nil
-	})
-}
-
-func waitForCustomPagePreviewDelivery(ctx context.Context, client *asc.Client, previewID string) (string, error) {
-	return waitForCustomPageAssetDeliveryState(ctx, previewID, func(ctx context.Context) (*asc.AssetDeliveryState, error) {
-		resp, err := client.GetAppPreview(ctx, previewID)
-		if err != nil {
-			return nil, err
-		}
-		return resp.Data.Attributes.AssetDeliveryState, nil
-	})
-}
-
-func waitForCustomPageAssetDeliveryState(ctx context.Context, assetID string, fetch func(context.Context) (*asc.AssetDeliveryState, error)) (string, error) {
-	return assets.WaitForAssetDeliveryState(ctx, assetID, fetch)
-}
-
-func formatCustomPageAssetErrors(errors []asc.ErrorDetail) string {
-	return assets.FormatAssetErrors(errors)
-}
