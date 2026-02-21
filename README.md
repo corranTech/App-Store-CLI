@@ -1739,6 +1739,21 @@ Install `asc` in CI using the official setup action:
 For end-to-end CI examples (publish to TestFlight, upload localizations, etc.), see:
 https://github.com/rudrankriyam/setup-asc
 
+### Bitrise (CI/CD)
+
+Use the official `setup-asc` Bitrise step repository:
+
+```yaml
+workflows:
+  primary:
+    steps:
+    - git::https://github.com/rudrankriyam/steps-setup-asc.git@main:
+        inputs:
+        - mode: run
+        - version: latest
+        - command: asc --help
+```
+
 ### From Source
 
 ```bash
