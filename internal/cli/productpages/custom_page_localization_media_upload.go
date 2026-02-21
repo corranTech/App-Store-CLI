@@ -165,7 +165,7 @@ func executeCustomPageScreenshotUpload(ctx context.Context, localizationID, path
 		return nil, flag.ErrHelp
 	}
 
-	displayType, err := normalizeCustomPageScreenshotDisplayType(trimmedDeviceType)
+	displayType, err := assets.NormalizeScreenshotDisplayType(trimmedDeviceType)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func executeCustomPageScreenshotUpload(ctx context.Context, localizationID, path
 	if err != nil {
 		return nil, err
 	}
-	if err := validateCustomPageScreenshotDimensions(files, displayType); err != nil {
+	if err := assets.ValidateScreenshotDimensions(files, displayType); err != nil {
 		return nil, err
 	}
 
@@ -229,7 +229,7 @@ func executeCustomPagePreviewUpload(ctx context.Context, localizationID, path, d
 		return nil, flag.ErrHelp
 	}
 
-	previewType, err := normalizeCustomPagePreviewType(trimmedDeviceType)
+	previewType, err := assets.NormalizePreviewType(trimmedDeviceType)
 	if err != nil {
 		return nil, err
 	}
@@ -279,41 +279,6 @@ func contextWithCustomPageMediaUploadTimeout(ctx context.Context) (context.Conte
 
 func collectCustomPageMediaFiles(path string) ([]string, error) {
 	return assets.CollectAssetFiles(path)
-}
-
-func normalizeCustomPageScreenshotDisplayType(input string) (string, error) {
-	value := strings.ToUpper(strings.TrimSpace(input))
-	if value == "" {
-		return "", fmt.Errorf("device type is required")
-	}
-	if !strings.HasPrefix(value, "APP_") && !strings.HasPrefix(value, "IMESSAGE_") {
-		value = "APP_" + value
-	}
-	if !asc.IsValidScreenshotDisplayType(value) {
-		return "", fmt.Errorf("unsupported screenshot display type %q", value)
-	}
-	return value, nil
-}
-
-func normalizeCustomPagePreviewType(input string) (string, error) {
-	value := strings.ToUpper(strings.TrimSpace(input))
-	if value == "" {
-		return "", fmt.Errorf("device type is required")
-	}
-	value = strings.TrimPrefix(value, "APP_")
-	if !asc.IsValidPreviewType(value) {
-		return "", fmt.Errorf("unsupported preview type %q", value)
-	}
-	return value, nil
-}
-
-func validateCustomPageScreenshotDimensions(files []string, displayType string) error {
-	for _, filePath := range files {
-		if err := asc.ValidateScreenshotDimensions(filePath, displayType); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func ensureCustomPageLocalizationScreenshotSet(ctx context.Context, client *asc.Client, localizationID, displayType string) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
@@ -382,32 +347,4 @@ func uploadCustomPageScreenshotAsset(ctx context.Context, client *asc.Client, se
 
 func uploadCustomPagePreviewAsset(ctx context.Context, client *asc.Client, setID, filePath string) (asc.AssetUploadResultItem, error) {
 	return assets.UploadPreviewAsset(ctx, client, setID, filePath)
-}
-
-func waitForCustomPageScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
-	return waitForCustomPageAssetDeliveryState(ctx, screenshotID, func(ctx context.Context) (*asc.AssetDeliveryState, error) {
-		resp, err := client.GetAppScreenshot(ctx, screenshotID)
-		if err != nil {
-			return nil, err
-		}
-		return resp.Data.Attributes.AssetDeliveryState, nil
-	})
-}
-
-func waitForCustomPagePreviewDelivery(ctx context.Context, client *asc.Client, previewID string) (string, error) {
-	return waitForCustomPageAssetDeliveryState(ctx, previewID, func(ctx context.Context) (*asc.AssetDeliveryState, error) {
-		resp, err := client.GetAppPreview(ctx, previewID)
-		if err != nil {
-			return nil, err
-		}
-		return resp.Data.Attributes.AssetDeliveryState, nil
-	})
-}
-
-func waitForCustomPageAssetDeliveryState(ctx context.Context, assetID string, fetch func(context.Context) (*asc.AssetDeliveryState, error)) (string, error) {
-	return assets.WaitForAssetDeliveryState(ctx, assetID, fetch)
-}
-
-func formatCustomPageAssetErrors(errors []asc.ErrorDetail) string {
-	return assets.FormatAssetErrors(errors)
 }
