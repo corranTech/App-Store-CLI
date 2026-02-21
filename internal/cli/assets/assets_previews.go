@@ -580,6 +580,11 @@ func normalizePreviewType(input string) (string, error) {
 	return value, nil
 }
 
+// NormalizePreviewType normalizes and validates a preview type.
+func NormalizePreviewType(input string) (string, error) {
+	return normalizePreviewType(input)
+}
+
 func ensurePreviewSet(ctx context.Context, client *asc.Client, localizationID, previewType string) (asc.Resource[asc.AppPreviewSetAttributes], error) {
 	resp, err := client.GetAppPreviewSets(ctx, localizationID)
 	if err != nil {
