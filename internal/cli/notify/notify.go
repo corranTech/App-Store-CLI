@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -27,16 +29,34 @@ const (
 	slackWebhookMaxResponseBodyBytes = 4096
 )
 
+var slackThreadTSPattern = regexp.MustCompile(`^\d+\.\d+$`)
+
 var slackHTTPClient = func() *http.Client {
 	return &http.Client{Timeout: asc.ResolveTimeout()}
 }
 
-func slackFlags(fs *flag.FlagSet) (webhook *string, channel *string, message *string, blocksJSON *string, blocksFile *string) {
+func slackFlags(fs *flag.FlagSet) (
+	webhook *string,
+	channel *string,
+	message *string,
+	threadTS *string,
+	blocksJSON *string,
+	blocksFile *string,
+	payloadJSON *string,
+	payloadFile *string,
+	pretext *string,
+	success *bool,
+) {
 	webhook = fs.String("webhook", "", "Slack webhook URL (or set "+slackWebhookEnvVar+" env var)")
 	channel = fs.String("channel", "", "Slack channel (#channel or @username)")
 	message = fs.String("message", "", "Message to send to Slack")
+	threadTS = fs.String("thread-ts", "", "Slack thread timestamp (thread_ts) for posting a reply")
 	blocksJSON = fs.String("blocks-json", "", "Slack Block Kit JSON array")
 	blocksFile = fs.String("blocks-file", "", "Path to Slack Block Kit JSON array file")
+	payloadJSON = fs.String("payload-json", "", "JSON object of release fields to include as Slack attachment fields")
+	payloadFile = fs.String("payload-file", "", "Path to JSON object file for release payload fields")
+	pretext = fs.String("pretext", "", "Optional text shown above attachment payload fields")
+	success = fs.Bool("success", true, "Set attachment color to success (true) or failure (false)")
 	return
 }
 
@@ -66,7 +86,7 @@ Examples:
 func SlackCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("notify slack", flag.ExitOnError)
 
-	webhook, channel, message, blocksJSON, blocksFile := slackFlags(fs)
+	webhook, channel, message, threadTS, blocksJSON, blocksFile, payloadJSON, payloadFile, pretext, success := slackFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "slack",
@@ -83,7 +103,9 @@ Examples:
   asc notify slack --message "Done" --channel "#deployments"
   ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Release v2.1 ready"
   asc notify slack --message "Release ready" --blocks-json '[{"type":"section","text":{"type":"mrkdwn","text":"*Release* ready"}}]'
-  asc notify slack --message "Release ready" --blocks-file ./blocks.json`,
+  asc notify slack --message "Release ready" --blocks-file ./blocks.json
+  asc notify slack --message "Release update" --thread-ts "1733977745.12345"
+  asc notify slack --message "Release submitted" --payload-json '{"app":"MyApp","version":"1.2.3","build":"42"}'`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -108,6 +130,11 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
 				return flag.ErrHelp
 			}
+			releasePayload, err := parseSlackPayload(*payloadJSON, *payloadFile)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				return flag.ErrHelp
+			}
 
 			payload := map[string]any{}
 			payload["text"] = msg
@@ -115,8 +142,20 @@ Examples:
 			if ch := strings.TrimSpace(*channel); ch != "" {
 				payload["channel"] = ch
 			}
+			if ts := strings.TrimSpace(*threadTS); ts != "" {
+				if !slackThreadTSPattern.MatchString(ts) {
+					fmt.Fprintln(os.Stderr, "Error: --thread-ts must be in Slack ts format (e.g. 1733977745.12345)")
+					return flag.ErrHelp
+				}
+				payload["thread_ts"] = ts
+			}
 			if blocks != nil {
 				payload["blocks"] = blocks
+			}
+			if releasePayload != nil {
+				payload["attachments"] = []map[string]any{
+					buildSlackAttachment(msg, strings.TrimSpace(*pretext), releasePayload, *success),
+				}
 			}
 
 			body, err := json.Marshal(payload)
@@ -199,6 +238,89 @@ func parseSlackBlocks(blocksJSON string, blocksFile string) ([]json.RawMessage, 
 	}
 
 	return blocks, nil
+}
+
+func parseSlackPayload(payloadJSON string, payloadFile string) (map[string]any, error) {
+	payloadJSON = strings.TrimSpace(payloadJSON)
+	payloadFile = strings.TrimSpace(payloadFile)
+
+	if payloadJSON != "" && payloadFile != "" {
+		return nil, fmt.Errorf("only one of --payload-json or --payload-file may be set")
+	}
+	if payloadJSON == "" && payloadFile == "" {
+		return nil, nil
+	}
+
+	source := "--payload-json"
+	if payloadFile != "" {
+		data, err := os.ReadFile(payloadFile)
+		if err != nil {
+			return nil, fmt.Errorf("--payload-file must be readable: %w", err)
+		}
+		payloadJSON = strings.TrimSpace(string(data))
+		source = "--payload-file"
+	}
+	if payloadJSON == "" {
+		return nil, fmt.Errorf("%s must contain a JSON object", source)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(payloadJSON), &payload); err != nil {
+		return nil, fmt.Errorf("%s must contain a JSON object: %w", source, err)
+	}
+	if payload == nil {
+		return nil, fmt.Errorf("%s must contain a JSON object", source)
+	}
+	return payload, nil
+}
+
+func buildSlackAttachment(message string, pretext string, payload map[string]any, success bool) map[string]any {
+	keys := make([]string, 0, len(payload))
+	for key := range payload {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	fields := make([]map[string]any, 0, len(keys))
+	for _, key := range keys {
+		fields = append(fields, map[string]any{
+			"title": key,
+			"value": formatPayloadValue(payload[key]),
+			"short": false,
+		})
+	}
+
+	color := "danger"
+	if success {
+		color = "good"
+	}
+
+	attachment := map[string]any{
+		"fallback":  message,
+		"text":      message,
+		"color":     color,
+		"mrkdwn_in": []string{"pretext", "text", "fields"},
+		"fields":    fields,
+	}
+	if pretext != "" {
+		attachment["pretext"] = pretext
+	}
+	return attachment
+}
+
+func formatPayloadValue(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return "null"
+	case string:
+		return typed
+	default:
+		encoded, err := json.Marshal(typed)
+		if err != nil {
+			return fmt.Sprint(typed)
+		}
+		return string(encoded)
+	}
 }
 
 func validateSlackWebhookURL(rawURL string) error {
