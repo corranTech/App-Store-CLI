@@ -24,54 +24,55 @@ jobs:
           go-version: '1.26.x'
           cache: true
 
+      - name: Check if baseline exists
+        id: check-baseline
+        run: |
+          mkdir -p .perf
+          git checkout ${{ github.event.pull_request.base.sha }} -- scripts/bench-ci.sh 2>/dev/null && {
+            echo "has_baseline=true" >> $GITHUB_OUTPUT
+            git checkout ${{ github.event.pull_request.head.sha }} -- scripts/bench-ci.sh
+          } || {
+            echo "has_baseline=false" >> $GITHUB_OUTPUT
+          }
+
+      - name: Skip if no baseline
+        if: steps.check-baseline.outputs.has_baseline != 'true'
+        run: echo "Base branch does not have bench-ci.sh yet. Skipping comparison (nothing to compare against)."
+
       - name: Install benchstat
+        if: steps.check-baseline.outputs.has_baseline == 'true'
         run: go install golang.org/x/perf/cmd/benchstat@latest
 
       - name: Run benchmarks on base branch
+        if: steps.check-baseline.outputs.has_baseline == 'true'
         run: |
-          mkdir -p .perf
           git checkout ${{ github.event.pull_request.base.sha }}
-          if [ -f scripts/bench-ci.sh ]; then
-            bash scripts/bench-ci.sh .perf/base.txt 5 || echo "Base branch benchmarks failed. Using empty baseline." > .perf/base.txt
-          else
-            echo "Base branch does not have bench-ci.sh yet. Skipping baseline."
-            touch .perf/base.txt
-          fi
+          bash scripts/bench-ci.sh .perf/base.txt 5
 
       - name: Run benchmarks on PR branch
+        if: steps.check-baseline.outputs.has_baseline == 'true'
         run: |
           git checkout ${{ github.event.pull_request.head.sha }}
           bash scripts/bench-ci.sh .perf/pr.txt 5
 
       - name: Compare with benchstat
-        id: benchstat
+        if: steps.check-baseline.outputs.has_baseline == 'true'
         run: |
           export PATH="$(go env GOPATH)/bin:$PATH"
+          DIFF="$(benchstat .perf/base.txt .perf/pr.txt 2>&1)" || true
 
-          if [ ! -s .perf/base.txt ]; then
-            echo "No base benchmarks available. Showing PR-only results."
-            BODY="$(cat .perf/pr.txt)"
-          else
-            BODY="$(benchstat .perf/base.txt .perf/pr.txt 2>&1)" || true
-          fi
-
-          # Write to file for the comment step (avoid shell escaping issues)
           {
             echo "## Benchmark Comparison"
             echo ""
-            echo "<details>"
-            echo "<summary>Click to expand benchstat output</summary>"
-            echo ""
             echo '```'
-            echo "${BODY}"
+            echo "${DIFF}"
             echo '```'
             echo ""
-            echo "</details>"
-            echo ""
-            echo "_Compared against base branch \`${{ github.event.pull_request.base.ref }}\` @ \`$(echo ${{ github.event.pull_request.base.sha }} | head -c 7)\`. Results from CI runners may have variance; look for >5% changes._"
+            echo "_Compared \`${{ github.event.pull_request.base.ref }}\` (\`$(echo ${{ github.event.pull_request.base.sha }} | head -c 7)\`) vs this PR. CI runners have variance; look for changes >5% with p<0.05._"
           } > .perf/comment.md
 
       - name: Post or update PR comment
+        if: steps.check-baseline.outputs.has_baseline == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -95,7 +96,6 @@ jobs:
                 comment_id: existing.id,
                 body: fullBody,
               });
-              console.log(`Updated existing comment ${existing.id}`);
             } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -103,5 +103,4 @@ jobs:
                 issue_number: context.issue.number,
                 body: fullBody,
               });
-              console.log('Created new benchmark comment');
             }
