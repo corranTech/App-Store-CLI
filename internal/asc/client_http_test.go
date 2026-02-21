@@ -3624,6 +3624,62 @@ func TestCreateAppScreenshotSet(t *testing.T) {
 	}
 }
 
+func TestCreateAppScreenshotSetForCustomProductPageLocalization(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appScreenshotSets","id":"SET_CPP_123","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appScreenshotSets" {
+			t.Fatalf("expected path /v1/appScreenshotSets, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+
+		data, ok := payload["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected object data payload, got %T", payload["data"])
+		}
+		relationships, ok := data["relationships"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected relationships payload, got %T", data["relationships"])
+		}
+		customRel, ok := relationships["appCustomProductPageLocalization"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected appCustomProductPageLocalization relationship, got %+v", relationships)
+		}
+		customData, ok := customRel["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected appCustomProductPageLocalization.data object, got %T", customRel["data"])
+		}
+		if customData["type"] != "appCustomProductPageLocalizations" {
+			t.Fatalf("expected relationship type appCustomProductPageLocalizations, got %#v", customData["type"])
+		}
+		if customData["id"] != "CPP_LOC_123" {
+			t.Fatalf("expected relationship id CPP_LOC_123, got %#v", customData["id"])
+		}
+		if _, exists := relationships["appStoreVersionLocalization"]; exists {
+			t.Fatalf("expected appStoreVersionLocalization to be omitted for custom page localization")
+		}
+	}, response)
+
+	result, err := client.CreateAppScreenshotSetForCustomProductPageLocalization(context.Background(), "CPP_LOC_123", "APP_IPHONE_65")
+	if err != nil {
+		t.Fatalf("CreateAppScreenshotSetForCustomProductPageLocalization() error: %v", err)
+	}
+	if result.Data.ID != "SET_CPP_123" {
+		t.Fatalf("expected set ID SET_CPP_123, got %s", result.Data.ID)
+	}
+}
+
 func TestDeleteAppScreenshotSet(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
@@ -3803,6 +3859,62 @@ func TestCreateAppPreviewSet(t *testing.T) {
 	}
 	if result.Data.ID != "SET_123" {
 		t.Fatalf("expected set ID SET_123, got %s", result.Data.ID)
+	}
+}
+
+func TestCreateAppPreviewSetForCustomProductPageLocalization(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appPreviewSets","id":"SET_CPP_123","attributes":{"previewType":"IPHONE_65"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appPreviewSets" {
+			t.Fatalf("expected path /v1/appPreviewSets, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+
+		data, ok := payload["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected object data payload, got %T", payload["data"])
+		}
+		relationships, ok := data["relationships"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected relationships payload, got %T", data["relationships"])
+		}
+		customRel, ok := relationships["appCustomProductPageLocalization"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected appCustomProductPageLocalization relationship, got %+v", relationships)
+		}
+		customData, ok := customRel["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected appCustomProductPageLocalization.data object, got %T", customRel["data"])
+		}
+		if customData["type"] != "appCustomProductPageLocalizations" {
+			t.Fatalf("expected relationship type appCustomProductPageLocalizations, got %#v", customData["type"])
+		}
+		if customData["id"] != "CPP_LOC_123" {
+			t.Fatalf("expected relationship id CPP_LOC_123, got %#v", customData["id"])
+		}
+		if _, exists := relationships["appStoreVersionLocalization"]; exists {
+			t.Fatalf("expected appStoreVersionLocalization to be omitted for custom page localization")
+		}
+	}, response)
+
+	result, err := client.CreateAppPreviewSetForCustomProductPageLocalization(context.Background(), "CPP_LOC_123", "IPHONE_65")
+	if err != nil {
+		t.Fatalf("CreateAppPreviewSetForCustomProductPageLocalization() error: %v", err)
+	}
+	if result.Data.ID != "SET_CPP_123" {
+		t.Fatalf("expected set ID SET_CPP_123, got %s", result.Data.ID)
 	}
 }
 
