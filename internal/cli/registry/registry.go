@@ -44,6 +44,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/localizations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/marketplace"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/merchantids"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/metadata"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/migrate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/nominations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/notarization"
@@ -148,6 +149,7 @@ func Subcommands(version string) []*ffcli.Command {
 		preorders.PreOrdersCommand(),
 		prerelease.PreReleaseVersionsCommand(),
 		localizations.LocalizationsCommand(),
+		metadata.MetadataCommand(),
 		screenshots.ScreenshotsCommand(),
 		videopreviews.VideoPreviewsCommand(),
 		backgroundassets.BackgroundAssetsCommand(),
