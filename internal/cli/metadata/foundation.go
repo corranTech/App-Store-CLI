@@ -188,13 +188,13 @@ func DecodeVersionLocalization(data []byte) (VersionLocalization, error) {
 // EncodeAppInfoLocalization returns deterministic canonical JSON.
 func EncodeAppInfoLocalization(loc AppInfoLocalization) ([]byte, error) {
 	normalized := NormalizeAppInfoLocalization(loc)
-	return json.Marshal(normalized)
+	return encodeCanonicalJSON(normalized)
 }
 
 // EncodeVersionLocalization returns deterministic canonical JSON.
 func EncodeVersionLocalization(loc VersionLocalization) ([]byte, error) {
 	normalized := NormalizeVersionLocalization(loc)
-	return json.Marshal(normalized)
+	return encodeCanonicalJSON(normalized)
 }
 
 // ReadAppInfoLocalizationFile reads and decodes canonical app-info JSON.
@@ -213,15 +213,6 @@ func ReadVersionLocalizationFile(path string) (VersionLocalization, error) {
 		return VersionLocalization{}, err
 	}
 	return DecodeVersionLocalization(data)
-}
-
-// WriteAppInfoLocalizationFile writes canonical app-info JSON safely.
-func WriteAppInfoLocalizationFile(path string, loc AppInfoLocalization) error {
-	data, err := EncodeAppInfoLocalization(loc)
-	if err != nil {
-		return err
-	}
-	return writeFileNoFollow(path, data)
 }
 
 // AppInfoLocalizationFilePath resolves canonical app-info file path.
@@ -329,6 +320,16 @@ func decodeStrictJSON(data []byte, target any) error {
 		return fmt.Errorf("trailing data")
 	}
 	return nil
+}
+
+func encodeCanonicalJSON(value any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
 func readFileNoFollow(path string) ([]byte, error) {
