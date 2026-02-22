@@ -16,24 +16,14 @@
 A fast, lightweight, and scriptable CLI for the App Store Connect API.
 Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, IDE, or CI/CD pipeline.
 
-## Why asc?
-
-| Problem | Solution |
-|---------|----------|
-| Manual App Store Connect work | Automate from CLI and CI |
-| Slow, heavy tooling | Single Go binary |
-| Poor scripting support | JSON-first output, explicit flags, clean exit codes |
-
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [Common Workflows](#common-workflows)
 - [Commands and Reference](#commands-and-reference)
 - [CI/CD Integrations](#cicd-integrations)
-- [Design Philosophy](#design-philosophy)
-- [Installation](#installation)
 - [Documentation](#documentation)
-- [How to test in <10 minutes](#how-to-test-in-10-minutes)
+- [Local Validation](#local-validation)
 - [Security](#security)
 - [asc skills](#asc-skills)
 - [Wall of Apps](#wall-of-apps)
@@ -50,13 +40,9 @@ brew install asc
 
 # Install script (macOS/Linux)
 curl -fsSL https://asccli.sh/install | bash
-
-# Or build from source
-git clone https://github.com/rudrankriyam/App-Store-Connect-CLI.git
-cd App-Store-Connect-CLI
-make build
-./asc --help
 ```
+
+For source builds and contributor setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Authenticate
 
@@ -195,30 +181,6 @@ workflows:
 Use the official CircleCI orb repository:
 https://github.com/rudrankriyam/asc-orb
 
-## Design Philosophy
-
-- Explicit over cryptic (`--app` instead of single-letter aliases)
-- JSON-first output for automation
-- No interactive prompts in command paths
-- Predictable flags and exit codes for CI usage
-
-## Installation
-
-### Homebrew (macOS)
-
-```bash
-brew install asc
-```
-
-### From source
-
-```bash
-git clone https://github.com/rudrankriyam/App-Store-Connect-CLI.git
-cd App-Store-Connect-CLI
-make build
-make install
-```
-
 ## Documentation
 
 - [docs/COMMANDS.md](docs/COMMANDS.md) - Command families and reference navigation
@@ -228,7 +190,7 @@ make install
 - [docs/openapi/README.md](docs/openapi/README.md) - Offline OpenAPI snapshot + update flow
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guide
 
-## How to test in <10 minutes>
+## Local Validation
 
 ```bash
 make tools
@@ -271,6 +233,9 @@ This updates `docs/wall-of-apps.json` and re-syncs the Wall snippet in `README.m
 
 Local screenshot framing uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
 GitHub: https://github.com/bitomule/koubou
+
+Simulator UI automation for screenshot capture and interactions uses AXe CLI.
+GitHub: https://github.com/cameroncooke/AXe
 
 ## Contributing
 
