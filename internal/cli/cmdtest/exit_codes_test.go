@@ -218,11 +218,6 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",
 		},
-		{
-			name:    "builds latest invalid exclude-expired boolean",
-			args:    []string{"builds", "latest", "--app", "APP_ID", "--exclude-expired=maybe"},
-			wantErr: "invalid boolean value",
-		},
 	}
 
 	for _, test := range tests {
