@@ -22,6 +22,7 @@ func SubmitCommand() *ffcli.Command {
 		UsageFunc:  shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubmitCreateCommand(),
+			SubmitValidateCommand(),
 			SubmitStatusCommand(),
 			SubmitCancelCommand(),
 		},
