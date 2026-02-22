@@ -1739,6 +1739,23 @@ Install `asc` in CI using the official setup action:
 For end-to-end CI examples (publish to TestFlight, upload localizations, etc.), see:
 https://github.com/rudrankriyam/setup-asc
 
+### GitLab CI/CD Components
+
+Use the official `asc-ci-components` repository:
+
+```yaml
+include:
+  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
+    inputs:
+      stage: deploy
+      job_prefix: release
+      asc_version: latest
+      command: asc --help
+```
+
+For install/run templates, self-managed examples, and release tags, see:
+https://github.com/rudrankriyam/asc-ci-components
+
 ### Bitrise (CI/CD)
 
 Use the official `setup-asc` Bitrise step repository:
