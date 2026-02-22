@@ -53,6 +53,8 @@ func TestValidateScreenshotDimensionsAcceptsLatestLargeIPhoneSizes(t *testing.T)
 		{name: "2736x1260 landscape", width: 2736, height: 1260},
 		{name: "1320x2868 portrait", width: 1320, height: 2868},
 		{name: "2868x1320 landscape", width: 2868, height: 1320},
+		{name: "1206x2622 portrait", width: 1206, height: 2622},
+		{name: "2622x1206 landscape", width: 2622, height: 1206},
 	}
 
 	for _, tc := range testCases {
@@ -93,6 +95,8 @@ func TestScreenshotSizeEntryIncludesLatestLargeIPhoneDimensions(t *testing.T) {
 	}
 
 	expected := []ScreenshotDimension{
+		{Width: 1206, Height: 2622},
+		{Width: 2622, Height: 1206},
 		{Width: 1260, Height: 2736},
 		{Width: 2736, Height: 1260},
 		{Width: 1290, Height: 2796},
@@ -103,6 +107,50 @@ func TestScreenshotSizeEntryIncludesLatestLargeIPhoneDimensions(t *testing.T) {
 	for _, dim := range expected {
 		if !containsScreenshotDimension(entry.Dimensions, dim) {
 			t.Fatalf("expected APP_IPHONE_67 to include %s, got %v", dim.String(), entry.Dimensions)
+		}
+	}
+}
+
+func TestValidateScreenshotDimensionsAcceptsIPadPro11LatestSizes(t *testing.T) {
+	testCases := []struct {
+		name   string
+		width  int
+		height int
+	}{
+		{name: "1668x2388 portrait", width: 1668, height: 2388},
+		{name: "2388x1668 landscape", width: 2388, height: 1668},
+		{name: "1668x2420 portrait", width: 1668, height: 2420},
+		{name: "2420x1668 landscape", width: 2420, height: 1668},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "ipad-pro-11-latest.png")
+			writePNG(t, path, tc.width, tc.height)
+
+			if err := ValidateScreenshotDimensions(path, "APP_IPAD_PRO_3GEN_11"); err != nil {
+				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPAD_PRO_3GEN_11, got %v", tc.width, tc.height, err)
+			}
+		})
+	}
+}
+
+func TestScreenshotSizeEntryIncludesIPadPro11Dimensions(t *testing.T) {
+	entry, ok := ScreenshotSizeEntryForDisplayType("APP_IPAD_PRO_3GEN_11")
+	if !ok {
+		t.Fatal("expected APP_IPAD_PRO_3GEN_11 entry in screenshot size catalog")
+	}
+
+	expected := []ScreenshotDimension{
+		{Width: 1668, Height: 2388},
+		{Width: 2388, Height: 1668},
+		{Width: 1668, Height: 2420},
+		{Width: 2420, Height: 1668},
+	}
+	for _, dim := range expected {
+		if !containsScreenshotDimension(entry.Dimensions, dim) {
+			t.Fatalf("expected APP_IPAD_PRO_3GEN_11 to include %s, got %v", dim.String(), entry.Dimensions)
 		}
 	}
 }

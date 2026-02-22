@@ -181,6 +181,61 @@ func TestAssetsScreenshotsSizesOutputIncludesMacWatchTVAndVisionDimensions(t *te
 	}
 }
 
+func TestAssetsScreenshotsSizesOutputIncludesLatestIPhone67AndIPad11Dimensions(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"screenshots", "sizes", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result asc.ScreenshotSizesResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+
+	testCases := []struct {
+		displayType string
+		dimensions  []asc.ScreenshotDimension
+	}{
+		{
+			displayType: "APP_IPHONE_67",
+			dimensions: []asc.ScreenshotDimension{
+				{Width: 1206, Height: 2622},
+				{Width: 2622, Height: 1206},
+			},
+		},
+		{
+			displayType: "APP_IPAD_PRO_3GEN_11",
+			dimensions: []asc.ScreenshotDimension{
+				{Width: 1668, Height: 2420},
+				{Width: 2420, Height: 1668},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		entry, found := screenshotEntryByDisplayType(result.Sizes, tc.displayType)
+		if !found {
+			t.Fatalf("expected %s in sizes output", tc.displayType)
+		}
+		for _, dim := range tc.dimensions {
+			if !containsDimension(entry.Dimensions, dim) {
+				t.Fatalf("expected %s to include %dx%d, got %v", tc.displayType, dim.Width, dim.Height, entry.Dimensions)
+			}
+		}
+	}
+}
+
 func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -310,6 +365,73 @@ func TestAssetsScreenshotsUploadAcceptsMacWatchTVAndVisionDimensions(t *testing.
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			path := filepath.Join(dir, tc.name+".png")
+			writePNG(t, path, tc.width, tc.height)
+
+			var calls int32
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() {
+				http.DefaultTransport = originalTransport
+			})
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				atomic.AddInt32(&calls, 1)
+				return nil, fmt.Errorf("forced network failure after local validation")
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"screenshots", "upload",
+					"--version-localization", "LOC_ID",
+					"--path", path,
+					"--device-type", tc.deviceType,
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if runErr == nil {
+				t.Fatal("expected network failure after validation, got nil")
+			}
+			if !strings.Contains(runErr.Error(), "forced network failure after local validation") {
+				t.Fatalf("expected network failure error, got %q", runErr.Error())
+			}
+			if atomic.LoadInt32(&calls) == 0 {
+				t.Fatal("expected at least one network call after successful local validation")
+			}
+		})
+	}
+}
+
+func TestAssetsScreenshotsUploadAcceptsLatestIPhone67AndIPad11Dimensions(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	testCases := []struct {
+		name       string
+		deviceType string
+		width      int
+		height     int
+	}{
+		{name: "iphone 67 1206x2622 portrait", deviceType: "IPHONE_67", width: 1206, height: 2622},
+		{name: "iphone 67 2622x1206 landscape", deviceType: "IPHONE_67", width: 2622, height: 1206},
+		{name: "ipad pro 11 1668x2420 portrait", deviceType: "IPAD_PRO_3GEN_11", width: 1668, height: 2420},
+		{name: "ipad pro 11 2420x1668 landscape", deviceType: "IPAD_PRO_3GEN_11", width: 2420, height: 1668},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "valid-latest-size.png")
 			writePNG(t, path, tc.width, tc.height)
 
 			var calls int32

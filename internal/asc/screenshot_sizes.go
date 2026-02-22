@@ -76,6 +76,7 @@ var (
 		portraitLandscape(1284, 2778),
 	)
 	iphone67Dimensions = combineDimensions(
+		portraitLandscape(1206, 2622),
 		portraitLandscape(1260, 2736),
 		portraitLandscape(1290, 2796),
 		portraitLandscape(1320, 2868),
@@ -96,7 +97,10 @@ var (
 		portraitLandscape(2048, 2732),
 		portraitLandscape(2064, 2752),
 	)
-	ipadPro11Dimensions = portraitLandscape(1668, 2388)
+	ipadPro11Dimensions = combineDimensions(
+		portraitLandscape(1668, 2388),
+		portraitLandscape(1668, 2420),
+	)
 	ipad105Dimensions   = portraitLandscape(1668, 2224)
 	ipad97Dimensions    = portraitLandscape(1536, 2048)
 	desktopDimensions   = combineDimensions(
