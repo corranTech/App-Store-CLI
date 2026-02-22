@@ -234,6 +234,7 @@ make install
 make tools
 make format
 make lint
+make check-command-docs
 ASC_BYPASS_KEYCHAIN=1 make test
 make build
 ./asc --help
