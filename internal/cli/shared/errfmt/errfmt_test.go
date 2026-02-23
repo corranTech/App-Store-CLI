@@ -66,10 +66,34 @@ func TestClassify_PrivacyDataUsages(t *testing.T) {
 			if tt.wantHit && !strings.Contains(ce.Hint, "App Store Connect web UI") {
 				t.Fatalf("expected web UI hint, got: %s", ce.Hint)
 			}
-			if !tt.wantHit && strings.Contains(ce.Hint, "privacy") {
-				t.Fatalf("did not expect privacy hint for unrelated error, got: %s", ce.Hint)
+			if !tt.wantHit && ce.Hint != "" {
+				t.Fatalf("did not expect hint for unrelated error, got: %s", ce.Hint)
 			}
 		})
+	}
+}
+
+func TestClassify_PrivacyDataUsages_TakesPrecedenceOverForbidden(t *testing.T) {
+	err := &asc.APIError{
+		Code:   "FORBIDDEN",
+		Title:  "Forbidden",
+		Detail: "Associated resources failed validation",
+		AssociatedErrors: map[string][]asc.APIAssociatedError{
+			"/v1/appDataUsages/": {
+				{
+					Code:   "ENTITY_ERROR.ATTRIBUTE.REQUIRED",
+					Detail: "Missing required privacy answers",
+				},
+			},
+		},
+	}
+
+	ce := Classify(err)
+	if !strings.Contains(ce.Hint, "App Store Connect web UI") {
+		t.Fatalf("expected privacy hint to take precedence, got: %s", ce.Hint)
+	}
+	if strings.Contains(ce.Hint, "role/permissions") {
+		t.Fatalf("expected privacy hint, got permissions hint: %s", ce.Hint)
 	}
 }
 

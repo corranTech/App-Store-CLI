@@ -34,6 +34,13 @@ func Classify(err error) ClassifiedError {
 		}
 	}
 
+	if containsPrivacyError(err) {
+		return ClassifiedError{
+			Message: err.Error(),
+			Hint:    "App privacy declarations (data usages) must be configured in the App Store Connect web UI — the API does not support this. Visit https://appstoreconnect.apple.com and complete the App Privacy section before submitting.",
+		}
+	}
+
 	if errors.Is(err, asc.ErrForbidden) {
 		return ClassifiedError{
 			Message: err.Error(),
@@ -45,13 +52,6 @@ func Classify(err error) ClassifiedError {
 		return ClassifiedError{
 			Message: err.Error(),
 			Hint:    "Your credentials may be invalid or expired. Try `asc auth status` and re-login if needed.",
-		}
-	}
-
-	if containsPrivacyError(err) {
-		return ClassifiedError{
-			Message: err.Error(),
-			Hint:    "App privacy declarations (data usages) must be configured in the App Store Connect web UI — the API does not support this. Visit https://appstoreconnect.apple.com and complete the App Privacy section before submitting.",
 		}
 	}
 
