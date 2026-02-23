@@ -68,6 +68,31 @@ func TestValidateScreenshotDimensionsAcceptsLatestLargeIPhoneSizes(t *testing.T)
 	}
 }
 
+func TestValidateScreenshotDimensionsAcceptsIPhone65ConsolidatedSlotSizes(t *testing.T) {
+	testCases := []struct {
+		name   string
+		width  int
+		height int
+	}{
+		{name: "1242x2688 portrait", width: 1242, height: 2688},
+		{name: "2688x1242 landscape", width: 2688, height: 1242},
+		{name: "1284x2778 portrait", width: 1284, height: 2778},
+		{name: "2778x1284 landscape", width: 2778, height: 1284},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "iphone65-consolidated.png")
+			writePNG(t, path, tc.width, tc.height)
+
+			if err := ValidateScreenshotDimensions(path, "APP_IPHONE_65"); err != nil {
+				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPHONE_65, got %v", tc.width, tc.height, err)
+			}
+		})
+	}
+}
+
 func TestScreenshotDisplayTypesMatchOpenAPI(t *testing.T) {
 	specTypes := openAPIScreenshotDisplayTypes(t)
 	codeTypes := ScreenshotDisplayTypes()
@@ -103,6 +128,25 @@ func TestScreenshotSizeEntryIncludesLatestLargeIPhoneDimensions(t *testing.T) {
 	for _, dim := range expected {
 		if !containsScreenshotDimension(entry.Dimensions, dim) {
 			t.Fatalf("expected APP_IPHONE_67 to include %s, got %v", dim.String(), entry.Dimensions)
+		}
+	}
+}
+
+func TestScreenshotSizeEntryIncludesIPhone65ConsolidatedDimensions(t *testing.T) {
+	entry, ok := ScreenshotSizeEntryForDisplayType("APP_IPHONE_65")
+	if !ok {
+		t.Fatal("expected APP_IPHONE_65 entry in screenshot size catalog")
+	}
+
+	expected := []ScreenshotDimension{
+		{Width: 1242, Height: 2688},
+		{Width: 2688, Height: 1242},
+		{Width: 1284, Height: 2778},
+		{Width: 2778, Height: 1284},
+	}
+	for _, dim := range expected {
+		if !containsScreenshotDimension(entry.Dimensions, dim) {
+			t.Fatalf("expected APP_IPHONE_65 to include %s, got %v", dim.String(), entry.Dimensions)
 		}
 	}
 }
