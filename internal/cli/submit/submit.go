@@ -324,11 +324,24 @@ func cancelStaleReviewSubmissions(ctx context.Context, client *asc.Client, appID
 		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
 		asc.WithReviewSubmissionsPlatforms([]string{platform}),
 	)
-	if err != nil || len(existing.Data) == 0 {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to query stale review submissions: %v\n", err)
+		return
+	}
+	if len(existing.Data) == 0 {
 		return
 	}
 
+	normalizedPlatform := strings.ToUpper(strings.TrimSpace(platform))
 	for _, sub := range existing.Data {
+		// Defensively re-check state/platform before canceling.
+		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
+			continue
+		}
+		if normalizedPlatform != "" && !strings.EqualFold(string(sub.Attributes.Platform), normalizedPlatform) {
+			continue
+		}
+
 		if _, cancelErr := client.CancelReviewSubmission(ctx, sub.ID); cancelErr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to cancel stale submission %s: %v\n", sub.ID, cancelErr)
 			continue
