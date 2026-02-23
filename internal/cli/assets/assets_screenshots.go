@@ -225,13 +225,14 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
+			apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 
 			files, err := collectAssetFiles(pathValue)
 			if err != nil {
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
-			if err := validateScreenshotDimensions(files, displayType); err != nil {
+			if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
@@ -243,7 +244,7 @@ Examples:
 			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
 			defer cancel()
 
-			set, err := ensureScreenshotSet(requestCtx, client, locID, displayType)
+			set, err := ensureScreenshotSet(requestCtx, client, locID, apiDisplayType)
 			if err != nil {
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
