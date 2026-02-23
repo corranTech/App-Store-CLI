@@ -27,8 +27,8 @@ func AssetsScreenshotsCommand() *ffcli.Command {
 
 Examples:
   asc screenshots list --version-localization "LOC_ID"
-  asc screenshots sizes --display-type "APP_IPHONE_65"
-  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
+  asc screenshots sizes --display-type "APP_IPHONE_67"
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_67"
   asc screenshots download --version-localization "LOC_ID" --output-dir "./screenshots/downloaded"
   asc screenshots delete --id "SCREENSHOT_ID" --confirm`,
 		FlagSet:   fs,
@@ -108,7 +108,7 @@ Examples:
 func AssetsScreenshotsSizesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("sizes", flag.ExitOnError)
 
-	displayType := fs.String("display-type", "", "Filter by screenshot display type (e.g., APP_IPHONE_65)")
+	displayType := fs.String("display-type", "", "Filter by screenshot display type (e.g., APP_IPHONE_67)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -119,7 +119,7 @@ func AssetsScreenshotsSizesCommand() *ffcli.Command {
 
 Examples:
   asc screenshots sizes
-  asc screenshots sizes --display-type "APP_IPHONE_65"
+  asc screenshots sizes --display-type "APP_IPHONE_67"
   asc screenshots sizes --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -152,18 +152,18 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 
 	localizationID := fs.String("version-localization", "", "App Store version localization ID")
 	path := fs.String("path", "", "Path to screenshot file or directory")
-	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
+	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_67)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
-		ShortUsage: "asc screenshots upload --version-localization \"LOC_ID\" --path \"./screenshots\" --device-type \"IPHONE_65\"",
+		ShortUsage: "asc screenshots upload --version-localization \"LOC_ID\" --path \"./screenshots\" --device-type \"IPHONE_67\"",
 		ShortHelp:  "Upload screenshots for a localization.",
 		LongHelp: `Upload screenshots for a localization.
 
 Examples:
-  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
-  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"`,
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_67"
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_67"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
