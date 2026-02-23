@@ -80,7 +80,7 @@ for (const line of lines) {
     }
   }
 
-  results.push({ icon, name, change, deltaDisplay, pValue, verdict });
+  results.push({ icon, name, deltaDisplay, pValue, verdict });
 }
 
 let body;
