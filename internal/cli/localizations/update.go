@@ -168,9 +168,9 @@ func hasAnyAppInfoField(p updateAppInfoParams) bool {
 }
 
 type updateVersionParams struct {
-	versionID, locale                                                   string
+	versionID, locale                                                          string
 	description, keywords, whatsNew, promotionalText, supportURL, marketingURL string
-	output                                                              shared.OutputFlags
+	output                                                                     shared.OutputFlags
 }
 
 func updateVersionLocalization(ctx context.Context, p updateVersionParams) error {
