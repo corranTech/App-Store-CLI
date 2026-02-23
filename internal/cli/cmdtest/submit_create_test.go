@@ -347,3 +347,95 @@ func TestSubmitCreateWarnsWhenStaleSubmissionQueryFails(t *testing.T) {
 		t.Fatal("expected JSON output on stdout")
 	}
 }
+
+func TestSubmitCreateWarnsWhenStaleSubmissionCancelFails(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 9)
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			if req.URL.Query().Get("filter[state]") != "READY_FOR_REVIEW" || req.URL.Query().Get("filter[platform]") != "IOS" {
+				return nil, fmt.Errorf("unexpected review submissions filters: %s", req.URL.RawQuery)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"stale-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}],"links":{}}`)
+
+		// Cancel fails, but submit create should continue.
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/stale-1":
+			return submitCreateJSONResponse(http.StatusBadGateway, `{"errors":[{"status":"502","code":"BAD_GATEWAY","title":"Bad Gateway"}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-02-22T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "Warning: failed to cancel stale submission stale-1") {
+		t.Fatalf("expected cancel warning in stderr, got: %q", stderr)
+	}
+
+	cancelIdx := -1
+	createIdx := -1
+	for i, req := range requests {
+		if req == "PATCH /v1/reviewSubmissions/stale-1" {
+			cancelIdx = i
+		}
+		if req == "POST /v1/reviewSubmissions" {
+			createIdx = i
+		}
+	}
+	if cancelIdx == -1 {
+		t.Fatal("expected stale submission cancel attempt")
+	}
+	if createIdx == -1 {
+		t.Fatal("expected new submission create request")
+	}
+	if cancelIdx >= createIdx {
+		t.Fatalf("stale cancel attempt (idx=%d) should happen before new create (idx=%d)", cancelIdx, createIdx)
+	}
+
+	if stdout == "" {
+		t.Fatal("expected JSON output on stdout")
+	}
+}
