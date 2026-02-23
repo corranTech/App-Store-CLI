@@ -23,7 +23,10 @@ var screenshotSizeCatalog = map[string][]screenshotSize{
 		{Width: 1320, Height: 2868},
 		{Width: 1284, Height: 2778},
 	},
-	"APP_IPHONE_65": {{Width: 1242, Height: 2688}},
+	"APP_IPHONE_65": {
+		{Width: 1242, Height: 2688},
+		{Width: 1284, Height: 2778},
+	},
 	"APP_IPHONE_61": {{Width: 1179, Height: 2556}, {Width: 1170, Height: 2532}},
 	"APP_IPHONE_58": {{Width: 1125, Height: 2436}},
 	"APP_IPHONE_55": {{Width: 1242, Height: 2208}},

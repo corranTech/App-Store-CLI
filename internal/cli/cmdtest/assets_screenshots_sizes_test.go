@@ -3,6 +3,8 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"image"
 	"image/png"
@@ -38,18 +40,20 @@ func TestAssetsScreenshotsSizesOutput(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("decode output: %v", err)
 	}
-	if len(result.Sizes) == 0 {
-		t.Fatal("expected sizes output, got empty list")
+	if len(result.Sizes) != 2 {
+		t.Fatalf("expected 2 focused entries by default, got %d", len(result.Sizes))
 	}
-	found := false
+
+	if result.Sizes[0].DisplayType != "APP_IPHONE_65" {
+		t.Fatalf("expected first focused type APP_IPHONE_65, got %q", result.Sizes[0].DisplayType)
+	}
+	if result.Sizes[1].DisplayType != "APP_IPAD_PRO_3GEN_129" {
+		t.Fatalf("expected second focused type APP_IPAD_PRO_3GEN_129, got %q", result.Sizes[1].DisplayType)
+	}
 	for _, entry := range result.Sizes {
-		if entry.DisplayType == "APP_IPHONE_65" {
-			found = true
-			break
+		if entry.DisplayType == "APP_DESKTOP" {
+			t.Fatal("did not expect APP_DESKTOP in default focused output")
 		}
-	}
-	if !found {
-		t.Fatal("expected APP_IPHONE_65 in sizes output")
 	}
 }
 
@@ -116,7 +120,7 @@ func TestAssetsScreenshotsSizesOutputIncludesMacWatchTVAndVisionDimensions(t *te
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"screenshots", "sizes", "--output", "json"}); err != nil {
+		if err := root.Parse([]string{"screenshots", "sizes", "--all", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -178,6 +182,34 @@ func TestAssetsScreenshotsSizesOutputIncludesMacWatchTVAndVisionDimensions(t *te
 				t.Fatalf("expected %s to include %dx%d, got %v", tc.displayType, dim.Width, dim.Height, entry.Dimensions)
 			}
 		}
+	}
+}
+
+func TestAssetsScreenshotsSizesRejectsAllWithDisplayType(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"screenshots", "sizes",
+			"--all",
+			"--display-type", "APP_IPHONE_65",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--display-type and --all are mutually exclusive") {
+		t.Fatalf("expected mutually exclusive error in stderr, got %q", stderr)
+	}
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
 	}
 }
 
