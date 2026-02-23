@@ -38,6 +38,25 @@ func TestScreenshotChecks_Pass(t *testing.T) {
 	}
 }
 
+func TestScreenshotChecks_PassIPhone65ConsolidatedSlot(t *testing.T) {
+	sets := []ScreenshotSet{
+		{
+			ID:          "set-1",
+			DisplayType: "APP_IPHONE_65",
+			Locale:      "en-US",
+			Screenshots: []Screenshot{
+				{ID: "shot-1", FileName: "shot-1.png", Width: 1242, Height: 2688},
+				{ID: "shot-2", FileName: "shot-2.png", Width: 1284, Height: 2778},
+			},
+		},
+	}
+
+	checks := screenshotChecks("IOS", sets)
+	if len(checks) != 0 {
+		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
+	}
+}
+
 func TestScreenshotChecks_PassLatestLargeIPhoneSizes(t *testing.T) {
 	sets := []ScreenshotSet{
 		{

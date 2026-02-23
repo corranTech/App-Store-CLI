@@ -108,7 +108,7 @@ func TestValidateScreenshotDimensionsAcceptsLatestIPhone61Sizes(t *testing.T) {
 	}
 }
 
-func TestValidateScreenshotDimensionsAcceptsLatestIPhone65Sizes(t *testing.T) {
+func TestValidateScreenshotDimensionsAcceptsIPhone65ConsolidatedSlotSizes(t *testing.T) {
 	testCases := []struct {
 		name   string
 		width  int
@@ -123,7 +123,7 @@ func TestValidateScreenshotDimensionsAcceptsLatestIPhone65Sizes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			path := filepath.Join(dir, "latest-65.png")
+			path := filepath.Join(dir, "iphone65-consolidated.png")
 			writePNG(t, path, tc.width, tc.height)
 
 			if err := ValidateScreenshotDimensions(path, "APP_IPHONE_65"); err != nil {
@@ -240,7 +240,7 @@ func TestScreenshotSizeEntryIncludesLatestIPhone61Dimensions(t *testing.T) {
 	}
 }
 
-func TestScreenshotSizeEntryIncludesLatestIPhone65Dimensions(t *testing.T) {
+func TestScreenshotSizeEntryIncludesIPhone65ConsolidatedDimensions(t *testing.T) {
 	entry, ok := ScreenshotSizeEntryForDisplayType("APP_IPHONE_65")
 	if !ok {
 		t.Fatal("expected APP_IPHONE_65 entry in screenshot size catalog")
