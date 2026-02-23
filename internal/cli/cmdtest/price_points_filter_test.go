@@ -31,6 +31,11 @@ func TestSubscriptionPricePointsFilterValidation(t *testing.T) {
 			wantErr: "--price must be a number",
 		},
 		{
+			name:    "non-finite price value",
+			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--price", "NaN"},
+			wantErr: "--price must be a finite number",
+		},
+		{
 			name:    "invalid min-price",
 			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--min-price", "abc"},
 			wantErr: "--min-price must be a number",
@@ -87,6 +92,11 @@ func TestIAPPricePointsFilterValidation(t *testing.T) {
 			name:    "invalid price value",
 			args:    []string{"iap", "price-points", "list", "--iap-id", "iap-1", "--price", "abc"},
 			wantErr: "--price must be a number",
+		},
+		{
+			name:    "non-finite price value",
+			args:    []string{"iap", "price-points", "list", "--iap-id", "iap-1", "--price", "NaN"},
+			wantErr: "--price must be a finite number",
 		},
 	}
 

@@ -16,8 +16,11 @@ func TestPriceFilter_Validate(t *testing.T) {
 		{"price with min", PriceFilter{Price: "4.99", MinPrice: "1.00"}, true},
 		{"price with max", PriceFilter{Price: "4.99", MaxPrice: "9.99"}, true},
 		{"invalid price", PriceFilter{Price: "abc"}, true},
+		{"non-finite price", PriceFilter{Price: "NaN"}, true},
 		{"invalid min", PriceFilter{MinPrice: "abc"}, true},
+		{"non-finite min", PriceFilter{MinPrice: "+Inf"}, true},
 		{"invalid max", PriceFilter{MaxPrice: "abc"}, true},
+		{"non-finite max", PriceFilter{MaxPrice: "-Inf"}, true},
 		{"min > max", PriceFilter{MinPrice: "10.00", MaxPrice: "5.00"}, true},
 	}
 	for _, tt := range tests {
@@ -49,6 +52,9 @@ func TestPriceFilter_MatchesPrice(t *testing.T) {
 		{"max only match", PriceFilter{MaxPrice: "4.99"}, "4.99", true},
 		{"max only above", PriceFilter{MaxPrice: "4.00"}, "4.99", false},
 		{"invalid price string", PriceFilter{Price: "4.99"}, "free", false},
+		{"invalid customer non-finite", PriceFilter{Price: "4.99"}, "NaN", false},
+		{"invalid filter non-finite exact", PriceFilter{Price: "NaN"}, "4.99", false},
+		{"invalid filter non-finite range", PriceFilter{MinPrice: "1.00", MaxPrice: "+Inf"}, "4.99", false},
 		{"zero price", PriceFilter{Price: "0"}, "0.00", true},
 	}
 	for _, tt := range tests {
