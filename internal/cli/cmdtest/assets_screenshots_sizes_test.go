@@ -181,7 +181,7 @@ func TestAssetsScreenshotsSizesOutputIncludesMacWatchTVAndVisionDimensions(t *te
 	}
 }
 
-func TestAssetsScreenshotsSizesOutputIncludesLatestIPhone67AndIPad11Dimensions(t *testing.T) {
+func TestAssetsScreenshotsSizesOutputIncludesLatestIPhoneAndIPad11Dimensions(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
@@ -208,17 +208,35 @@ func TestAssetsScreenshotsSizesOutputIncludesLatestIPhone67AndIPad11Dimensions(t
 		dimensions  []asc.ScreenshotDimension
 	}{
 		{
-			displayType: "APP_IPHONE_67",
+			displayType: "APP_IPHONE_61",
 			dimensions: []asc.ScreenshotDimension{
 				{Width: 1206, Height: 2622},
 				{Width: 2622, Height: 1206},
 			},
 		},
 		{
+			displayType: "APP_IPHONE_65",
+			dimensions: []asc.ScreenshotDimension{
+				{Width: 1284, Height: 2778},
+				{Width: 2778, Height: 1284},
+			},
+		},
+		{
+			displayType: "APP_IPHONE_58",
+			dimensions: []asc.ScreenshotDimension{
+				{Width: 1080, Height: 2340},
+				{Width: 2340, Height: 1080},
+			},
+		},
+		{
 			displayType: "APP_IPAD_PRO_3GEN_11",
 			dimensions: []asc.ScreenshotDimension{
+				{Width: 1488, Height: 2266},
+				{Width: 2266, Height: 1488},
 				{Width: 1668, Height: 2420},
 				{Width: 2420, Height: 1668},
+				{Width: 1640, Height: 2360},
+				{Width: 2360, Height: 1640},
 			},
 		},
 	}
@@ -288,6 +306,57 @@ func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing
 	}
 	if !strings.Contains(message, "asc screenshots sizes") {
 		t.Fatalf("expected hint in error, got %q", message)
+	}
+	if atomic.LoadInt32(&calls) != 0 {
+		t.Fatalf("expected no network calls, got %d", calls)
+	}
+}
+
+func TestAssetsScreenshotsUploadSuggestsMatchingDisplayTypeBeforeNetwork(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "known-size-wrong-type.png")
+	writePNG(t, path, 1206, 2622)
+
+	var calls int32
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		atomic.AddInt32(&calls, 1)
+		return nil, fmt.Errorf("unexpected network request: %s %s", req.Method, req.URL.Path)
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"screenshots", "upload",
+			"--version-localization", "LOC_ID",
+			"--path", path,
+			"--device-type", "IPHONE_67",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if runErr == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+	if !strings.Contains(runErr.Error(), "This size matches: APP_IPHONE_61") {
+		t.Fatalf("expected display type suggestion in error, got %q", runErr.Error())
 	}
 	if atomic.LoadInt32(&calls) != 0 {
 		t.Fatalf("expected no network calls, got %d", calls)
@@ -412,7 +481,7 @@ func TestAssetsScreenshotsUploadAcceptsMacWatchTVAndVisionDimensions(t *testing.
 	}
 }
 
-func TestAssetsScreenshotsUploadAcceptsLatestIPhone67AndIPad11Dimensions(t *testing.T) {
+func TestAssetsScreenshotsUploadAcceptsLatestIPhoneAndIPad11Dimensions(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -422,10 +491,15 @@ func TestAssetsScreenshotsUploadAcceptsLatestIPhone67AndIPad11Dimensions(t *test
 		width      int
 		height     int
 	}{
-		{name: "iphone 67 1206x2622 portrait", deviceType: "IPHONE_67", width: 1206, height: 2622},
-		{name: "iphone 67 2622x1206 landscape", deviceType: "IPHONE_67", width: 2622, height: 1206},
+		{name: "iphone 61 1206x2622 portrait", deviceType: "IPHONE_61", width: 1206, height: 2622},
+		{name: "iphone 61 2622x1206 landscape", deviceType: "IPHONE_61", width: 2622, height: 1206},
+		{name: "iphone 65 1284x2778 portrait", deviceType: "IPHONE_65", width: 1284, height: 2778},
+		{name: "iphone 58 1080x2340 portrait", deviceType: "IPHONE_58", width: 1080, height: 2340},
+		{name: "iphone 58 1170x2532 portrait", deviceType: "IPHONE_58", width: 1170, height: 2532},
+		{name: "ipad pro 11 1488x2266 portrait", deviceType: "IPAD_PRO_3GEN_11", width: 1488, height: 2266},
 		{name: "ipad pro 11 1668x2420 portrait", deviceType: "IPAD_PRO_3GEN_11", width: 1668, height: 2420},
 		{name: "ipad pro 11 2420x1668 landscape", deviceType: "IPAD_PRO_3GEN_11", width: 2420, height: 1668},
+		{name: "ipad pro 11 1640x2360 portrait", deviceType: "IPAD_PRO_3GEN_11", width: 1640, height: 2360},
 	}
 
 	for _, tc := range testCases {
