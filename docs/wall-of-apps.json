@@ -34,6 +34,13 @@
     "platform": ["iOS", "macOS"]
   },
   {
+    "app": "Deep Hour - Deep Focus Ritual",
+    "link": "https://apps.apple.com/app/id6758889630",
+    "creator": "Gurfus",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/55/90/80/55908099-0de3-f577-f029-7e76d29e3481/AppIcon-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "DoubleMemory",
     "link": "https://apps.apple.com/app/id6737529034",
     "creator": "randomor",
