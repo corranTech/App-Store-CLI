@@ -147,7 +147,7 @@ func TestBuildsListLookupAmbiguousName(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 2:
-			body := `{"data":[{"type":"apps","id":"app-1"},{"type":"apps","id":"app-2"}]}`
+			body := `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Ambiguous App"}},{"type":"apps","id":"app-2","attributes":{"name":"Ambiguous App"}}]}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),

@@ -26,12 +26,22 @@ func (s *sequenceAppLookupStub) GetApps(_ context.Context, _ ...asc.AppsOption) 
 	return resp, nil
 }
 
-func appsResponseFromIDs(ids []string) *asc.AppsResponse {
+type appFixture struct {
+	id   string
+	name string
+}
+
+func appsResponseFromApps(apps []appFixture) *asc.AppsResponse {
 	resp := &asc.AppsResponse{
-		Data: make([]asc.Resource[asc.AppAttributes], 0, len(ids)),
+		Data: make([]asc.Resource[asc.AppAttributes], 0, len(apps)),
 	}
-	for _, id := range ids {
-		resp.Data = append(resp.Data, asc.Resource[asc.AppAttributes]{ID: id})
+	for _, app := range apps {
+		resp.Data = append(resp.Data, asc.Resource[asc.AppAttributes]{
+			ID: app.id,
+			Attributes: asc.AppAttributes{
+				Name: app.name,
+			},
+		})
 	}
 	return resp
 }
@@ -63,7 +73,7 @@ func TestResolveAppIDWithLookup_ResolvesByBundleThenName(t *testing.T) {
 
 	bundleOnly := &sequenceAppLookupStub{
 		responses: []*asc.AppsResponse{
-			appsResponseFromIDs([]string{"app-bundle"}),
+			appsResponseFromApps([]appFixture{{id: "app-bundle", name: "Bundle App"}}),
 		},
 	}
 	got, err := ResolveAppIDWithLookup(context.Background(), bundleOnly, "com.example.app")
@@ -76,8 +86,8 @@ func TestResolveAppIDWithLookup_ResolvesByBundleThenName(t *testing.T) {
 
 	nameOnly := &sequenceAppLookupStub{
 		responses: []*asc.AppsResponse{
-			appsResponseFromIDs(nil),
-			appsResponseFromIDs([]string{"app-name"}),
+			appsResponseFromApps(nil),
+			appsResponseFromApps([]appFixture{{id: "app-name", name: "Example App"}}),
 		},
 	}
 	got, err = ResolveAppIDWithLookup(context.Background(), nameOnly, "Example App")
@@ -93,8 +103,10 @@ func TestResolveAppIDWithLookup_NotFound(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	stub := &sequenceAppLookupStub{
 		responses: []*asc.AppsResponse{
-			appsResponseFromIDs(nil),
-			appsResponseFromIDs(nil),
+			appsResponseFromApps(nil),
+			appsResponseFromApps([]appFixture{{id: "app-fuzzy", name: "Missing App Pro"}}),
+			appsResponseFromApps([]appFixture{{id: "app-fuzzy", name: "Missing App Pro"}}),
+			appsResponseFromApps(nil),
 		},
 	}
 	_, err := ResolveAppIDWithLookup(context.Background(), stub, "missing-app")
@@ -110,8 +122,11 @@ func TestResolveAppIDWithLookup_AmbiguousName(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	stub := &sequenceAppLookupStub{
 		responses: []*asc.AppsResponse{
-			appsResponseFromIDs(nil),
-			appsResponseFromIDs([]string{"app-1", "app-2"}),
+			appsResponseFromApps(nil),
+			appsResponseFromApps([]appFixture{
+				{id: "app-1", name: "My App"},
+				{id: "app-2", name: "My App"},
+			}),
 		},
 	}
 	_, err := ResolveAppIDWithLookup(context.Background(), stub, "My App")
@@ -120,5 +135,73 @@ func TestResolveAppIDWithLookup_AmbiguousName(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "multiple apps found for name") {
 		t.Fatalf("expected ambiguous name error, got %v", err)
+	}
+}
+
+func TestResolveAppIDWithLookup_PrefersExactNameOverFuzzyMatches(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	stub := &sequenceAppLookupStub{
+		responses: []*asc.AppsResponse{
+			appsResponseFromApps(nil),
+			appsResponseFromApps([]appFixture{
+				{id: "app-fuzzy", name: "Musadora Labs"},
+				{id: "app-exact", name: "Musadora"},
+			}),
+		},
+	}
+
+	got, err := ResolveAppIDWithLookup(context.Background(), stub, "Musadora")
+	if err != nil {
+		t.Fatalf("ResolveAppIDWithLookup() error: %v", err)
+	}
+	if got != "app-exact" {
+		t.Fatalf("expected exact-name app id app-exact, got %q", got)
+	}
+}
+
+func TestResolveAppIDWithLookup_FallsBackToFullScanWhenNameFilterMissesExact(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	stub := &sequenceAppLookupStub{
+		responses: []*asc.AppsResponse{
+			appsResponseFromApps(nil),
+			appsResponseFromApps([]appFixture{
+				{id: "app-fuzzy", name: "Unwindr: Mind & Sleep Aid"},
+			}),
+			appsResponseFromApps([]appFixture{
+				{id: "app-exact", name: "Unwind: Meditate, Sleep, Relax"},
+			}),
+		},
+	}
+
+	got, err := ResolveAppIDWithLookup(context.Background(), stub, "Unwind: Meditate, Sleep, Relax")
+	if err != nil {
+		t.Fatalf("ResolveAppIDWithLookup() error: %v", err)
+	}
+	if got != "app-exact" {
+		t.Fatalf("expected fallback exact-name app id app-exact, got %q", got)
+	}
+}
+
+func TestResolveAppIDWithLookup_FallsBackToUniqueFuzzyMatchWhenNoExact(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	stub := &sequenceAppLookupStub{
+		responses: []*asc.AppsResponse{
+			appsResponseFromApps(nil),
+			appsResponseFromApps([]appFixture{
+				{id: "app-fuzzy", name: "Relax: Sleep + Focus"},
+			}),
+			appsResponseFromApps(nil),
+			appsResponseFromApps([]appFixture{
+				{id: "app-fuzzy", name: "Relax: Sleep + Focus"},
+			}),
+		},
+	}
+
+	got, err := ResolveAppIDWithLookup(context.Background(), stub, "Relax")
+	if err != nil {
+		t.Fatalf("ResolveAppIDWithLookup() error: %v", err)
+	}
+	if got != "app-fuzzy" {
+		t.Fatalf("expected legacy fuzzy fallback app id app-fuzzy, got %q", got)
 	}
 }

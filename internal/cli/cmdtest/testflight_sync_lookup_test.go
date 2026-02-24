@@ -140,6 +140,16 @@ func TestTestFlightSyncPullLookupNotFoundByName(t *testing.T) {
 			if query.Get("filter[name]") != "Missing App" {
 				t.Fatalf("expected name lookup for Missing App, got %q", query.Get("filter[name]"))
 			}
+		case 3:
+			// Full-scan fallback request (no name filter) for exact-name matching.
+			if query.Get("filter[name]") != "" {
+				t.Fatalf("expected fallback full scan without name filter, got %q", query.Get("filter[name]"))
+			}
+		case 4:
+			// Legacy fuzzy fallback request for backward compatibility.
+			if query.Get("filter[name]") != "Missing App" {
+				t.Fatalf("expected legacy fuzzy lookup for Missing App, got %q", query.Get("filter[name]"))
+			}
 		default:
 			t.Fatalf("unexpected request count %d", callCount)
 		}
@@ -208,7 +218,7 @@ func TestTestFlightSyncPullLookupAmbiguousName(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 2:
-			body := `{"data":[{"type":"apps","id":"app-1"},{"type":"apps","id":"app-2"}]}`
+			body := `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Ambiguous App"}},{"type":"apps","id":"app-2","attributes":{"name":"Ambiguous App"}}]}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
