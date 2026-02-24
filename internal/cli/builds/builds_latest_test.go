@@ -104,7 +104,7 @@ func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 	cmd := BuildsLatestCommand()
 
 	// Verify all expected flags exist
-	expectedFlags := []string{"app", "version", "platform", "output", "pretty", "next", "initial-build-number", "exclude-expired"}
+	expectedFlags := []string{"app", "version", "platform", "output", "pretty", "next", "initial-build-number", "exclude-expired", "not-expired"}
 	for _, name := range expectedFlags {
 		f := cmd.FlagSet.Lookup(name)
 		if f == nil {
@@ -127,6 +127,9 @@ func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 	}
 	if f := cmd.FlagSet.Lookup("exclude-expired"); f != nil && f.DefValue != "false" {
 		t.Errorf("expected --exclude-expired default to be 'false', got %q", f.DefValue)
+	}
+	if f := cmd.FlagSet.Lookup("not-expired"); f != nil && f.DefValue != "false" {
+		t.Errorf("expected --not-expired default to be 'false', got %q", f.DefValue)
 	}
 }
 

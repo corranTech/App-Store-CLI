@@ -432,6 +432,8 @@ func BuildsListCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := shared.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
+	version := fs.String("version", "", "Filter by build version number")
+	buildNumber := fs.String("build-number", "", "Filter by build number (alias for --version)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -447,6 +449,8 @@ including processing status and expiration dates.
 
 Examples:
   asc builds list --app "123456789"
+  asc builds list --app "123456789" --version "123"
+  asc builds list --app "123456789" --build-number "123"
   asc builds list --app "123456789" --limit 10
   asc builds list --app "123456789" --paginate`,
 		FlagSet:   fs,
@@ -460,6 +464,15 @@ Examples:
 			}
 			if err := shared.ValidateSort(*sort, "uploadedDate", "-uploadedDate"); err != nil {
 				return fmt.Errorf("builds: %w", err)
+			}
+
+			versionValue := strings.TrimSpace(*version)
+			buildNumberValue := strings.TrimSpace(*buildNumber)
+			if versionValue != "" && buildNumberValue != "" && versionValue != buildNumberValue {
+				return fmt.Errorf("builds: --version and --build-number must match when both are set")
+			}
+			if buildNumberValue != "" {
+				versionValue = buildNumberValue
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -476,12 +489,22 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			if resolvedAppID != "" {
+				resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("builds: %w", err)
+				}
+			}
+
 			opts := []asc.BuildsOption{
 				asc.WithBuildsLimit(*limit),
 				asc.WithBuildsNextURL(*next),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildsSort(*sort))
+			}
+			if versionValue != "" {
+				opts = append(opts, asc.WithBuildsVersion(versionValue))
 			}
 
 			if *paginate {

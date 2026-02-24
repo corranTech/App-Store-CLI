@@ -110,6 +110,7 @@ type nominationsQuery struct {
 type buildsQuery struct {
 	listQuery
 	sort                string
+	version             string
 	preReleaseVersionID string
 	expired             *bool
 }

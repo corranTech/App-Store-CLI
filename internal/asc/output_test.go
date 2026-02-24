@@ -1974,8 +1974,11 @@ func TestPrintTable_Builds(t *testing.T) {
 		return PrintTable(resp)
 	})
 
-	if !strings.Contains(output, "Processing") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Processing") {
 		t.Fatalf("expected builds header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "1") {
+		t.Fatalf("expected build id in output, got: %s", output)
 	}
 	if !strings.Contains(output, "1.2.3") {
 		t.Fatalf("expected build version in output, got: %s", output)

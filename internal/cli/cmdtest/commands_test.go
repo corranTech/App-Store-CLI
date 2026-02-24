@@ -759,7 +759,7 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 		{
 			name:    "beta-groups add-testers missing tester",
 			args:    []string{"testflight", "beta-groups", "add-testers", "--group", "GROUP_ID"},
-			wantErr: "--tester is required",
+			wantErr: "--tester or --email is required",
 		},
 		{
 			name:    "beta-groups remove-testers missing group",
@@ -3253,9 +3253,9 @@ func TestBuildsTestNotesValidationErrors(t *testing.T) {
 			wantErr: "--whats-new is required",
 		},
 		{
-			name:    "builds test-notes update missing id",
+			name:    "builds test-notes update missing selector",
 			args:    []string{"builds", "test-notes", "update", "--whats-new", "Notes"},
-			wantErr: "--id is required",
+			wantErr: "either --id or (--build and --locale) is required",
 		},
 		{
 			name:    "builds test-notes delete missing confirm",

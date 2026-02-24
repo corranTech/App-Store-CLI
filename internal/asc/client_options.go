@@ -1452,6 +1452,21 @@ func WithBuildsSort(sort string) BuildsOption {
 	}
 }
 
+// WithBuildsVersion filters builds by build version number (filter[version]).
+func WithBuildsVersion(version string) BuildsOption {
+	return func(q *buildsQuery) {
+		if strings.TrimSpace(version) != "" {
+			q.version = strings.TrimSpace(version)
+		}
+	}
+}
+
+// WithBuildsBuildNumber filters builds by build number.
+// App Store Connect models build number as build version, so this maps to filter[version].
+func WithBuildsBuildNumber(buildNumber string) BuildsOption {
+	return WithBuildsVersion(buildNumber)
+}
+
 // WithBuildsPreReleaseVersion filters builds by pre-release version ID.
 func WithBuildsPreReleaseVersion(preReleaseVersionID string) BuildsOption {
 	return func(q *buildsQuery) {

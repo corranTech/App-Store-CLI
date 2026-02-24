@@ -27,6 +27,7 @@ func BuildsLatestCommand() *ffcli.Command {
 	next := fs.Bool("next", false, "Return next build number using processed builds and in-flight uploads")
 	initialBuildNumber := fs.Int("initial-build-number", 1, "Initial build number when none exist (used with --next)")
 	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds when selecting latest build")
+	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
 
 	return &ffcli.Command{
 		Name:       "latest",
@@ -50,6 +51,7 @@ Next build number mode:
                       processed builds and in-flight uploads
   --initial-build-number  Starting build number when no history exists (default: 1)
   --exclude-expired   Ignore expired builds when selecting the latest processed build
+  --not-expired       Alias for --exclude-expired
 
 Examples:
   # Get latest build (JSON output for AI agents)
@@ -71,7 +73,8 @@ Examples:
   asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next
 
   # Exclude expired builds when resolving latest or next
-  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next --exclude-expired`,
+  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next --exclude-expired
+  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --not-expired`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -98,6 +101,7 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: --initial-build-number must be >= 1\n\n")
 				return flag.ErrHelp
 			}
+			excludeExpiredValue := *excludeExpired || *notExpired
 
 			hasPreReleaseFilters := normalizedVersion != "" || normalizedPlatform != ""
 
@@ -141,7 +145,7 @@ Examples:
 					asc.WithBuildsSort("-uploadedDate"),
 					asc.WithBuildsLimit(1),
 				}
-				if *excludeExpired {
+				if excludeExpiredValue {
 					opts = append(opts, asc.WithBuildsExpired(false))
 				}
 				builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
@@ -165,7 +169,7 @@ Examples:
 					asc.WithBuildsLimit(1),
 					asc.WithBuildsPreReleaseVersion(preReleaseVersionIDs[0]),
 				}
-				if *excludeExpired {
+				if excludeExpiredValue {
 					opts = append(opts, asc.WithBuildsExpired(false))
 				}
 				builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
@@ -194,7 +198,7 @@ Examples:
 						asc.WithBuildsLimit(1),
 						asc.WithBuildsPreReleaseVersion(prvID),
 					}
-					if *excludeExpired {
+					if excludeExpiredValue {
 						opts = append(opts, asc.WithBuildsExpired(false))
 					}
 					builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)

@@ -176,6 +176,9 @@ func TestPullTestFlightConfig_IncludesBuildsAndTesters(t *testing.T) {
 	if got := strings.Join(groupByID["group-1"].Builds, ","); got != "build-1" {
 		t.Fatalf("expected group-1 builds build-1, got %q", got)
 	}
+	if len(groupByID["group-1"].BuildDetails) != 1 || groupByID["group-1"].BuildDetails[0].BuildNumber != "1.0.0" {
+		t.Fatalf("expected group-1 buildDetails with build number 1.0.0, got %+v", groupByID["group-1"].BuildDetails)
+	}
 	if got := strings.Join(groupByID["group-2"].Builds, ","); got != "build-1,build-2" {
 		t.Fatalf("expected group-2 builds build-1,build-2, got %q", got)
 	}
