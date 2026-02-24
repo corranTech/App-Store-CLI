@@ -1011,3 +1011,217 @@ func TestBuildsLatestNextExcludeExpiredHonorsFilter(t *testing.T) {
 		t.Fatalf("expected nextBuildNumber=151, got %q", out.NextBuildNumber)
 	}
 }
+
+func TestBuildsLatestNotExpiredAliasHonorsExpiredFilter(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		if query.Get("filter[app]") != "app-1" {
+			t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+		}
+		if query.Get("filter[expired]") != "false" {
+			t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
+		}
+		body := `{"data":[{"type":"builds","id":"build-alias","attributes":{"uploadedDate":"2026-03-01T00:00:00Z","expired":false}}]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--not-expired"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-alias"`) {
+		t.Fatalf("expected build-alias in output, got %q", stdout)
+	}
+}
+
+func TestBuildsLatestNotExpiredAliasSinglePreReleasePath(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	callCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		switch callCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/preReleaseVersions" {
+				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "app-1" {
+				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("filter[version]") != "1.2.3" {
+				t.Fatalf("expected filter[version]=1.2.3, got %q", query.Get("filter[version]"))
+			}
+			if query.Get("filter[platform]") != "IOS" {
+				t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
+			}
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1"}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
+				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("filter[preReleaseVersion]") != "prv-1" {
+				t.Fatalf("expected filter[preReleaseVersion]=prv-1, got %q", query.Get("filter[preReleaseVersion]"))
+			}
+			if query.Get("filter[expired]") != "false" {
+				t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
+			}
+			body := `{"data":[{"type":"builds","id":"build-single","attributes":{"uploadedDate":"2026-03-02T00:00:00Z","expired":false}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request count %d", callCount)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--not-expired"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-single"`) {
+		t.Fatalf("expected build-single in output, got %q", stdout)
+	}
+}
+
+func TestBuildsLatestNotExpiredAliasMultiPreReleasePath(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	callCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		switch callCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/preReleaseVersions" {
+				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("filter[platform]") != "IOS" {
+				t.Fatalf("expected platform filter IOS, got %q", query.Get("filter[platform]"))
+			}
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1"},{"type":"preReleaseVersions","id":"prv-2"}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
+				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("filter[preReleaseVersion]") != "prv-1" {
+				t.Fatalf("expected prv-1 query, got %q", query.Get("filter[preReleaseVersion]"))
+			}
+			if query.Get("filter[expired]") != "false" {
+				t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
+			}
+			body := `{"data":[{"type":"builds","id":"build-old","attributes":{"uploadedDate":"2026-03-01T00:00:00Z","expired":false}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 3:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
+				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("filter[preReleaseVersion]") != "prv-2" {
+				t.Fatalf("expected prv-2 query, got %q", query.Get("filter[preReleaseVersion]"))
+			}
+			if query.Get("filter[expired]") != "false" {
+				t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
+			}
+			body := `{"data":[{"type":"builds","id":"build-new","attributes":{"uploadedDate":"2026-03-05T00:00:00Z","expired":false}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request count %d", callCount)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--platform", "IOS", "--not-expired"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-new"`) {
+		t.Fatalf("expected newest build from multi-pre-release path, got %q", stdout)
+	}
+}

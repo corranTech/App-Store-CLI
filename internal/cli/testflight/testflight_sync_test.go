@@ -282,6 +282,104 @@ func TestPullTestFlightConfig_GroupFilter(t *testing.T) {
 	}
 }
 
+func TestPullTestFlightConfig_WithoutIncludeBuildsOmitsBuildDetails(t *testing.T) {
+	stub := testFlightSyncStub{
+		app: &asc.AppResponse{
+			Data: asc.Resource[asc.AppAttributes]{
+				ID: "app-1",
+				Attributes: asc.AppAttributes{
+					Name:     "Demo",
+					BundleID: "com.example.demo",
+				},
+			},
+		},
+		groups: &asc.BetaGroupsResponse{
+			Data: []asc.Resource[asc.BetaGroupAttributes]{
+				{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Alpha"}},
+			},
+		},
+		buildsByGroup: map[string]*asc.BuildsResponse{
+			"group-1": {
+				Data: []asc.Resource[asc.BuildAttributes]{
+					{ID: "build-1", Attributes: asc.BuildAttributes{Version: "1.0.0"}},
+				},
+			},
+		},
+	}
+
+	config, err := pullTestFlightConfig(context.Background(), &stub, "app-1", testFlightPullOptions{
+		includeBuilds: false,
+	})
+	if err != nil {
+		t.Fatalf("pullTestFlightConfig() error: %v", err)
+	}
+
+	if len(config.Groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(config.Groups))
+	}
+	if config.Groups[0].Builds != nil {
+		t.Fatalf("expected no group builds when include-builds=false, got %+v", config.Groups[0].Builds)
+	}
+	if config.Groups[0].BuildDetails != nil {
+		t.Fatalf("expected no group buildDetails when include-builds=false, got %+v", config.Groups[0].BuildDetails)
+	}
+	if config.Builds != nil {
+		t.Fatalf("expected no top-level builds when include-builds=false, got %+v", config.Builds)
+	}
+}
+
+func TestPullTestFlightConfig_BuildFilterAlsoFiltersBuildDetails(t *testing.T) {
+	stub := testFlightSyncStub{
+		app: &asc.AppResponse{
+			Data: asc.Resource[asc.AppAttributes]{
+				ID: "app-1",
+				Attributes: asc.AppAttributes{
+					Name:     "Demo",
+					BundleID: "com.example.demo",
+				},
+			},
+		},
+		groups: &asc.BetaGroupsResponse{
+			Data: []asc.Resource[asc.BetaGroupAttributes]{
+				{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Alpha"}},
+			},
+		},
+		buildsByGroup: map[string]*asc.BuildsResponse{
+			"group-1": {
+				Data: []asc.Resource[asc.BuildAttributes]{
+					{ID: "build-1", Attributes: asc.BuildAttributes{Version: "1.0.0", ProcessingState: "PROCESSING", UploadedDate: "2026-01-20T00:00:00Z"}},
+					{ID: "build-2", Attributes: asc.BuildAttributes{Version: "1.1.0", ProcessingState: "VALID", UploadedDate: "2026-01-21T00:00:00Z"}},
+				},
+			},
+		},
+	}
+
+	config, err := pullTestFlightConfig(context.Background(), &stub, "app-1", testFlightPullOptions{
+		includeBuilds: true,
+		buildFilters:  []string{"build-2"},
+	})
+	if err != nil {
+		t.Fatalf("pullTestFlightConfig() error: %v", err)
+	}
+
+	if len(config.Builds) != 1 || config.Builds[0].ID != "build-2" {
+		t.Fatalf("expected only filtered build build-2, got %+v", config.Builds)
+	}
+	if len(config.Groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(config.Groups))
+	}
+	group := config.Groups[0]
+	if got := strings.Join(group.Builds, ","); got != "build-2" {
+		t.Fatalf("expected filtered group builds build-2, got %q", got)
+	}
+	if len(group.BuildDetails) != 1 {
+		t.Fatalf("expected one filtered build detail, got %+v", group.BuildDetails)
+	}
+	if group.BuildDetails[0].ID != "build-2" || group.BuildDetails[0].BuildNumber != "1.1.0" {
+		t.Fatalf("expected build detail for build-2, got %+v", group.BuildDetails[0])
+	}
+}
+
 func TestResolveTestFlightOutputPath(t *testing.T) {
 	cwd := t.TempDir()
 	original, err := os.Getwd()

@@ -98,6 +98,21 @@ func TestBuildsLatestCommand_InvalidInitialBuildNumber(t *testing.T) {
 	}
 }
 
+func TestBuildsLatestCommand_NotExpiredAndExcludeExpiredTogether(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
+	cmd := BuildsLatestCommand()
+
+	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--exclude-expired", "--not-expired"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if errors.Is(err, flag.ErrHelp) {
+		t.Errorf("expected non-help execution path when both alias flags are set, got %v", err)
+	}
+}
+
 func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 	isolateBuildsAuthEnv(t)
 

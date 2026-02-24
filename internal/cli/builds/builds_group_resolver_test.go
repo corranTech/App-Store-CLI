@@ -69,3 +69,39 @@ func TestResolveBuildBetaGroupIDsFromList_AmbiguousName(t *testing.T) {
 		t.Fatalf("expected ambiguous error, got %v", err)
 	}
 }
+
+func TestResolveBuildBetaGroupIDsFromList_NotFound(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Internal"}},
+		},
+	}
+
+	_, err := resolveBuildBetaGroupIDsFromList([]string{"Does Not Exist"}, groups)
+	if err == nil {
+		t.Fatal("expected not found error")
+	}
+	if !strings.Contains(err.Error(), `beta group "Does Not Exist" not found`) {
+		t.Fatalf("expected not found error, got %v", err)
+	}
+}
+
+func TestResolveBuildBetaGroupIDsFromList_MixedInputDeduplicates(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Internal"}},
+			{ID: "group-2", Attributes: asc.BetaGroupAttributes{Name: "External"}},
+		},
+	}
+
+	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"group-1", "Internal", "group-2", "External", "group-1"}, groups)
+	if err != nil {
+		t.Fatalf("resolveBuildBetaGroupIDsFromList() error: %v", err)
+	}
+	if len(resolved) != 2 {
+		t.Fatalf("expected 2 deduplicated groups, got %d (%v)", len(resolved), resolved)
+	}
+	if resolved[0] != "group-1" || resolved[1] != "group-2" {
+		t.Fatalf("unexpected resolved order/content: %v", resolved)
+	}
+}

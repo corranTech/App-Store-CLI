@@ -3258,6 +3258,21 @@ func TestBuildsTestNotesValidationErrors(t *testing.T) {
 			wantErr: "either --id or (--build and --locale) is required",
 		},
 		{
+			name:    "builds test-notes update id conflicts with build locale",
+			args:    []string{"builds", "test-notes", "update", "--id", "LOC_ID", "--build", "BUILD_ID", "--locale", "en-US", "--whats-new", "Notes"},
+			wantErr: "--id cannot be combined with --build or --locale",
+		},
+		{
+			name:    "builds test-notes update missing locale for build selector",
+			args:    []string{"builds", "test-notes", "update", "--build", "BUILD_ID", "--whats-new", "Notes"},
+			wantErr: "either --id or (--build and --locale) is required",
+		},
+		{
+			name:    "builds test-notes update missing build for locale selector",
+			args:    []string{"builds", "test-notes", "update", "--locale", "en-US", "--whats-new", "Notes"},
+			wantErr: "either --id or (--build and --locale) is required",
+		},
+		{
 			name:    "builds test-notes delete missing confirm",
 			args:    []string{"builds", "test-notes", "delete", "--id", "LOC_ID"},
 			wantErr: "--confirm is required",

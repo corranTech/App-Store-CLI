@@ -2004,11 +2004,35 @@ func TestPrintMarkdown_Builds(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "Version") || !strings.Contains(output, "Uploaded") || !strings.Contains(output, "Processing") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Version") || !strings.Contains(output, "Uploaded") || !strings.Contains(output, "Processing") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "1.2.3") {
 		t.Fatalf("expected build version in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_Builds_EmptyStillShowsHeaders(t *testing.T) {
+	resp := &BuildsResponse{Data: []Resource[BuildAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Version") || !strings.Contains(output, "Processing") {
+		t.Fatalf("expected builds headers in output for empty data, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_Builds_EmptyStillShowsHeaders(t *testing.T) {
+	resp := &BuildsResponse{Data: []Resource[BuildAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Version") || !strings.Contains(output, "Processing") {
+		t.Fatalf("expected markdown builds headers in output for empty data, got: %s", output)
 	}
 }
 
