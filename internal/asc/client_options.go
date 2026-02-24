@@ -1452,7 +1452,7 @@ func WithBuildsSort(sort string) BuildsOption {
 	}
 }
 
-// WithBuildsVersion filters builds by build version number (filter[version]).
+// WithBuildsVersion filters builds by CFBundleVersion (filter[version]).
 func WithBuildsVersion(version string) BuildsOption {
 	return func(q *buildsQuery) {
 		if strings.TrimSpace(version) != "" {
@@ -1467,11 +1467,17 @@ func WithBuildsBuildNumber(buildNumber string) BuildsOption {
 	return WithBuildsVersion(buildNumber)
 }
 
-// WithBuildsPreReleaseVersion filters builds by pre-release version ID.
+// WithBuildsPreReleaseVersion filters builds by a single pre-release version ID.
 func WithBuildsPreReleaseVersion(preReleaseVersionID string) BuildsOption {
+	return WithBuildsPreReleaseVersions([]string{preReleaseVersionID})
+}
+
+// WithBuildsPreReleaseVersions filters builds by one or more pre-release version IDs.
+func WithBuildsPreReleaseVersions(preReleaseVersionIDs []string) BuildsOption {
 	return func(q *buildsQuery) {
-		if strings.TrimSpace(preReleaseVersionID) != "" {
-			q.preReleaseVersionID = strings.TrimSpace(preReleaseVersionID)
+		normalized := normalizeList(preReleaseVersionIDs)
+		if len(normalized) > 0 {
+			q.preReleaseVersionIDs = normalized
 		}
 	}
 }

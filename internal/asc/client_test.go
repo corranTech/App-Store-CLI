@@ -1319,6 +1319,14 @@ func TestBuildBuildsQuery_WithBuildNumberAlias(t *testing.T) {
 	}
 }
 
+func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
+	query := &buildsQuery{}
+	WithBuildsPreReleaseVersions([]string{"prv-1", " ", "prv-2"})(query)
+	if len(query.preReleaseVersionIDs) != 2 || query.preReleaseVersionIDs[0] != "prv-1" || query.preReleaseVersionIDs[1] != "prv-2" {
+		t.Fatalf("expected normalized pre-release version ids [prv-1 prv-2], got %v", query.preReleaseVersionIDs)
+	}
+}
+
 func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
 	query := &subscriptionOfferCodeOneTimeUseCodesQuery{}
 	opts := []SubscriptionOfferCodeOneTimeUseCodesOption{
