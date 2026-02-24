@@ -187,6 +187,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "SwiftBiu",
+    "link": "https://apps.apple.com/app/swiftbiu/id6754772331",
+    "creator": "SwiftBiu",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/3b/2e/903b2ef1-7097-f00c-3557-db67e054e174/AppIcon-0-0-85-220-0-5-0-2x.png/512x512bb.png",
+    "platform": ["macOS"]
+  },
+  {
     "app": "Timefall",
     "link": "https://apps.apple.com/app/id6757712804",
     "creator": "vatrueshka",
