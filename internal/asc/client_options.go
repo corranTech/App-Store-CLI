@@ -1452,7 +1452,8 @@ func WithBuildsSort(sort string) BuildsOption {
 	}
 }
 
-// WithBuildsVersion filters builds by CFBundleVersion (filter[version]).
+// WithBuildsVersion filters builds by build number (CFBundleVersion) via
+// filter[version].
 func WithBuildsVersion(version string) BuildsOption {
 	return func(q *buildsQuery) {
 		if strings.TrimSpace(version) != "" {

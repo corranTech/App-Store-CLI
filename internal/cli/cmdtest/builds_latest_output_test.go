@@ -27,8 +27,8 @@ func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersions(t *testing.T)
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions" && req.URL.Query().Get("page") == "":
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("filter[platform]") != "IOS" {
 				t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
@@ -59,8 +59,8 @@ func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersions(t *testing.T)
 
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
@@ -103,7 +103,7 @@ func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersions(t *testing.T)
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--platform", "ios"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--platform", "ios"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -157,7 +157,7 @@ func TestBuildsLatestReturnsPreReleaseLookupFailure(t *testing.T) {
 
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--platform", "ios"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--platform", "ios"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
@@ -226,7 +226,7 @@ func TestBuildsLatestRejectsRepeatedPreReleasePaginationURL(t *testing.T) {
 
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--platform", "IOS"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--platform", "IOS"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
@@ -263,8 +263,8 @@ func TestBuildsLatestOutputErrors(t *testing.T) {
 			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
 		}
 		query := req.URL.Query()
-		if query.Get("filter[app]") != "app-1" {
-			t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+		if query.Get("filter[app]") != "100000001" {
+			t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 		}
 		if query.Get("sort") != "-uploadedDate" {
 			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
@@ -289,12 +289,12 @@ func TestBuildsLatestOutputErrors(t *testing.T) {
 	}{
 		{
 			name:    "unsupported output",
-			args:    []string{"builds", "latest", "--app", "app-1", "--output", "yaml"},
+			args:    []string{"builds", "latest", "--app", "100000001", "--output", "yaml"},
 			wantErr: "unsupported format: yaml",
 		},
 		{
 			name:    "pretty with table",
-			args:    []string{"builds", "latest", "--app", "app-1", "--output", "table", "--pretty"},
+			args:    []string{"builds", "latest", "--app", "100000001", "--output", "table", "--pretty"},
 			wantErr: "--pretty is only valid with JSON output",
 		},
 	}
@@ -348,8 +348,8 @@ func TestBuildsLatestTableOutput(t *testing.T) {
 			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
 		}
 		query := req.URL.Query()
-		if query.Get("filter[app]") != "app-1" {
-			t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+		if query.Get("filter[app]") != "100000001" {
+			t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 		}
 		if query.Get("sort") != "-uploadedDate" {
 			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
@@ -371,7 +371,7 @@ func TestBuildsLatestTableOutput(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--output", "table"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--output", "table"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -400,8 +400,8 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("filter[version]") != "1.2.3" {
 				t.Fatalf("expected filter[version]=1.2.3, got %q", query.Get("filter[version]"))
@@ -424,8 +424,8 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
@@ -445,7 +445,7 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/buildUploads":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/100000001/buildUploads":
 			query := req.URL.Query()
 			if query.Get("filter[cfBundleShortVersionString]") != "1.2.3" {
 				t.Fatalf("expected filter[cfBundleShortVersionString]=1.2.3, got %q", query.Get("filter[cfBundleShortVersionString]"))
@@ -476,7 +476,7 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--next"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--version", "1.2.3", "--platform", "IOS", "--next"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -547,7 +547,7 @@ func TestBuildsLatestNextProcessedOnly(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/buildUploads":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/100000001/buildUploads":
 			body := `{
 				"data":[],
 				"links":{"next":""}
@@ -568,7 +568,7 @@ func TestBuildsLatestNextProcessedOnly(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--next"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--version", "1.2.3", "--platform", "IOS", "--next"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -625,7 +625,7 @@ func TestBuildsLatestNextUploadsOnly(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/buildUploads":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/100000001/buildUploads":
 			body := `{
 				"data":[{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleVersion":"25"}}],
 				"links":{"next":""}
@@ -646,7 +646,7 @@ func TestBuildsLatestNextUploadsOnly(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--next"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--next"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -703,7 +703,7 @@ func TestBuildsLatestNextNoHistoryUsesInitial(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/buildUploads":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/100000001/buildUploads":
 			body := `{
 				"data":[],
 				"links":{"next":""}
@@ -724,7 +724,7 @@ func TestBuildsLatestNextNoHistoryUsesInitial(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--next", "--initial-build-number", "7"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--version", "1.2.3", "--platform", "IOS", "--next", "--initial-build-number", "7"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -772,8 +772,8 @@ func TestBuildsLatestNextSupportsDotSeparatedBuildNumbers(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
@@ -790,7 +790,7 @@ func TestBuildsLatestNextSupportsDotSeparatedBuildNumbers(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/buildUploads":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/100000001/buildUploads":
 			query := req.URL.Query()
 			if query.Get("filter[state]") != "AWAITING_UPLOAD,PROCESSING,COMPLETE" {
 				t.Fatalf("expected filter[state]=AWAITING_UPLOAD,PROCESSING,COMPLETE, got %q", query.Get("filter[state]"))
@@ -815,7 +815,7 @@ func TestBuildsLatestNextSupportsDotSeparatedBuildNumbers(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--next"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--next"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -867,8 +867,8 @@ func TestBuildsLatestExcludeExpiredFiltersOutExpiredBuilds(t *testing.T) {
 			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
 		}
 		query := req.URL.Query()
-		if query.Get("filter[app]") != "app-1" {
-			t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+		if query.Get("filter[app]") != "100000001" {
+			t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 		}
 		if query.Get("sort") != "-uploadedDate" {
 			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
@@ -893,7 +893,7 @@ func TestBuildsLatestExcludeExpiredFiltersOutExpiredBuilds(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--exclude-expired"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--exclude-expired"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -931,8 +931,8 @@ func TestBuildsLatestNextExcludeExpiredHonorsFilter(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
@@ -952,7 +952,7 @@ func TestBuildsLatestNextExcludeExpiredHonorsFilter(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/buildUploads":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/100000001/buildUploads":
 			query := req.URL.Query()
 			if query.Get("filter[state]") != "AWAITING_UPLOAD,PROCESSING,COMPLETE" {
 				t.Fatalf("expected filter[state]=AWAITING_UPLOAD,PROCESSING,COMPLETE, got %q", query.Get("filter[state]"))
@@ -977,7 +977,7 @@ func TestBuildsLatestNextExcludeExpiredHonorsFilter(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--next", "--exclude-expired"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--next", "--exclude-expired"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -1029,8 +1029,8 @@ func TestBuildsLatestNotExpiredAliasHonorsExpiredFilter(t *testing.T) {
 			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
 		}
 		query := req.URL.Query()
-		if query.Get("filter[app]") != "app-1" {
-			t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+		if query.Get("filter[app]") != "100000001" {
+			t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 		}
 		if query.Get("filter[expired]") != "false" {
 			t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
@@ -1047,7 +1047,7 @@ func TestBuildsLatestNotExpiredAliasHonorsExpiredFilter(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--not-expired"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--not-expired"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -1081,8 +1081,8 @@ func TestBuildsLatestNotExpiredAliasSinglePreReleasePath(t *testing.T) {
 				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
 			}
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("filter[version]") != "1.2.3" {
 				t.Fatalf("expected filter[version]=1.2.3, got %q", query.Get("filter[version]"))
@@ -1123,7 +1123,7 @@ func TestBuildsLatestNotExpiredAliasSinglePreReleasePath(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--not-expired"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--version", "1.2.3", "--platform", "IOS", "--not-expired"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -1210,7 +1210,7 @@ func TestBuildsLatestNotExpiredAliasMultiPreReleasePath(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "app-1", "--platform", "IOS", "--not-expired"}); err != nil {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--platform", "IOS", "--not-expired"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

@@ -113,6 +113,11 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+			if err != nil {
+				return fmt.Errorf("builds latest: %w", err)
+			}
+
 			// Determine which preReleaseVersion(s) to filter by
 			var preReleaseVersionIDs []string
 
