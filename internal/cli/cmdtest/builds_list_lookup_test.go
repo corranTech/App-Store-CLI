@@ -180,3 +180,61 @@ func TestBuildsListLookupAmbiguousName(t *testing.T) {
 		t.Fatalf("expected empty stdout on failure, got %q", stdout)
 	}
 }
+
+func TestBuildsListNextURLSkipsAppLookupForNonNumericApp(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/builds?cursor=AQ"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		if requestCount != 1 {
+			t.Fatalf("unexpected request count %d: %s %s", requestCount, req.Method, req.URL.String())
+		}
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.String() != nextURL {
+			t.Fatalf("expected next URL %q, got %q", nextURL, req.URL.String())
+		}
+		body := `{"data":[{"type":"builds","id":"build-next"}],"links":{"next":""}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"builds", "list",
+			"--next", nextURL,
+			"--app", "com.example.lookup",
+			"--version", "1.2.3",
+			"--build-number", "77",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-next"`) {
+		t.Fatalf("expected next-page build output, got %q", stdout)
+	}
+}

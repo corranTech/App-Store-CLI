@@ -429,7 +429,7 @@ Examples:
 func BuildsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
 	output := shared.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
@@ -460,7 +460,8 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds: --limit must be between 1 and 200")
 			}
-			if err := shared.ValidateNextURL(*next); err != nil {
+			nextValue := strings.TrimSpace(*next)
+			if err := shared.ValidateNextURL(nextValue); err != nil {
 				return fmt.Errorf("builds: %w", err)
 			}
 			if err := shared.ValidateSort(*sort, "uploadedDate", "-uploadedDate"); err != nil {
@@ -471,7 +472,7 @@ Examples:
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
@@ -484,7 +485,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if resolvedAppID != "" {
+			if resolvedAppID != "" && nextValue == "" {
 				resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
 				if err != nil {
 					return fmt.Errorf("builds: %w", err)
@@ -492,7 +493,7 @@ Examples:
 			}
 
 			preReleaseVersionIDs := []string{}
-			if versionValue != "" && strings.TrimSpace(*next) == "" {
+			if versionValue != "" && nextValue == "" {
 				preReleaseVersionIDs, err = findPreReleaseVersionIDsForBuildsList(requestCtx, client, resolvedAppID, versionValue)
 				if err != nil {
 					return fmt.Errorf("builds: %w", err)
@@ -504,7 +505,7 @@ Examples:
 
 			opts := []asc.BuildsOption{
 				asc.WithBuildsLimit(*limit),
-				asc.WithBuildsNextURL(*next),
+				asc.WithBuildsNextURL(nextValue),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildsSort(*sort))

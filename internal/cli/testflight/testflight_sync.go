@@ -119,7 +119,7 @@ Examples:
 func TestFlightSyncPullCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pull", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
 	output := fs.String("output", "", "Output file path for YAML (required)")
 	includeBuilds := fs.Bool("include-builds", false, "Include builds and group assignments")
 	includeTesters := fs.Bool("include-testers", false, "Include testers and group memberships")
