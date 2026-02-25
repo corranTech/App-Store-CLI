@@ -58,6 +58,14 @@ func TestResolveDownloadPathRejectsEscapingOutDir(t *testing.T) {
 	}
 }
 
+func TestResolveShowOutDirSanitizesDotDotPathPart(t *testing.T) {
+	got := resolveShowOutDir("..", "submission-1", "")
+	want := filepath.Join(".asc", "web-review", "unknown", "submission-1")
+	if got != want {
+		t.Fatalf("expected resolved path %q, got %q", want, got)
+	}
+}
+
 func TestBuildReviewListTableRows(t *testing.T) {
 	submissions := []webcore.ReviewSubmission{
 		{
