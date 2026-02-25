@@ -13,6 +13,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -97,6 +98,64 @@ func filterSubmissionsByState(submissions []webcore.ReviewSubmission, states []s
 		}
 	}
 	return result
+}
+
+func buildReviewListTableRows(submissions []webcore.ReviewSubmission) [][]string {
+	if len(submissions) == 0 {
+		return [][]string{}
+	}
+	rows := make([][]string, 0, len(submissions))
+	for _, submission := range submissions {
+		version := ""
+		if submission.AppStoreVersionForReview != nil {
+			version = strings.TrimSpace(submission.AppStoreVersionForReview.Version)
+		}
+		if version == "" {
+			version = "n/a"
+		}
+
+		platform := strings.TrimSpace(submission.Platform)
+		if platform == "" && submission.AppStoreVersionForReview != nil {
+			platform = strings.TrimSpace(submission.AppStoreVersionForReview.Platform)
+		}
+		if platform == "" {
+			platform = "n/a"
+		}
+
+		submitted := strings.TrimSpace(submission.SubmittedDate)
+		if submitted == "" {
+			submitted = "n/a"
+		}
+		id := strings.TrimSpace(submission.ID)
+		if id == "" {
+			id = "n/a"
+		}
+		state := strings.TrimSpace(submission.State)
+		if state == "" {
+			state = "n/a"
+		}
+
+		rows = append(rows, []string{
+			id,
+			state,
+			submitted,
+			version,
+			platform,
+		})
+	}
+	return rows
+}
+
+func renderReviewListTable(submissions []webcore.ReviewSubmission) error {
+	headers := []string{"Submission ID", "State", "Submitted Date", "Version", "Platform"}
+	asc.RenderTable(headers, buildReviewListTableRows(submissions))
+	return nil
+}
+
+func renderReviewListMarkdown(submissions []webcore.ReviewSubmission) error {
+	headers := []string{"Submission ID", "State", "Submitted Date", "Version", "Platform"}
+	asc.RenderMarkdown(headers, buildReviewListTableRows(submissions))
+	return nil
 }
 
 func parseSubmissionTime(value string) time.Time {
@@ -426,7 +485,13 @@ func WebReviewListCommand() *ffcli.Command {
 				return withWebAuthHint(err, "web review list")
 			}
 			filtered := filterSubmissionsByState(submissions, states)
-			return shared.PrintOutput(filtered, *output.Output, *output.Pretty)
+			return shared.PrintOutputWithRenderers(
+				filtered,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderReviewListTable(filtered) },
+				func() error { return renderReviewListMarkdown(filtered) },
+			)
 		},
 	}
 }
