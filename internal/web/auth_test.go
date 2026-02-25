@@ -2,10 +2,19 @@ package web
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha1"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -175,4 +184,72 @@ func TestClientDoRequestAppliesRateLimit(t *testing.T) {
 	if diff := second.Sub(first); diff < 55*time.Millisecond {
 		t.Fatalf("expected low-rate gap between calls, got %v", diff)
 	}
+}
+
+func TestLoadWebRootCAPoolFromPaths(t *testing.T) {
+	certPath := filepath.Join(t.TempDir(), "roots.pem")
+	pemData, cert := generateSelfSignedCertPEM(t)
+	if err := os.WriteFile(certPath, pemData, 0o600); err != nil {
+		t.Fatalf("write cert bundle: %v", err)
+	}
+
+	pool := loadWebRootCAPoolFromPaths([]string{
+		filepath.Join(t.TempDir(), "missing.pem"),
+		certPath,
+	})
+	if pool == nil {
+		t.Fatal("expected non-nil root CA pool")
+	}
+	if _, err := cert.Verify(x509.VerifyOptions{
+		Roots:       pool,
+		CurrentTime: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("expected generated cert to verify with loaded pool: %v", err)
+	}
+}
+
+func TestLoadWebRootCAPoolFromPathsReturnsNilWhenNoValidPEM(t *testing.T) {
+	invalidPath := filepath.Join(t.TempDir(), "invalid.pem")
+	if err := os.WriteFile(invalidPath, []byte("not-a-pem"), 0o600); err != nil {
+		t.Fatalf("write invalid pem: %v", err)
+	}
+
+	pool := loadWebRootCAPoolFromPaths([]string{invalidPath})
+	if pool != nil {
+		t.Fatalf("expected nil pool for invalid PEM bundle")
+	}
+}
+
+func generateSelfSignedCertPEM(t *testing.T) ([]byte, *x509.Certificate) {
+	t.Helper()
+
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate private key: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "asc-web-test-root",
+		},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().Add(1 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		MaxPathLen:            0,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("parse certificate: %v", err)
+	}
+	block := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: der,
+	}
+	return pem.EncodeToMemory(block), cert
 }

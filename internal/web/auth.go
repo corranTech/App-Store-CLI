@@ -6,6 +6,8 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -17,6 +19,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,6 +48,13 @@ const (
 )
 
 var errTwoFactorRequired = errors.New("two-factor authentication required")
+
+var webTLSRootBundlePaths = []string{
+	"/etc/ssl/cert.pem",
+	"/private/etc/ssl/cert.pem",
+	"/opt/homebrew/etc/openssl@3/cert.pem",
+	"/usr/local/etc/openssl@3/cert.pem",
+}
 
 // AuthSession holds authenticated web-session state for internal API calls.
 type AuthSession struct {
@@ -169,12 +179,55 @@ func newWebHTTPClient(jar http.CookieJar) *http.Client {
 
 	cloned := transport.Clone()
 	cloned.TLSHandshakeTimeout = 30 * time.Second
+	applyDarwinTLSRootFallback(cloned)
 
 	return &http.Client{
 		Jar:       jar,
 		Timeout:   asc.ResolveTimeout(),
 		Transport: cloned,
 	}
+}
+
+func loadWebRootCAPoolFromPaths(paths []string) *x509.CertPool {
+	if len(paths) == 0 {
+		return nil
+	}
+	pool := x509.NewCertPool()
+	appended := false
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		pemData, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		if pool.AppendCertsFromPEM(pemData) {
+			appended = true
+		}
+	}
+	if !appended {
+		return nil
+	}
+	return pool
+}
+
+func applyDarwinTLSRootFallback(transport *http.Transport) {
+	if transport == nil || runtime.GOOS != "darwin" {
+		return
+	}
+	rootPool := loadWebRootCAPoolFromPaths(webTLSRootBundlePaths)
+	if rootPool == nil {
+		return
+	}
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{RootCAs: rootPool}
+		return
+	}
+	clonedTLS := transport.TLSClientConfig.Clone()
+	clonedTLS.RootCAs = rootPool
+	transport.TLSClientConfig = clonedTLS
 }
 
 func resolveWebMinRequestInterval() time.Duration {

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -10,12 +11,19 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"golang.org/x/term"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 const webPasswordEnv = "ASC_WEB_PASSWORD"
+
+var (
+	promptTwoFactorCodeFn = promptTwoFactorCodeInteractive
+	webLoginFn            = webcore.Login
+	submitTwoFactorCodeFn = webcore.SubmitTwoFactorCode
+)
 
 type webAuthStatus struct {
 	Authenticated bool   `json:"authenticated"`
@@ -36,8 +44,37 @@ func readPasswordFromInput(useStdin bool) (string, error) {
 	return strings.TrimSpace(os.Getenv(webPasswordEnv)), nil
 }
 
+func readTwoFactorCodeFrom(reader io.Reader, writer io.Writer) (string, error) {
+	if reader == nil || writer == nil {
+		return "", fmt.Errorf("2fa required: unable to prompt for code")
+	}
+	if _, err := fmt.Fprint(writer, "Two-factor code required. Enter 2FA code: "); err != nil {
+		return "", fmt.Errorf("2fa required: unable to prompt for code")
+	}
+	line, err := bufio.NewReader(reader).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("2fa required: failed to read 2fa code")
+	}
+	code := strings.TrimSpace(line)
+	if code == "" {
+		return "", fmt.Errorf("2fa required: empty 2fa code")
+	}
+	return code, nil
+}
+
+func promptTwoFactorCodeInteractive() (string, error) {
+	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+		defer func() { _ = tty.Close() }()
+		return readTwoFactorCodeFrom(tty, tty)
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		return readTwoFactorCodeFrom(os.Stdin, os.Stderr)
+	}
+	return "", fmt.Errorf("2fa required: re-run with --two-factor-code")
+}
+
 func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, error) {
-	session, err := webcore.Login(ctx, webcore.LoginCredentials{
+	session, err := webLoginFn(ctx, webcore.LoginCredentials{
 		Username: appleID,
 		Password: password,
 	})
@@ -49,9 +86,13 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 	if session != nil && errors.As(err, &tfaErr) {
 		code := strings.TrimSpace(twoFactorCode)
 		if code == "" {
-			return nil, fmt.Errorf("2fa required: re-run with --two-factor-code")
+			var promptErr error
+			code, promptErr = promptTwoFactorCodeFn()
+			if promptErr != nil {
+				return nil, promptErr
+			}
 		}
-		if err := webcore.SubmitTwoFactorCode(ctx, session, code); err != nil {
+		if err := submitTwoFactorCodeFn(ctx, session, code); err != nil {
 			return nil, fmt.Errorf("2fa verification failed: %w", err)
 		}
 		return session, nil
