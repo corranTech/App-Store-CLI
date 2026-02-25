@@ -36,10 +36,10 @@ func TestWebCommandIncludesWarningContract(t *testing.T) {
 	}
 }
 
-func TestAppsCommandDoesNotExposeCreateSubcommand(t *testing.T) {
+func TestWebAppsCreateSubcommandIsRegistered(t *testing.T) {
 	root := RootCommand("1.2.3")
-	if sub := findSubcommand(root, "apps", "create"); sub != nil {
-		t.Fatalf("expected apps create to be detached from official command tree")
+	if sub := findSubcommand(root, "web", "apps", "create"); sub == nil {
+		t.Fatalf("expected web apps create to be registered")
 	}
 }
 
