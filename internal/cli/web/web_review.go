@@ -5,9 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -27,6 +29,8 @@ var allowedReviewSubmissionStates = map[string]struct{}{
 	"COMPLETING":         {},
 	"COMPLETE":           {},
 }
+
+var reviewHTMLTagPattern = regexp.MustCompile(`(?s)<[^>]*>`)
 
 type reviewAttachmentDownloadResult struct {
 	AttachmentID      string `json:"attachmentId"`
@@ -155,6 +159,233 @@ func renderReviewListTable(submissions []webcore.ReviewSubmission) error {
 func renderReviewListMarkdown(submissions []webcore.ReviewSubmission) error {
 	headers := []string{"Submission ID", "State", "Submitted Date", "Version", "Platform"}
 	asc.RenderMarkdown(headers, buildReviewListTableRows(submissions))
+	return nil
+}
+
+func normalizeReviewShowValue(value string) string {
+	value = strings.ReplaceAll(value, "\r\n", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = strings.ReplaceAll(value, "\t", " ")
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "n/a"
+	}
+	return strings.Join(strings.Fields(trimmed), " ")
+}
+
+func summarizeSubmissionItemRelated(related []webcore.ReviewSubmissionItemRelation) string {
+	if len(related) == 0 {
+		return "n/a"
+	}
+	parts := make([]string, 0, len(related))
+	for _, relation := range related {
+		parts = append(parts, fmt.Sprintf(
+			"%s:%s:%s",
+			normalizeReviewShowValue(relation.Relationship),
+			normalizeReviewShowValue(relation.Type),
+			normalizeReviewShowValue(relation.ID),
+		))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func summarizeMessageForTable(message webcore.ResolutionCenterMessage) string {
+	body := strings.TrimSpace(message.MessageBodyPlain)
+	if body == "" {
+		body = strings.TrimSpace(message.MessageBody)
+	}
+	body = strings.NewReplacer(
+		"<br>", "\n",
+		"<br/>", "\n",
+		"<br />", "\n",
+		"</p>", "\n",
+		"</h3>", "\n",
+		"</li>", "\n",
+		"&nbsp;", " ",
+	).Replace(body)
+	body = reviewHTMLTagPattern.ReplaceAllString(body, " ")
+	body = html.UnescapeString(body)
+	return normalizeReviewShowValue(body)
+}
+
+func summarizeActor(actor *webcore.ReviewActor) string {
+	if actor == nil {
+		return "n/a"
+	}
+	parts := make([]string, 0, 2)
+	if strings.TrimSpace(actor.ActorType) != "" {
+		parts = append(parts, strings.TrimSpace(actor.ActorType))
+	}
+	if strings.TrimSpace(actor.ID) != "" {
+		parts = append(parts, strings.TrimSpace(actor.ID))
+	}
+	if len(parts) == 0 {
+		return "n/a"
+	}
+	return strings.Join(parts, "/")
+}
+
+func countReviewMessages(threads []reviewThreadDetails) int {
+	total := 0
+	for _, detail := range threads {
+		total += len(detail.Messages)
+	}
+	return total
+}
+
+func countReviewRejections(threads []reviewThreadDetails) int {
+	total := 0
+	for _, detail := range threads {
+		total += len(detail.Rejections)
+	}
+	return total
+}
+
+func buildReviewShowTableRows(payload reviewShowOutput) [][]string {
+	rows := make([][]string, 0)
+	addRow := func(section, field, value string) {
+		rows = append(rows, []string{
+			normalizeReviewShowValue(section),
+			normalizeReviewShowValue(field),
+			normalizeReviewShowValue(value),
+		})
+	}
+
+	addRow("Submission", "App ID", payload.AppID)
+	addRow("Submission", "Selection", payload.Selection)
+	if payload.Submission != nil {
+		addRow("Submission", "Submission ID", payload.Submission.ID)
+		addRow("Submission", "Review Status", payload.Submission.State)
+		addRow("Submission", "Submitted Date", payload.Submission.SubmittedDate)
+		addRow("Submission", "Platform", payload.Submission.Platform)
+		version := "n/a"
+		if payload.Submission.AppStoreVersionForReview != nil {
+			version = payload.Submission.AppStoreVersionForReview.Version
+		}
+		addRow("Submission", "App Version", version)
+	}
+	addRow("Submission", "Items Reviewed Count", fmt.Sprintf("%d", len(payload.SubmissionItems)))
+	addRow("Submission", "Threads Count", fmt.Sprintf("%d", len(payload.Threads)))
+	addRow("Submission", "Messages Count", fmt.Sprintf("%d", countReviewMessages(payload.Threads)))
+	addRow("Submission", "Rejections Count", fmt.Sprintf("%d", countReviewRejections(payload.Threads)))
+	addRow("Submission", "Screenshots Found", fmt.Sprintf("%d", len(payload.Attachments)))
+	addRow("Submission", "Screenshots Downloaded", fmt.Sprintf("%d", len(payload.Downloads)))
+	if strings.TrimSpace(payload.OutputDirectory) != "" {
+		addRow("Submission", "Output Directory", payload.OutputDirectory)
+	}
+
+	for index, item := range payload.SubmissionItems {
+		addRow(
+			"Items Reviewed",
+			fmt.Sprintf("Item %d", index+1),
+			fmt.Sprintf("id=%s type=%s related=%s", item.ID, item.Type, summarizeSubmissionItemRelated(item.Related)),
+		)
+	}
+
+	messageIndex := 0
+	reasonIndex := 0
+	for _, detail := range payload.Threads {
+		addRow(
+			"Threads",
+			fmt.Sprintf("Thread %s", normalizeReviewShowValue(detail.Thread.ID)),
+			fmt.Sprintf(
+				"type=%s state=%s created=%s",
+				detail.Thread.ThreadType,
+				detail.Thread.State,
+				detail.Thread.CreatedDate,
+			),
+		)
+
+		for _, message := range detail.Messages {
+			messageIndex++
+			addRow(
+				"Messages",
+				fmt.Sprintf("Message %d", messageIndex),
+				fmt.Sprintf(
+					"thread=%s actor=%s created=%s body=%s",
+					detail.Thread.ID,
+					summarizeActor(message.FromActor),
+					message.CreatedDate,
+					summarizeMessageForTable(message),
+				),
+			)
+		}
+
+		for _, rejection := range detail.Rejections {
+			if len(rejection.Reasons) == 0 {
+				reasonIndex++
+				addRow(
+					"Rejections",
+					fmt.Sprintf("Reason %d", reasonIndex),
+					fmt.Sprintf(
+						"thread=%s rejection=%s reasons=n/a attachments=%d",
+						detail.Thread.ID,
+						rejection.ID,
+						len(rejection.AttachmentIDs),
+					),
+				)
+				continue
+			}
+			for _, reason := range rejection.Reasons {
+				reasonIndex++
+				addRow(
+					"Rejections",
+					fmt.Sprintf("Reason %d", reasonIndex),
+					fmt.Sprintf(
+						"thread=%s rejection=%s code=%s section=%s description=%s",
+						detail.Thread.ID,
+						rejection.ID,
+						reason.ReasonCode,
+						reason.ReasonSection,
+						reason.ReasonDescription,
+					),
+				)
+			}
+		}
+	}
+
+	for index, attachment := range payload.Attachments {
+		addRow(
+			"Screenshots",
+			fmt.Sprintf("Attachment %d", index+1),
+			fmt.Sprintf(
+				"id=%s file=%s size=%d downloadable=%t",
+				attachment.AttachmentID,
+				normalizeAttachmentFilename(attachment),
+				attachment.FileSize,
+				attachment.Downloadable,
+			),
+		)
+	}
+
+	for index, download := range payload.Downloads {
+		addRow(
+			"Downloads",
+			fmt.Sprintf("Downloaded %d", index+1),
+			fmt.Sprintf(
+				"id=%s file=%s path=%s refreshedUrl=%t",
+				download.AttachmentID,
+				download.FileName,
+				download.Path,
+				download.RefreshedURL,
+			),
+		)
+	}
+	for index, failure := range payload.DownloadFailures {
+		addRow("Download Failures", fmt.Sprintf("Failure %d", index+1), failure)
+	}
+	return rows
+}
+
+func renderReviewShowTable(payload reviewShowOutput) error {
+	headers := []string{"Section", "Field", "Value"}
+	asc.RenderTable(headers, buildReviewShowTableRows(payload))
+	return nil
+}
+
+func renderReviewShowMarkdown(payload reviewShowOutput) error {
+	headers := []string{"Section", "Field", "Value"}
+	asc.RenderMarkdown(headers, buildReviewShowTableRows(payload))
 	return nil
 }
 
@@ -608,7 +839,13 @@ Selection:
 				payload.OutputDirectory = ""
 			}
 
-			if err := shared.PrintOutput(payload, *output.Output, *output.Pretty); err != nil {
+			if err := shared.PrintOutputWithRenderers(
+				payload,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderReviewShowTable(payload) },
+				func() error { return renderReviewShowMarkdown(payload) },
+			); err != nil {
 				return err
 			}
 			if len(downloadFailures) > 0 {

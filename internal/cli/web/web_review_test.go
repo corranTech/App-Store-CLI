@@ -1,6 +1,7 @@
 package web
 
 import (
+	"strings"
 	"testing"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -63,4 +64,121 @@ func TestBuildReviewListTableRows(t *testing.T) {
 	if got := rows[1][3]; got != "n/a" {
 		t.Fatalf("expected fallback version %q, got %q", "n/a", got)
 	}
+}
+
+func TestBuildReviewShowTableRowsIncludesExpectedSections(t *testing.T) {
+	payload := reviewShowOutput{
+		AppID:     "6567933550",
+		Selection: "explicit",
+		Submission: &webcore.ReviewSubmission{
+			ID:            "submission-1",
+			State:         "UNRESOLVED_ISSUES",
+			SubmittedDate: "2026-02-24T08:45:26.513Z",
+			Platform:      "IOS",
+			AppStoreVersionForReview: &webcore.AppStoreVersionForReview{
+				ID:       "version-1",
+				Version:  "2.2.1",
+				Platform: "IOS",
+			},
+		},
+		SubmissionItems: []webcore.ReviewSubmissionItem{
+			{
+				ID:   "item-1",
+				Type: "reviewSubmissionItems",
+				Related: []webcore.ReviewSubmissionItemRelation{
+					{
+						Relationship: "appStoreVersion",
+						Type:         "appStoreVersions",
+						ID:           "version-1",
+					},
+				},
+			},
+		},
+		Threads: []reviewThreadDetails{
+			{
+				Thread: webcore.ResolutionCenterThread{
+					ID:         "thread-1",
+					ThreadType: "REJECTION_REVIEW_SUBMISSION",
+					State:      "OPEN",
+				},
+				Messages: []webcore.ResolutionCenterMessage{
+					{
+						ID:          "message-1",
+						CreatedDate: "2026-02-24T08:45:26.513Z",
+						MessageBody: "<b>Hello</b><br>Issue details",
+						FromActor: &webcore.ReviewActor{
+							ID:        "APPLE",
+							ActorType: "APPLE",
+						},
+					},
+				},
+				Rejections: []webcore.ReviewRejection{
+					{
+						ID: "rejection-1",
+						Reasons: []webcore.ReviewRejectionReason{
+							{
+								ReasonCode:        "2.1.0",
+								ReasonSection:     "2.1",
+								ReasonDescription: "Performance: App Completeness",
+							},
+						},
+					},
+				},
+			},
+		},
+		Attachments: []webcore.ReviewAttachment{
+			{
+				AttachmentID: "attachment-1",
+				FileName:     "Screenshot-1.png",
+				FileSize:     123,
+				Downloadable: true,
+			},
+		},
+		Downloads: []reviewAttachmentDownloadResult{
+			{
+				AttachmentID: "attachment-1",
+				FileName:     "Screenshot-1.png",
+				Path:         ".asc/web-review/6567933550/submission-1/Screenshot-1.png",
+			},
+		},
+	}
+
+	rows := buildReviewShowTableRows(payload)
+	if len(rows) == 0 {
+		t.Fatal("expected non-empty rows")
+	}
+
+	assertRowContains(t, rows, "Submission", "Review Status", "UNRESOLVED_ISSUES")
+	assertRowContains(t, rows, "Items Reviewed", "Item 1", "appStoreVersion")
+	assertRowContains(t, rows, "Rejections", "Reason 1", "2.1.0")
+	assertRowContains(t, rows, "Messages", "Message 1", "Issue details")
+	assertRowContains(t, rows, "Screenshots", "Attachment 1", "Screenshot-1.png")
+	assertRowContains(t, rows, "Downloads", "Downloaded 1", ".asc/web-review/6567933550/submission-1/Screenshot-1.png")
+}
+
+func TestSummarizeMessageForTableStripsHTMLAndLinks(t *testing.T) {
+	message := webcore.ResolutionCenterMessage{
+		MessageBody: `Hello,<br><b>Review</b> message. See <a href="https://developer.apple.com/documentation/xcode/testing-a-release-build">Testing a Release Build</a>.`,
+	}
+
+	got := summarizeMessageForTable(message)
+	if strings.Contains(got, "<a ") || strings.Contains(got, "</a>") || strings.Contains(got, "<b>") {
+		t.Fatalf("expected markup to be removed, got %q", got)
+	}
+	if !strings.Contains(got, "Testing a Release Build") {
+		t.Fatalf("expected link text to remain, got %q", got)
+	}
+}
+
+func assertRowContains(t *testing.T, rows [][]string, section, field, value string) {
+	t.Helper()
+	for _, row := range rows {
+		if len(row) < 3 {
+			continue
+		}
+		if row[0] == section && strings.Contains(row[1], field) && strings.Contains(row[2], value) {
+			return
+		}
+	}
+	t.Fatalf("expected row section=%q field contains %q value contains %q", section, field, value)
 }
