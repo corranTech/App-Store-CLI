@@ -39,7 +39,7 @@ func TestClassify_TimeoutUploadOperation(t *testing.T) {
 	err := fmt.Errorf("builds upload: upload failed: upload operation 3: %w", context.DeadlineExceeded)
 
 	ce := Classify(err)
-	if ce.Hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=300s`)." {
+	if ce.Hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=600s`)." {
 		t.Fatalf("expected upload timeout hint, got %q", ce.Hint)
 	}
 }
