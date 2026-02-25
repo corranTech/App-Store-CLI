@@ -167,7 +167,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			session, source, err := resolveSession(requestCtx, *appleID, password, *twoFactorCode, *passwordStdin, false)
+			session, source, err := resolveSession(requestCtx, *appleID, password, *twoFactorCode, *passwordStdin)
 			if err != nil {
 				return err
 			}

@@ -34,7 +34,6 @@ func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*w
 		password,
 		*flags.twoFactorCode,
 		*flags.passwordStdin,
-		false,
 	)
 	if err != nil {
 		return nil, err
