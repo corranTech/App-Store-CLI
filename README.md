@@ -59,6 +59,27 @@ asc auth login \
 Generate API keys at:
 https://appstoreconnect.apple.com/access/integrations/api
 
+### Experimental web-session auth (unofficial, discouraged)
+
+```bash
+# Check web-session cache
+asc web auth status
+
+# Login with Apple ID for detached experimental workflows
+asc web auth login --apple-id "user@example.com" --password-stdin
+
+# Create app via internal web API (not official ASC API)
+asc web apps create \
+  --name "My App" \
+  --bundle-id "com.example.app" \
+  --sku "MYAPP123" \
+  --apple-id "user@example.com" \
+  --password-stdin
+```
+
+`asc web` is **experimental**, **unofficial**, and **discouraged** for production-critical automation.
+It is intentionally detached from official API-key-based `asc` workflows and may break without notice.
+
 ### First command
 
 ```bash
