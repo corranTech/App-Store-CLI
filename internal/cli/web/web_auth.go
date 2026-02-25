@@ -120,7 +120,7 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 	return nil, err
 }
 
-func resolveSession(ctx context.Context, appleID, password, twoFactorCode string, usePasswordStdin bool, allowLast bool) (*webcore.AuthSession, string, error) {
+func resolveSession(ctx context.Context, appleID, password, twoFactorCode string, usePasswordStdin bool) (*webcore.AuthSession, string, error) {
 	appleID = strings.TrimSpace(appleID)
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
 
@@ -128,14 +128,10 @@ func resolveSession(ctx context.Context, appleID, password, twoFactorCode string
 		if resumed, ok, err := webcore.TryResumeSession(ctx, appleID); err == nil && ok {
 			return resumed, "cache", nil
 		}
-	} else if allowLast {
-		if resumed, ok, err := webcore.TryResumeLastSession(ctx); err == nil && ok {
-			return resumed, "cache", nil
-		}
 	}
 
 	if appleID == "" {
-		return nil, "", shared.UsageError("--apple-id is required when no cached web session is available")
+		return nil, "", shared.UsageError("--apple-id is required")
 	}
 
 	password = strings.TrimSpace(password)
@@ -224,7 +220,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			session, source, err := resolveSession(requestCtx, *appleID, password, *twoFactorCode, *passwordStdin, false)
+			session, source, err := resolveSession(requestCtx, *appleID, password, *twoFactorCode, *passwordStdin)
 			if err != nil {
 				return err
 			}
