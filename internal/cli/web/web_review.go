@@ -208,21 +208,13 @@ func summarizeMessageForTable(message webcore.ResolutionCenterMessage) string {
 	return normalizeReviewShowValue(body)
 }
 
-func summarizeActor(actor *webcore.ReviewActor) string {
-	if actor == nil {
-		return "n/a"
-	}
-	parts := make([]string, 0, 2)
-	if strings.TrimSpace(actor.ActorType) != "" {
-		parts = append(parts, strings.TrimSpace(actor.ActorType))
-	}
-	if strings.TrimSpace(actor.ID) != "" {
-		parts = append(parts, strings.TrimSpace(actor.ID))
-	}
-	if len(parts) == 0 {
-		return "n/a"
-	}
-	return strings.Join(parts, "/")
+func summarizeReasonForTable(reason webcore.ReviewRejectionReason) string {
+	return fmt.Sprintf(
+		"code=%s section=%s description=%s",
+		normalizeReviewShowValue(reason.ReasonCode),
+		normalizeReviewShowValue(reason.ReasonSection),
+		normalizeReviewShowValue(reason.ReasonDescription),
+	)
 }
 
 func countReviewMessages(threads []reviewThreadDetails) int {
@@ -301,13 +293,7 @@ func buildReviewShowTableRows(payload reviewShowOutput) [][]string {
 			addRow(
 				"Messages",
 				fmt.Sprintf("Message %d", messageIndex),
-				fmt.Sprintf(
-					"thread=%s actor=%s created=%s body=%s",
-					detail.Thread.ID,
-					summarizeActor(message.FromActor),
-					message.CreatedDate,
-					summarizeMessageForTable(message),
-				),
+				summarizeMessageForTable(message),
 			)
 		}
 
@@ -317,12 +303,7 @@ func buildReviewShowTableRows(payload reviewShowOutput) [][]string {
 				addRow(
 					"Rejections",
 					fmt.Sprintf("Reason %d", reasonIndex),
-					fmt.Sprintf(
-						"thread=%s rejection=%s reasons=n/a attachments=%d",
-						detail.Thread.ID,
-						rejection.ID,
-						len(rejection.AttachmentIDs),
-					),
+					summarizeReasonForTable(webcore.ReviewRejectionReason{}),
 				)
 				continue
 			}
@@ -331,14 +312,7 @@ func buildReviewShowTableRows(payload reviewShowOutput) [][]string {
 				addRow(
 					"Rejections",
 					fmt.Sprintf("Reason %d", reasonIndex),
-					fmt.Sprintf(
-						"thread=%s rejection=%s code=%s section=%s description=%s",
-						detail.Thread.ID,
-						rejection.ID,
-						reason.ReasonCode,
-						reason.ReasonSection,
-						reason.ReasonDescription,
-					),
+					summarizeReasonForTable(reason),
 				)
 			}
 		}

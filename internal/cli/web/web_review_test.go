@@ -150,8 +150,8 @@ func TestBuildReviewShowTableRowsIncludesExpectedSections(t *testing.T) {
 
 	assertRowContains(t, rows, "Submission", "Review Status", "UNRESOLVED_ISSUES")
 	assertRowContains(t, rows, "Items Reviewed", "Item 1", "appStoreVersion")
-	assertRowContains(t, rows, "Rejections", "Reason 1", "2.1.0")
-	assertRowContains(t, rows, "Messages", "Message 1", "Issue details")
+	assertRowEquals(t, rows, "Rejections", "Reason 1", "code=2.1.0 section=2.1 description=Performance: App Completeness")
+	assertRowEquals(t, rows, "Messages", "Message 1", "Hello Issue details")
 	assertRowContains(t, rows, "Screenshots", "Attachment 1", "Screenshot-1.png")
 	assertRowContains(t, rows, "Downloads", "Downloaded 1", ".asc/web-review/6567933550/submission-1/Screenshot-1.png")
 }
@@ -181,4 +181,17 @@ func assertRowContains(t *testing.T, rows [][]string, section, field, value stri
 		}
 	}
 	t.Fatalf("expected row section=%q field contains %q value contains %q", section, field, value)
+}
+
+func assertRowEquals(t *testing.T, rows [][]string, section, field, value string) {
+	t.Helper()
+	for _, row := range rows {
+		if len(row) < 3 {
+			continue
+		}
+		if row[0] == section && row[1] == field && row[2] == value {
+			return
+		}
+	}
+	t.Fatalf("expected row section=%q field=%q value=%q", section, field, value)
 }
