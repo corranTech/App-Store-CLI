@@ -38,6 +38,8 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			WebAuthCommand(),
 			WebAppsCommand(),
+			WebSubmissionsCommand(),
+			WebReviewCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {
