@@ -32,13 +32,13 @@ These commands can break without notice and are intentionally detached from offi
 Examples:
   asc web auth status
   asc web auth login --apple-id "user@example.com" --password-stdin
-  asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123" --apple-id "user@example.com" --password-stdin`,
+  asc web review list --app "123456789" --apple-id "user@example.com"
+  asc web review show --app "123456789" --apple-id "user@example.com"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebAuthCommand(),
 			WebAppsCommand(),
-			WebSubmissionsCommand(),
 			WebReviewCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {

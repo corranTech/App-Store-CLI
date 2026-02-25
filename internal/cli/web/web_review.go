@@ -9,12 +9,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
+
+var allowedReviewSubmissionStates = map[string]struct{}{
+	"READY_FOR_REVIEW":   {},
+	"WAITING_FOR_REVIEW": {},
+	"IN_REVIEW":          {},
+	"UNRESOLVED_ISSUES":  {},
+	"CANCELING":          {},
+	"COMPLETING":         {},
+	"COMPLETE":           {},
+}
 
 type reviewAttachmentDownloadResult struct {
 	AttachmentID      string `json:"attachmentId"`
@@ -27,25 +38,144 @@ type reviewAttachmentDownloadResult struct {
 	RefreshedURL      bool   `json:"refreshedUrl,omitempty"`
 }
 
-func validateExactlyOneSelector(valueA, flagA, valueB, flagB string) error {
-	hasA := strings.TrimSpace(valueA) != ""
-	hasB := strings.TrimSpace(valueB) != ""
-	if hasA == hasB {
-		return shared.UsageErrorf("exactly one of --%s or --%s is required", flagA, flagB)
-	}
-	return nil
+type reviewThreadDetails struct {
+	Thread     webcore.ResolutionCenterThread    `json:"thread"`
+	Messages   []webcore.ResolutionCenterMessage `json:"messages,omitempty"`
+	Rejections []webcore.ReviewRejection         `json:"rejections,omitempty"`
 }
 
-func listReviewAttachmentsForSelector(
-	ctx context.Context,
-	client *webcore.Client,
-	threadID, submissionID string,
-	includeURL bool,
-) ([]webcore.ReviewAttachment, error) {
-	if strings.TrimSpace(threadID) != "" {
-		return client.ListReviewAttachmentsByThread(ctx, threadID, includeURL)
+type reviewShowOutput struct {
+	AppID            string                           `json:"appId"`
+	Selection        string                           `json:"selection"`
+	Submission       *webcore.ReviewSubmission        `json:"submission,omitempty"`
+	SubmissionItems  []webcore.ReviewSubmissionItem   `json:"submissionItems,omitempty"`
+	Threads          []reviewThreadDetails            `json:"threads,omitempty"`
+	Attachments      []webcore.ReviewAttachment       `json:"attachments,omitempty"`
+	OutputDirectory  string                           `json:"outputDirectory,omitempty"`
+	Downloads        []reviewAttachmentDownloadResult `json:"downloads,omitempty"`
+	DownloadFailures []string                         `json:"downloadFailures,omitempty"`
+}
+
+func parseSubmissionStates(stateCSV string) ([]string, error) {
+	states := shared.SplitCSVUpper(stateCSV)
+	if len(states) == 0 {
+		return nil, nil
 	}
-	return client.ListReviewAttachmentsBySubmission(ctx, submissionID, includeURL)
+	invalid := make([]string, 0)
+	seen := map[string]struct{}{}
+	filtered := make([]string, 0, len(states))
+	for _, state := range states {
+		if _, exists := allowedReviewSubmissionStates[state]; !exists {
+			invalid = append(invalid, state)
+			continue
+		}
+		if _, exists := seen[state]; exists {
+			continue
+		}
+		seen[state] = struct{}{}
+		filtered = append(filtered, state)
+	}
+	if len(invalid) > 0 {
+		return nil, shared.UsageErrorf("--state contains unsupported value(s): %s", strings.Join(invalid, ", "))
+	}
+	return filtered, nil
+}
+
+func filterSubmissionsByState(submissions []webcore.ReviewSubmission, states []string) []webcore.ReviewSubmission {
+	if len(states) == 0 {
+		return submissions
+	}
+	allowed := make(map[string]struct{}, len(states))
+	for _, state := range states {
+		allowed[strings.ToUpper(strings.TrimSpace(state))] = struct{}{}
+	}
+	result := make([]webcore.ReviewSubmission, 0, len(submissions))
+	for _, submission := range submissions {
+		state := strings.ToUpper(strings.TrimSpace(submission.State))
+		if _, ok := allowed[state]; ok {
+			result = append(result, submission)
+		}
+	}
+	return result
+}
+
+func parseSubmissionTime(value string) time.Time {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return time.Time{}
+	}
+	if parsed, err := time.Parse(time.RFC3339, trimmed); err == nil {
+		return parsed
+	}
+	return time.Time{}
+}
+
+func newerSubmission(a, b webcore.ReviewSubmission) bool {
+	at := parseSubmissionTime(a.SubmittedDate)
+	bt := parseSubmissionTime(b.SubmittedDate)
+	switch {
+	case !at.IsZero() && !bt.IsZero():
+		return at.After(bt)
+	case !at.IsZero() && bt.IsZero():
+		return true
+	case at.IsZero() && !bt.IsZero():
+		return false
+	default:
+		return strings.TrimSpace(a.SubmittedDate) > strings.TrimSpace(b.SubmittedDate)
+	}
+}
+
+func chooseSubmissionForShow(submissions []webcore.ReviewSubmission, preferredID string) (*webcore.ReviewSubmission, string, error) {
+	if len(submissions) == 0 {
+		return nil, "none", nil
+	}
+	preferredID = strings.TrimSpace(preferredID)
+	if preferredID != "" {
+		for i := range submissions {
+			if strings.TrimSpace(submissions[i].ID) == preferredID {
+				chosen := submissions[i]
+				return &chosen, "explicit", nil
+			}
+		}
+		return nil, "", fmt.Errorf("submission %q was not found for this app", preferredID)
+	}
+
+	var unresolved *webcore.ReviewSubmission
+	var latest *webcore.ReviewSubmission
+	for i := range submissions {
+		current := submissions[i]
+		if latest == nil || newerSubmission(current, *latest) {
+			copy := current
+			latest = &copy
+		}
+		if strings.EqualFold(strings.TrimSpace(current.State), "UNRESOLVED_ISSUES") {
+			if unresolved == nil || newerSubmission(current, *unresolved) {
+				copy := current
+				unresolved = &copy
+			}
+		}
+	}
+	if unresolved != nil {
+		return unresolved, "latest-unresolved", nil
+	}
+	return latest, "latest", nil
+}
+
+func sanitizePathPart(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "unknown"
+	}
+	replacer := strings.NewReplacer("/", "_", "\\", "_", ":", "_")
+	return replacer.Replace(trimmed)
+}
+
+func resolveShowOutDir(appID, submissionID, out string) string {
+	trimmedOut := strings.TrimSpace(out)
+	if trimmedOut != "" {
+		return trimmedOut
+	}
+	return filepath.Join(".asc", "web-review", sanitizePathPart(appID), sanitizePathPart(submissionID))
 }
 
 func normalizeAttachmentFilename(attachment webcore.ReviewAttachment) string {
@@ -116,27 +246,137 @@ func attachmentDownloadResult(attachment webcore.ReviewAttachment, path string, 
 	}
 }
 
-// WebReviewCommand returns the detached web review traversal command group.
+func redactAttachmentURLs(attachments []webcore.ReviewAttachment) []webcore.ReviewAttachment {
+	redacted := make([]webcore.ReviewAttachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		copy := attachment
+		copy.DownloadURL = ""
+		redacted = append(redacted, copy)
+	}
+	return redacted
+}
+
+func buildThreadDetails(ctx context.Context, client *webcore.Client, threads []webcore.ResolutionCenterThread, plainText bool) ([]reviewThreadDetails, error) {
+	details := make([]reviewThreadDetails, 0, len(threads))
+	for _, thread := range threads {
+		messages, err := client.ListResolutionCenterMessages(ctx, thread.ID, plainText)
+		if err != nil {
+			return nil, err
+		}
+		rejections, err := client.ListReviewRejections(ctx, thread.ID)
+		if err != nil {
+			return nil, err
+		}
+		details = append(details, reviewThreadDetails{
+			Thread:     thread,
+			Messages:   messages,
+			Rejections: rejections,
+		})
+	}
+	return details, nil
+}
+
+func downloadAttachmentsForShow(
+	ctx context.Context,
+	client *webcore.Client,
+	attachments []webcore.ReviewAttachment,
+	submissionID string,
+	outDir string,
+	pattern string,
+	overwrite bool,
+) ([]reviewAttachmentDownloadResult, []string, error) {
+	selected := make([]webcore.ReviewAttachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		attachment.FileName = normalizeAttachmentFilename(attachment)
+		if !attachment.Downloadable || strings.TrimSpace(attachment.DownloadURL) == "" {
+			continue
+		}
+		if strings.TrimSpace(pattern) != "" {
+			matched, err := filepath.Match(pattern, attachment.FileName)
+			if err != nil {
+				return nil, nil, shared.UsageErrorf("--pattern is invalid: %v", err)
+			}
+			if !matched {
+				continue
+			}
+		}
+		selected = append(selected, attachment)
+	}
+	if len(selected) == 0 {
+		return []reviewAttachmentDownloadResult{}, nil, nil
+	}
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return nil, nil, fmt.Errorf("failed to create output directory %q: %w", outDir, err)
+	}
+
+	results := make([]reviewAttachmentDownloadResult, 0, len(selected))
+	failures := make([]string, 0)
+	var refreshedIndex map[string]webcore.ReviewAttachment
+
+	for _, attachment := range selected {
+		body, statusCode, downloadErr := client.DownloadAttachment(ctx, attachment.DownloadURL)
+		refreshed := false
+
+		if downloadErr != nil && (statusCode == http.StatusForbidden || statusCode == http.StatusGone) {
+			if refreshedIndex == nil {
+				refreshedAttachments, refreshErr := client.ListReviewAttachmentsBySubmission(ctx, submissionID, true)
+				if refreshErr != nil {
+					failures = append(failures, fmt.Sprintf("%s: refresh failed (%v)", attachment.FileName, refreshErr))
+					continue
+				}
+				refreshedIndex = indexAttachmentsByRefreshKey(refreshedAttachments)
+			}
+			if refreshedAttachment, ok := refreshedIndex[attachmentRefreshKey(attachment)]; ok && strings.TrimSpace(refreshedAttachment.DownloadURL) != "" {
+				body, _, downloadErr = client.DownloadAttachment(ctx, refreshedAttachment.DownloadURL)
+				if downloadErr == nil {
+					attachment = refreshedAttachment
+					attachment.FileName = normalizeAttachmentFilename(attachment)
+					refreshed = true
+				}
+			}
+		}
+		if downloadErr != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", attachment.FileName, downloadErr))
+			continue
+		}
+
+		outputPath, err := resolveDownloadPath(outDir, attachment.FileName, overwrite)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", attachment.FileName, err))
+			continue
+		}
+		if err := os.WriteFile(outputPath, body, 0o600); err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", attachment.FileName, err))
+			continue
+		}
+		results = append(results, attachmentDownloadResult(attachment, outputPath, refreshed))
+	}
+	return results, failures, nil
+}
+
+// WebReviewCommand returns the detached web review command group.
 func WebReviewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web review", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "review",
 		ShortUsage: "asc web review <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Resolution Center data via unofficial web APIs.",
+		ShortHelp:  "EXPERIMENTAL: App-centric review and rejection inspection.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
-Traverse App Review issues, messages, rejections, and attachments through web-session endpoints.
+App-centric review workflows over Apple web-session /iris endpoints.
+Use --app to scope all operations to one app.
+
+Subcommands:
+  list  List review submissions for an app
+  show  Show one submission with threads/messages/rejections and auto-download screenshots
 
 ` + webWarningText,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebReviewThreadsCommand(),
-			WebReviewMessagesCommand(),
-			WebReviewRejectionsCommand(),
-			WebReviewDraftCommand(),
-			WebReviewAttachmentsCommand(),
+			WebReviewListCommand(),
+			WebReviewShowCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -144,40 +384,28 @@ Traverse App Review issues, messages, rejections, and attachments through web-se
 	}
 }
 
-// WebReviewThreadsCommand contains thread traversal subcommands.
-func WebReviewThreadsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review threads", flag.ExitOnError)
-	return &ffcli.Command{
-		Name:        "threads",
-		ShortUsage:  "asc web review threads <subcommand> [flags]",
-		ShortHelp:   "EXPERIMENTAL: Resolution Center thread access.",
-		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebReviewThreadsListCommand()},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
+// WebReviewListCommand lists review submissions for an app.
+func WebReviewListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web review list", flag.ExitOnError)
 
-// WebReviewThreadsListCommand lists threads by app or submission.
-func WebReviewThreadsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review threads list", flag.ExitOnError)
 	appID := fs.String("app", "", "App ID")
-	submissionID := fs.String("submission", "", "Review submission ID")
+	stateCSV := fs.String("state", "", "Optional comma-separated state filter")
 	authFlags := bindWebSessionFlags(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc web review threads list (--app APP_ID | --submission REVIEW_SUBMISSION_ID) [flags]",
-		ShortHelp:  "EXPERIMENTAL: List Resolution Center threads.",
+		ShortUsage: "asc web review list --app APP_ID [--state CSV] [flags]",
+		ShortHelp:  "EXPERIMENTAL: List app review submissions.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedAppID := strings.TrimSpace(*appID)
-			trimmedSubmissionID := strings.TrimSpace(*submissionID)
-			if err := validateExactlyOneSelector(trimmedAppID, "app", trimmedSubmissionID, "submission"); err != nil {
+			if trimmedAppID == "" {
+				return shared.UsageError("--app is required")
+			}
+			states, err := parseSubmissionStates(*stateCSV)
+			if err != nil {
 				return err
 			}
 
@@ -190,278 +418,53 @@ func WebReviewThreadsListCommand() *ffcli.Command {
 			}
 			client := webcore.NewClient(session)
 
-			var threads []webcore.ResolutionCenterThread
-			if trimmedAppID != "" {
-				threads, err = client.ListResolutionCenterThreadsByApp(requestCtx, trimmedAppID)
-			} else {
-				threads, err = client.ListResolutionCenterThreadsBySubmission(requestCtx, trimmedSubmissionID)
-			}
+			submissions, err := client.ListReviewSubmissions(requestCtx, trimmedAppID)
 			if err != nil {
-				return withWebAuthHint(err, "web review threads list")
+				return withWebAuthHint(err, "web review list")
 			}
-			return shared.PrintOutput(threads, *output.Output, *output.Pretty)
+			filtered := filterSubmissionsByState(submissions, states)
+			return shared.PrintOutput(filtered, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebReviewMessagesCommand contains message traversal subcommands.
-func WebReviewMessagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review messages", flag.ExitOnError)
-	return &ffcli.Command{
-		Name:        "messages",
-		ShortUsage:  "asc web review messages <subcommand> [flags]",
-		ShortHelp:   "EXPERIMENTAL: Resolution Center message access.",
-		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebReviewMessagesListCommand()},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
+// WebReviewShowCommand shows a submission with full review context and downloads screenshots.
+func WebReviewShowCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web review show", flag.ExitOnError)
 
-// WebReviewMessagesListCommand lists messages for a thread.
-func WebReviewMessagesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review messages list", flag.ExitOnError)
-	threadID := fs.String("thread", "", "Resolution Center thread ID")
-	plainText := fs.Bool("plain-text", false, "Project messageBody HTML into plain text")
-	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc web review messages list --thread THREAD_ID [--plain-text] [flags]",
-		ShortHelp:  "EXPERIMENTAL: List Resolution Center messages.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedThreadID := strings.TrimSpace(*threadID)
-			if trimmedThreadID == "" {
-				return shared.UsageError("--thread is required")
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
-			if err != nil {
-				return err
-			}
-			client := webcore.NewClient(session)
-
-			messages, err := client.ListResolutionCenterMessages(requestCtx, trimmedThreadID, *plainText)
-			if err != nil {
-				return withWebAuthHint(err, "web review messages list")
-			}
-			return shared.PrintOutput(messages, *output.Output, *output.Pretty)
-		},
-	}
-}
-
-// WebReviewRejectionsCommand contains rejection traversal subcommands.
-func WebReviewRejectionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review rejections", flag.ExitOnError)
-	return &ffcli.Command{
-		Name:        "rejections",
-		ShortUsage:  "asc web review rejections <subcommand> [flags]",
-		ShortHelp:   "EXPERIMENTAL: Review rejection access.",
-		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebReviewRejectionsListCommand()},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
-// WebReviewRejectionsListCommand lists rejections for a thread.
-func WebReviewRejectionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review rejections list", flag.ExitOnError)
-	threadID := fs.String("thread", "", "Resolution Center thread ID")
-	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc web review rejections list --thread THREAD_ID [flags]",
-		ShortHelp:  "EXPERIMENTAL: List review rejection reasons.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedThreadID := strings.TrimSpace(*threadID)
-			if trimmedThreadID == "" {
-				return shared.UsageError("--thread is required")
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
-			if err != nil {
-				return err
-			}
-			client := webcore.NewClient(session)
-
-			rejections, err := client.ListReviewRejections(requestCtx, trimmedThreadID)
-			if err != nil {
-				return withWebAuthHint(err, "web review rejections list")
-			}
-			return shared.PrintOutput(rejections, *output.Output, *output.Pretty)
-		},
-	}
-}
-
-// WebReviewDraftCommand contains draft traversal subcommands.
-func WebReviewDraftCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review draft", flag.ExitOnError)
-	return &ffcli.Command{
-		Name:        "draft",
-		ShortUsage:  "asc web review draft <subcommand> [flags]",
-		ShortHelp:   "EXPERIMENTAL: Draft message access.",
-		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebReviewDraftShowCommand()},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
-// WebReviewDraftShowCommand shows draft payload for a thread.
-func WebReviewDraftShowCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review draft show", flag.ExitOnError)
-	threadID := fs.String("thread", "", "Resolution Center thread ID")
+	appID := fs.String("app", "", "App ID")
+	submissionID := fs.String("submission", "", "Review submission ID (default: latest unresolved, else latest)")
+	outDir := fs.String("out", "", "Directory for auto-downloaded screenshots (default: ./.asc/web-review/<app>/<submission>)")
+	pattern := fs.String("pattern", "", "Optional filename glob filter for auto-download (for example: *.png)")
+	overwrite := fs.Bool("overwrite", false, "Overwrite existing files instead of suffixing")
 	plainText := fs.Bool("plain-text", false, "Project messageBody HTML into plain text")
 	authFlags := bindWebSessionFlags(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "show",
-		ShortUsage: "asc web review draft show --thread THREAD_ID [--plain-text] [flags]",
-		ShortHelp:  "EXPERIMENTAL: Show draft message for a thread.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		ShortUsage: "asc web review show --app APP_ID [--submission ID] [--out DIR] [--pattern GLOB] [--overwrite] [flags]",
+		ShortHelp:  "EXPERIMENTAL: Show review details and auto-download screenshots.",
+		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
+
+Show one submission's review context (threads, messages, rejections) and
+auto-download available screenshots/attachments in the same command.
+
+Selection:
+  - --submission ID          Use an explicit submission
+  - without --submission     Pick latest UNRESOLVED_ISSUES submission, otherwise latest submission
+
+` + webWarningText,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedThreadID := strings.TrimSpace(*threadID)
-			if trimmedThreadID == "" {
-				return shared.UsageError("--thread is required")
+			trimmedAppID := strings.TrimSpace(*appID)
+			if trimmedAppID == "" {
+				return shared.UsageError("--app is required")
 			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
-			if err != nil {
-				return err
-			}
-			client := webcore.NewClient(session)
-
-			draft, err := client.GetResolutionCenterDraftMessage(requestCtx, trimmedThreadID, *plainText)
-			if err != nil {
-				return withWebAuthHint(err, "web review draft show")
-			}
-			if draft == nil {
-				return shared.PrintOutput(map[string]any{}, *output.Output, *output.Pretty)
-			}
-			return shared.PrintOutput(draft, *output.Output, *output.Pretty)
-		},
-	}
-}
-
-// WebReviewAttachmentsCommand contains attachment list/download subcommands.
-func WebReviewAttachmentsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review attachments", flag.ExitOnError)
-	return &ffcli.Command{
-		Name:       "attachments",
-		ShortUsage: "asc web review attachments <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Review attachment listing and download.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			WebReviewAttachmentsListCommand(),
-			WebReviewAttachmentsDownloadCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
-// WebReviewAttachmentsListCommand lists attachments by thread or submission.
-func WebReviewAttachmentsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review attachments list", flag.ExitOnError)
-	threadID := fs.String("thread", "", "Resolution Center thread ID")
-	submissionID := fs.String("submission", "", "Review submission ID")
-	includeURL := fs.Bool("include-url", false, "Include signed downloadUrl in output (sensitive)")
-	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc web review attachments list (--thread THREAD_ID | --submission REVIEW_SUBMISSION_ID) [--include-url] [flags]",
-		ShortHelp:  "EXPERIMENTAL: List review attachments.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedThreadID := strings.TrimSpace(*threadID)
-			trimmedSubmissionID := strings.TrimSpace(*submissionID)
-			if err := validateExactlyOneSelector(trimmedThreadID, "thread", trimmedSubmissionID, "submission"); err != nil {
-				return err
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
-			if err != nil {
-				return err
-			}
-			client := webcore.NewClient(session)
-
-			attachments, err := listReviewAttachmentsForSelector(
-				requestCtx,
-				client,
-				trimmedThreadID,
-				trimmedSubmissionID,
-				*includeURL,
-			)
-			if err != nil {
-				return withWebAuthHint(err, "web review attachments list")
-			}
-			return shared.PrintOutput(attachments, *output.Output, *output.Pretty)
-		},
-	}
-}
-
-// WebReviewAttachmentsDownloadCommand downloads attachments by thread or submission.
-func WebReviewAttachmentsDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review attachments download", flag.ExitOnError)
-	threadID := fs.String("thread", "", "Resolution Center thread ID")
-	submissionID := fs.String("submission", "", "Review submission ID")
-	outDir := fs.String("out", "", "Output directory for downloaded files")
-	pattern := fs.String("pattern", "", "Optional filename glob filter (for example: *.png)")
-	overwrite := fs.Bool("overwrite", false, "Overwrite existing files instead of suffixing")
-	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "download",
-		ShortUsage: "asc web review attachments download (--thread THREAD_ID | --submission REVIEW_SUBMISSION_ID) --out DIR [--pattern GLOB] [--overwrite] [flags]",
-		ShortHelp:  "EXPERIMENTAL: Download review attachments.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedThreadID := strings.TrimSpace(*threadID)
-			trimmedSubmissionID := strings.TrimSpace(*submissionID)
-			if err := validateExactlyOneSelector(trimmedThreadID, "thread", trimmedSubmissionID, "submission"); err != nil {
-				return err
-			}
-			trimmedOutDir := strings.TrimSpace(*outDir)
-			if trimmedOutDir == "" {
-				return shared.UsageError("--out is required")
-			}
-			if strings.TrimSpace(*pattern) != "" {
-				if _, err := filepath.Match(strings.TrimSpace(*pattern), "sample.png"); err != nil {
+			trimmedPattern := strings.TrimSpace(*pattern)
+			if trimmedPattern != "" {
+				if _, err := filepath.Match(trimmedPattern, "sample.png"); err != nil {
 					return shared.UsageErrorf("--pattern is invalid: %v", err)
 				}
 			}
@@ -475,95 +478,73 @@ func WebReviewAttachmentsDownloadCommand() *ffcli.Command {
 			}
 			client := webcore.NewClient(session)
 
-			attachments, err := listReviewAttachmentsForSelector(
-				requestCtx,
-				client,
-				trimmedThreadID,
-				trimmedSubmissionID,
-				true,
-			)
+			submissions, err := client.ListReviewSubmissions(requestCtx, trimmedAppID)
 			if err != nil {
-				return withWebAuthHint(err, "web review attachments download")
+				return withWebAuthHint(err, "web review show")
 			}
-
-			if err := os.MkdirAll(trimmedOutDir, 0o755); err != nil {
-				return fmt.Errorf("failed to create output directory %q: %w", trimmedOutDir, err)
-			}
-
-			selected := make([]webcore.ReviewAttachment, 0, len(attachments))
-			for _, attachment := range attachments {
-				attachment.FileName = normalizeAttachmentFilename(attachment)
-				if !attachment.Downloadable || strings.TrimSpace(attachment.DownloadURL) == "" {
-					continue
-				}
-				if strings.TrimSpace(*pattern) != "" {
-					matched, err := filepath.Match(strings.TrimSpace(*pattern), attachment.FileName)
-					if err != nil {
-						return shared.UsageErrorf("--pattern is invalid: %v", err)
-					}
-					if !matched {
-						continue
-					}
-				}
-				selected = append(selected, attachment)
-			}
-
-			results := make([]reviewAttachmentDownloadResult, 0, len(selected))
-			failures := make([]string, 0)
-			var refreshedIndex map[string]webcore.ReviewAttachment
-
-			for _, attachment := range selected {
-				body, statusCode, downloadErr := client.DownloadAttachment(requestCtx, attachment.DownloadURL)
-				refreshed := false
-				if downloadErr != nil && (statusCode == http.StatusForbidden || statusCode == http.StatusGone) {
-					if refreshedIndex == nil {
-						refreshedAttachments, refreshErr := listReviewAttachmentsForSelector(
-							requestCtx,
-							client,
-							trimmedThreadID,
-							trimmedSubmissionID,
-							true,
-						)
-						if refreshErr != nil {
-							failures = append(
-								failures,
-								fmt.Sprintf("%s: refresh failed (%v)", attachment.FileName, refreshErr),
-							)
-							continue
-						}
-						refreshedIndex = indexAttachmentsByRefreshKey(refreshedAttachments)
-					}
-					if refreshedAttachment, ok := refreshedIndex[attachmentRefreshKey(attachment)]; ok && strings.TrimSpace(refreshedAttachment.DownloadURL) != "" {
-						body, _, downloadErr = client.DownloadAttachment(requestCtx, refreshedAttachment.DownloadURL)
-						if downloadErr == nil {
-							attachment = refreshedAttachment
-							attachment.FileName = normalizeAttachmentFilename(attachment)
-							refreshed = true
-						}
-					}
-				}
-				if downloadErr != nil {
-					failures = append(failures, fmt.Sprintf("%s: %v", attachment.FileName, downloadErr))
-					continue
-				}
-
-				outputPath, err := resolveDownloadPath(trimmedOutDir, attachment.FileName, *overwrite)
-				if err != nil {
-					failures = append(failures, fmt.Sprintf("%s: %v", attachment.FileName, err))
-					continue
-				}
-				if err := os.WriteFile(outputPath, body, 0o600); err != nil {
-					failures = append(failures, fmt.Sprintf("%s: %v", attachment.FileName, err))
-					continue
-				}
-				results = append(results, attachmentDownloadResult(attachment, outputPath, refreshed))
-			}
-
-			if err := shared.PrintOutput(results, *output.Output, *output.Pretty); err != nil {
+			selectedSubmission, selection, err := chooseSubmissionForShow(submissions, *submissionID)
+			if err != nil {
 				return err
 			}
-			if len(failures) > 0 {
-				return fmt.Errorf("download failed for %d attachment(s): %s", len(failures), strings.Join(failures, "; "))
+			if selectedSubmission == nil {
+				payload := reviewShowOutput{
+					AppID:     trimmedAppID,
+					Selection: selection,
+				}
+				return shared.PrintOutput(payload, *output.Output, *output.Pretty)
+			}
+
+			items, err := client.ListReviewSubmissionItems(requestCtx, selectedSubmission.ID)
+			if err != nil {
+				return withWebAuthHint(err, "web review show")
+			}
+			threads, err := client.ListResolutionCenterThreadsBySubmission(requestCtx, selectedSubmission.ID)
+			if err != nil {
+				return withWebAuthHint(err, "web review show")
+			}
+			threadDetails, err := buildThreadDetails(requestCtx, client, threads, *plainText)
+			if err != nil {
+				return withWebAuthHint(err, "web review show")
+			}
+
+			attachmentsWithURL, err := client.ListReviewAttachmentsBySubmission(requestCtx, selectedSubmission.ID, true)
+			if err != nil {
+				return withWebAuthHint(err, "web review show")
+			}
+			outDirResolved := resolveShowOutDir(trimmedAppID, selectedSubmission.ID, *outDir)
+			downloads, downloadFailures, err := downloadAttachmentsForShow(
+				requestCtx,
+				client,
+				attachmentsWithURL,
+				selectedSubmission.ID,
+				outDirResolved,
+				trimmedPattern,
+				*overwrite,
+			)
+			if err != nil {
+				return err
+			}
+
+			payload := reviewShowOutput{
+				AppID:            trimmedAppID,
+				Selection:        selection,
+				Submission:       selectedSubmission,
+				SubmissionItems:  items,
+				Threads:          threadDetails,
+				Attachments:      redactAttachmentURLs(attachmentsWithURL),
+				OutputDirectory:  outDirResolved,
+				Downloads:        downloads,
+				DownloadFailures: downloadFailures,
+			}
+			if len(downloads) == 0 {
+				payload.OutputDirectory = ""
+			}
+
+			if err := shared.PrintOutput(payload, *output.Output, *output.Pretty); err != nil {
+				return err
+			}
+			if len(downloadFailures) > 0 {
+				return fmt.Errorf("review show completed with %d download failure(s)", len(downloadFailures))
 			}
 			return nil
 		},

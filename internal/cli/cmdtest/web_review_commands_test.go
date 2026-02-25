@@ -9,44 +9,40 @@ import (
 	"testing"
 )
 
-func TestWebSubmissionsCommandsAreRegistered(t *testing.T) {
+func TestWebReviewCommandsAreRegisteredAndLegacyRemoved(t *testing.T) {
 	root := RootCommand("1.2.3")
-	for _, path := range [][]string{
-		{"web", "submissions"},
-		{"web", "submissions", "list"},
-		{"web", "submissions", "show"},
-		{"web", "submissions", "items"},
-	} {
-		if sub := findSubcommand(root, path...); sub == nil {
-			t.Fatalf("expected command %q to be registered", strings.Join(path, " "))
-		}
-	}
-}
 
-func TestWebReviewCommandsAreRegistered(t *testing.T) {
-	root := RootCommand("1.2.3")
 	for _, path := range [][]string{
 		{"web", "review"},
-		{"web", "review", "threads", "list"},
-		{"web", "review", "messages", "list"},
-		{"web", "review", "rejections", "list"},
-		{"web", "review", "draft", "show"},
-		{"web", "review", "attachments", "list"},
-		{"web", "review", "attachments", "download"},
+		{"web", "review", "list"},
+		{"web", "review", "show"},
 	} {
 		if sub := findSubcommand(root, path...); sub == nil {
 			t.Fatalf("expected command %q to be registered", strings.Join(path, " "))
 		}
 	}
+
+	for _, legacyPath := range [][]string{
+		{"web", "submissions"},
+		{"web", "review", "threads"},
+		{"web", "review", "messages"},
+		{"web", "review", "rejections"},
+		{"web", "review", "draft"},
+		{"web", "review", "attachments"},
+	} {
+		if sub := findSubcommand(root, legacyPath...); sub != nil {
+			t.Fatalf("expected legacy command %q to be removed", strings.Join(legacyPath, " "))
+		}
+	}
 }
 
-func TestWebSubmissionsListRequiresApp(t *testing.T) {
+func TestWebReviewListRequiresApp(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
 	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "submissions", "list"}); err != nil {
+		if err := root.Parse([]string{"web", "review", "list"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
@@ -60,14 +56,14 @@ func TestWebSubmissionsListRequiresApp(t *testing.T) {
 	}
 }
 
-func TestWebSubmissionsListRejectsUnknownState(t *testing.T) {
+func TestWebReviewListRejectsUnknownState(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"web", "submissions", "list",
+			"web", "review", "list",
 			"--app", "123456789",
 			"--state", "UNRESOLVED_ISSUES,NOT_A_REAL_STATE",
 		}); err != nil {
@@ -84,7 +80,27 @@ func TestWebSubmissionsListRejectsUnknownState(t *testing.T) {
 	}
 }
 
-func TestWebSubmissionsListRequiresAppleIDWhenNoMatchingCache(t *testing.T) {
+func TestWebReviewShowRequiresApp(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"web", "review", "show"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "--app is required") {
+		t.Fatalf("expected missing --app message, got %q", stderr)
+	}
+}
+
+func TestWebReviewShowRequiresAppleIDWhenNoMatchingCache(t *testing.T) {
 	t.Setenv("ASC_WEB_SESSION_CACHE_BACKEND", "file")
 	t.Setenv("ASC_WEB_SESSION_CACHE_DIR", t.TempDir())
 	t.Setenv("ASC_WEB_SESSION_CACHE", "1")
@@ -96,7 +112,7 @@ func TestWebSubmissionsListRequiresAppleIDWhenNoMatchingCache(t *testing.T) {
 	var runErr error
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"web", "submissions", "list",
+			"web", "review", "show",
 			"--app", "123456789",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -112,76 +128,16 @@ func TestWebSubmissionsListRequiresAppleIDWhenNoMatchingCache(t *testing.T) {
 	}
 }
 
-func TestWebReviewThreadsListRequiresSingleSelector(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	t.Run("missing both", func(t *testing.T) {
-		var runErr error
-		_, stderr := captureOutput(t, func() {
-			if err := root.Parse([]string{"web", "review", "threads", "list"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			runErr = root.Run(context.Background())
-		})
-		if !errors.Is(runErr, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", runErr)
-		}
-		if !strings.Contains(stderr, "exactly one of --app or --submission is required") {
-			t.Fatalf("unexpected stderr: %q", stderr)
-		}
-	})
-
-	t.Run("both provided", func(t *testing.T) {
-		var runErr error
-		_, stderr := captureOutput(t, func() {
-			if err := root.Parse([]string{
-				"web", "review", "threads", "list",
-				"--app", "123",
-				"--submission", "456",
-			}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			runErr = root.Run(context.Background())
-		})
-		if !errors.Is(runErr, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", runErr)
-		}
-		if !strings.Contains(stderr, "exactly one of --app or --submission is required") {
-			t.Fatalf("unexpected stderr: %q", stderr)
-		}
-	})
-}
-
-func TestWebReviewAttachmentsListRequiresSingleSelector(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "review", "attachments", "list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if !strings.Contains(stderr, "exactly one of --thread or --submission is required") {
-		t.Fatalf("unexpected stderr: %q", stderr)
-	}
-}
-
-func TestWebReviewAttachmentsDownloadRequiresOutDir(t *testing.T) {
+func TestWebReviewShowRejectsInvalidPattern(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"web", "review", "attachments", "download",
-			"--thread", "111",
+			"web", "review", "show",
+			"--app", "123456789",
+			"--pattern", "[",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -191,7 +147,7 @@ func TestWebReviewAttachmentsDownloadRequiresOutDir(t *testing.T) {
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "--out is required") {
-		t.Fatalf("unexpected stderr: %q", stderr)
+	if !strings.Contains(stderr, "--pattern is invalid") {
+		t.Fatalf("expected invalid pattern message, got %q", stderr)
 	}
 }
