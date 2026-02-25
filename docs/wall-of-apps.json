@@ -90,6 +90,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "LilyFM",
+    "link": "https://apps.apple.com/app/id6745472149",
+    "creator": "Clark Zhou",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c0/43/6e/c0436e71-e3cc-763c-4ece-98ef2adae0da/AppIcon-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Lumical: Scan to Calendar",
     "link": "https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309",
     "creator": "arunavo4",
