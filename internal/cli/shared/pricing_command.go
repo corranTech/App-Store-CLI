@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -62,6 +63,16 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --price-point and --price are mutually exclusive")
 				return flag.ErrHelp
 			}
+			if priceValue != "" {
+				if _, err := parseFinitePrice(priceValue); err != nil {
+					if errors.Is(err, errNonFinitePrice) {
+						fmt.Fprintln(os.Stderr, "Error: --price must be a finite number")
+					} else {
+						fmt.Fprintln(os.Stderr, "Error: --price must be a number")
+					}
+					return flag.ErrHelp
+				}
+			}
 
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
 			if (config.RequireBaseTerritory || priceValue != "") && baseTerritoryValue == "" {
@@ -101,9 +112,9 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			}
 
 			if priceValue != "" {
-				// Resolve price to ID
+				priceFilter := PriceFilter{Price: priceValue}
 				foundID := ""
-				fetch := func(nextURL string) (asc.AppPricePointsV3Response, error) {
+				fetch := func(nextURL string) (*asc.AppPricePointsV3Response, error) {
 					opts := []asc.PricePointsOption{
 						asc.WithPricePointsLimit(200),
 						asc.WithPricePointsTerritory(baseTerritoryID),
@@ -121,7 +132,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 
 				for {
 					for _, pp := range resp.Data {
-						if pp.Attributes.CustomerPrice == priceValue {
+						if priceFilter.MatchesPrice(pp.Attributes.CustomerPrice) {
 							foundID = pp.ID
 							break
 						}
