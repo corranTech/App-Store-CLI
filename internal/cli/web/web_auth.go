@@ -21,6 +21,7 @@ const webPasswordEnv = "ASC_WEB_PASSWORD"
 
 var (
 	promptTwoFactorCodeFn = promptTwoFactorCodeInteractive
+	promptPasswordFn      = promptPasswordInteractive
 	webLoginFn            = webcore.Login
 	submitTwoFactorCodeFn = webcore.SubmitTwoFactorCode
 	termReadPasswordFn    = term.ReadPassword
@@ -42,7 +43,41 @@ func readPasswordFromInput(useStdin bool) (string, error) {
 		}
 		return strings.TrimSpace(string(data)), nil
 	}
-	return strings.TrimSpace(os.Getenv(webPasswordEnv)), nil
+	password := strings.TrimSpace(os.Getenv(webPasswordEnv))
+	if password != "" {
+		return password, nil
+	}
+	password, err := promptPasswordFn()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(password), nil
+}
+
+func readPasswordFromTerminalFD(fd int, writer io.Writer) (string, error) {
+	if writer == nil {
+		return "", fmt.Errorf("password prompt unavailable")
+	}
+	if _, err := fmt.Fprint(writer, "Apple ID password: "); err != nil {
+		return "", fmt.Errorf("password prompt unavailable")
+	}
+	passwordBytes, err := termReadPasswordFn(fd)
+	_, _ = fmt.Fprintln(writer)
+	if err != nil {
+		return "", fmt.Errorf("failed to read password")
+	}
+	return strings.TrimSpace(string(passwordBytes)), nil
+}
+
+func promptPasswordInteractive() (string, error) {
+	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+		defer func() { _ = tty.Close() }()
+		return readPasswordFromTerminalFD(int(tty.Fd()), tty)
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		return readPasswordFromTerminalFD(int(os.Stdin.Fd()), os.Stderr)
+	}
+	return "", nil
 }
 
 func readTwoFactorCodeFrom(reader io.Reader, writer io.Writer) (string, error) {
@@ -201,12 +236,14 @@ func WebAuthLoginCommand() *ffcli.Command {
 Authenticate using Apple web-session behavior for detached "asc web" workflows.
 
 Password input options:
-  - --password-stdin (recommended)
+  - secure interactive prompt (default when running in a terminal)
+  - --password-stdin (recommended for automation)
   - ASC_WEB_PASSWORD environment variable
 
 ` + webWarningText + `
 
 Examples:
+  asc web auth login --apple-id "user@example.com"
   asc web auth login --apple-id "user@example.com" --password-stdin
   ASC_WEB_PASSWORD="..." asc web auth login --apple-id "user@example.com"
   asc web auth login --apple-id "user@example.com" --password-stdin --two-factor-code 123456`,
@@ -216,11 +253,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			password, err := readPasswordFromInput(*passwordStdin)
-			if err != nil {
-				return err
-			}
-			session, source, err := resolveSession(requestCtx, *appleID, password, *twoFactorCode, *passwordStdin)
+			session, source, err := resolveSession(requestCtx, *appleID, "", *twoFactorCode, *passwordStdin)
 			if err != nil {
 				return err
 			}
