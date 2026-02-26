@@ -399,6 +399,16 @@ func getASCClient() (*asc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	ApplyRootLoggingOverrides()
+	if strings.TrimSpace(resolved.keyPEM) != "" {
+		return asc.NewClientFromPEM(resolved.keyID, resolved.issuerID, resolved.keyPEM)
+	}
+	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
+}
+
+// ApplyRootLoggingOverrides applies root-level logging flag overrides
+// (--retry-log, --debug, --api-debug) into the shared ASC runtime.
+func ApplyRootLoggingOverrides() {
 	if retryLog.IsSet() {
 		value := retryLog.Value()
 		asc.SetRetryLogOverride(&value)
@@ -417,10 +427,6 @@ func getASCClient() (*asc.Client, error) {
 	} else {
 		asc.SetDebugHTTPOverride(nil)
 	}
-	if strings.TrimSpace(resolved.keyPEM) != "" {
-		return asc.NewClientFromPEM(resolved.keyID, resolved.issuerID, resolved.keyPEM)
-	}
-	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
 }
 
 func checkMixedCredentialSources(sources credentialSource) error {

@@ -121,6 +121,8 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 }
 
 func resolveSession(ctx context.Context, appleID, password, twoFactorCode string, usePasswordStdin bool) (*webcore.AuthSession, string, error) {
+	shared.ApplyRootLoggingOverrides()
+
 	appleID = strings.TrimSpace(appleID)
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
 
