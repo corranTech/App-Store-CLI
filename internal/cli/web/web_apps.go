@@ -130,8 +130,9 @@ Required:
   --name, --bundle-id, --sku
 
 Authentication:
-  --apple-id with either:
-    - --password-stdin
+  --apple-id with one of:
+    - secure interactive prompt (default and recommended for local use)
+    - --password-stdin (automation/CI)
     - ASC_WEB_PASSWORD environment variable
   Cached web sessions may be reused only for the matching --apple-id.
 
@@ -159,15 +160,10 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			password, err := readPasswordFromInput(*passwordStdin)
-			if err != nil {
-				return err
-			}
-
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			session, source, err := resolveSession(requestCtx, *appleID, password, *twoFactorCode, *passwordStdin)
+			session, source, err := resolveSessionFn(requestCtx, *appleID, "", *twoFactorCode, *passwordStdin)
 			if err != nil {
 				return err
 			}

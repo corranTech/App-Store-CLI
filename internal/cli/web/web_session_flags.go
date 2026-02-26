@@ -24,14 +24,10 @@ func bindWebSessionFlags(fs *flag.FlagSet) webSessionFlags {
 }
 
 func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*webcore.AuthSession, error) {
-	password, err := readPasswordFromInput(*flags.passwordStdin)
-	if err != nil {
-		return nil, err
-	}
-	session, _, err := resolveSession(
+	session, _, err := resolveSessionFn(
 		ctx,
 		*flags.appleID,
-		password,
+		"",
 		*flags.twoFactorCode,
 		*flags.passwordStdin,
 	)
