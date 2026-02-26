@@ -108,6 +108,10 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				strings.TrimSpace(*bgColor) != "" ||
 				strings.TrimSpace(*titleColor) != "" ||
 				strings.TrimSpace(*subtitleColor) != ""
+			if hasCanvasFlags && configVal != "" {
+				fmt.Fprintf(os.Stderr, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color cannot be used with --config; set these in the YAML config instead\n")
+				return flag.ErrHelp
+			}
 			if hasCanvasFlags && !screenshots.IsCanvasDevice(deviceVal) {
 				fmt.Fprintf(os.Stderr, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color only apply to canvas devices (e.g. --device mac)\n")
 				return flag.ErrHelp
@@ -136,7 +140,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			defer cancel()
 
 			var canvasOpts *screenshots.CanvasOptions
-			if screenshots.IsCanvasDevice(deviceVal) {
+			if hasCanvasFlags && screenshots.IsCanvasDevice(deviceVal) {
 				canvasOpts = &screenshots.CanvasOptions{
 					Title:         strings.TrimSpace(*title),
 					Subtitle:      strings.TrimSpace(*subtitle),
