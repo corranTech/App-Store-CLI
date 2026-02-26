@@ -30,6 +30,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
 const (
@@ -69,31 +70,16 @@ var webDebugLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOption
 
 var webDebugEnabledFn = asc.ResolveDebugEnabled
 
-var webAuthSignedQueryKeys = map[string]struct{}{
-	"x-amz-signature":  {},
-	"x-amz-credential": {},
-	"signature":        {},
-	"key-pair-id":      {},
-	"policy":           {},
-	"sig":              {},
-}
+var webAuthSignedQueryKeys = urlsanitize.CopyKeySet(urlsanitize.DefaultSignedQueryKeys)
 
-var webAuthSensitiveQueryKeys = map[string]struct{}{
-	"widgetkey":            {},
-	"token":                {},
-	"access_token":         {},
-	"id_token":             {},
-	"refresh_token":        {},
-	"code":                 {},
-	"scnt":                 {},
-	"x-amz-signature":      {},
-	"x-amz-credential":     {},
-	"x-amz-security-token": {},
-	"signature":            {},
-	"key-pair-id":          {},
-	"policy":               {},
-	"sig":                  {},
-}
+var webAuthSensitiveQueryKeys = urlsanitize.MergeKeySets(
+	urlsanitize.DefaultSensitiveQueryKeys,
+	map[string]struct{}{
+		"widgetkey": {},
+		"code":      {},
+		"scnt":      {},
+	},
+)
 
 // AuthSession holds authenticated web-session state for internal API calls.
 type AuthSession struct {
@@ -210,54 +196,7 @@ func extractAppleRequestID(headers http.Header) string {
 }
 
 func sanitizeWebAuthURLForLog(rawURL string) string {
-	if rawURL == "" {
-		return ""
-	}
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil {
-		return rawURL
-	}
-	if parsedURL.User != nil {
-		parsedURL.User = url.User("[REDACTED]")
-	}
-	values := parsedURL.Query()
-	if len(values) == 0 {
-		return parsedURL.String()
-	}
-	redactAll := hasSignedWebAuthQuery(values)
-	for key, vals := range values {
-		if redactAll || isSensitiveWebAuthQueryKey(key) {
-			for i := range vals {
-				vals[i] = "[REDACTED]"
-			}
-			values[key] = vals
-		}
-	}
-	parsedURL.RawQuery = values.Encode()
-	return parsedURL.String()
-}
-
-func hasSignedWebAuthQuery(values url.Values) bool {
-	for key, vals := range values {
-		if _, ok := webAuthSignedQueryKeys[strings.ToLower(key)]; ok && hasNonEmptyWebAuthQueryValue(vals) {
-			return true
-		}
-	}
-	return false
-}
-
-func isSensitiveWebAuthQueryKey(key string) bool {
-	_, ok := webAuthSensitiveQueryKeys[strings.ToLower(key)]
-	return ok
-}
-
-func hasNonEmptyWebAuthQueryValue(values []string) bool {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return true
-		}
-	}
-	return false
+	return urlsanitize.SanitizeURLForLog(rawURL, webAuthSignedQueryKeys, webAuthSensitiveQueryKeys)
 }
 
 type signinInitResponse struct {
