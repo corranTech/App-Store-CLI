@@ -102,6 +102,23 @@ func TestDeclarationFromTupleSetGroupsByCategoryAndPurpose(t *testing.T) {
 	}
 }
 
+func TestDeclarationFromRemoteDataUsagesEmptyDefaultsNotCollected(t *testing.T) {
+	declaration := declarationFromRemoteDataUsages(nil)
+
+	if declaration.SchemaVersion != privacySchemaVersion {
+		t.Fatalf("expected schemaVersion=%d, got %d", privacySchemaVersion, declaration.SchemaVersion)
+	}
+	if len(declaration.DataUsages) != 1 {
+		t.Fatalf("expected one default data usage, got %d", len(declaration.DataUsages))
+	}
+	if !reflect.DeepEqual(declaration.DataUsages[0].DataProtections, []string{dataProtectionNotCollected}) {
+		t.Fatalf("unexpected default declaration: %#v", declaration.DataUsages[0])
+	}
+	if declaration.DataUsages[0].Category != "" || len(declaration.DataUsages[0].Purposes) != 0 {
+		t.Fatalf("expected DATA_NOT_COLLECTED declaration with empty category/purposes, got %#v", declaration.DataUsages[0])
+	}
+}
+
 func TestPlanFromDesiredAndRemoteIncludesDuplicateRemoteDeletes(t *testing.T) {
 	desired := map[string]privacyTuple{
 		privacyTupleKey(privacyTuple{
@@ -138,6 +155,32 @@ func TestPlanFromDesiredAndRemoteIncludesDuplicateRemoteDeletes(t *testing.T) {
 	}
 	if plan.Deletes[0].UsageID != "usage-2" {
 		t.Fatalf("expected usage-2 delete, got %#v", plan.Deletes[0])
+	}
+}
+
+func TestPlanFromDesiredAndRemoteSkipsDeletesWithoutUsageID(t *testing.T) {
+	desired := map[string]privacyTuple{}
+	remote := map[string]privacyRemoteState{
+		privacyTupleKey(privacyTuple{
+			Category:       "NAME",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionLinked,
+		}): {
+			Tuple: privacyTuple{
+				Category:       "NAME",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionLinked,
+			},
+			UsageIDs: nil,
+		},
+	}
+
+	plan := planFromDesiredAndRemote("123", "./privacy.json", desired, remote)
+	if len(plan.Deletes) != 0 {
+		t.Fatalf("expected no deletes for remote tuples without usage IDs, got %#v", plan.Deletes)
+	}
+	if len(plan.APICalls) != 0 {
+		t.Fatalf("expected no delete api calls for remote tuples without usage IDs, got %#v", plan.APICalls)
 	}
 }
 

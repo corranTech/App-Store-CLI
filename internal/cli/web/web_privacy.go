@@ -330,6 +330,17 @@ func remoteStateFromDataUsages(usages []webcore.AppDataUsage) map[string]privacy
 }
 
 func declarationFromRemoteDataUsages(usages []webcore.AppDataUsage) privacyDeclarationFile {
+	if len(usages) == 0 {
+		return privacyDeclarationFile{
+			SchemaVersion: privacySchemaVersion,
+			DataUsages: []privacyUsage{
+				{
+					DataProtections: []string{dataProtectionNotCollected},
+				},
+			},
+		}
+	}
+
 	tuples := make(map[string]privacyTuple)
 	for key, value := range remoteStateFromDataUsages(usages) {
 		tuples[key] = value.Tuple
@@ -362,14 +373,6 @@ func planFromDesiredAndRemote(appID, file string, desired map[string]privacyTupl
 					Purpose:        state.Tuple.Purpose,
 					DataProtection: state.Tuple.DataProtection,
 					UsageID:        usageID,
-				})
-			}
-			if len(state.UsageIDs) == 0 {
-				deletes = append(deletes, privacyPlanChange{
-					Key:            key,
-					Category:       state.Tuple.Category,
-					Purpose:        state.Tuple.Purpose,
-					DataProtection: state.Tuple.DataProtection,
 				})
 			}
 			continue
