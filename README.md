@@ -59,46 +59,6 @@ asc auth login \
 Generate API keys at:
 https://appstoreconnect.apple.com/access/integrations/api
 
-### Experimental web-session auth (unofficial, discouraged)
-
-```bash
-# Check web-session cache
-asc web auth status
-
-# Login with Apple ID for detached experimental workflows
-asc web auth login --apple-id "user@example.com" --password-stdin
-
-# Inspect available declaration tokens (categories/purposes/protections)
-asc web privacy catalog --apple-id "user@example.com"
-
-# Pull app privacy declaration into canonical JSON
-asc web privacy pull --app "123456789" --out "./privacy.json"
-
-# Plan and apply declaration changes (explicit delete gate)
-asc web privacy plan --app "123456789" --file "./privacy.json"
-asc web privacy apply --app "123456789" --file "./privacy.json" --allow-deletes --confirm
-
-# Explicit publish step (never implied by apply)
-asc web privacy publish --app "123456789" --confirm
-
-# List review submissions for an app (internal web/iris)
-asc web review list --app "123456789" --apple-id "user@example.com"
-
-# Show latest unresolved review context and auto-download screenshots
-asc web review show \
-  --app "123456789" \
-  --apple-id "user@example.com"
-```
-
-`asc web` is **experimental**, **unofficial**, and **discouraged** for production-critical automation.
-It is intentionally detached from official API-key-based `asc` workflows and may break without notice.
-Safety guardrails in `asc web`:
-- Low-rate request pacing for unofficial web/iris calls.
-- User-owned auth: commands scope cache by `--apple-id` to avoid accidental cross-account reuse.
-- Signed URLs/tokens are redacted from default output and error messages.
-- `asc web review show` auto-downloads available screenshots without printing signed download URLs.
-- `asc web privacy apply` never publishes implicitly; publish is explicit via `asc web privacy publish --confirm`.
-
 ### First command
 
 ```bash
