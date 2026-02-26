@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const xcodeCLTHint = "Install Xcode Command Line Tools with: xcode-select --install"
+
 // MacOSProvider captures a screenshot of a running macOS app window via screencapture.
 type MacOSProvider struct{}
 
@@ -67,19 +69,59 @@ fputs("no visible window for: \(bid)\n", stderr); exit(1)
 	cmd.Stdin = strings.NewReader(src)
 	out, err := cmd.Output()
 	if err != nil {
-		msg := ""
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			msg = strings.TrimSpace(string(ee.Stderr))
-		}
-		if msg == "" {
-			msg = strings.TrimSpace(string(out))
-		}
-		return 0, fmt.Errorf("find window for %q: %s", bundleID, msg)
+		return 0, formatMacOSWindowLookupError(bundleID, err, out)
 	}
 	wid, err := strconv.Atoi(strings.TrimSpace(string(out)))
 	if err != nil {
 		return 0, fmt.Errorf("parse window ID %q: %w", strings.TrimSpace(string(out)), err)
 	}
 	return wid, nil
+}
+
+func formatMacOSWindowLookupError(bundleID string, err error, out []byte) error {
+	if errors.Is(err, exec.ErrNotFound) {
+		return fmt.Errorf("find window for %q: swift not found in PATH. %s", bundleID, xcodeCLTHint)
+	}
+
+	msg := ""
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		msg = strings.TrimSpace(string(ee.Stderr))
+	}
+	if msg == "" {
+		msg = strings.TrimSpace(string(out))
+	}
+	if msg == "" {
+		msg = strings.TrimSpace(err.Error())
+	}
+	if msg == "" {
+		msg = "unknown swift error"
+	}
+
+	if looksLikeMissingCLT(msg) {
+		return fmt.Errorf("find window for %q: %s. %s", bundleID, msg, xcodeCLTHint)
+	}
+
+	return fmt.Errorf("find window for %q: %s", bundleID, msg)
+}
+
+func looksLikeMissingCLT(message string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(message))
+	if normalized == "" {
+		return false
+	}
+	clues := []string{
+		"xcode command line tools",
+		"xcrun: error: invalid active developer path",
+		"unable to find utility \"swift\"",
+		"unable to find utility 'swift'",
+		"tool \"swift\" requires xcode",
+		"tool 'swift' requires xcode",
+	}
+	for _, clue := range clues {
+		if strings.Contains(normalized, clue) {
+			return true
+		}
+	}
+	return false
 }
