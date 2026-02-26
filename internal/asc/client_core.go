@@ -496,15 +496,6 @@ func NewClientFromPEM(keyID, issuerID, privateKeyPEM string) (*Client, error) {
 	return newClientFromPEMWithHTTPClient(keyID, issuerID, privateKeyPEM, newDefaultHTTPClient(ResolveTimeout()))
 }
 
-// NewClientFromPEMWithHTTPClient creates a new ASC client from in-memory private key PEM content
-// using the provided HTTP client. If httpClient is nil, a default client with ASC timeouts is used.
-func NewClientFromPEMWithHTTPClient(keyID, issuerID, privateKeyPEM string, httpClient *http.Client) (*Client, error) {
-	if httpClient == nil {
-		httpClient = newDefaultHTTPClient(ResolveTimeout())
-	}
-	return newClientFromPEMWithHTTPClient(keyID, issuerID, privateKeyPEM, httpClient)
-}
-
 func newDefaultHTTPClient(timeout time.Duration) *http.Client {
 	transport, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
