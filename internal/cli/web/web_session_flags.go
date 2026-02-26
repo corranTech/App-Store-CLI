@@ -24,7 +24,7 @@ func bindWebSessionFlags(fs *flag.FlagSet) webSessionFlags {
 }
 
 func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*webcore.AuthSession, error) {
-	session, _, err := resolveSession(
+	session, _, err := resolveSessionFn(
 		ctx,
 		*flags.appleID,
 		"",

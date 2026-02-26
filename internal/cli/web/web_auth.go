@@ -26,6 +26,7 @@ var (
 	submitTwoFactorCodeFn = webcore.SubmitTwoFactorCode
 	termReadPasswordFn    = term.ReadPassword
 	termIsTerminalFn      = term.IsTerminal
+	resolveSessionFn      = resolveSession
 )
 
 type webAuthStatus struct {
@@ -257,7 +258,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			session, source, err := resolveSession(requestCtx, *appleID, "", *twoFactorCode, *passwordStdin)
+			session, source, err := resolveSessionFn(requestCtx, *appleID, "", *twoFactorCode, *passwordStdin)
 			if err != nil {
 				return err
 			}
