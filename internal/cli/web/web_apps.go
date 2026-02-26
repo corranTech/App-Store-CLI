@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -39,6 +41,71 @@ This command group is detached from official App Store Connect API flows.
 }
 
 const maxAppNameLen = 30
+
+var (
+	newWebClientFn   = webcore.NewClient
+	ensureBundleIDFn = ensureBundleIDExists
+	createWebAppFn   = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		return client.CreateApp(ctx, attrs)
+	}
+)
+
+func isDuplicateBundleIDError(err error) bool {
+	var apiErr *asc.APIError
+	if !errors.As(err, &apiErr) || apiErr == nil {
+		return false
+	}
+	code := strings.ToUpper(strings.TrimSpace(apiErr.Code))
+	title := strings.ToLower(strings.TrimSpace(apiErr.Title))
+	detail := strings.ToLower(strings.TrimSpace(apiErr.Detail))
+	if strings.Contains(code, "DUPLICATE") {
+		return true
+	}
+	if strings.Contains(detail, "already") && (strings.Contains(detail, "identifier") || strings.Contains(detail, "bundle")) {
+		return true
+	}
+	if strings.Contains(title, "already") && (strings.Contains(title, "identifier") || strings.Contains(title, "bundle")) {
+		return true
+	}
+	return false
+}
+
+func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return false, err
+	}
+
+	platformValue, err := shared.NormalizePlatform(platform)
+	if err != nil {
+		return false, err
+	}
+
+	existing, err := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(bundleID), asc.WithBundleIDsLimit(1))
+	if err != nil {
+		return false, err
+	}
+	if existing != nil && len(existing.Data) > 0 {
+		return false, nil
+	}
+
+	_, err = client.CreateBundleID(ctx, asc.BundleIDCreateAttributes{
+		Name:       appName,
+		Identifier: bundleID,
+		Platform:   platformValue,
+	})
+	if err != nil {
+		if isDuplicateBundleIDError(err) {
+			existing, findErr := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(bundleID), asc.WithBundleIDsLimit(1))
+			if findErr == nil && existing != nil && len(existing.Data) > 0 {
+				return false, nil
+			}
+		}
+		return false, err
+	}
+
+	return true, nil
+}
 
 func bundleIDNameSuffix(bundleID string) string {
 	bundleID = strings.TrimSpace(bundleID)
@@ -173,7 +240,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Using cached web session.")
 			}
 
-			client := webcore.NewClient(session)
+			client := newWebClientFn(session)
 			attrs := webcore.AppCreateAttributes{
 				Name:          nameValue,
 				BundleID:      bundleIDValue,
@@ -184,7 +251,15 @@ Examples:
 				CompanyName:   strings.TrimSpace(*companyName),
 			}
 
-			app, err := client.CreateApp(requestCtx, attrs)
+			createdBundleID, err := ensureBundleIDFn(requestCtx, bundleIDValue, nameValue, attrs.Platform)
+			if err != nil {
+				return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", err)
+			}
+			if createdBundleID {
+				fmt.Fprintf(os.Stderr, "Bundle ID %q was missing; created automatically.\n", bundleIDValue)
+			}
+
+			app, err := createWebAppFn(requestCtx, client, attrs)
 			if err != nil && *autoRename && webcore.IsDuplicateAppNameError(err) {
 				suffix := bundleIDNameSuffix(bundleIDValue)
 				if suffix != "" {
@@ -199,7 +274,7 @@ Examples:
 						}
 						fmt.Fprintf(os.Stderr, "App name in use; retrying with %q...\n", tryName)
 						attrs.Name = tryName
-						app, err = client.CreateApp(requestCtx, attrs)
+						app, err = createWebAppFn(requestCtx, client, attrs)
 						if err == nil || !webcore.IsDuplicateAppNameError(err) {
 							break
 						}
