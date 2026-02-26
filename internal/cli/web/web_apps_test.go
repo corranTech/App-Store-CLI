@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -89,5 +90,120 @@ func TestWebAppsCreateResolvesSessionBeforeTimeoutContext(t *testing.T) {
 	}
 	if hadDeadline {
 		t.Fatal("expected resolveSession to run before timeout context creation")
+	}
+}
+
+func TestWebAppsCreateEnsuresBundleIDBeforeCreateApp(t *testing.T) {
+	origResolveSession := resolveSessionFn
+	origNewWebClient := newWebClientFn
+	origEnsureBundleID := ensureBundleIDFn
+	origCreateWebApp := createWebAppFn
+	t.Cleanup(func() {
+		resolveSessionFn = origResolveSession
+		newWebClientFn = origNewWebClient
+		ensureBundleIDFn = origEnsureBundleID
+		createWebAppFn = origCreateWebApp
+	})
+
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string, usePasswordStdin bool) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
+		return &webcore.Client{}
+	}
+
+	callOrder := make([]string, 0, 2)
+	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+		callOrder = append(callOrder, "ensure")
+		if bundleID != "com.example.app" {
+			t.Fatalf("expected bundle id %q, got %q", "com.example.app", bundleID)
+		}
+		if appName != "My App" {
+			t.Fatalf("expected app name %q, got %q", "My App", appName)
+		}
+		if platform != "IOS" {
+			t.Fatalf("expected platform %q, got %q", "IOS", platform)
+		}
+		return true, nil
+	}
+	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		callOrder = append(callOrder, "create")
+		resp := &webcore.AppResponse{}
+		resp.Data.ID = "app-123"
+		return resp, nil
+	}
+
+	cmd := WebAppsCreateCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--name", "My App",
+		"--bundle-id", "com.example.app",
+		"--sku", "SKU123",
+		"--apple-id", "user@example.com",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if len(callOrder) != 2 {
+		t.Fatalf("expected 2 calls, got %d", len(callOrder))
+	}
+	if callOrder[0] != "ensure" || callOrder[1] != "create" {
+		t.Fatalf("expected ensure before create, got %v", callOrder)
+	}
+}
+
+func TestWebAppsCreateFailsWhenBundleIDPreflightFails(t *testing.T) {
+	origResolveSession := resolveSessionFn
+	origNewWebClient := newWebClientFn
+	origEnsureBundleID := ensureBundleIDFn
+	origCreateWebApp := createWebAppFn
+	t.Cleanup(func() {
+		resolveSessionFn = origResolveSession
+		newWebClientFn = origNewWebClient
+		ensureBundleIDFn = origEnsureBundleID
+		createWebAppFn = origCreateWebApp
+	})
+
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string, usePasswordStdin bool) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
+		return &webcore.Client{}
+	}
+
+	preflightErr := errors.New("preflight failed")
+	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+		return false, preflightErr
+	}
+	createCalled := false
+	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		createCalled = true
+		return nil, nil
+	}
+
+	cmd := WebAppsCreateCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--name", "My App",
+		"--bundle-id", "com.example.app",
+		"--sku", "SKU123",
+		"--apple-id", "user@example.com",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "bundle id preflight failed") {
+		t.Fatalf("expected bundle preflight message, got %v", err)
+	}
+	if !errors.Is(err, preflightErr) {
+		t.Fatalf("expected wrapped preflight error, got %v", err)
+	}
+	if createCalled {
+		t.Fatal("expected create app to be skipped on preflight failure")
 	}
 }
