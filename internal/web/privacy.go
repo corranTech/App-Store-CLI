@@ -245,6 +245,42 @@ func normalizeDataUsageTuple(tuple DataUsageTuple) (DataUsageTuple, error) {
 	return tuple, nil
 }
 
+func dataUsageRelationshipsForTuple(appID string, tuple DataUsageTuple, includeApp bool) map[string]any {
+	relationships := map[string]any{
+		"dataProtection": map[string]any{
+			"data": map[string]string{
+				"type": "appDataUsageDataProtections",
+				"id":   tuple.DataProtection,
+			},
+		},
+	}
+	if includeApp {
+		relationships["app"] = map[string]any{
+			"data": map[string]string{
+				"type": "apps",
+				"id":   appID,
+			},
+		}
+	}
+	if tuple.Category != "" {
+		relationships["category"] = map[string]any{
+			"data": map[string]string{
+				"type": "appDataUsageCategories",
+				"id":   tuple.Category,
+			},
+		}
+	}
+	if tuple.Purpose != "" {
+		relationships["purpose"] = map[string]any{
+			"data": map[string]string{
+				"type": "appDataUsagePurposes",
+				"id":   tuple.Purpose,
+			},
+		}
+	}
+	return relationships
+}
+
 // ListAppDataUsages lists data usage tuples for a specific app.
 func (c *Client) ListAppDataUsages(ctx context.Context, appID string) ([]AppDataUsage, error) {
 	appID = strings.TrimSpace(appID)
@@ -325,41 +361,10 @@ func (c *Client) CreateAppDataUsage(ctx context.Context, appID string, tuple Dat
 		return nil, err
 	}
 
-	relationships := map[string]any{
-		"app": map[string]any{
-			"data": map[string]string{
-				"type": "apps",
-				"id":   appID,
-			},
-		},
-		"dataProtection": map[string]any{
-			"data": map[string]string{
-				"type": "appDataUsageDataProtections",
-				"id":   normalized.DataProtection,
-			},
-		},
-	}
-	if normalized.Category != "" {
-		relationships["category"] = map[string]any{
-			"data": map[string]string{
-				"type": "appDataUsageCategories",
-				"id":   normalized.Category,
-			},
-		}
-	}
-	if normalized.Purpose != "" {
-		relationships["purpose"] = map[string]any{
-			"data": map[string]string{
-				"type": "appDataUsagePurposes",
-				"id":   normalized.Purpose,
-			},
-		}
-	}
-
 	requestBody := map[string]any{
 		"data": map[string]any{
 			"type":          "appDataUsages",
-			"relationships": relationships,
+			"relationships": dataUsageRelationshipsForTuple(appID, normalized, true),
 		},
 	}
 	responseBody, err := c.doRequest(ctx, http.MethodPost, "/appDataUsages", requestBody)
@@ -371,6 +376,47 @@ func (c *Client) CreateAppDataUsage(ctx context.Context, appID string, tuple Dat
 	}
 	if err := json.Unmarshal(responseBody, &payload); err != nil {
 		return nil, fmt.Errorf("failed to parse create app data usage response: %w", err)
+	}
+	usage := decodeAppDataUsageResource(payload.Data)
+	return &usage, nil
+}
+
+// UpdateAppDataUsage updates one appDataUsages resource to a target tuple.
+func (c *Client) UpdateAppDataUsage(ctx context.Context, appDataUsageID string, tuple DataUsageTuple) (*AppDataUsage, error) {
+	appDataUsageID = strings.TrimSpace(appDataUsageID)
+	if appDataUsageID == "" {
+		return nil, fmt.Errorf("app data usage id is required")
+	}
+	normalized, err := normalizeDataUsageTuple(tuple)
+	if err != nil {
+		return nil, err
+	}
+
+	requestBody := map[string]any{
+		"data": map[string]any{
+			"type": "appDataUsages",
+			"id":   appDataUsageID,
+			"relationships": dataUsageRelationshipsForTuple(
+				"",
+				normalized,
+				false,
+			),
+		},
+	}
+	responseBody, err := c.doRequest(
+		ctx,
+		http.MethodPatch,
+		"/appDataUsages/"+url.PathEscape(appDataUsageID),
+		requestBody,
+	)
+	if err != nil {
+		return nil, err
+	}
+	var payload struct {
+		Data jsonAPIResource `json:"data"`
+	}
+	if err := json.Unmarshal(responseBody, &payload); err != nil {
+		return nil, fmt.Errorf("failed to parse update app data usage response: %w", err)
 	}
 	usage := decodeAppDataUsageResource(payload.Data)
 	return &usage, nil
@@ -436,16 +482,4 @@ func (c *Client) SetAppDataUsagesPublished(ctx context.Context, publishStateID s
 	}
 	state := decodeAppDataUsagesPublishStateResource(payload.Data)
 	return &state, nil
-}
-
-// PublishAppDataUsages sets app data usage publish state to published=true.
-func (c *Client) PublishAppDataUsages(ctx context.Context, appID string) (*AppDataUsagesPublishState, error) {
-	state, err := c.GetAppDataUsagesPublishState(ctx, appID)
-	if err != nil {
-		return nil, err
-	}
-	if state.Published {
-		return state, nil
-	}
-	return c.SetAppDataUsagesPublished(ctx, state.ID, true)
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -83,6 +84,7 @@ type privacyAPICall struct {
 type privacyPlanOutput struct {
 	AppID          string                 `json:"appId"`
 	File           string                 `json:"file"`
+	Updates        []privacyPlanChange    `json:"updates,omitempty"`
 	Adds           []privacyPlanChange    `json:"adds"`
 	Deletes        []privacyPlanChange    `json:"deletes"`
 	SkippedDeletes []privacySkippedDelete `json:"skippedDeletes,omitempty"`
@@ -101,6 +103,7 @@ type privacyApplyAction struct {
 type privacyApplyOutput struct {
 	AppID          string                 `json:"appId"`
 	File           string                 `json:"file"`
+	Updates        []privacyPlanChange    `json:"updates,omitempty"`
 	Adds           []privacyPlanChange    `json:"adds"`
 	Deletes        []privacyPlanChange    `json:"deletes"`
 	SkippedDeletes []privacySkippedDelete `json:"skippedDeletes,omitempty"`
@@ -134,21 +137,18 @@ type privacyCatalogOutput struct {
 	DataProtections []webcore.AppDataUsageDataProtection `json:"dataProtections"`
 }
 
+type privacyMutationClient interface {
+	CreateAppDataUsage(ctx context.Context, appID string, tuple webcore.DataUsageTuple) (*webcore.AppDataUsage, error)
+	UpdateAppDataUsage(ctx context.Context, appDataUsageID string, tuple webcore.DataUsageTuple) (*webcore.AppDataUsage, error)
+	DeleteAppDataUsage(ctx context.Context, appDataUsageID string) error
+}
+
 func normalizeToken(value string) string {
 	return strings.ToUpper(strings.TrimSpace(value))
 }
 
 func validPrivacyToken(value string) bool {
 	return privacyTokenPattern.MatchString(value)
-}
-
-func containsValue(values []string, needle string) bool {
-	for _, value := range values {
-		if value == needle {
-			return true
-		}
-	}
-	return false
 }
 
 func normalizeStringList(values []string) []string {
@@ -222,7 +222,7 @@ func declarationToTupleSet(declaration privacyDeclarationFile) (map[string]priva
 			}
 		}
 
-		if containsValue(protections, dataProtectionNotCollected) {
+		if slices.Contains(protections, dataProtectionNotCollected) {
 			if len(protections) != 1 {
 				return nil, fmt.Errorf("dataUsages[%d] with DATA_NOT_COLLECTED cannot include other dataProtections", index)
 			}
@@ -243,7 +243,7 @@ func declarationToTupleSet(declaration privacyDeclarationFile) (map[string]priva
 		if len(purposes) == 0 {
 			return nil, fmt.Errorf("dataUsages[%d].purposes is required when data is collected", index)
 		}
-		if !containsValue(protections, dataProtectionLinked) && !containsValue(protections, dataProtectionNotLinked) {
+		if !slices.Contains(protections, dataProtectionLinked) && !slices.Contains(protections, dataProtectionNotLinked) {
 			return nil, fmt.Errorf("dataUsages[%d].dataProtections must include DATA_LINKED_TO_YOU or DATA_NOT_LINKED_TO_YOU", index)
 		}
 
@@ -364,8 +364,133 @@ func declarationFromRemoteDataUsages(usages []webcore.AppDataUsage) privacyDecla
 	return declarationFromTupleSet(tuples)
 }
 
+func pairChangesIntoUpdates(adds []privacyPlanChange, deletes []privacyPlanChange) ([]privacyPlanChange, []privacyPlanChange, []privacyPlanChange) {
+	if len(adds) == 0 || len(deletes) == 0 {
+		return []privacyPlanChange{}, adds, deletes
+	}
+
+	type pairIndex struct {
+		addIdx    int
+		deleteIdx int
+	}
+	pairsByScope := map[string][]pairIndex{}
+	for addIdx, add := range adds {
+		for deleteIdx, deletion := range deletes {
+			if !canPairAsUpdate(add, deletion) {
+				continue
+			}
+			scope := strings.Join([]string{add.Category, add.Purpose}, "|")
+			pairsByScope[scope] = append(pairsByScope[scope], pairIndex{
+				addIdx:    addIdx,
+				deleteIdx: deleteIdx,
+			})
+		}
+	}
+	if len(pairsByScope) == 0 {
+		return []privacyPlanChange{}, adds, deletes
+	}
+
+	scopes := make([]string, 0, len(pairsByScope))
+	for scope := range pairsByScope {
+		scopes = append(scopes, scope)
+	}
+	sort.Strings(scopes)
+
+	usedAdds := make([]bool, len(adds))
+	usedDeletes := make([]bool, len(deletes))
+	updates := make([]privacyPlanChange, 0)
+	for _, scope := range scopes {
+		candidates := pairsByScope[scope]
+		sort.Slice(candidates, func(i, j int) bool {
+			if candidates[i].addIdx == candidates[j].addIdx {
+				return candidates[i].deleteIdx < candidates[j].deleteIdx
+			}
+			return candidates[i].addIdx < candidates[j].addIdx
+		})
+		for _, candidate := range candidates {
+			if usedAdds[candidate.addIdx] || usedDeletes[candidate.deleteIdx] {
+				continue
+			}
+			usedAdds[candidate.addIdx] = true
+			usedDeletes[candidate.deleteIdx] = true
+
+			add := adds[candidate.addIdx]
+			deletion := deletes[candidate.deleteIdx]
+			updates = append(updates, privacyPlanChange{
+				Key:            add.Key,
+				Category:       add.Category,
+				Purpose:        add.Purpose,
+				DataProtection: add.DataProtection,
+				UsageID:        deletion.UsageID,
+			})
+		}
+	}
+
+	remainingAdds := make([]privacyPlanChange, 0, len(adds))
+	for idx, add := range adds {
+		if usedAdds[idx] {
+			continue
+		}
+		remainingAdds = append(remainingAdds, add)
+	}
+	remainingDeletes := make([]privacyPlanChange, 0, len(deletes))
+	for idx, deletion := range deletes {
+		if usedDeletes[idx] {
+			continue
+		}
+		remainingDeletes = append(remainingDeletes, deletion)
+	}
+
+	sort.Slice(updates, func(i, j int) bool {
+		if updates[i].Key == updates[j].Key {
+			return updates[i].UsageID < updates[j].UsageID
+		}
+		return updates[i].Key < updates[j].Key
+	})
+
+	return updates, remainingAdds, remainingDeletes
+}
+
+func canPairAsUpdate(add privacyPlanChange, deletion privacyPlanChange) bool {
+	if strings.TrimSpace(add.UsageID) != "" {
+		return false
+	}
+	if strings.TrimSpace(deletion.UsageID) == "" {
+		return false
+	}
+	if normalizeToken(add.Category) == "" || normalizeToken(add.Purpose) == "" {
+		return false
+	}
+	if normalizeToken(deletion.Category) == "" || normalizeToken(deletion.Purpose) == "" {
+		return false
+	}
+	addProtection := normalizeToken(add.DataProtection)
+	deleteProtection := normalizeToken(deletion.DataProtection)
+	if addProtection == dataProtectionNotCollected || deleteProtection == dataProtectionNotCollected {
+		return false
+	}
+
+	// Keep update pairing conservative: prefer linkage flips (linked <-> not-linked).
+	// Tracking-only rewrites can always be represented as explicit delete+create.
+	if !isIdentityDataProtection(addProtection) || !isIdentityDataProtection(deleteProtection) {
+		return false
+	}
+	if addProtection == deleteProtection {
+		return false
+	}
+
+	return normalizeToken(add.Category) == normalizeToken(deletion.Category) &&
+		normalizeToken(add.Purpose) == normalizeToken(deletion.Purpose)
+}
+
+func isIdentityDataProtection(value string) bool {
+	value = normalizeToken(value)
+	return value == dataProtectionLinked || value == dataProtectionNotLinked
+}
+
 func planFromDesiredAndRemote(appID, file string, desired map[string]privacyTuple, remote map[string]privacyRemoteState) privacyPlanOutput {
 	adds := make([]privacyPlanChange, 0)
+	var updates []privacyPlanChange
 	deletes := make([]privacyPlanChange, 0)
 	skippedDeletes := make([]privacySkippedDelete, 0)
 
@@ -428,6 +553,7 @@ func planFromDesiredAndRemote(appID, file string, desired map[string]privacyTupl
 		}
 		return deletes[i].Key < deletes[j].Key
 	})
+	updates, adds, deletes = pairChangesIntoUpdates(adds, deletes)
 	sort.Slice(skippedDeletes, func(i, j int) bool {
 		if skippedDeletes[i].Key == skippedDeletes[j].Key {
 			return skippedDeletes[i].Reason < skippedDeletes[j].Reason
@@ -442,6 +568,12 @@ func planFromDesiredAndRemote(appID, file string, desired map[string]privacyTupl
 			Count:     len(adds),
 		})
 	}
+	if len(updates) > 0 {
+		apiCalls = append(apiCalls, privacyAPICall{
+			Operation: "update_data_usage",
+			Count:     len(updates),
+		})
+	}
 	if len(deletes) > 0 {
 		apiCalls = append(apiCalls, privacyAPICall{
 			Operation: "delete_data_usage",
@@ -452,11 +584,104 @@ func planFromDesiredAndRemote(appID, file string, desired map[string]privacyTupl
 	return privacyPlanOutput{
 		AppID:          appID,
 		File:           file,
+		Updates:        updates,
 		Adds:           adds,
 		Deletes:        deletes,
 		SkippedDeletes: skippedDeletes,
 		APICalls:       apiCalls,
 	}
+}
+
+func applyPrivacyPlan(ctx context.Context, client privacyMutationClient, appID string, plan privacyPlanOutput) ([]privacyApplyAction, error) {
+	if err := validateApplyPlanUsageIDs(plan); err != nil {
+		return nil, err
+	}
+	actions := make([]privacyApplyAction, 0, len(plan.Updates)+len(plan.Adds)+len(plan.Deletes))
+
+	for _, deletion := range plan.Deletes {
+		if err := client.DeleteAppDataUsage(ctx, deletion.UsageID); err != nil {
+			return nil, err
+		}
+		actions = append(actions, privacyApplyAction{
+			Action:         "delete",
+			Key:            deletion.Key,
+			UsageID:        deletion.UsageID,
+			Category:       deletion.Category,
+			Purpose:        deletion.Purpose,
+			DataProtection: deletion.DataProtection,
+		})
+	}
+
+	for _, update := range plan.Updates {
+		updated, err := client.UpdateAppDataUsage(ctx, update.UsageID, webcore.DataUsageTuple{
+			Category:       update.Category,
+			Purpose:        update.Purpose,
+			DataProtection: update.DataProtection,
+		})
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, privacyApplyAction{
+			Action:         "update",
+			Key:            update.Key,
+			UsageID:        strings.TrimSpace(updated.ID),
+			Category:       update.Category,
+			Purpose:        update.Purpose,
+			DataProtection: update.DataProtection,
+		})
+	}
+
+	for _, add := range plan.Adds {
+		created, err := client.CreateAppDataUsage(ctx, appID, webcore.DataUsageTuple{
+			Category:       add.Category,
+			Purpose:        add.Purpose,
+			DataProtection: add.DataProtection,
+		})
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, privacyApplyAction{
+			Action:         "create",
+			Key:            add.Key,
+			UsageID:        strings.TrimSpace(created.ID),
+			Category:       add.Category,
+			Purpose:        add.Purpose,
+			DataProtection: add.DataProtection,
+		})
+	}
+
+	return actions, nil
+}
+
+func validateApplyPlanUsageIDs(plan privacyPlanOutput) error {
+	updateUsageIDs := map[string]string{}
+	for _, update := range plan.Updates {
+		usageID := strings.TrimSpace(update.UsageID)
+		if usageID == "" {
+			return fmt.Errorf("web privacy apply failed: missing usage id for update key %s", update.Key)
+		}
+		if existingKey, exists := updateUsageIDs[usageID]; exists {
+			return fmt.Errorf("web privacy apply failed: duplicate update usage id %s for keys %s and %s", usageID, existingKey, update.Key)
+		}
+		updateUsageIDs[usageID] = update.Key
+	}
+
+	deleteUsageIDs := map[string]string{}
+	for _, deletion := range plan.Deletes {
+		usageID := strings.TrimSpace(deletion.UsageID)
+		if usageID == "" {
+			return fmt.Errorf("web privacy apply failed: missing usage id for delete key %s", deletion.Key)
+		}
+		if existingKey, exists := deleteUsageIDs[usageID]; exists {
+			return fmt.Errorf("web privacy apply failed: duplicate delete usage id %s for keys %s and %s", usageID, existingKey, deletion.Key)
+		}
+		if existingUpdateKey, exists := updateUsageIDs[usageID]; exists {
+			return fmt.Errorf("web privacy apply failed: usage id %s is scheduled for both delete (%s) and update (%s)", usageID, deletion.Key, existingUpdateKey)
+		}
+		deleteUsageIDs[usageID] = deletion.Key
+	}
+
+	return nil
 }
 
 func parsePrivacyDeclarationFile(path string) (privacyDeclarationFile, error) {
@@ -527,8 +752,18 @@ func buildPrivacyRows(usages []privacyUsage) [][]string {
 	return rows
 }
 
-func buildPrivacyPlanRows(adds []privacyPlanChange, deletes []privacyPlanChange) [][]string {
-	rows := make([][]string, 0, len(adds)+len(deletes))
+func buildPrivacyPlanRows(updates []privacyPlanChange, adds []privacyPlanChange, deletes []privacyPlanChange) [][]string {
+	rows := make([][]string, 0, len(updates)+len(adds)+len(deletes))
+	for _, update := range updates {
+		rows = append(rows, []string{
+			"update",
+			update.Key,
+			valueOrNA(update.Category),
+			valueOrNA(update.Purpose),
+			update.DataProtection,
+			valueOrNA(update.UsageID),
+		})
+	}
 	for _, add := range adds {
 		rows = append(rows, []string{
 			"add",
@@ -674,12 +909,13 @@ func renderPrivacyPullMarkdown(payload privacyPullOutput) error {
 func renderPrivacyPlanTable(payload privacyPlanOutput) error {
 	fmt.Printf("App ID: %s\n", payload.AppID)
 	fmt.Printf("File: %s\n", payload.File)
+	fmt.Printf("Updates: %d\n", len(payload.Updates))
 	fmt.Printf("Adds: %d\n", len(payload.Adds))
 	fmt.Printf("Deletes: %d\n", len(payload.Deletes))
 	fmt.Printf("Skipped Deletes: %d\n\n", len(payload.SkippedDeletes))
 	asc.RenderTable(
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
-		buildPrivacyPlanRows(payload.Adds, payload.Deletes),
+		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
 		fmt.Println()
@@ -698,12 +934,13 @@ func renderPrivacyPlanTable(payload privacyPlanOutput) error {
 func renderPrivacyPlanMarkdown(payload privacyPlanOutput) error {
 	fmt.Printf("**App ID:** %s\n\n", payload.AppID)
 	fmt.Printf("**File:** %s\n\n", payload.File)
+	fmt.Printf("**Updates:** %d\n\n", len(payload.Updates))
 	fmt.Printf("**Adds:** %d\n\n", len(payload.Adds))
 	fmt.Printf("**Deletes:** %d\n\n", len(payload.Deletes))
 	fmt.Printf("**Skipped Deletes:** %d\n\n", len(payload.SkippedDeletes))
 	asc.RenderMarkdown(
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
-		buildPrivacyPlanRows(payload.Adds, payload.Deletes),
+		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
 		fmt.Println()
@@ -723,12 +960,13 @@ func renderPrivacyApplyTable(payload privacyApplyOutput) error {
 	fmt.Printf("App ID: %s\n", payload.AppID)
 	fmt.Printf("File: %s\n", payload.File)
 	fmt.Printf("Applied: %t\n", payload.Applied)
+	fmt.Printf("Updates: %d\n", len(payload.Updates))
 	fmt.Printf("Adds: %d\n", len(payload.Adds))
 	fmt.Printf("Deletes: %d\n", len(payload.Deletes))
 	fmt.Printf("Skipped Deletes: %d\n\n", len(payload.SkippedDeletes))
 	asc.RenderTable(
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
-		buildPrivacyPlanRows(payload.Adds, payload.Deletes),
+		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
 		fmt.Println()
@@ -755,12 +993,13 @@ func renderPrivacyApplyMarkdown(payload privacyApplyOutput) error {
 	fmt.Printf("**App ID:** %s\n\n", payload.AppID)
 	fmt.Printf("**File:** %s\n\n", payload.File)
 	fmt.Printf("**Applied:** %t\n\n", payload.Applied)
+	fmt.Printf("**Updates:** %d\n\n", len(payload.Updates))
 	fmt.Printf("**Adds:** %d\n\n", len(payload.Adds))
 	fmt.Printf("**Deletes:** %d\n\n", len(payload.Deletes))
 	fmt.Printf("**Skipped Deletes:** %d\n\n", len(payload.SkippedDeletes))
 	asc.RenderMarkdown(
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
-		buildPrivacyPlanRows(payload.Adds, payload.Deletes),
+		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
 		fmt.Println()
@@ -1150,45 +1389,15 @@ Examples:
 				return shared.UsageError("--confirm is required when applying delete operations")
 			}
 
-			actions := make([]privacyApplyAction, 0, len(plan.Adds)+len(plan.Deletes))
-			for _, add := range plan.Adds {
-				created, err := client.CreateAppDataUsage(requestCtx, resolvedAppID, webcore.DataUsageTuple{
-					Category:       add.Category,
-					Purpose:        add.Purpose,
-					DataProtection: add.DataProtection,
-				})
-				if err != nil {
-					return withWebAuthHint(err, "web privacy apply")
-				}
-				actions = append(actions, privacyApplyAction{
-					Action:         "create",
-					Key:            add.Key,
-					UsageID:        strings.TrimSpace(created.ID),
-					Category:       add.Category,
-					Purpose:        add.Purpose,
-					DataProtection: add.DataProtection,
-				})
-			}
-			for _, deletion := range plan.Deletes {
-				if strings.TrimSpace(deletion.UsageID) == "" {
-					return fmt.Errorf("web privacy apply failed: missing usage id for delete key %s", deletion.Key)
-				}
-				if err := client.DeleteAppDataUsage(requestCtx, deletion.UsageID); err != nil {
-					return withWebAuthHint(err, "web privacy apply")
-				}
-				actions = append(actions, privacyApplyAction{
-					Action:         "delete",
-					Key:            deletion.Key,
-					UsageID:        deletion.UsageID,
-					Category:       deletion.Category,
-					Purpose:        deletion.Purpose,
-					DataProtection: deletion.DataProtection,
-				})
+			actions, err := applyPrivacyPlan(requestCtx, client, resolvedAppID, plan)
+			if err != nil {
+				return withWebAuthHint(err, "web privacy apply")
 			}
 
 			payload := privacyApplyOutput{
 				AppID:          resolvedAppID,
 				File:           resolvedFilePath,
+				Updates:        plan.Updates,
 				Adds:           plan.Adds,
 				Deletes:        plan.Deletes,
 				SkippedDeletes: plan.SkippedDeletes,

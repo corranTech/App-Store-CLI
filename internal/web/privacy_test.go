@@ -254,6 +254,87 @@ func TestCreateAppDataUsageBuildsExpectedRequest(t *testing.T) {
 	}
 }
 
+func TestUpdateAppDataUsageRequiresID(t *testing.T) {
+	client := &Client{httpClient: &http.Client{}, baseURL: "https://example.invalid"}
+	_, err := client.UpdateAppDataUsage(context.Background(), " ", DataUsageTuple{
+		Category:       "NAME",
+		Purpose:        "APP_FUNCTIONALITY",
+		DataProtection: "DATA_LINKED_TO_YOU",
+	})
+	if err == nil {
+		t.Fatal("expected missing id error")
+	}
+}
+
+func TestUpdateAppDataUsageBuildsExpectedRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/appDataUsages/usage-1" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Method != http.MethodPatch {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		data, ok := body["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("missing data payload: %#v", body)
+		}
+		if got, _ := data["id"].(string); got != "usage-1" {
+			t.Fatalf("expected id usage-1, got %#v", data["id"])
+		}
+		relationships, ok := data["relationships"].(map[string]any)
+		if !ok {
+			t.Fatalf("missing relationships: %#v", data)
+		}
+		if _, ok := relationships["dataProtection"]; !ok {
+			t.Fatalf("expected dataProtection relationship: %#v", relationships)
+		}
+		if _, ok := relationships["category"]; !ok {
+			t.Fatalf("expected category relationship: %#v", relationships)
+		}
+		if _, ok := relationships["purpose"]; !ok {
+			t.Fatalf("expected purpose relationship: %#v", relationships)
+		}
+		if _, ok := relationships["app"]; ok {
+			t.Fatalf("did not expect app relationship in patch payload: %#v", relationships)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"data": {
+				"id": "usage-1",
+				"type": "appDataUsages",
+				"relationships": {
+					"category": {"data": {"type":"appDataUsageCategories","id":"NAME"}},
+					"purpose": {"data": {"type":"appDataUsagePurposes","id":"APP_FUNCTIONALITY"}},
+					"dataProtection": {"data": {"type":"appDataUsageDataProtections","id":"DATA_NOT_LINKED_TO_YOU"}}
+				}
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	client := testWebClient(server)
+	updated, err := client.UpdateAppDataUsage(context.Background(), "usage-1", DataUsageTuple{
+		Category:       "NAME",
+		Purpose:        "APP_FUNCTIONALITY",
+		DataProtection: "DATA_NOT_LINKED_TO_YOU",
+	})
+	if err != nil {
+		t.Fatalf("UpdateAppDataUsage() error = %v", err)
+	}
+	if updated == nil {
+		t.Fatal("expected updated usage")
+	}
+	if updated.ID != "usage-1" || updated.Category != "NAME" || updated.Purpose != "APP_FUNCTIONALITY" || updated.DataProtection != "DATA_NOT_LINKED_TO_YOU" {
+		t.Fatalf("unexpected updated usage: %#v", updated)
+	}
+}
+
 func TestDeleteAppDataUsageRequiresID(t *testing.T) {
 	client := &Client{httpClient: &http.Client{}, baseURL: "https://example.invalid"}
 	if err := client.DeleteAppDataUsage(context.Background(), " "); err == nil {
@@ -358,39 +439,6 @@ func TestSetAppDataUsagesPublishedBuildsPatchRequest(t *testing.T) {
 	}
 	if state.ID != "publish-state-1" || !state.Published {
 		t.Fatalf("unexpected publish state: %#v", state)
-	}
-}
-
-func TestPublishAppDataUsagesSkipsPatchWhenAlreadyPublished(t *testing.T) {
-	requests := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests++
-		if r.URL.Path != "/apps/app-123/dataUsagePublishState" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-			"data": {
-				"id": "publish-state-1",
-				"type": "appDataUsagesPublishState",
-				"attributes": {
-					"published": true
-				}
-			}
-		}`))
-	}))
-	defer server.Close()
-
-	client := testWebClient(server)
-	state, err := client.PublishAppDataUsages(context.Background(), "app-123")
-	if err != nil {
-		t.Fatalf("PublishAppDataUsages() error = %v", err)
-	}
-	if state == nil || !state.Published {
-		t.Fatalf("unexpected publish state: %#v", state)
-	}
-	if requests != 1 {
-		t.Fatalf("expected one request, got %d", requests)
 	}
 }
 

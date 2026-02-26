@@ -1,11 +1,15 @@
 package web
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 func TestDeclarationToTupleSetNotCollected(t *testing.T) {
@@ -187,6 +191,536 @@ func TestPlanFromDesiredAndRemoteSkipsDeletesWithoutUsageID(t *testing.T) {
 	}
 	if len(plan.APICalls) != 0 {
 		t.Fatalf("expected no delete api calls for remote tuples without usage IDs, got %#v", plan.APICalls)
+	}
+}
+
+func TestPlanFromDesiredAndRemotePairsAddDeleteIntoUpdate(t *testing.T) {
+	desired := map[string]privacyTuple{
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+		}): {
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+		},
+	}
+	remote := map[string]privacyRemoteState{
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionLinked,
+		}): {
+			Tuple: privacyTuple{
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionLinked,
+			},
+			UsageIDs: []string{"usage-1"},
+		},
+	}
+
+	plan := planFromDesiredAndRemote("123", "./privacy.json", desired, remote)
+	if len(plan.Updates) != 1 {
+		t.Fatalf("expected one update, got %#v", plan.Updates)
+	}
+	if len(plan.Adds) != 0 || len(plan.Deletes) != 0 {
+		t.Fatalf("expected no adds/deletes after pairing, got adds=%#v deletes=%#v", plan.Adds, plan.Deletes)
+	}
+	if plan.Updates[0].UsageID != "usage-1" || plan.Updates[0].DataProtection != dataProtectionNotLinked {
+		t.Fatalf("unexpected update payload: %#v", plan.Updates[0])
+	}
+	if len(plan.APICalls) != 1 || plan.APICalls[0].Operation != "update_data_usage" || plan.APICalls[0].Count != 1 {
+		t.Fatalf("unexpected api calls: %#v", plan.APICalls)
+	}
+}
+
+func TestPlanFromDesiredAndRemoteNotCollectedRemainsDeleteCreate(t *testing.T) {
+	desired := map[string]privacyTuple{
+		privacyTupleKey(privacyTuple{DataProtection: dataProtectionNotCollected}): {
+			DataProtection: dataProtectionNotCollected,
+		},
+	}
+	remote := map[string]privacyRemoteState{
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+		}): {
+			Tuple: privacyTuple{
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionNotLinked,
+			},
+			UsageIDs: []string{"usage-1"},
+		},
+	}
+
+	plan := planFromDesiredAndRemote("123", "./privacy.json", desired, remote)
+	if len(plan.Updates) != 0 {
+		t.Fatalf("expected no updates for DATA_NOT_COLLECTED transition, got %#v", plan.Updates)
+	}
+	if len(plan.Adds) != 1 || len(plan.Deletes) != 1 {
+		t.Fatalf("expected one add and one delete, got adds=%#v deletes=%#v", plan.Adds, plan.Deletes)
+	}
+}
+
+func TestPlanFromDesiredAndRemoteTrackingTransitionYieldsUpdateAndAdd(t *testing.T) {
+	desired := map[string]privacyTuple{
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+		}): {
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+		},
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionTracking,
+		}): {
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionTracking,
+		},
+	}
+	remote := map[string]privacyRemoteState{
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionLinked,
+		}): {
+			Tuple: privacyTuple{
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionLinked,
+			},
+			UsageIDs: []string{"usage-1"},
+		},
+	}
+
+	plan := planFromDesiredAndRemote("123", "./privacy.json", desired, remote)
+	if len(plan.Updates) != 1 {
+		t.Fatalf("expected one update, got %#v", plan.Updates)
+	}
+	if len(plan.Adds) != 1 {
+		t.Fatalf("expected one add, got %#v", plan.Adds)
+	}
+	if len(plan.Deletes) != 0 {
+		t.Fatalf("expected no deletes, got %#v", plan.Deletes)
+	}
+	if plan.Updates[0].UsageID != "usage-1" {
+		t.Fatalf("expected update to reuse usage-1, got %#v", plan.Updates[0])
+	}
+}
+
+func TestPlanFromDesiredAndRemoteDoesNotPairTrackingDeleteIntoUpdate(t *testing.T) {
+	desired := map[string]privacyTuple{
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionLinked,
+		}): {
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionLinked,
+		},
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+		}): {
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+		},
+	}
+	remote := map[string]privacyRemoteState{
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionLinked,
+		}): {
+			Tuple: privacyTuple{
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionLinked,
+			},
+			UsageIDs: []string{"usage-linked-1"},
+		},
+		privacyTupleKey(privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionTracking,
+		}): {
+			Tuple: privacyTuple{
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionTracking,
+			},
+			UsageIDs: []string{"usage-tracking-1"},
+		},
+	}
+
+	plan := planFromDesiredAndRemote("123", "./privacy.json", desired, remote)
+	if len(plan.Updates) != 0 {
+		t.Fatalf("expected no updates when replacing tracking tuple with identity tuple, got %#v", plan.Updates)
+	}
+	if len(plan.Adds) != 1 || len(plan.Deletes) != 1 {
+		t.Fatalf("expected one add and one delete, got adds=%#v deletes=%#v", plan.Adds, plan.Deletes)
+	}
+	if plan.Deletes[0].DataProtection != dataProtectionTracking {
+		t.Fatalf("expected tracking tuple delete, got %#v", plan.Deletes[0])
+	}
+}
+
+type permutationCase struct {
+	name         string
+	protections  []string
+	notCollected bool
+}
+
+func tupleSetForPermutation(tc permutationCase) map[string]privacyTuple {
+	tuples := map[string]privacyTuple{}
+	if tc.notCollected {
+		tuple := privacyTuple{DataProtection: dataProtectionNotCollected}
+		tuples[privacyTupleKey(tuple)] = tuple
+		return tuples
+	}
+	for _, protection := range tc.protections {
+		tuple := privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: protection,
+		}
+		tuples[privacyTupleKey(tuple)] = tuple
+	}
+	return tuples
+}
+
+func remoteStateForPermutation(tc permutationCase, duplicateFirst bool) map[string]privacyRemoteState {
+	state := map[string]privacyRemoteState{}
+	if tc.notCollected {
+		tuple := privacyTuple{DataProtection: dataProtectionNotCollected}
+		usageIDs := []string{"usage-not-collected-1"}
+		if duplicateFirst {
+			usageIDs = append(usageIDs, "usage-not-collected-2")
+		}
+		state[privacyTupleKey(tuple)] = privacyRemoteState{
+			Tuple:    tuple,
+			UsageIDs: usageIDs,
+		}
+		return state
+	}
+
+	for index, protection := range tc.protections {
+		tuple := privacyTuple{
+			Category:       "EMAIL_ADDRESS",
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: protection,
+		}
+		usageIDs := []string{fmt.Sprintf("usage-%s-%d-1", strings.ToLower(protection), index)}
+		if duplicateFirst && index == 0 {
+			usageIDs = append(usageIDs, fmt.Sprintf("usage-%s-%d-2", strings.ToLower(protection), index))
+		}
+		state[privacyTupleKey(tuple)] = privacyRemoteState{
+			Tuple:    tuple,
+			UsageIDs: usageIDs,
+		}
+	}
+	return state
+}
+
+func simulatePlanResult(remote map[string]privacyRemoteState, plan privacyPlanOutput) (map[string]privacyTuple, error) {
+	byUsageID := map[string]privacyTuple{}
+	for _, state := range remote {
+		for _, usageID := range state.UsageIDs {
+			usageID = strings.TrimSpace(usageID)
+			if usageID == "" {
+				continue
+			}
+			byUsageID[usageID] = state.Tuple
+		}
+	}
+
+	for _, deletion := range plan.Deletes {
+		usageID := strings.TrimSpace(deletion.UsageID)
+		if usageID == "" {
+			return nil, fmt.Errorf("delete operation missing usage id")
+		}
+		if _, exists := byUsageID[usageID]; !exists {
+			return nil, fmt.Errorf("delete operation references unknown usage id %s", usageID)
+		}
+		delete(byUsageID, usageID)
+	}
+	for _, update := range plan.Updates {
+		usageID := strings.TrimSpace(update.UsageID)
+		if usageID == "" {
+			return nil, fmt.Errorf("update operation missing usage id")
+		}
+		if _, exists := byUsageID[usageID]; !exists {
+			return nil, fmt.Errorf("update operation references unknown usage id %s", usageID)
+		}
+		byUsageID[usageID] = privacyTuple{
+			Category:       update.Category,
+			Purpose:        update.Purpose,
+			DataProtection: update.DataProtection,
+		}
+	}
+	nextGeneratedID := 0
+	for _, add := range plan.Adds {
+		nextGeneratedID++
+		byUsageID[fmt.Sprintf("generated-%d", nextGeneratedID)] = privacyTuple{
+			Category:       add.Category,
+			Purpose:        add.Purpose,
+			DataProtection: add.DataProtection,
+		}
+	}
+
+	result := map[string]privacyTuple{}
+	for _, tuple := range byUsageID {
+		result[privacyTupleKey(tuple)] = tuple
+	}
+	return result, nil
+}
+
+func TestPlanFromDesiredAndRemotePermutationMatrixProducesDesiredState(t *testing.T) {
+	desiredCases := []permutationCase{
+		{name: "not_collected", notCollected: true},
+		{name: "linked_only", protections: []string{dataProtectionLinked}},
+		{name: "not_linked_only", protections: []string{dataProtectionNotLinked}},
+		{name: "linked_tracking", protections: []string{dataProtectionLinked, dataProtectionTracking}},
+		{name: "not_linked_tracking", protections: []string{dataProtectionNotLinked, dataProtectionTracking}},
+		{name: "linked_not_linked", protections: []string{dataProtectionLinked, dataProtectionNotLinked}},
+	}
+
+	type remoteCase struct {
+		permutationCase
+		duplicateFirst bool
+	}
+	remoteCases := make([]remoteCase, 0, len(desiredCases)*2)
+	for _, base := range desiredCases {
+		remoteCases = append(remoteCases, remoteCase{
+			permutationCase: base,
+			duplicateFirst:  false,
+		})
+		if !base.notCollected {
+			remoteCases = append(remoteCases, remoteCase{
+				permutationCase: permutationCase{
+					name:         base.name + "_dup_first",
+					protections:  base.protections,
+					notCollected: base.notCollected,
+				},
+				duplicateFirst: true,
+			})
+		}
+	}
+
+	for _, remoteTC := range remoteCases {
+		for _, desiredTC := range desiredCases {
+			caseName := remoteTC.name + "->" + desiredTC.name
+			t.Run(caseName, func(t *testing.T) {
+				desired := tupleSetForPermutation(desiredTC)
+				remote := remoteStateForPermutation(remoteTC.permutationCase, remoteTC.duplicateFirst)
+
+				plan := planFromDesiredAndRemote("123", "./privacy.json", desired, remote)
+
+				seenUsageIDs := map[string]string{}
+				for _, update := range plan.Updates {
+					usageID := strings.TrimSpace(update.UsageID)
+					if usageID == "" {
+						t.Fatalf("update missing usage id: %#v", update)
+					}
+					seenUsageIDs[usageID] = "update"
+				}
+				for _, deletion := range plan.Deletes {
+					usageID := strings.TrimSpace(deletion.UsageID)
+					if usageID == "" {
+						t.Fatalf("delete missing usage id: %#v", deletion)
+					}
+					if owner, exists := seenUsageIDs[usageID]; exists {
+						t.Fatalf("usage id %s appears in both %s and delete operations", usageID, owner)
+					}
+					seenUsageIDs[usageID] = "delete"
+				}
+
+				if remoteTC.notCollected || desiredTC.notCollected {
+					if len(plan.Updates) != 0 {
+						t.Fatalf("DATA_NOT_COLLECTED transitions must not produce updates, got %#v", plan.Updates)
+					}
+				}
+
+				gotState, err := simulatePlanResult(remote, plan)
+				if err != nil {
+					t.Fatalf("simulatePlanResult() error = %v", err)
+				}
+				if !reflect.DeepEqual(gotState, desired) {
+					t.Fatalf("final tuple state mismatch, got=%#v want=%#v plan=%#v", gotState, desired, plan)
+				}
+			})
+		}
+	}
+}
+
+type fakePrivacyMutationClient struct {
+	callOrder     []string
+	createCounter int
+}
+
+func (f *fakePrivacyMutationClient) CreateAppDataUsage(_ context.Context, _ string, tuple webcore.DataUsageTuple) (*webcore.AppDataUsage, error) {
+	f.createCounter++
+	f.callOrder = append(f.callOrder, fmt.Sprintf("create:%s:%s:%s", tuple.Category, tuple.Purpose, tuple.DataProtection))
+	return &webcore.AppDataUsage{
+		ID:             fmt.Sprintf("created-%d", f.createCounter),
+		Category:       tuple.Category,
+		Purpose:        tuple.Purpose,
+		DataProtection: tuple.DataProtection,
+	}, nil
+}
+
+func (f *fakePrivacyMutationClient) UpdateAppDataUsage(_ context.Context, appDataUsageID string, tuple webcore.DataUsageTuple) (*webcore.AppDataUsage, error) {
+	f.callOrder = append(f.callOrder, fmt.Sprintf("update:%s:%s", appDataUsageID, tuple.DataProtection))
+	return &webcore.AppDataUsage{
+		ID:             appDataUsageID,
+		Category:       tuple.Category,
+		Purpose:        tuple.Purpose,
+		DataProtection: tuple.DataProtection,
+	}, nil
+}
+
+func (f *fakePrivacyMutationClient) DeleteAppDataUsage(_ context.Context, appDataUsageID string) error {
+	f.callOrder = append(f.callOrder, "delete:"+appDataUsageID)
+	return nil
+}
+
+func TestApplyPrivacyPlanExecutesDeleteUpdateCreateOrder(t *testing.T) {
+	client := &fakePrivacyMutationClient{}
+	plan := privacyPlanOutput{
+		Updates: []privacyPlanChange{
+			{
+				Key:            "EMAIL_ADDRESS|APP_FUNCTIONALITY|DATA_NOT_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionNotLinked,
+				UsageID:        "usage-update-1",
+			},
+		},
+		Adds: []privacyPlanChange{
+			{
+				Key:            "EMAIL_ADDRESS|ANALYTICS|DATA_NOT_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "ANALYTICS",
+				DataProtection: dataProtectionNotLinked,
+			},
+		},
+		Deletes: []privacyPlanChange{
+			{
+				Key:            "EMAIL_ADDRESS|APP_FUNCTIONALITY|DATA_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionLinked,
+				UsageID:        "usage-delete-1",
+			},
+		},
+	}
+
+	actions, err := applyPrivacyPlan(context.Background(), client, "app-123", plan)
+	if err != nil {
+		t.Fatalf("applyPrivacyPlan() error = %v", err)
+	}
+	if !reflect.DeepEqual(client.callOrder, []string{
+		"delete:usage-delete-1",
+		"update:usage-update-1:DATA_NOT_LINKED_TO_YOU",
+		"create:EMAIL_ADDRESS:ANALYTICS:DATA_NOT_LINKED_TO_YOU",
+	}) {
+		t.Fatalf("unexpected call order: %#v", client.callOrder)
+	}
+	if len(actions) != 3 {
+		t.Fatalf("expected 3 actions, got %#v", actions)
+	}
+	if actions[0].Action != "delete" || actions[1].Action != "update" || actions[2].Action != "create" {
+		t.Fatalf("unexpected action order: %#v", actions)
+	}
+}
+
+func TestApplyPrivacyPlanRejectsUpdateWithoutUsageID(t *testing.T) {
+	client := &fakePrivacyMutationClient{}
+	_, err := applyPrivacyPlan(context.Background(), client, "app-123", privacyPlanOutput{
+		Updates: []privacyPlanChange{
+			{
+				Key:            "EMAIL_ADDRESS|APP_FUNCTIONALITY|DATA_NOT_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionNotLinked,
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected missing usage id error")
+	}
+	if !strings.Contains(err.Error(), "missing usage id for update key") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestApplyPrivacyPlanRejectsConflictingDeleteAndUpdateUsageID(t *testing.T) {
+	client := &fakePrivacyMutationClient{}
+	_, err := applyPrivacyPlan(context.Background(), client, "app-123", privacyPlanOutput{
+		Updates: []privacyPlanChange{
+			{
+				Key:            "EMAIL_ADDRESS|APP_FUNCTIONALITY|DATA_NOT_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionNotLinked,
+				UsageID:        "usage-1",
+			},
+		},
+		Deletes: []privacyPlanChange{
+			{
+				Key:            "EMAIL_ADDRESS|APP_FUNCTIONALITY|DATA_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionLinked,
+				UsageID:        "usage-1",
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected overlapping usage id error")
+	}
+	if !strings.Contains(err.Error(), "scheduled for both delete") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestApplyPrivacyPlanRejectsDuplicateUpdateUsageID(t *testing.T) {
+	client := &fakePrivacyMutationClient{}
+	_, err := applyPrivacyPlan(context.Background(), client, "app-123", privacyPlanOutput{
+		Updates: []privacyPlanChange{
+			{
+				Key:            "EMAIL_ADDRESS|APP_FUNCTIONALITY|DATA_NOT_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "APP_FUNCTIONALITY",
+				DataProtection: dataProtectionNotLinked,
+				UsageID:        "usage-1",
+			},
+			{
+				Key:            "EMAIL_ADDRESS|ANALYTICS|DATA_NOT_LINKED_TO_YOU",
+				Category:       "EMAIL_ADDRESS",
+				Purpose:        "ANALYTICS",
+				DataProtection: dataProtectionNotLinked,
+				UsageID:        "usage-1",
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected duplicate update usage id error")
+	}
+	if !strings.Contains(err.Error(), "duplicate update usage id") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
