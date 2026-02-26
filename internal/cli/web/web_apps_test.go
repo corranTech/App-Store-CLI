@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -206,4 +207,36 @@ func TestWebAppsCreateFailsWhenBundleIDPreflightFails(t *testing.T) {
 	if createCalled {
 		t.Fatal("expected create app to be skipped on preflight failure")
 	}
+}
+
+func TestBundleIDPlatformForWebApp(t *testing.T) {
+	t.Run("maps UNIVERSAL to IOS for bundle id create", func(t *testing.T) {
+		got, err := bundleIDPlatformForWebApp("UNIVERSAL")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != asc.PlatformIOS {
+			t.Fatalf("expected %q, got %q", asc.PlatformIOS, got)
+		}
+	})
+
+	t.Run("keeps explicit mac platform", func(t *testing.T) {
+		got, err := bundleIDPlatformForWebApp("MAC_OS")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != asc.PlatformMacOS {
+			t.Fatalf("expected %q, got %q", asc.PlatformMacOS, got)
+		}
+	})
+
+	t.Run("rejects invalid platform with web command contract", func(t *testing.T) {
+		_, err := bundleIDPlatformForWebApp("VISION_OS")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !strings.Contains(err.Error(), "IOS, MAC_OS, TV_OS, UNIVERSAL") {
+			t.Fatalf("expected web platform list in error, got %v", err)
+		}
+	})
 }

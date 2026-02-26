@@ -70,13 +70,29 @@ func isDuplicateBundleIDError(err error) bool {
 	return false
 }
 
+func bundleIDPlatformForWebApp(platform string) (asc.Platform, error) {
+	switch strings.ToUpper(strings.TrimSpace(platform)) {
+	case "", "IOS":
+		return asc.PlatformIOS, nil
+	case "MAC_OS":
+		return asc.PlatformMacOS, nil
+	case "TV_OS":
+		return asc.PlatformTVOS, nil
+	case "UNIVERSAL":
+		// Bundle ID creation does not accept UNIVERSAL; IOS is the compatible preflight platform.
+		return asc.PlatformIOS, nil
+	default:
+		return "", fmt.Errorf("platform must be one of IOS, MAC_OS, TV_OS, UNIVERSAL")
+	}
+}
+
 func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform string) (bool, error) {
 	client, err := shared.GetASCClient()
 	if err != nil {
 		return false, err
 	}
 
-	platformValue, err := shared.NormalizePlatform(platform)
+	platformValue, err := bundleIDPlatformForWebApp(platform)
 	if err != nil {
 		return false, err
 	}
