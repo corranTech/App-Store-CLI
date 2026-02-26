@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -33,6 +34,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	pricePointID := fs.String("price-point", "", "App price point ID")
+	price := fs.String("price", "", "Customer price (e.g., 0.99) to select price point")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", config.StartDateHelp)
 	output := BindOutputFlags(fs)
@@ -51,13 +53,29 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				return flag.ErrHelp
 			}
 			pricePointValue := strings.TrimSpace(*pricePointID)
-			if pricePointValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --price-point is required")
+			priceValue := strings.TrimSpace(*price)
+
+			if pricePointValue == "" && priceValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --price-point or --price is required")
 				return flag.ErrHelp
+			}
+			if pricePointValue != "" && priceValue != "" {
+				fmt.Fprintln(os.Stderr, "Error: --price-point and --price are mutually exclusive")
+				return flag.ErrHelp
+			}
+			if priceValue != "" {
+				if _, err := parseFinitePrice(priceValue); err != nil {
+					if errors.Is(err, errNonFinitePrice) {
+						fmt.Fprintln(os.Stderr, "Error: --price must be a finite number")
+					} else {
+						fmt.Fprintln(os.Stderr, "Error: --price must be a number")
+					}
+					return flag.ErrHelp
+				}
 			}
 
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
-			if config.RequireBaseTerritory && baseTerritoryValue == "" {
+			if (config.RequireBaseTerritory || priceValue != "") && baseTerritoryValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
 				return flag.ErrHelp
 			}
@@ -91,6 +109,50 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 				}
+			}
+
+			if priceValue != "" {
+				priceFilter := PriceFilter{Price: priceValue}
+				foundID := ""
+				fetch := func(nextURL string) (*asc.AppPricePointsV3Response, error) {
+					opts := []asc.PricePointsOption{
+						asc.WithPricePointsLimit(200),
+						asc.WithPricePointsTerritory(baseTerritoryID),
+					}
+					if nextURL != "" {
+						opts = append(opts, asc.WithPricePointsNextURL(nextURL))
+					}
+					return client.GetAppPricePoints(requestCtx, resolvedAppID, opts...)
+				}
+
+				resp, err := fetch("")
+				if err != nil {
+					return fmt.Errorf("resolve price: %w", err)
+				}
+
+				for {
+					for _, pp := range resp.Data {
+						if priceFilter.MatchesPrice(pp.Attributes.CustomerPrice) {
+							foundID = pp.ID
+							break
+						}
+					}
+					if foundID != "" {
+						break
+					}
+					if resp.Links.Next == "" {
+						break
+					}
+					resp, err = fetch(resp.Links.Next)
+					if err != nil {
+						return fmt.Errorf("resolve price (next page): %w", err)
+					}
+				}
+
+				if foundID == "" {
+					return fmt.Errorf("price point not found for price %q in territory %q", priceValue, baseTerritoryID)
+				}
+				pricePointValue = foundID
 			}
 
 			resp, err := client.CreateAppPriceSchedule(requestCtx, resolvedAppID, asc.AppPriceScheduleCreateAttributes{
