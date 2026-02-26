@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"net/http/cookiejar"
@@ -54,6 +55,44 @@ var webTLSRootBundlePaths = []string{
 	"/private/etc/ssl/cert.pem",
 	"/opt/homebrew/etc/openssl@3/cert.pem",
 	"/usr/local/etc/openssl@3/cert.pem",
+}
+
+var webDebugLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+	Level: slog.LevelInfo,
+	ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
+		if attr.Key == slog.TimeKey {
+			return slog.Attr{}
+		}
+		return attr
+	},
+}))
+
+var webDebugEnabledFn = asc.ResolveDebugEnabled
+
+var webAuthSignedQueryKeys = map[string]struct{}{
+	"x-amz-signature":  {},
+	"x-amz-credential": {},
+	"signature":        {},
+	"key-pair-id":      {},
+	"policy":           {},
+	"sig":              {},
+}
+
+var webAuthSensitiveQueryKeys = map[string]struct{}{
+	"widgetkey":            {},
+	"token":                {},
+	"access_token":         {},
+	"id_token":             {},
+	"refresh_token":        {},
+	"code":                 {},
+	"scnt":                 {},
+	"x-amz-signature":      {},
+	"x-amz-credential":     {},
+	"x-amz-security-token": {},
+	"signature":            {},
+	"key-pair-id":          {},
+	"policy":               {},
+	"sig":                  {},
 }
 
 // AuthSession holds authenticated web-session state for internal API calls.
@@ -125,6 +164,100 @@ func (e *APIError) Error() string {
 // rawResponseBody exposes the body to package-internal helpers only.
 func (e *APIError) rawResponseBody() []byte {
 	return e.rawBody
+}
+
+func logWebAuthHTTP(stage string, req *http.Request, resp *http.Response, body []byte, err error) {
+	if !webDebugEnabledFn() {
+		return
+	}
+
+	fields := []any{
+		"stage", strings.TrimSpace(stage),
+	}
+	if req != nil {
+		fields = append(fields,
+			"method", req.Method,
+			"url", sanitizeWebAuthURLForLog(req.URL.String()),
+		)
+	}
+	if resp != nil {
+		fields = append(fields, "status", resp.StatusCode)
+		if requestID := extractAppleRequestID(resp.Header); requestID != "" {
+			fields = append(fields, "request_id", requestID)
+		}
+		if correlationKey := strings.TrimSpace(resp.Header.Get("X-Apple-Jingle-Correlation-Key")); correlationKey != "" {
+			fields = append(fields, "correlation_key", correlationKey)
+		}
+		if codes := extractServiceErrorCodes(body); len(codes) > 0 {
+			fields = append(fields, "codes", strings.Join(codes, ","))
+		}
+	}
+	if err != nil {
+		fields = append(fields, "error", err.Error())
+	}
+	webDebugLogger.Info("web auth http", fields...)
+}
+
+func extractAppleRequestID(headers http.Header) string {
+	if len(headers) == 0 {
+		return ""
+	}
+	requestID := strings.TrimSpace(headers.Get("X-Apple-Request-Uuid"))
+	if requestID == "" {
+		requestID = strings.TrimSpace(headers.Get("X-Apple-Request-UUID"))
+	}
+	return requestID
+}
+
+func sanitizeWebAuthURLForLog(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if parsedURL.User != nil {
+		parsedURL.User = url.User("[REDACTED]")
+	}
+	values := parsedURL.Query()
+	if len(values) == 0 {
+		return parsedURL.String()
+	}
+	redactAll := hasSignedWebAuthQuery(values)
+	for key, vals := range values {
+		if redactAll || isSensitiveWebAuthQueryKey(key) {
+			for i := range vals {
+				vals[i] = "[REDACTED]"
+			}
+			values[key] = vals
+		}
+	}
+	parsedURL.RawQuery = values.Encode()
+	return parsedURL.String()
+}
+
+func hasSignedWebAuthQuery(values url.Values) bool {
+	for key, vals := range values {
+		if _, ok := webAuthSignedQueryKeys[strings.ToLower(key)]; ok && hasNonEmptyWebAuthQueryValue(vals) {
+			return true
+		}
+	}
+	return false
+}
+
+func isSensitiveWebAuthQueryKey(key string) bool {
+	_, ok := webAuthSensitiveQueryKeys[strings.ToLower(key)]
+	return ok
+}
+
+func hasNonEmptyWebAuthQueryValue(values []string) bool {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 type signinInitResponse struct {
@@ -357,14 +490,17 @@ func getAuthServiceKey(ctx context.Context, client *http.Client) (string, error)
 
 	resp, err := client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("auth_service_key", req, nil, nil, err)
 		return "", fmt.Errorf("failed to fetch auth service key: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logWebAuthHTTP("auth_service_key", req, resp, nil, err)
 		return "", fmt.Errorf("failed to read auth service key response: %w", err)
 	}
+	logWebAuthHTTP("auth_service_key", req, resp, body, nil)
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to fetch auth service key (status %d)", resp.StatusCode)
 	}
@@ -637,9 +773,11 @@ func getHashcash(ctx context.Context, client *http.Client, serviceKey string) (s
 
 	resp, err := client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("hashcash", req, nil, nil, err)
 		return "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
+	logWebAuthHTTP("hashcash", req, resp, nil, nil)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to fetch hashcash challenge (status %d)", resp.StatusCode)
@@ -734,14 +872,17 @@ func signinInit(ctx context.Context, client *http.Client, username, aBase64, ser
 
 	resp, err := client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("signin_init", req, nil, nil, err)
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logWebAuthHTTP("signin_init", req, resp, nil, err)
 		return nil, fmt.Errorf("failed to read signin init response: %w", err)
 	}
+	logWebAuthHTTP("signin_init", req, resp, respBody, nil)
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("signin init failed with status %d", resp.StatusCode)
 	}
@@ -780,15 +921,17 @@ func signinComplete(ctx context.Context, client *http.Client, username, m1, m2 s
 
 	resp, err := client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("signin_complete", req, nil, nil, err)
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logWebAuthHTTP("signin_complete", req, resp, nil, err)
 		return fmt.Errorf("failed to read signin complete response: %w", err)
 	}
-	_ = respBody
+	logWebAuthHTTP("signin_complete", req, resp, respBody, nil)
 
 	if resp.StatusCode == http.StatusOK {
 		return nil
@@ -811,14 +954,17 @@ func getSessionInfo(ctx context.Context, client *http.Client) (*sessionInfo, err
 
 	resp, err := client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("session_info", req, nil, nil, err)
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logWebAuthHTTP("session_info", req, resp, nil, err)
 		return nil, fmt.Errorf("failed to read session info response: %w", err)
 	}
+	logWebAuthHTTP("session_info", req, resp, respBody, nil)
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to get session info with status %d", resp.StatusCode)
 	}
@@ -853,14 +999,17 @@ func getAuthOptions(ctx context.Context, session *AuthSession) (*authOptionsResp
 
 	resp, err := session.Client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("auth_options", req, nil, nil, err)
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logWebAuthHTTP("auth_options", req, resp, nil, err)
 		return nil, fmt.Errorf("failed to read auth options response: %w", err)
 	}
+	logWebAuthHTTP("auth_options", req, resp, body, nil)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("auth options failed with status %d", resp.StatusCode)
 	}
@@ -896,10 +1045,12 @@ func submitTrustedDeviceCode(ctx context.Context, session *AuthSession, code str
 
 	resp, err := session.Client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("trusted_device_2fa", req, nil, nil, err)
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
+	logWebAuthHTTP("trusted_device_2fa", req, resp, respBody, nil)
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
@@ -933,10 +1084,12 @@ func submitPhoneCode(ctx context.Context, session *AuthSession, code string, pho
 
 	resp, err := session.Client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("phone_2fa", req, nil, nil, err)
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
+	logWebAuthHTTP("phone_2fa", req, resp, respBody, nil)
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
@@ -959,14 +1112,17 @@ func finalizeTwoFactor(ctx context.Context, session *AuthSession) error {
 
 	resp, err := session.Client.Do(req)
 	if err != nil {
+		logWebAuthHTTP("finalize_2fa_trust", req, nil, nil, err)
 		return err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logWebAuthHTTP("finalize_2fa_trust", req, resp, nil, err)
 		return fmt.Errorf("failed to read 2fa trust response: %w", err)
 	}
+	logWebAuthHTTP("finalize_2fa_trust", req, resp, body, nil)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("2fa trust failed with status %d", resp.StatusCode)
 	}
@@ -1104,19 +1260,19 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		logWebAuthHTTP("iris_request", req, nil, nil, err)
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logWebAuthHTTP("iris_request", req, resp, nil, err)
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
+	logWebAuthHTTP("iris_request", req, resp, respBody, nil)
 
-	appleRequestID := strings.TrimSpace(resp.Header.Get("X-Apple-Request-Uuid"))
-	if appleRequestID == "" {
-		appleRequestID = strings.TrimSpace(resp.Header.Get("X-Apple-Request-UUID"))
-	}
+	appleRequestID := extractAppleRequestID(resp.Header)
 	correlationKey := strings.TrimSpace(resp.Header.Get("X-Apple-Jingle-Correlation-Key"))
 
 	if resp.StatusCode >= 400 {
