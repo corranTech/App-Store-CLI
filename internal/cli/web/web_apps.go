@@ -160,13 +160,13 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			session, source, err := resolveSessionFn(requestCtx, *appleID, "", *twoFactorCode, *passwordStdin)
+			session, source, err := resolveSessionFn(ctx, *appleID, "", *twoFactorCode, *passwordStdin)
 			if err != nil {
 				return err
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 			if source == "fresh" {
 				fmt.Fprintln(os.Stderr, "Authenticated via fresh web login.")
 			} else {
