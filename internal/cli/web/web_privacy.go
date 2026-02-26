@@ -251,15 +251,28 @@ func declarationToTupleSet(declaration privacyDeclarationFile) (map[string]priva
 		if category == "" {
 			return nil, fmt.Errorf("dataUsages[%d].category is required when data is collected", index)
 		}
-		if len(purposes) == 0 {
+		hasIdentityProtection := slices.Contains(protections, dataProtectionLinked) || slices.Contains(protections, dataProtectionNotLinked)
+		hasTrackingProtection := slices.Contains(protections, dataProtectionTracking)
+		if !hasIdentityProtection && !hasTrackingProtection {
+			return nil, fmt.Errorf("dataUsages[%d].dataProtections must include a supported collected-data protection", index)
+		}
+		if hasIdentityProtection && len(purposes) == 0 {
 			return nil, fmt.Errorf("dataUsages[%d].purposes is required when data is collected", index)
 		}
-		if !slices.Contains(protections, dataProtectionLinked) && !slices.Contains(protections, dataProtectionNotLinked) {
-			return nil, fmt.Errorf("dataUsages[%d].dataProtections must include DATA_LINKED_TO_YOU or DATA_NOT_LINKED_TO_YOU", index)
-		}
 
-		for _, purpose := range purposes {
-			for _, protection := range protections {
+		for _, protection := range protections {
+			if protection == dataProtectionTracking {
+				tuple := privacyTuple{
+					Category: category,
+					// Tracking is represented category-wide in ASC responses.
+					// Canonicalize purpose away to keep pull/plan idempotent.
+					Purpose:        "",
+					DataProtection: protection,
+				}
+				tuples[privacyTupleKey(tuple)] = tuple
+				continue
+			}
+			for _, purpose := range purposes {
 				tuple := privacyTuple{
 					Category:       category,
 					Purpose:        purpose,

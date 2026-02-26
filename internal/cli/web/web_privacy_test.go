@@ -69,6 +69,64 @@ func TestDeclarationToTupleSetRejectsCollectedWithoutPurpose(t *testing.T) {
 	}
 }
 
+func TestDeclarationToTupleSetAllowsTrackingWithoutPurpose(t *testing.T) {
+	tuples, err := declarationToTupleSet(privacyDeclarationFile{
+		SchemaVersion: privacySchemaVersion,
+		DataUsages: []privacyUsage{
+			{
+				Category:        "PURCHASE_HISTORY",
+				DataProtections: []string{dataProtectionTracking},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("declarationToTupleSet() error = %v", err)
+	}
+	wantKey := privacyTupleKey(privacyTuple{
+		Category:       "PURCHASE_HISTORY",
+		Purpose:        "",
+		DataProtection: dataProtectionTracking,
+	})
+	if _, ok := tuples[wantKey]; !ok {
+		t.Fatalf("expected tracking tuple key %q, got %#v", wantKey, tuples)
+	}
+}
+
+func TestDeclarationToTupleSetCanonicalizesTrackingPurposeAway(t *testing.T) {
+	tuples, err := declarationToTupleSet(privacyDeclarationFile{
+		SchemaVersion: privacySchemaVersion,
+		DataUsages: []privacyUsage{
+			{
+				Category: "PURCHASE_HISTORY",
+				Purposes: []string{"APP_FUNCTIONALITY"},
+				DataProtections: []string{
+					dataProtectionLinked,
+					dataProtectionTracking,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("declarationToTupleSet() error = %v", err)
+	}
+	trackingCanonicalKey := privacyTupleKey(privacyTuple{
+		Category:       "PURCHASE_HISTORY",
+		Purpose:        "",
+		DataProtection: dataProtectionTracking,
+	})
+	if _, ok := tuples[trackingCanonicalKey]; !ok {
+		t.Fatalf("expected canonical tracking tuple key %q, got %#v", trackingCanonicalKey, tuples)
+	}
+	trackingWithPurposeKey := privacyTupleKey(privacyTuple{
+		Category:       "PURCHASE_HISTORY",
+		Purpose:        "APP_FUNCTIONALITY",
+		DataProtection: dataProtectionTracking,
+	})
+	if _, ok := tuples[trackingWithPurposeKey]; ok {
+		t.Fatalf("tracking tuple should not retain purpose; got %#v", tuples)
+	}
+}
+
 func TestDeclarationToTupleSetRejectsMixedNotCollectedAndCollected(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -825,5 +883,39 @@ func TestParsePrivacyDeclarationFileRejectsMultipleJSONValues(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "multiple JSON values found") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParsePrivacyDeclarationFileCanonicalizesTrackingPurposeAway(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "privacy.json")
+	if err := os.WriteFile(path, []byte(`{
+		"schemaVersion": 1,
+		"dataUsages": [
+			{
+				"category": "PURCHASE_HISTORY",
+				"purposes": ["APP_FUNCTIONALITY"],
+				"dataProtections": ["DATA_LINKED_TO_YOU", "DATA_USED_TO_TRACK_YOU"]
+			}
+		]
+	}`), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	declaration, err := parsePrivacyDeclarationFile(path)
+	if err != nil {
+		t.Fatalf("parsePrivacyDeclarationFile() error = %v", err)
+	}
+	trackingFound := false
+	for _, usage := range declaration.DataUsages {
+		if len(usage.DataProtections) == 1 && usage.DataProtections[0] == dataProtectionTracking {
+			trackingFound = true
+			if len(usage.Purposes) != 0 {
+				t.Fatalf("expected tracking usage purposes to be empty, got %#v", usage.Purposes)
+			}
+		}
+	}
+	if !trackingFound {
+		t.Fatalf("expected canonicalized tracking usage in declaration: %#v", declaration.DataUsages)
 	}
 }
