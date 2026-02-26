@@ -69,6 +69,51 @@ func TestDeclarationToTupleSetRejectsCollectedWithoutPurpose(t *testing.T) {
 	}
 }
 
+func TestDeclarationToTupleSetRejectsMixedNotCollectedAndCollected(t *testing.T) {
+	cases := []struct {
+		name   string
+		usages []privacyUsage
+	}{
+		{
+			name: "not_collected_then_collected",
+			usages: []privacyUsage{
+				{DataProtections: []string{dataProtectionNotCollected}},
+				{
+					Category:        "NAME",
+					Purposes:        []string{"APP_FUNCTIONALITY"},
+					DataProtections: []string{dataProtectionLinked},
+				},
+			},
+		},
+		{
+			name: "collected_then_not_collected",
+			usages: []privacyUsage{
+				{
+					Category:        "NAME",
+					Purposes:        []string{"APP_FUNCTIONALITY"},
+					DataProtections: []string{dataProtectionLinked},
+				},
+				{DataProtections: []string{dataProtectionNotCollected}},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := declarationToTupleSet(privacyDeclarationFile{
+				SchemaVersion: privacySchemaVersion,
+				DataUsages:    tc.usages,
+			})
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !strings.Contains(err.Error(), "cannot be combined") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestDeclarationFromTupleSetGroupsByCategoryAndPurpose(t *testing.T) {
 	declaration := declarationFromTupleSet(map[string]privacyTuple{
 		privacyTupleKey(privacyTuple{
@@ -746,6 +791,39 @@ func TestParsePrivacyDeclarationFileRejectsUnknownFields(t *testing.T) {
 		t.Fatal("expected parse error")
 	}
 	if !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParsePrivacyDeclarationFileRejectsMultipleJSONValues(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "privacy.json")
+	if err := os.WriteFile(path, []byte(`{
+		"schemaVersion": 1,
+		"dataUsages": [
+			{
+				"category": "NAME",
+				"purposes": ["APP_FUNCTIONALITY"],
+				"dataProtections": ["DATA_LINKED_TO_YOU"]
+			}
+		]
+	}
+	{
+		"schemaVersion": 1,
+		"dataUsages": [
+			{
+				"dataProtections": ["DATA_NOT_COLLECTED"]
+			}
+		]
+	}`), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := parsePrivacyDeclarationFile(path)
+	if err == nil {
+		t.Fatal("expected parse error")
+	}
+	if !strings.Contains(err.Error(), "multiple JSON values found") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

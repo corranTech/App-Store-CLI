@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -199,6 +200,8 @@ func declarationToTupleSet(declaration privacyDeclarationFile) (map[string]priva
 	}
 
 	tuples := make(map[string]privacyTuple)
+	sawNotCollected := false
+	sawCollected := false
 	for index, usage := range declaration.DataUsages {
 		category := normalizeToken(usage.Category)
 		if category != "" && !validPrivacyToken(category) {
@@ -223,6 +226,9 @@ func declarationToTupleSet(declaration privacyDeclarationFile) (map[string]priva
 		}
 
 		if slices.Contains(protections, dataProtectionNotCollected) {
+			if sawCollected {
+				return nil, fmt.Errorf("dataUsages[%d] with DATA_NOT_COLLECTED cannot be combined with collected data usages", index)
+			}
 			if len(protections) != 1 {
 				return nil, fmt.Errorf("dataUsages[%d] with DATA_NOT_COLLECTED cannot include other dataProtections", index)
 			}
@@ -234,8 +240,13 @@ func declarationToTupleSet(declaration privacyDeclarationFile) (map[string]priva
 			}
 			tuple := privacyTuple{DataProtection: dataProtectionNotCollected}
 			tuples[privacyTupleKey(tuple)] = tuple
+			sawNotCollected = true
 			continue
 		}
+		if sawNotCollected {
+			return nil, fmt.Errorf("dataUsages[%d] with collected data cannot be combined with DATA_NOT_COLLECTED", index)
+		}
+		sawCollected = true
 
 		if category == "" {
 			return nil, fmt.Errorf("dataUsages[%d].category is required when data is collected", index)
@@ -699,8 +710,12 @@ func parsePrivacyDeclarationFile(path string) (privacyDeclarationFile, error) {
 	if err := decoder.Decode(&declaration); err != nil {
 		return privacyDeclarationFile{}, fmt.Errorf("invalid privacy declaration JSON: %w", err)
 	}
-	if decoder.More() {
-		return privacyDeclarationFile{}, fmt.Errorf("invalid privacy declaration JSON: multiple JSON values found")
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		if err == nil {
+			return privacyDeclarationFile{}, fmt.Errorf("invalid privacy declaration JSON: multiple JSON values found")
+		}
+		return privacyDeclarationFile{}, fmt.Errorf("invalid privacy declaration JSON: %w", err)
 	}
 
 	tuples, err := declarationToTupleSet(declaration)
