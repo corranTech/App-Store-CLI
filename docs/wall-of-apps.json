@@ -97,6 +97,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "LivaLog",
+    "link": "https://apps.apple.com/us/app/livalog/id6759440574",
+    "creator": "dreamon.im",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/06/2a/44/062a4461-7bc4-8175-7a1e-0c2705eec6d7/Placeholder.mill/512x512bb-75.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Lumical: Scan to Calendar",
     "link": "https://apps.apple.com/us/app/lumical-scan-to-calendar/id6753274309",
     "creator": "arunavo4",
