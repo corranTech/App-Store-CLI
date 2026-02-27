@@ -215,8 +215,13 @@ func IAPPriceSchedulesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-schedules create", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	appID := fs.String("app", "", "App ID (required when using --tier or --price, or ASC_APP_ID)")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	prices := fs.String("prices", "", "Manual prices: PRICE_POINT_ID[:START_DATE[:END_DATE]] entries")
+	tier := fs.Int("tier", 0, "Pricing tier number (use instead of --prices for single-price schedule)")
+	price := fs.String("price", "", "Customer price (use instead of --prices for single-price schedule)")
+	startDate := fs.String("start-date", "", "Start date when using --tier or --price (YYYY-MM-DD)")
+	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -226,7 +231,9 @@ func IAPPriceSchedulesCreateCommand() *ffcli.Command {
 		LongHelp: `Create an in-app purchase price schedule.
 
 Examples:
-  asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID:2024-03-01"`,
+  asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID:2024-03-01"
+  asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --tier 5 --app "APP_ID" --start-date "2024-03-01"
+  asc iap price-schedules create --iap-id "IAP_ID" --base-territory "USA" --price "4.99" --app "APP_ID" --start-date "2024-03-01"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -241,14 +248,66 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			priceEntries, err := parsePriceSchedulePrices(*prices)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+			tierValue := *tier
+			priceValue := strings.TrimSpace(*price)
+			pricesValue := strings.TrimSpace(*prices)
+
+			hasTierOrPrice := tierValue > 0 || priceValue != ""
+			if hasTierOrPrice && pricesValue != "" {
+				fmt.Fprintln(os.Stderr, "Error: --prices and --tier/--price are mutually exclusive")
 				return flag.ErrHelp
 			}
-			if len(priceEntries) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --prices is required")
+			if tierValue > 0 && priceValue != "" {
+				fmt.Fprintln(os.Stderr, "Error: --tier and --price are mutually exclusive")
 				return flag.ErrHelp
+			}
+
+			var priceEntries []asc.InAppPurchasePriceSchedulePrice
+
+			if hasTierOrPrice {
+				resolvedAppID := shared.ResolveAppID(*appID)
+				if resolvedAppID == "" {
+					fmt.Fprintln(os.Stderr, "Error: --app is required when using --tier or --price (or set ASC_APP_ID)")
+					return flag.ErrHelp
+				}
+
+				client, err := shared.GetASCClient()
+				if err != nil {
+					return fmt.Errorf("iap price-schedules create: %w", err)
+				}
+
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				defer cancel()
+
+				tiers, err := shared.ResolveTiers(requestCtx, client, resolvedAppID, baseTerritoryValue, *refresh)
+				if err != nil {
+					return fmt.Errorf("iap price-schedules create: resolve tiers: %w", err)
+				}
+
+				var resolvedID string
+				if tierValue > 0 {
+					resolvedID, err = shared.ResolvePricePointByTier(tiers, tierValue)
+				} else {
+					resolvedID, err = shared.ResolvePricePointByPrice(tiers, priceValue)
+				}
+				if err != nil {
+					return fmt.Errorf("iap price-schedules create: %w", err)
+				}
+
+				priceEntries = []asc.InAppPurchasePriceSchedulePrice{
+					{PricePointID: resolvedID, StartDate: strings.TrimSpace(*startDate)},
+				}
+			} else {
+				var err error
+				priceEntries, err = parsePriceSchedulePrices(pricesValue)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+				if len(priceEntries) == 0 {
+					fmt.Fprintln(os.Stderr, "Error: --prices (or --tier/--price) is required")
+					return flag.ErrHelp
+				}
 			}
 
 			client, err := shared.GetASCClient()
