@@ -145,6 +145,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Planit: Gamified Daily Planner",
+    "link": "https://apps.apple.com/us/app/planit-gamified-daily-planner/id6759006335",
+    "creator": "aboutzeph",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/14/18/df/1418dfd6-94ce-1032-6203-ab108591fa6f/Placeholder.mill/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Plinky",
     "link": "https://apps.apple.com/us/app/plinky-easily-save-links/id1597187737",
     "creator": "mergesort",
