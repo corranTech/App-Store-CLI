@@ -740,6 +740,97 @@ func TestSetEnvVarsRejectsNullContent(t *testing.T) {
 	}
 }
 
+func TestExtractWorkflowConfig(t *testing.T) {
+	content := json.RawMessage(`{
+		"name":"Default",
+		"description":"Main branch",
+		"disabled":true,
+		"locked":false,
+		"xcode_version":"latest:all",
+		"macos_version":"15",
+		"start_conditions":[{"type":"branch"}],
+		"actions":[{"name":"Archive"}],
+		"post_actions":[{"name":"TestFlight"}],
+		"clean":true,
+		"container_file_path":"FoundationLab.xcodeproj",
+		"repo":{"id":"repo-1"},
+		"product_environment_variables":["var-1","var-2"]
+	}`)
+
+	cfg, err := ExtractWorkflowConfig(content)
+	if err != nil {
+		t.Fatalf("ExtractWorkflowConfig() error = %v", err)
+	}
+
+	if cfg.Name != "Default" || cfg.Description != "Main branch" {
+		t.Fatalf("unexpected name/description: %+v", cfg)
+	}
+	if !cfg.Disabled || cfg.Locked {
+		t.Fatalf("unexpected disabled/locked state: %+v", cfg)
+	}
+	var xcodeVersion string
+	if err := json.Unmarshal(cfg.XcodeVersion, &xcodeVersion); err != nil {
+		t.Fatalf("failed to decode xcode version: %v", err)
+	}
+	var macosVersion string
+	if err := json.Unmarshal(cfg.MacOSVersion, &macosVersion); err != nil {
+		t.Fatalf("failed to decode macos version: %v", err)
+	}
+	if xcodeVersion != "latest:all" || macosVersion != "15" {
+		t.Fatalf("unexpected toolchain versions: xcode=%q macos=%q", xcodeVersion, macosVersion)
+	}
+	if len(cfg.ProductEnvironmentVariables) != 2 {
+		t.Fatalf("expected 2 shared env var refs, got %d", len(cfg.ProductEnvironmentVariables))
+	}
+	if len(cfg.StartConditions) == 0 || len(cfg.Actions) == 0 || len(cfg.PostActions) == 0 || len(cfg.Repo) == 0 || len(cfg.Clean) == 0 {
+		t.Fatalf("expected nested fields to be populated: %+v", cfg)
+	}
+}
+
+func TestSetWorkflowDisabled(t *testing.T) {
+	content := json.RawMessage(`{
+		"name":"Default",
+		"disabled":false,
+		"custom_field":{"keep":true},
+		"environment_variables":[{"id":"ev-1","name":"FOO","value":{"plaintext":"bar"}}]
+	}`)
+
+	result, err := SetWorkflowDisabled(content, true)
+	if err != nil {
+		t.Fatalf("SetWorkflowDisabled() error = %v", err)
+	}
+
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(result, &m); err != nil {
+		t.Fatalf("result unmarshal error: %v", err)
+	}
+
+	var disabled bool
+	if err := json.Unmarshal(m["disabled"], &disabled); err != nil {
+		t.Fatalf("disabled unmarshal error: %v", err)
+	}
+	if !disabled {
+		t.Fatalf("expected disabled=true, got false")
+	}
+
+	if _, ok := m["custom_field"]; !ok {
+		t.Fatalf("expected custom_field to be preserved")
+	}
+	if _, ok := m["environment_variables"]; !ok {
+		t.Fatalf("expected environment_variables to be preserved")
+	}
+}
+
+func TestSetWorkflowDisabledRejectsNullContent(t *testing.T) {
+	_, err := SetWorkflowDisabled(json.RawMessage(`null`), true)
+	if err == nil {
+		t.Fatal("expected error for null workflow content")
+	}
+	if !strings.Contains(err.Error(), "expected JSON object") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestListCIProductEnvVarsParsesResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/teams/team-uuid/products/prod-1/product-environment-variables" {
