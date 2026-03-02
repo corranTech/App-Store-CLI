@@ -6919,6 +6919,77 @@ func TestDeleteSubscription(t *testing.T) {
 	}
 }
 
+func TestSetSubscriptionInitialPrice(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.sub.monthly"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1, got %s", req.URL.Path)
+		}
+
+		var payload SubscriptionUpdateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeSubscriptions {
+			t.Fatalf("expected type subscriptions, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "sub-1" {
+			t.Fatalf("expected subscription ID sub-1, got %q", payload.Data.ID)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.Prices == nil {
+			t.Fatalf("expected prices relationship in payload")
+		}
+		if len(payload.Data.Relationships.Prices.Data) != 1 {
+			t.Fatalf("expected one relationship price item, got %d", len(payload.Data.Relationships.Prices.Data))
+		}
+		if payload.Data.Relationships.Prices.Data[0].Type != ResourceTypeSubscriptionPrices || payload.Data.Relationships.Prices.Data[0].ID != "${price-1}" {
+			t.Fatalf("unexpected relationships.prices item: %+v", payload.Data.Relationships.Prices.Data[0])
+		}
+		if len(payload.Included) != 1 {
+			t.Fatalf("expected one included item, got %d", len(payload.Included))
+		}
+
+		included := payload.Included[0]
+		if included.Type != ResourceTypeSubscriptionPrices || included.ID != "${price-1}" {
+			t.Fatalf("unexpected included item: %+v", included)
+		}
+		if included.Attributes == nil {
+			t.Fatal("expected included attributes to be present")
+		}
+		if included.Attributes.StartDate != "2026-01-01" {
+			t.Fatalf("expected startDate 2026-01-01, got %q", included.Attributes.StartDate)
+		}
+		if included.Attributes.Preserved == nil || !*included.Attributes.Preserved {
+			t.Fatalf("expected preserveCurrentPrice=true, got %+v", included.Attributes.Preserved)
+		}
+		if included.Relationships.Subscription.Data.Type != ResourceTypeSubscriptions || included.Relationships.Subscription.Data.ID != "sub-1" {
+			t.Fatalf("unexpected included subscription relationship: %+v", included.Relationships.Subscription.Data)
+		}
+		if included.Relationships.SubscriptionPricePoint.Data.Type != ResourceTypeSubscriptionPricePoints || included.Relationships.SubscriptionPricePoint.Data.ID != "price-point-1" {
+			t.Fatalf("unexpected included subscriptionPricePoint relationship: %+v", included.Relationships.SubscriptionPricePoint.Data)
+		}
+		if included.Relationships.Territory == nil {
+			t.Fatal("expected included territory relationship")
+		}
+		if included.Relationships.Territory.Data.Type != ResourceTypeTerritories || included.Relationships.Territory.Data.ID != "USA" {
+			t.Fatalf("unexpected included territory relationship: %+v", included.Relationships.Territory.Data)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	preserved := true
+	attrs := SubscriptionPriceCreateAttributes{
+		StartDate: "2026-01-01",
+		Preserved: &preserved,
+	}
+	if _, err := client.SetSubscriptionInitialPrice(context.Background(), "sub-1", "price-point-1", "USA", attrs); err != nil {
+		t.Fatalf("SetSubscriptionInitialPrice() error: %v", err)
+	}
+}
+
 func TestCreateSubscriptionPrice(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01","preserved":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {
