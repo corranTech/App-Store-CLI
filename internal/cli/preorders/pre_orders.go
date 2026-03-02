@@ -2,8 +2,6 @@ package preorders
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -233,7 +231,7 @@ Examples:
 				return fmt.Errorf("pre-orders enable: %w", err)
 			}
 
-			territoryMap, err := mapTerritoryAvailabilityIDs(territoryResp)
+			territoryMap, err := shared.MapTerritoryAvailabilityIDs(territoryResp)
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)
 			}
@@ -415,63 +413,4 @@ Examples:
 
 func normalizePreOrderReleaseDate(value string) (string, error) {
 	return shared.NormalizeDate(value, "--release-date")
-}
-
-type territoryAvailabilityIDPayload struct {
-	Territory string `json:"t"`
-}
-
-func mapTerritoryAvailabilityIDs(resp *asc.TerritoryAvailabilitiesResponse) (map[string]string, error) {
-	if resp == nil {
-		return nil, fmt.Errorf("territory availabilities response is nil")
-	}
-	ids := make(map[string]string, len(resp.Data))
-	for _, item := range resp.Data {
-		territoryID := ""
-		if len(item.Relationships) > 0 {
-			var relationships asc.TerritoryAvailabilityRelationships
-			if err := json.Unmarshal(item.Relationships, &relationships); err != nil {
-				return nil, fmt.Errorf("decode territory availability relationships for %q: %w", item.ID, err)
-			}
-			territoryID = strings.ToUpper(strings.TrimSpace(relationships.Territory.Data.ID))
-		}
-		if territoryID == "" {
-			var ok bool
-			territoryID, ok = territoryIDFromAvailabilityID(item.ID)
-			if !ok {
-				return nil, fmt.Errorf("territory availability %q missing territory id", item.ID)
-			}
-		}
-		ids[territoryID] = item.ID
-	}
-	return ids, nil
-}
-
-func territoryIDFromAvailabilityID(availabilityID string) (string, bool) {
-	trimmed := strings.TrimSpace(availabilityID)
-	if trimmed == "" {
-		return "", false
-	}
-	decoded, err := base64.RawStdEncoding.DecodeString(trimmed)
-	if err != nil {
-		decoded, err = base64.StdEncoding.DecodeString(trimmed)
-		if err != nil {
-			decoded, err = base64.RawURLEncoding.DecodeString(trimmed)
-			if err != nil {
-				decoded, err = base64.URLEncoding.DecodeString(trimmed)
-				if err != nil {
-					return "", false
-				}
-			}
-		}
-	}
-	var payload territoryAvailabilityIDPayload
-	if err := json.Unmarshal(decoded, &payload); err != nil {
-		return "", false
-	}
-	territoryID := strings.TrimSpace(payload.Territory)
-	if territoryID == "" {
-		return "", false
-	}
-	return strings.ToUpper(territoryID), true
 }

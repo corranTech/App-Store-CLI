@@ -85,12 +85,15 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 			if err != nil {
 				if isAppAvailabilityMissing(err) {
 					availabilityExists = false
-					localTerritoryAvailabilityIDs := make([]string, 0, len(territories))
+					requestedTerritoryAvailabilities := make([]asc.TerritoryAvailabilityCreate, 0, len(territories))
 					for _, territoryID := range territories {
-						localTerritoryAvailabilityIDs = append(localTerritoryAvailabilityIDs, fmt.Sprintf("${local-%s}", strings.ToLower(territoryID)))
+						requestedTerritoryAvailabilities = append(requestedTerritoryAvailabilities, asc.TerritoryAvailabilityCreate{
+							TerritoryID: territoryID,
+							Available:   availableValue,
+						})
 					}
 					createAttrs := asc.AppAvailabilityV2CreateAttributes{
-						TerritoryAvailabilityIDs: localTerritoryAvailabilityIDs,
+						TerritoryAvailabilities: requestedTerritoryAvailabilities,
 					}
 					if config.IncludeAvailableInNewTerritories {
 						availableInNewTerritoriesValue := availableInNewTerritories.Value()
@@ -135,7 +138,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				}
 			}
 
-			territoryMap, err := mapTerritoryAvailabilityIDs(territoryResp)
+			territoryMap, err := MapTerritoryAvailabilityIDs(territoryResp)
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
@@ -171,7 +174,8 @@ type territoryAvailabilityIDPayload struct {
 	Territory string `json:"t"`
 }
 
-func mapTerritoryAvailabilityIDs(resp *asc.TerritoryAvailabilitiesResponse) (map[string]string, error) {
+// MapTerritoryAvailabilityIDs maps territory IDs to territory-availability IDs.
+func MapTerritoryAvailabilityIDs(resp *asc.TerritoryAvailabilitiesResponse) (map[string]string, error) {
 	if resp == nil {
 		return nil, fmt.Errorf("territory availabilities response is nil")
 	}

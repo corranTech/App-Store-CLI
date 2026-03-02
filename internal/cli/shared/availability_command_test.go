@@ -32,9 +32,9 @@ func TestMapTerritoryAvailabilityIDs(t *testing.T) {
 		},
 	}
 
-	ids, err := mapTerritoryAvailabilityIDs(resp)
+	ids, err := MapTerritoryAvailabilityIDs(resp)
 	if err != nil {
-		t.Fatalf("mapTerritoryAvailabilityIDs() error: %v", err)
+		t.Fatalf("MapTerritoryAvailabilityIDs() error: %v", err)
 	}
 	if ids["USA"] != "ta-1" {
 		t.Fatalf("expected territory USA to map to ta-1, got %q", ids["USA"])
@@ -54,9 +54,9 @@ func TestMapTerritoryAvailabilityIDs_FallbackID(t *testing.T) {
 		},
 	}
 
-	ids, err := mapTerritoryAvailabilityIDs(resp)
+	ids, err := MapTerritoryAvailabilityIDs(resp)
 	if err != nil {
-		t.Fatalf("mapTerritoryAvailabilityIDs() error: %v", err)
+		t.Fatalf("MapTerritoryAvailabilityIDs() error: %v", err)
 	}
 	if ids["USA"] != encoded {
 		t.Fatalf("expected territory USA to map to %q, got %q", encoded, ids["USA"])
@@ -64,7 +64,7 @@ func TestMapTerritoryAvailabilityIDs_FallbackID(t *testing.T) {
 }
 
 func TestMapTerritoryAvailabilityIDs_NilResponse(t *testing.T) {
-	_, err := mapTerritoryAvailabilityIDs(nil)
+	_, err := MapTerritoryAvailabilityIDs(nil)
 	if err == nil {
 		t.Fatal("expected error for nil response")
 	}
