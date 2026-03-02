@@ -269,8 +269,8 @@ func TestBuildsLatestOutputErrors(t *testing.T) {
 		if query.Get("sort") != "-uploadedDate" {
 			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 		}
-		if query.Get("limit") != "1" {
-			t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+		if query.Get("limit") != "200" {
+			t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 		}
 		body := `{
 			"data":[{"type":"builds","id":"build-1","attributes":{"uploadedDate":"2026-02-01T00:00:00Z"}}]
@@ -354,8 +354,8 @@ func TestBuildsLatestTableOutput(t *testing.T) {
 		if query.Get("sort") != "-uploadedDate" {
 			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 		}
-		if query.Get("limit") != "1" {
-			t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+		if query.Get("limit") != "200" {
+			t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 		}
 		body := `{
 			"data":[{"type":"builds","id":"build-table","attributes":{"uploadedDate":"2026-03-01T00:00:00Z"}}]
@@ -778,8 +778,8 @@ func TestBuildsLatestNextSupportsDotSeparatedBuildNumbers(t *testing.T) {
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 			}
-			if query.Get("limit") != "1" {
-				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			body := `{
 				"data":[{"type":"builds","id":"build-dot","attributes":{"version":"1.2.3","uploadedDate":"2026-02-01T00:00:00Z"}}]
@@ -873,8 +873,8 @@ func TestBuildsLatestExcludeExpiredFiltersOutExpiredBuilds(t *testing.T) {
 		if query.Get("sort") != "-uploadedDate" {
 			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 		}
-		if query.Get("limit") != "1" {
-			t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+		if query.Get("limit") != "200" {
+			t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 		}
 		if query.Get("filter[expired]") != "false" {
 			t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
@@ -937,8 +937,8 @@ func TestBuildsLatestNextExcludeExpiredHonorsFilter(t *testing.T) {
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 			}
-			if query.Get("limit") != "1" {
-				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			if query.Get("filter[expired]") != "false" {
 				t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
@@ -1223,5 +1223,242 @@ func TestBuildsLatestNotExpiredAliasMultiPreReleasePath(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"build-new"`) {
 		t.Fatalf("expected newest build from multi-pre-release path, got %q", stdout)
+	}
+}
+
+func TestBuildsLatestSelectsNewestUploadedDateWhenBuildNumberResets(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const nextBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=2"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds" && req.URL.Query().Get("page") == "":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("sort") != "-uploadedDate" {
+				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+			}
+			body := `{
+				"data":[{"type":"builds","id":"build-45-older","attributes":{"version":"45","uploadedDate":"2025-11-19T00:00:00Z"}}],
+				"links":{"next":"` + nextBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == nextBuildsURL:
+			body := `{
+				"data":[{"type":"builds","id":"build-1-newest","attributes":{"version":"1","uploadedDate":"2026-02-01T00:00:00Z"}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var out struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout: %s", err, stdout)
+	}
+	if out.Data.ID != "build-1-newest" {
+		t.Fatalf("expected latest build id build-1-newest, got %q", out.Data.ID)
+	}
+}
+
+func TestBuildsLatestIncludesExpiredByDefaultWhenItIsNewest(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const nextBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=2"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds" && req.URL.Query().Get("page") == "":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("sort") != "-uploadedDate" {
+				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+			}
+			if query.Get("filter[expired]") != "" {
+				t.Fatalf("did not expect filter[expired], got %q", query.Get("filter[expired]"))
+			}
+			body := `{
+				"data":[{"type":"builds","id":"build-non-expired-older","attributes":{"version":"100","uploadedDate":"2026-01-10T00:00:00Z","expired":false}}],
+				"links":{"next":"` + nextBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == nextBuildsURL:
+			body := `{
+				"data":[{"type":"builds","id":"build-expired-newest","attributes":{"version":"101","uploadedDate":"2026-01-20T00:00:00Z","expired":true}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var out struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout: %s", err, stdout)
+	}
+	if out.Data.ID != "build-expired-newest" {
+		t.Fatalf("expected latest build id build-expired-newest, got %q", out.Data.ID)
+	}
+}
+
+func TestBuildsLatestExcludeExpiredSelectsNewestNonExpiredAcrossPages(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const nextBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=2"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds" && req.URL.Query().Get("page") == "":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("sort") != "-uploadedDate" {
+				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+			}
+			if query.Get("filter[expired]") != "false" {
+				t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
+			}
+			body := `{
+				"data":[{"type":"builds","id":"build-non-expired-older","attributes":{"version":"100","uploadedDate":"2026-01-10T00:00:00Z","expired":false}}],
+				"links":{"next":"` + nextBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == nextBuildsURL:
+			body := `{
+				"data":[{"type":"builds","id":"build-non-expired-newest","attributes":{"version":"101","uploadedDate":"2026-01-20T00:00:00Z","expired":false}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--exclude-expired"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var out struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout: %s", err, stdout)
+	}
+	if out.Data.ID != "build-non-expired-newest" {
+		t.Fatalf("expected latest build id build-non-expired-newest, got %q", out.Data.ID)
 	}
 }
