@@ -876,6 +876,23 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			// Check if the subscription already has prices.
+			// New subscriptions without prices require PATCH /v1/subscriptions/{id}
+			// with inline price resources, while subscriptions that already have
+			// prices use POST /v1/subscriptionPrices for price changes.
+			existingPrices, pricesErr := client.GetSubscriptionPricesRelationships(requestCtx, id)
+			hasExistingPrices := pricesErr == nil && len(existingPrices.Data) > 0
+
+			if !hasExistingPrices {
+				// Initial price: use PATCH with inline resources
+				subResp, err := client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint)
+				if err != nil {
+					return fmt.Errorf("subscriptions prices add: failed to set initial price: %w", err)
+				}
+				return shared.PrintOutput(subResp, *output.Output, *output.Pretty)
+			}
+
+			// Existing prices: use POST /v1/subscriptionPrices for a price change
 			attrs := asc.SubscriptionPriceCreateAttributes{
 				StartDate: strings.TrimSpace(*startDate),
 			}
