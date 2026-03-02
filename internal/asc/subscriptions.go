@@ -124,13 +124,15 @@ type SubscriptionUpdateRequest struct {
 type SubscriptionPriceInlineCreate struct {
 	Type          ResourceType                         `json:"type"`
 	ID            string                               `json:"id"`
+	Attributes    *SubscriptionPriceCreateAttributes   `json:"attributes,omitempty"`
 	Relationships SubscriptionPriceInlineRelationships `json:"relationships"`
 }
 
 // SubscriptionPriceInlineRelationships describes relationships for an inline price create.
 type SubscriptionPriceInlineRelationships struct {
-	Subscription           Relationship `json:"subscription"`
-	SubscriptionPricePoint Relationship `json:"subscriptionPricePoint"`
+	Subscription           Relationship  `json:"subscription"`
+	SubscriptionPricePoint Relationship  `json:"subscriptionPricePoint"`
+	Territory              *Relationship `json:"territory,omitempty"`
 }
 
 // SubscriptionPriceAttributes describes a subscription price resource.

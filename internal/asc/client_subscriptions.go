@@ -241,11 +241,30 @@ func (c *Client) UpdateSubscription(ctx context.Context, subID string, attrs Sub
 // SubscriptionPriceInlineCreate resources, which is the only supported method
 // for setting the first price on a new subscription. POST /v1/subscriptionPrices
 // only works for price *changes* on subscriptions that already have a price.
-func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePointID string) (*SubscriptionResponse, error) {
+func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionResponse, error) {
 	subID = strings.TrimSpace(subID)
 	pricePointID = strings.TrimSpace(pricePointID)
+	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
 	if subID == "" || pricePointID == "" {
 		return nil, fmt.Errorf("subscription ID and price point ID are required")
+	}
+
+	var attributes *SubscriptionPriceCreateAttributes
+	if attrs.StartDate != "" || attrs.Preserved != nil {
+		attributes = &attrs
+	}
+
+	relationships := SubscriptionPriceInlineRelationships{
+		Subscription:           Relationship{Data: ResourceData{Type: ResourceTypeSubscriptions, ID: subID}},
+		SubscriptionPricePoint: Relationship{Data: ResourceData{Type: ResourceTypeSubscriptionPricePoints, ID: pricePointID}},
+	}
+	if territoryID != "" {
+		relationships.Territory = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeTerritories,
+				ID:   territoryID,
+			},
+		}
 	}
 
 	inlinePriceID := "${price-1}"
@@ -263,12 +282,10 @@ func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePo
 		},
 		Included: []SubscriptionPriceInlineCreate{
 			{
-				Type: ResourceTypeSubscriptionPrices,
-				ID:   inlinePriceID,
-				Relationships: SubscriptionPriceInlineRelationships{
-					Subscription:           Relationship{Data: ResourceData{Type: ResourceTypeSubscriptions, ID: subID}},
-					SubscriptionPricePoint: Relationship{Data: ResourceData{Type: ResourceTypeSubscriptionPricePoints, ID: pricePointID}},
-				},
+				Type:          ResourceTypeSubscriptionPrices,
+				ID:            inlinePriceID,
+				Attributes:    attributes,
+				Relationships: relationships,
 			},
 		},
 	}

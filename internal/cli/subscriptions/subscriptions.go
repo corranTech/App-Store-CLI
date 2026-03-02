@@ -886,19 +886,6 @@ Examples:
 			}
 			hasExistingPrices := len(existingPrices.Data) > 0
 
-			if !hasExistingPrices {
-				if strings.TrimSpace(*startDate) != "" || *preserved {
-					fmt.Fprintln(os.Stderr, "Note: --start-date and --preserved are ignored when setting the initial price")
-				}
-				// Initial price: use PATCH with inline resources
-				subResp, err := client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint)
-				if err != nil {
-					return fmt.Errorf("subscriptions prices add: failed to set initial price: %w", err)
-				}
-				return shared.PrintOutput(subResp, *output.Output, *output.Pretty)
-			}
-
-			// Existing prices: use POST /v1/subscriptionPrices for a price change
 			attrs := asc.SubscriptionPriceCreateAttributes{
 				StartDate: strings.TrimSpace(*startDate),
 			}
@@ -906,6 +893,16 @@ Examples:
 				attrs.Preserved = preserved
 			}
 
+			if !hasExistingPrices {
+				// Initial price: use PATCH with inline resources
+				subResp, err := client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint, territoryID, attrs)
+				if err != nil {
+					return fmt.Errorf("subscriptions prices add: failed to set initial price: %w", err)
+				}
+				return shared.PrintOutput(subResp, *output.Output, *output.Pretty)
+			}
+
+			// Existing prices: use POST /v1/subscriptionPrices for a price change
 			resp, err := client.CreateSubscriptionPrice(requestCtx, id, pricePoint, territoryID, attrs)
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: failed to create: %w", err)
