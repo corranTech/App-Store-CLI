@@ -340,6 +340,24 @@ type CIWorkflowFull struct {
 	Content json.RawMessage `json:"content"`
 }
 
+// CIWorkflowConfig captures workflow fields surfaced by the web UI.
+// Nested and evolving structures are kept as raw JSON for forward compatibility.
+type CIWorkflowConfig struct {
+	Name                        string          `json:"name"`
+	Description                 string          `json:"description,omitempty"`
+	Disabled                    bool            `json:"disabled"`
+	Locked                      bool            `json:"locked"`
+	XcodeVersion                json.RawMessage `json:"xcode_version,omitempty"`
+	MacOSVersion                json.RawMessage `json:"macos_version,omitempty"`
+	StartConditions             json.RawMessage `json:"start_conditions,omitempty"`
+	Actions                     json.RawMessage `json:"actions,omitempty"`
+	PostActions                 json.RawMessage `json:"post_actions,omitempty"`
+	Clean                       json.RawMessage `json:"clean,omitempty"`
+	ContainerFilePath           string          `json:"container_file_path,omitempty"`
+	Repo                        json.RawMessage `json:"repo,omitempty"`
+	ProductEnvironmentVariables []string        `json:"product_environment_variables,omitempty"`
+}
+
 // CIEncryptionKeyResponse is the response from /auth/keys/client-encryption.
 type CIEncryptionKeyResponse struct {
 	Key string `json:"key"`
@@ -570,4 +588,80 @@ func SetEnvVars(content json.RawMessage, vars []CIEnvironmentVariable) (json.Raw
 		return nil, fmt.Errorf("failed to compact workflow content: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// ExtractWorkflowConfig extracts known workflow configuration fields from raw workflow content.
+func ExtractWorkflowConfig(content json.RawMessage) (*CIWorkflowConfig, error) {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(content, &m); err != nil {
+		return nil, fmt.Errorf("failed to decode workflow content: %w", err)
+	}
+	cfg := &CIWorkflowConfig{
+		Name:              decodeJSONString(m["name"]),
+		Description:       decodeJSONString(m["description"]),
+		Disabled:          decodeJSONBool(m["disabled"]),
+		Locked:            decodeJSONBool(m["locked"]),
+		XcodeVersion:      m["xcode_version"],
+		MacOSVersion:      m["macos_version"],
+		StartConditions:   m["start_conditions"],
+		Actions:           m["actions"],
+		PostActions:       m["post_actions"],
+		Clean:             m["clean"],
+		ContainerFilePath: decodeJSONString(m["container_file_path"]),
+		Repo:              m["repo"],
+	}
+
+	if len(m["product_environment_variables"]) > 0 {
+		var refs []string
+		if err := json.Unmarshal(m["product_environment_variables"], &refs); err == nil {
+			cfg.ProductEnvironmentVariables = refs
+		}
+	}
+
+	return cfg, nil
+}
+
+// SetWorkflowDisabled sets the disabled field on raw workflow content while preserving all other fields.
+func SetWorkflowDisabled(content json.RawMessage, disabled bool) (json.RawMessage, error) {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(content, &m); err != nil {
+		return nil, fmt.Errorf("failed to decode workflow content: %w", err)
+	}
+	if m == nil {
+		return nil, fmt.Errorf("failed to decode workflow content: expected JSON object")
+	}
+
+	disabledJSON, err := json.Marshal(disabled)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal disabled: %w", err)
+	}
+	m["disabled"] = disabledJSON
+
+	result, err := json.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal workflow content: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, result); err != nil {
+		return nil, fmt.Errorf("failed to compact workflow content: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func decodeJSONString(raw json.RawMessage) string {
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
+func decodeJSONBool(raw json.RawMessage) bool {
+	var value bool
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return false
+	}
+	return value
 }

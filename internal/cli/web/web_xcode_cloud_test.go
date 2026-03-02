@@ -65,8 +65,8 @@ func TestWebXcodeCloudCommandHierarchy(t *testing.T) {
 	if cmd.Name != "xcode-cloud" {
 		t.Fatalf("expected command name %q, got %q", "xcode-cloud", cmd.Name)
 	}
-	if len(cmd.Subcommands) != 3 {
-		t.Fatalf("expected 3 subcommands (usage, products, env-vars), got %d", len(cmd.Subcommands))
+	if len(cmd.Subcommands) != 4 {
+		t.Fatalf("expected 4 subcommands (usage, products, workflows, env-vars), got %d", len(cmd.Subcommands))
 	}
 
 	names := map[string]bool{}
@@ -78,6 +78,9 @@ func TestWebXcodeCloudCommandHierarchy(t *testing.T) {
 	}
 	if !names["products"] {
 		t.Fatal("expected 'products' subcommand")
+	}
+	if !names["workflows"] {
+		t.Fatal("expected 'workflows' subcommand")
 	}
 	if !names["env-vars"] {
 		t.Fatal("expected 'env-vars' subcommand")
@@ -145,6 +148,21 @@ func TestWebXcodeCloudSubcommandsResolveSessionWithinTimeoutContext(t *testing.T
 			name:  "products",
 			build: webXcodeCloudProductsCommand,
 			args:  []string{"--apple-id", "user@example.com"},
+		},
+		{
+			name:  "workflows describe",
+			build: webXcodeCloudWorkflowDescribeCommand,
+			args:  []string{"--apple-id", "user@example.com", "--product-id", "prod-123", "--workflow-id", "wf-123"},
+		},
+		{
+			name:  "workflows enable",
+			build: webXcodeCloudWorkflowEnableCommand,
+			args:  []string{"--apple-id", "user@example.com", "--product-id", "prod-123", "--workflow-id", "wf-123"},
+		},
+		{
+			name:  "workflows disable",
+			build: webXcodeCloudWorkflowDisableCommand,
+			args:  []string{"--apple-id", "user@example.com", "--product-id", "prod-123", "--workflow-id", "wf-123", "--confirm"},
 		},
 	}
 
