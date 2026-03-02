@@ -1955,3 +1955,104 @@ func TestBuildsLatestReturnsBestFetchedCandidateWhenLaterProbeFails(t *testing.T
 		t.Fatalf("expected exactly 3 build page requests, got %d", requestCount)
 	}
 }
+
+func TestBuildsLatestKeepsScanningAfterAnomalyUntilPaginationExhausted(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const secondBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=2"
+	const thirdBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=3"
+	const fourthBuildsURL = "https://api.appstoreconnect.apple.com/v1/builds?page=4"
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds" && req.URL.Query().Get("page") == "":
+			body := `{
+				"data":[{"type":"builds","id":"build-page1-older","attributes":{"version":"10","uploadedDate":"2026-01-01T00:00:00Z"}}],
+				"links":{"next":"` + secondBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == secondBuildsURL:
+			// Anomaly: page 2 contains a newer build than page 1.
+			body := `{
+				"data":[{"type":"builds","id":"build-page2-newer","attributes":{"version":"11","uploadedDate":"2026-02-01T00:00:00Z"}}],
+				"links":{"next":"` + thirdBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == thirdBuildsURL:
+			// Non-monotonic ordering: this page is older, but pagination continues.
+			body := `{
+				"data":[{"type":"builds","id":"build-page3-older","attributes":{"version":"10","uploadedDate":"2026-01-15T00:00:00Z"}}],
+				"links":{"next":"` + fourthBuildsURL + `"}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.String() == fourthBuildsURL:
+			body := `{
+				"data":[{"type":"builds","id":"build-page4-newest","attributes":{"version":"12","uploadedDate":"2026-03-01T00:00:00Z"}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var out struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout: %s", err, stdout)
+	}
+	if out.Data.ID != "build-page4-newest" {
+		t.Fatalf("expected latest build id build-page4-newest, got %q", out.Data.ID)
+	}
+	if requestCount != 4 {
+		t.Fatalf("expected exactly 4 build page requests, got %d", requestCount)
+	}
+}

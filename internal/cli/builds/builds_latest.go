@@ -427,11 +427,10 @@ func findMostRecentlyUploadedBuild(
 			if !pageHadNewer {
 				break
 			}
-			// If a later page is newer than page 1, keep scanning until ordering
-			// stabilizes or we hit the safety cap.
+			// If a later page is newer than page 1, ordering is inconsistent.
+			// Continue scanning remaining pages until pagination exhausts or
+			// we hit the safety cap so non-monotonic sequences are handled.
 			anomalyDetected = true
-		} else if !pageHadNewer {
-			break
 		}
 
 		pageLinks := nextPage.GetLinks()
