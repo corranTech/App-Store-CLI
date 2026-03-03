@@ -338,25 +338,15 @@ Examples:
 				}
 			}
 
-			attrs := asc.AppStoreVersionLocalizationAttributes{}
-			if descriptionValue != "" {
-				attrs.Description = descriptionValue
-			}
-			if keywordsValue != "" {
-				attrs.Keywords = keywordsValue
-			}
-			if supportURLValue != "" {
-				attrs.SupportURL = supportURLValue
-			}
-			if marketingURLValue != "" {
-				attrs.MarketingURL = marketingURLValue
-			}
-			if promotionalTextValue != "" {
-				attrs.PromotionalText = promotionalTextValue
-			}
-			if whatsNewValue != "" {
-				attrs.WhatsNew = whatsNewValue
-			}
+			attrs := applyAppInfoSetValues(
+				asc.AppStoreVersionLocalizationAttributes{},
+				descriptionValue,
+				keywordsValue,
+				supportURLValue,
+				marketingURLValue,
+				promotionalTextValue,
+				whatsNewValue,
+			)
 
 			effectiveAttributes := asc.AppStoreVersionLocalizationAttributes{Locale: localeValue}
 			if targetExists {
