@@ -1,5 +1,12 @@
 [
   {
+    "app": "Pickle Rite",
+    "link": "https://apps.apple.com/us/app/pickle-rite/id6754095362",
+    "creator": "Badarinath VM",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/cb/8f/0b/cb8f0b7e-ba14-a1cf-49ef-09c64d9ce87e/AppIcon-0-0-1x_U007ephone-0-1-0-85-220.png/512x512bb.jpg",
+    "platform": ["iOS", "watchOS"]
+  },
+  {
     "app": "bijou.fm",
     "link": "https://apps.apple.com/us/app/bijou-fm-for-last-fm/id6450460066",
     "creator": "zchwyng",
