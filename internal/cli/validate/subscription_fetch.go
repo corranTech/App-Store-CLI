@@ -83,7 +83,7 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 				State:                attrs.State,
 				GroupID:              groupID,
 				HasImage:             imageStatus.HasImage,
-				ImageCheckSkipped:    imageStatus.Verified == false,
+				ImageCheckSkipped:    !imageStatus.Verified,
 				ImageCheckSkipReason: imageStatus.SkipReason,
 			})
 		}
