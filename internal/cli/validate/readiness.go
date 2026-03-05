@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -207,29 +208,47 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		return validation.Report{}, err
 	}
 
+	subscriptions := make([]validation.Subscription, 0)
+	subscriptionFetchSkipReason := ""
+	fetchedSubscriptions, err := fetchSubscriptionsFn(ctx, client, opts.AppID)
+	if err != nil {
+		switch {
+		case errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err):
+			subscriptionFetchSkipReason = "Subscription readiness checks were skipped because this App Store Connect account cannot read subscription resources"
+		case asc.IsRetryable(err):
+			subscriptionFetchSkipReason = "Subscription readiness checks were skipped because the App Store Connect subscription endpoints were temporarily unavailable or rate limited"
+		default:
+			return validation.Report{}, fmt.Errorf("failed to fetch subscriptions: %w", err)
+		}
+	} else {
+		subscriptions = fetchedSubscriptions
+	}
+
 	platform := strings.TrimSpace(opts.Platform)
 	if platform == "" {
 		platform = string(versionResp.Data.Attributes.Platform)
 	}
 
 	report := validation.Validate(validation.Input{
-		AppID:                opts.AppID,
-		AppInfoID:            appInfoID,
-		VersionID:            resolvedVersionID,
-		VersionString:        versionResp.Data.Attributes.VersionString,
-		VersionState:         shared.ResolveAppStoreVersionState(versionResp.Data.Attributes),
-		Platform:             platform,
-		PrimaryLocale:        appResp.Data.Attributes.PrimaryLocale,
-		VersionLocalizations: versionLocalizations,
-		AppInfoLocalizations: appInfoLocalizations,
-		ReviewDetails:        reviewDetails,
-		PrimaryCategoryID:    primaryCategoryID,
-		Build:                attachedBuild,
-		PriceScheduleID:      priceScheduleID,
-		AvailabilityID:       availabilityID,
-		AvailableTerritories: availableTerritories,
-		ScreenshotSets:       screenshotSets,
-		AgeRatingDeclaration: ageRatingDecl,
+		AppID:                       opts.AppID,
+		AppInfoID:                   appInfoID,
+		VersionID:                   resolvedVersionID,
+		VersionString:               versionResp.Data.Attributes.VersionString,
+		VersionState:                shared.ResolveAppStoreVersionState(versionResp.Data.Attributes),
+		Platform:                    platform,
+		PrimaryLocale:               appResp.Data.Attributes.PrimaryLocale,
+		VersionLocalizations:        versionLocalizations,
+		AppInfoLocalizations:        appInfoLocalizations,
+		ReviewDetails:               reviewDetails,
+		PrimaryCategoryID:           primaryCategoryID,
+		Build:                       attachedBuild,
+		PriceScheduleID:             priceScheduleID,
+		AvailabilityID:              availabilityID,
+		AvailableTerritories:        availableTerritories,
+		ScreenshotSets:              screenshotSets,
+		Subscriptions:               subscriptions,
+		SubscriptionFetchSkipReason: subscriptionFetchSkipReason,
+		AgeRatingDeclaration:        ageRatingDecl,
 	}, opts.Strict)
 
 	return report, nil
