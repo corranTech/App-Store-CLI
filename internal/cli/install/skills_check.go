@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -63,14 +64,16 @@ func MaybeCheckForSkillUpdates(ctx context.Context) {
 	defer cancel()
 
 	output, runErr := runSkillsCheckCommand(checkCtx)
-
-	// Persist the check timestamp regardless of check result to avoid repeated
-	// invocation overhead during failures.
-	_ = persistSkillsCheckedAtForCheck(now.Format(skillsCheckedAtLayout))
-
 	if runErr != nil {
+		// Avoid suppressing future checks when the command never actually ran due
+		// to cancellation or timeout in the parent context.
+		if !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
+			_ = persistSkillsCheckedAtForCheck(now.Format(skillsCheckedAtLayout))
+		}
 		return
 	}
+
+	_ = persistSkillsCheckedAtForCheck(now.Format(skillsCheckedAtLayout))
 	if !skillsOutputHasUpdates(output) {
 		return
 	}

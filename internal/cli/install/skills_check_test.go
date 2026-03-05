@@ -164,6 +164,77 @@ func TestMaybeCheckForSkillUpdates_SkipsWhenCheckedRecently(t *testing.T) {
 	}
 }
 
+func TestMaybeCheckForSkillUpdates_DoesNotPersistWhenCheckCanceled(t *testing.T) {
+	origLoad := loadConfigForSkillsCheck
+	origPersist := persistSkillsCheckedAtForCheck
+	origNow := nowForSkillsCheck
+	origRun := runSkillsCheckCommand
+	origProgress := progressEnabledForCheck
+	t.Cleanup(func() {
+		loadConfigForSkillsCheck = origLoad
+		persistSkillsCheckedAtForCheck = origPersist
+		nowForSkillsCheck = origNow
+		runSkillsCheckCommand = origRun
+		progressEnabledForCheck = origProgress
+	})
+
+	t.Setenv(skillsAutoCheckEnvVar, "true")
+	t.Setenv("CI", "")
+	loadConfigForSkillsCheck = func() (*config.Config, error) { return &config.Config{}, nil }
+	nowForSkillsCheck = func() time.Time { return time.Date(2026, 3, 5, 16, 0, 0, 0, time.UTC) }
+	progressEnabledForCheck = func() bool { return true }
+	runSkillsCheckCommand = func(ctx context.Context) (string, error) {
+		return "", context.Canceled
+	}
+
+	persistCalled := false
+	persistSkillsCheckedAtForCheck = func(value string) error {
+		persistCalled = true
+		return nil
+	}
+
+	MaybeCheckForSkillUpdates(context.Background())
+	if persistCalled {
+		t.Fatal("expected canceled check not to persist timestamp")
+	}
+}
+
+func TestMaybeCheckForSkillUpdates_PersistsOnNonContextFailure(t *testing.T) {
+	origLoad := loadConfigForSkillsCheck
+	origPersist := persistSkillsCheckedAtForCheck
+	origNow := nowForSkillsCheck
+	origRun := runSkillsCheckCommand
+	origProgress := progressEnabledForCheck
+	t.Cleanup(func() {
+		loadConfigForSkillsCheck = origLoad
+		persistSkillsCheckedAtForCheck = origPersist
+		nowForSkillsCheck = origNow
+		runSkillsCheckCommand = origRun
+		progressEnabledForCheck = origProgress
+	})
+
+	t.Setenv(skillsAutoCheckEnvVar, "true")
+	t.Setenv("CI", "")
+	loadConfigForSkillsCheck = func() (*config.Config, error) { return &config.Config{}, nil }
+	fixedNow := time.Date(2026, 3, 5, 17, 0, 0, 0, time.UTC)
+	nowForSkillsCheck = func() time.Time { return fixedNow }
+	progressEnabledForCheck = func() bool { return true }
+	runSkillsCheckCommand = func(ctx context.Context) (string, error) {
+		return "", errors.New("exec failure")
+	}
+
+	savedAt := ""
+	persistSkillsCheckedAtForCheck = func(value string) error {
+		savedAt = strings.TrimSpace(value)
+		return nil
+	}
+
+	MaybeCheckForSkillUpdates(context.Background())
+	if savedAt != fixedNow.Format(skillsCheckedAtLayout) {
+		t.Fatalf("expected persistence on non-context failure, got %q", savedAt)
+	}
+}
+
 func TestMaybeCheckForSkillUpdates_SkipsWhenDisabled(t *testing.T) {
 	origLoad := loadConfigForSkillsCheck
 	origProgress := progressEnabledForCheck
