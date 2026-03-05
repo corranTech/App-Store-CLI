@@ -435,43 +435,54 @@ func TestGetAppStoreVersionAppClipDefaultExperience_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestGetAppStoreVersionExperimentsV2ForVersion_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersions/version-1/appStoreVersionExperimentsV2" {
-			t.Fatalf("expected path /v1/appStoreVersions/version-1/appStoreVersionExperimentsV2, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "12" {
-			t.Fatalf("expected limit=12, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppStoreVersionExperimentsV2ForVersion(context.Background(), "version-1", WithAppStoreVersionExperimentsV2Limit(12)); err != nil {
-		t.Fatalf("GetAppStoreVersionExperimentsV2ForVersion() error: %v", err)
+func TestAppStoreVersionListEndpoints_WithLimit(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name  string
+		path  string
+		limit string
+		call  func(*Client) error
+	}{
+		{
+			name:  "GetAppStoreVersionExperimentsV2ForVersion",
+			path:  "/v1/appStoreVersions/version-1/appStoreVersionExperimentsV2",
+			limit: "12",
+			call: func(c *Client) error {
+				_, err := c.GetAppStoreVersionExperimentsV2ForVersion(ctx, "version-1", WithAppStoreVersionExperimentsV2Limit(12))
+				return err
+			},
+		},
+		{
+			name:  "GetAppStoreVersionCustomerReviews",
+			path:  "/v1/appStoreVersions/version-1/customerReviews",
+			limit: "5",
+			call: func(c *Client) error {
+				_, err := c.GetAppStoreVersionCustomerReviews(ctx, "version-1", WithLimit(5))
+				return err
+			},
+		},
 	}
-}
 
-func TestGetAppStoreVersionCustomerReviews_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersions/version-1/customerReviews" {
-			t.Fatalf("expected path /v1/appStoreVersions/version-1/customerReviews, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != tt.path {
+					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
+				}
+				if req.URL.Query().Get("limit") != tt.limit {
+					t.Fatalf("expected limit=%s, got %q", tt.limit, req.URL.Query().Get("limit"))
+				}
+				assertAuthorized(t, req)
+			}, jsonResponse(http.StatusOK, `{"data":[]}`))
 
-	if _, err := client.GetAppStoreVersionCustomerReviews(context.Background(), "version-1", WithLimit(5)); err != nil {
-		t.Fatalf("GetAppStoreVersionCustomerReviews() error: %v", err)
+			if err := tt.call(client); err != nil {
+				t.Fatalf("%s() error: %v", tt.name, err)
+			}
+		})
 	}
 }
 
