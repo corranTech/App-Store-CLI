@@ -62,6 +62,265 @@ func assertAuthorized(t *testing.T, req *http.Request) {
 	}
 }
 
+func TestListEndpoints_UseNextURL(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name string
+		next string
+		call func(*Client, string) error
+	}{
+		{
+			name: "GetApps",
+			next: "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetApps(ctx, WithAppsLimit(5), WithAppsSort("name"), WithAppsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetAppTags",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/123/appTags?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetAppTags(ctx, "123", WithAppTagsLimit(5), WithAppTagsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetAppTagTerritories",
+			next: "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetAppTagTerritories(ctx, "tag-1", WithTerritoriesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetSubscriptionOfferCodeOneTimeUseCodes",
+			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetSubscriptionOfferCodeCustomCodes",
+			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "123", WithSubscriptionOfferCodeCustomCodesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetSubscriptionOfferCodePrices",
+			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetSubscriptionOfferCodePrices(ctx, "123", WithSubscriptionOfferCodePricesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetBuilds",
+			next: "https://api.appstoreconnect.apple.com/v1/builds?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetBuilds(ctx, "123", WithBuildsLimit(5), WithBuildsSort("uploadedDate"), WithBuildsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetAppStoreVersions",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/123/appStoreVersions?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetAppStoreVersions(ctx, "123", WithAppStoreVersionsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetPreReleaseVersions",
+			next: "https://api.appstoreconnect.apple.com/v1/preReleaseVersions?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetPreReleaseVersions(ctx, "123", WithPreReleaseVersionsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetBetaGroups",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/123/betaGroups?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetBetaGroups(ctx, "123", WithBetaGroupsLimit(5), WithBetaGroupsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetBetaGroupBuilds",
+			next: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetBetaGroupBuilds(ctx, "group-1", WithBetaGroupBuildsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetBetaGroupTesters",
+			next: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetBetaGroupTesters(ctx, "group-1", WithBetaGroupTestersNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetBetaTesters",
+			next: "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetBetaTesters(ctx, "123", WithBetaTestersLimit(5), WithBetaTestersNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetCiWorkflows",
+			next: "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/workflows?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetCiWorkflows(ctx, "prod-1", WithCiWorkflowsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetScmProviders",
+			next: "https://api.appstoreconnect.apple.com/v1/scmProviders?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetScmProviders(ctx, WithScmProvidersNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetScmRepositories",
+			next: "https://api.appstoreconnect.apple.com/v1/scmRepositories?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetScmRepositories(ctx, WithScmRepositoriesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetBundleIDs",
+			next: "https://api.appstoreconnect.apple.com/v1/bundleIds?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetBundleIDs(ctx, WithBundleIDsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetInAppPurchasesV2",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetInAppPurchasesV2(ctx, "123", WithIAPNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetInAppPurchases",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchases?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetInAppPurchases(ctx, "123", WithIAPNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetCertificates",
+			next: "https://api.appstoreconnect.apple.com/v1/certificates?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetCertificates(ctx, WithCertificatesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetProfiles",
+			next: "https://api.appstoreconnect.apple.com/v1/profiles?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetProfiles(ctx, WithProfilesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetSubscriptionGroups",
+			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetSubscriptionGroups(ctx, "app-1", WithSubscriptionGroupsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetUsers",
+			next: "https://api.appstoreconnect.apple.com/v1/users?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetUsers(ctx, WithUsersNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetBetaAppReviewDetails",
+			next: "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetBetaAppReviewDetails(ctx, "app-1", WithBetaAppReviewDetailsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetDevices",
+			next: "https://api.appstoreconnect.apple.com/v1/devices?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetDevices(ctx, WithDevicesNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "GetSubscriptionWinBackOffers",
+			next: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.GetSubscriptionWinBackOffers(ctx, "sub-1", WithWinBackOffersNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "ListBetaGroups",
+			next: "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=abc",
+			call: func(c *Client, next string) error {
+				_, err := c.ListBetaGroups(ctx, WithBetaGroupsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "ListBetaBuildLocalizations",
+			next: "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=xyz",
+			call: func(c *Client, next string) error {
+				_, err := c.ListBetaBuildLocalizations(ctx, WithBetaBuildLocalizationsNextURL(next))
+				return err
+			},
+		},
+		{
+			name: "ListReviewSubmissions",
+			next: "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=def",
+			call: func(c *Client, next string) error {
+				_, err := c.ListReviewSubmissions(ctx, WithReviewSubmissionsNextURL(next))
+				return err
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			response := jsonResponse(http.StatusOK, `{"data":[]}`)
+			client := newTestClient(t, func(req *http.Request) {
+				if req.URL.String() != tt.next {
+					t.Fatalf("expected next URL %q, got %q", tt.next, req.URL.String())
+				}
+				assertAuthorized(t, req)
+			}, response)
+
+			if err := tt.call(client, tt.next); err != nil {
+				t.Fatalf("%s() error: %v", tt.name, err)
+			}
+		})
+	}
+}
+
 func TestGetApps_RateLimitedIncludesRetryAfter(t *testing.T) {
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
@@ -106,21 +365,6 @@ func TestGetApps_WithSortAndLimit(t *testing.T) {
 	}, response)
 
 	if _, err := client.GetApps(context.Background(), WithAppsLimit(10), WithAppsSort("-name")); err != nil {
-		t.Fatalf("GetApps() error: %v", err)
-	}
-}
-
-func TestGetApps_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetApps(context.Background(), WithAppsLimit(5), WithAppsSort("name"), WithAppsNextURL(next)); err != nil {
 		t.Fatalf("GetApps() error: %v", err)
 	}
 }
@@ -223,21 +467,6 @@ func TestGetAppTags_WithFiltersAndSort(t *testing.T) {
 	}
 }
 
-func TestGetAppTags_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/123/appTags?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppTags(context.Background(), "123", WithAppTagsLimit(5), WithAppTagsNextURL(next)); err != nil {
-		t.Fatalf("GetAppTags() error: %v", err)
-	}
-}
-
 func TestGetAppTagTerritories_WithFieldsAndLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA","attributes":{"currency":"USD"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -263,21 +492,6 @@ func TestGetAppTagTerritories_WithFieldsAndLimit(t *testing.T) {
 		WithTerritoriesFields([]string{"currency"}),
 		WithTerritoriesLimit(5),
 	); err != nil {
-		t.Fatalf("GetAppTagTerritories() error: %v", err)
-	}
-}
-
-func TestGetAppTagTerritories_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppTagTerritories(context.Background(), "tag-1", WithTerritoriesNextURL(next)); err != nil {
 		t.Fatalf("GetAppTagTerritories() error: %v", err)
 	}
 }
@@ -516,21 +730,6 @@ func TestGetSubscriptionOfferCodeOneTimeUseCodes_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetSubscriptionOfferCodeOneTimeUseCodes_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(context.Background(), "123", WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next)); err != nil {
-		t.Fatalf("GetSubscriptionOfferCodeOneTimeUseCodes() error: %v", err)
-	}
-}
-
 func TestGetSubscriptionOfferCodeOneTimeUseCode(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"code-1","attributes":{"numberOfCodes":5}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -670,21 +869,6 @@ func TestGetInAppPurchaseOfferCodeOneTimeUseCodeValues(t *testing.T) {
 	}
 	if len(values) != 2 || values[0] != "IAP123" || values[1] != "IAP456" {
 		t.Fatalf("expected codes to parse, got %v", values)
-	}
-}
-
-func TestGetSubscriptionOfferCodeCustomCodes_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionOfferCodeCustomCodes(context.Background(), "123", WithSubscriptionOfferCodeCustomCodesNextURL(next)); err != nil {
-		t.Fatalf("GetSubscriptionOfferCodeCustomCodes() error: %v", err)
 	}
 }
 
@@ -858,21 +1042,6 @@ func TestUpdateSubscriptionOfferCodeOneTimeUseCode_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestGetSubscriptionOfferCodePrices_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionOfferCodePrices(context.Background(), "123", WithSubscriptionOfferCodePricesNextURL(next)); err != nil {
-		t.Fatalf("GetSubscriptionOfferCodePrices() error: %v", err)
-	}
-}
-
 func TestGetBuilds_WithSortAndLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -999,21 +1168,6 @@ func TestGetBuilds_WithProcessingStateFilter(t *testing.T) {
 	}
 	if builds.Data[0].ID != "build-processing" {
 		t.Fatalf("expected build ID build-processing, got %s", builds.Data[0].ID)
-	}
-}
-
-func TestGetBuilds_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/builds?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBuilds(context.Background(), "123", WithBuildsLimit(5), WithBuildsSort("uploadedDate"), WithBuildsNextURL(next)); err != nil {
-		t.Fatalf("GetBuilds() error: %v", err)
 	}
 }
 
@@ -1193,21 +1347,6 @@ func TestGetAppStoreVersions_WithFilters(t *testing.T) {
 	}
 }
 
-func TestGetAppStoreVersions_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/123/appStoreVersions?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppStoreVersions(context.Background(), "123", WithAppStoreVersionsNextURL(next)); err != nil {
-		t.Fatalf("GetAppStoreVersions() error: %v", err)
-	}
-}
-
 func TestGetPreReleaseVersions_WithFilters(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"1","attributes":{"version":"1.0.0","platform":"IOS"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1240,21 +1379,6 @@ func TestGetPreReleaseVersions_WithFilters(t *testing.T) {
 		WithPreReleaseVersionsPlatform("ios"),
 		WithPreReleaseVersionsVersion("1.0.0"),
 	); err != nil {
-		t.Fatalf("GetPreReleaseVersions() error: %v", err)
-	}
-}
-
-func TestGetPreReleaseVersions_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/preReleaseVersions?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetPreReleaseVersions(context.Background(), "123", WithPreReleaseVersionsNextURL(next)); err != nil {
 		t.Fatalf("GetPreReleaseVersions() error: %v", err)
 	}
 }
@@ -1540,21 +1664,6 @@ func TestGetBetaGroups_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetBetaGroups_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/123/betaGroups?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBetaGroups(context.Background(), "123", WithBetaGroupsLimit(5), WithBetaGroupsNextURL(next)); err != nil {
-		t.Fatalf("GetBetaGroups() error: %v", err)
-	}
-}
-
 func TestGetBetaGroupBuilds_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1576,21 +1685,6 @@ func TestGetBetaGroupBuilds_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetBetaGroupBuilds_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBetaGroupBuilds(context.Background(), "group-1", WithBetaGroupBuildsNextURL(next)); err != nil {
-		t.Fatalf("GetBetaGroupBuilds() error: %v", err)
-	}
-}
-
 func TestGetBetaGroupTesters_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1608,21 +1702,6 @@ func TestGetBetaGroupTesters_WithLimit(t *testing.T) {
 	}, response)
 
 	if _, err := client.GetBetaGroupTesters(context.Background(), "group-1", WithBetaGroupTestersLimit(20)); err != nil {
-		t.Fatalf("GetBetaGroupTesters() error: %v", err)
-	}
-}
-
-func TestGetBetaGroupTesters_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBetaGroupTesters(context.Background(), "group-1", WithBetaGroupTestersNextURL(next)); err != nil {
 		t.Fatalf("GetBetaGroupTesters() error: %v", err)
 	}
 }
@@ -1693,21 +1772,6 @@ func TestGetBetaTesters_WithBuildFilter(t *testing.T) {
 		WithBetaTestersEmail("tester@example.com"),
 		WithBetaTestersBuildID("build-1"),
 	); err != nil {
-		t.Fatalf("GetBetaTesters() error: %v", err)
-	}
-}
-
-func TestGetBetaTesters_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBetaTesters(context.Background(), "123", WithBetaTestersLimit(5), WithBetaTestersNextURL(next)); err != nil {
 		t.Fatalf("GetBetaTesters() error: %v", err)
 	}
 }
@@ -4472,21 +4536,6 @@ func TestDeleteCiProduct(t *testing.T) {
 	}
 }
 
-func TestGetCiWorkflows_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/workflows?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetCiWorkflows(context.Background(), "prod-1", WithCiWorkflowsNextURL(next)); err != nil {
-		t.Fatalf("GetCiWorkflows() error: %v", err)
-	}
-}
-
 func TestGetCiWorkflow(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciWorkflows","id":"wf-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -4593,21 +4642,6 @@ func TestGetScmProviders_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetScmProviders_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/scmProviders?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetScmProviders(context.Background(), WithScmProvidersNextURL(next)); err != nil {
-		t.Fatalf("GetScmProviders() error: %v", err)
-	}
-}
-
 func TestGetScmProvider(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"scmProviders","id":"provider-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -4661,21 +4695,6 @@ func TestGetScmRepositories_WithLimit(t *testing.T) {
 	}, response)
 
 	if _, err := client.GetScmRepositories(context.Background(), WithScmRepositoriesLimit(10)); err != nil {
-		t.Fatalf("GetScmRepositories() error: %v", err)
-	}
-}
-
-func TestGetScmRepositories_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/scmRepositories?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetScmRepositories(context.Background(), WithScmRepositoriesNextURL(next)); err != nil {
 		t.Fatalf("GetScmRepositories() error: %v", err)
 	}
 }
@@ -5552,36 +5571,6 @@ func TestGetBundleIDs_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetBundleIDs_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/bundleIds?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBundleIDs(context.Background(), WithBundleIDsNextURL(next)); err != nil {
-		t.Fatalf("GetBundleIDs() error: %v", err)
-	}
-}
-
-func TestGetInAppPurchasesV2_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchasesV2(context.Background(), "123", WithIAPNextURL(next)); err != nil {
-		t.Fatalf("GetInAppPurchasesV2() error: %v", err)
-	}
-}
-
 func TestGetInAppPurchases_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -5598,21 +5587,6 @@ func TestGetInAppPurchases_WithLimit(t *testing.T) {
 	}, response)
 
 	if _, err := client.GetInAppPurchases(context.Background(), "123", WithIAPLimit(10)); err != nil {
-		t.Fatalf("GetInAppPurchases() error: %v", err)
-	}
-}
-
-func TestGetInAppPurchases_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchases?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetInAppPurchases(context.Background(), "123", WithIAPNextURL(next)); err != nil {
 		t.Fatalf("GetInAppPurchases() error: %v", err)
 	}
 }
@@ -6206,21 +6180,6 @@ func TestGetCertificates_WithFilter(t *testing.T) {
 	}
 }
 
-func TestGetCertificates_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/certificates?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetCertificates(context.Background(), WithCertificatesNextURL(next)); err != nil {
-		t.Fatalf("GetCertificates() error: %v", err)
-	}
-}
-
 func TestCreateCertificate_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -6447,21 +6406,6 @@ func TestGetProfiles_WithFilter(t *testing.T) {
 		WithProfilesTypes([]string{"IOS_APP_DEVELOPMENT", "IOS_APP_STORE"}),
 		WithProfilesLimit(5),
 	); err != nil {
-		t.Fatalf("GetProfiles() error: %v", err)
-	}
-}
-
-func TestGetProfiles_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/profiles?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfiles(context.Background(), WithProfilesNextURL(next)); err != nil {
 		t.Fatalf("GetProfiles() error: %v", err)
 	}
 }
@@ -6889,21 +6833,6 @@ func TestGetSubscriptionGroups_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetSubscriptionGroups_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionGroups(context.Background(), "app-1", WithSubscriptionGroupsNextURL(next)); err != nil {
-		t.Fatalf("GetSubscriptionGroups() error: %v", err)
-	}
-}
-
 func TestCreateSubscriptionGroup(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -7309,21 +7238,6 @@ func TestGetUsers_WithFiltersAndLimit(t *testing.T) {
 	}
 }
 
-func TestGetUsers_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/users?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetUsers(context.Background(), WithUsersNextURL(next)); err != nil {
-		t.Fatalf("GetUsers() error: %v", err)
-	}
-}
-
 func TestUpdateUser_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"username":"user@example.com","roles":["ADMIN"],"allAppsVisible":false,"provisioningAllowed":false}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -7584,21 +7498,6 @@ func TestGetBetaAppReviewDetails_WithAppFilter(t *testing.T) {
 	}, response)
 
 	if _, err := client.GetBetaAppReviewDetails(context.Background(), "app-1", WithBetaAppReviewDetailsLimit(10)); err != nil {
-		t.Fatalf("GetBetaAppReviewDetails() error: %v", err)
-	}
-}
-
-func TestGetBetaAppReviewDetails_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBetaAppReviewDetails(context.Background(), "app-1", WithBetaAppReviewDetailsNextURL(next)); err != nil {
 		t.Fatalf("GetBetaAppReviewDetails() error: %v", err)
 	}
 }
@@ -8022,21 +7921,6 @@ func TestGetDevices_WithFiltersAndLimit(t *testing.T) {
 		WithDevicesFields([]string{"name", "udid"}),
 		WithDevicesLimit(5),
 	); err != nil {
-		t.Fatalf("GetDevices() error: %v", err)
-	}
-}
-
-func TestGetDevices_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/devices?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetDevices(context.Background(), WithDevicesNextURL(next)); err != nil {
 		t.Fatalf("GetDevices() error: %v", err)
 	}
 }
@@ -9287,21 +9171,6 @@ func TestGetSubscriptionWinBackOffers_WithLimit(t *testing.T) {
 	}
 }
 
-func TestGetSubscriptionWinBackOffers_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionWinBackOffers(context.Background(), "sub-1", WithWinBackOffersNextURL(next)); err != nil {
-		t.Fatalf("GetSubscriptionWinBackOffers() error: %v", err)
-	}
-}
-
 func TestGetWinBackOffer(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"winBackOffers","id":"offer-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -9678,21 +9547,6 @@ func TestListBetaGroupsGlobal_UsesV1BetaGroupsPath(t *testing.T) {
 	}
 }
 
-func TestListBetaGroupsGlobal_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.ListBetaGroups(context.Background(), WithBetaGroupsNextURL(next)); err != nil {
-		t.Fatalf("ListBetaGroups() error: %v", err)
-	}
-}
-
 func TestListBetaGroupsGlobal_NoOptions(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -9756,21 +9610,6 @@ func TestListBetaBuildLocalizationsGlobal_WithLocaleFilter(t *testing.T) {
 	}
 }
 
-func TestListBetaBuildLocalizationsGlobal_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=xyz"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.ListBetaBuildLocalizations(context.Background(), WithBetaBuildLocalizationsNextURL(next)); err != nil {
-		t.Fatalf("ListBetaBuildLocalizations() error: %v", err)
-	}
-}
-
 func TestListReviewSubmissionsGlobal_UsesV1ReviewSubmissionsPath(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -9824,21 +9663,6 @@ func TestListReviewSubmissionsGlobal_WithFilters(t *testing.T) {
 		WithReviewSubmissionsPlatforms([]string{"IOS"}),
 		WithReviewSubmissionsStates([]string{"READY_FOR_REVIEW"}),
 	); err != nil {
-		t.Fatalf("ListReviewSubmissions() error: %v", err)
-	}
-}
-
-func TestListReviewSubmissionsGlobal_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=def"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.ListReviewSubmissions(context.Background(), WithReviewSubmissionsNextURL(next)); err != nil {
 		t.Fatalf("ListReviewSubmissions() error: %v", err)
 	}
 }
