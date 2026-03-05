@@ -128,6 +128,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `builds` - Manage builds (TestFlight/App Store).
 - `build-bundles` - Manage build bundles and App Clip data.
 - `publish` - End-to-end publish workflows for TestFlight and App Store.
+- `release` - Run high-level App Store release workflows.
 - `workflow` - Run multi-step automation workflows.
 - `versions` - Manage App Store versions.
 - `product-pages` - Manage custom product pages and product page experiments.

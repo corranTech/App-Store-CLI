@@ -50,7 +50,7 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 	{
 		title:    "REVIEW & RELEASE COMMANDS",
-		commands: []string{"review", "reviews", "submit", "validate", "publish"},
+		commands: []string{"review", "reviews", "submit", "validate", "publish", "release"},
 	},
 	{
 		title:    "MONETIZATION COMMANDS",
