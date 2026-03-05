@@ -1933,77 +1933,131 @@ func TestUpdateBetaGroup_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestDeleteBetaGroup_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaGroups/bg1" {
-			t.Fatalf("expected path /v1/betaGroups/bg1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
+func TestBetaDeletionEndpoints_SendsRequest(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name string
+		path string
+		call func(*Client) error
+	}{
+		{
+			name: "DeleteBetaGroup",
+			path: "/v1/betaGroups/bg1",
+			call: func(c *Client) error {
+				return c.DeleteBetaGroup(ctx, "bg1")
+			},
+		},
+		{
+			name: "DeleteBetaTester",
+			path: "/v1/betaTesters/bt-1",
+			call: func(c *Client) error {
+				return c.DeleteBetaTester(ctx, "bt-1")
+			},
+		},
+		{
+			name: "DeleteBetaFeedbackCrashSubmission",
+			path: "/v1/betaFeedbackCrashSubmissions/sub-1",
+			call: func(c *Client) error {
+				return c.DeleteBetaFeedbackCrashSubmission(ctx, "sub-1")
+			},
+		},
+		{
+			name: "DeleteBetaFeedbackScreenshotSubmission",
+			path: "/v1/betaFeedbackScreenshotSubmissions/sub-1",
+			call: func(c *Client) error {
+				return c.DeleteBetaFeedbackScreenshotSubmission(ctx, "sub-1")
+			},
+		},
+	}
 
-	if err := client.DeleteBetaGroup(context.Background(), "bg1"); err != nil {
-		t.Fatalf("DeleteBetaGroup() error: %v", err)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			response := jsonResponse(http.StatusNoContent, "")
+			client := newTestClient(t, func(req *http.Request) {
+				if req.Method != http.MethodDelete {
+					t.Fatalf("expected DELETE, got %s", req.Method)
+				}
+				if req.URL.Path != tt.path {
+					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
+				}
+				assertAuthorized(t, req)
+			}, response)
+
+			if err := tt.call(client); err != nil {
+				t.Fatalf("%s() error: %v", tt.name, err)
+			}
+		})
 	}
 }
 
-func TestAddBetaTestersToGroup_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaGroups/bg1/relationships/betaTesters" {
-			t.Fatalf("expected path /v1/betaGroups/bg1/relationships/betaTesters, got %s", req.URL.Path)
-		}
-		var payload RelationshipRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 tester relationships, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBetaTesters || payload.Data[0].ID != "tester-1" {
-			t.Fatalf("unexpected tester data: %+v", payload.Data[0])
-		}
-		if payload.Data[1].Type != ResourceTypeBetaTesters || payload.Data[1].ID != "tester-2" {
-			t.Fatalf("unexpected tester data: %+v", payload.Data[1])
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.AddBetaTestersToGroup(context.Background(), "bg1", []string{"tester-1", "tester-2"}); err != nil {
-		t.Fatalf("AddBetaTestersToGroup() error: %v", err)
+func TestBetaGroupTesterRelationshipEndpoints_SendsRequest(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name         string
+		method       string
+		path         string
+		resourceType ResourceType
+		ids          []string
+		call         func(*Client) error
+	}{
+		{
+			name:         "AddBetaTestersToGroup",
+			method:       http.MethodPost,
+			path:         "/v1/betaGroups/bg1/relationships/betaTesters",
+			resourceType: ResourceTypeBetaTesters,
+			ids:          []string{"tester-1", "tester-2"},
+			call: func(c *Client) error {
+				return c.AddBetaTestersToGroup(ctx, "bg1", []string{"tester-1", "tester-2"})
+			},
+		},
+		{
+			name:         "RemoveBetaTestersFromGroup",
+			method:       http.MethodDelete,
+			path:         "/v1/betaGroups/bg1/relationships/betaTesters",
+			resourceType: ResourceTypeBetaTesters,
+			ids:          []string{"tester-1"},
+			call: func(c *Client) error {
+				return c.RemoveBetaTestersFromGroup(ctx, "bg1", []string{"tester-1"})
+			},
+		},
 	}
-}
 
-func TestRemoveBetaTestersFromGroup_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaGroups/bg1/relationships/betaTesters" {
-			t.Fatalf("expected path /v1/betaGroups/bg1/relationships/betaTesters, got %s", req.URL.Path)
-		}
-		var payload RelationshipRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if len(payload.Data) != 1 {
-			t.Fatalf("expected 1 tester relationship, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBetaTesters || payload.Data[0].ID != "tester-1" {
-			t.Fatalf("unexpected tester data: %+v", payload.Data[0])
-		}
-		assertAuthorized(t, req)
-	}, response)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			response := jsonResponse(http.StatusNoContent, "")
+			client := newTestClient(t, func(req *http.Request) {
+				if req.Method != tt.method {
+					t.Fatalf("expected %s, got %s", tt.method, req.Method)
+				}
+				if req.URL.Path != tt.path {
+					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
+				}
+				var payload struct {
+					Data []ResourceData `json:"data"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+					t.Fatalf("failed to decode request: %v", err)
+				}
+				if len(payload.Data) != len(tt.ids) {
+					t.Fatalf("expected %d relationships, got %d", len(tt.ids), len(payload.Data))
+				}
+				for i, id := range tt.ids {
+					if payload.Data[i].Type != tt.resourceType {
+						t.Fatalf("expected relationship type %q at index %d, got %q", tt.resourceType, i, payload.Data[i].Type)
+					}
+					if payload.Data[i].ID != id {
+						t.Fatalf("expected relationship id %q at index %d, got %q", id, i, payload.Data[i].ID)
+					}
+				}
+				assertAuthorized(t, req)
+			}, response)
 
-	if err := client.RemoveBetaTestersFromGroup(context.Background(), "bg1", []string{"tester-1"}); err != nil {
-		t.Fatalf("RemoveBetaTestersFromGroup() error: %v", err)
+			if err := tt.call(client); err != nil {
+				t.Fatalf("%s() error: %v", tt.name, err)
+			}
+		})
 	}
 }
 
@@ -2081,258 +2135,117 @@ func TestBetaGroupTesterRelationshipMethods_ErrorResponse(t *testing.T) {
 	}
 }
 
-func TestDeleteBetaTester_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaTesters/bt-1" {
-			t.Fatalf("expected path /v1/betaTesters/bt-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteBetaTester(context.Background(), "bt-1"); err != nil {
-		t.Fatalf("DeleteBetaTester() error: %v", err)
+func TestBetaTesterRelationshipEndpoints_SendsRequest(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name         string
+		method       string
+		path         string
+		resourceType ResourceType
+		ids          []string
+		call         func(*Client) error
+	}{
+		{
+			name:         "AddBetaTesterToGroups",
+			method:       http.MethodPost,
+			path:         "/v1/betaTesters/bt-1/relationships/betaGroups",
+			resourceType: ResourceTypeBetaGroups,
+			ids:          []string{"group-1", "group-2"},
+			call: func(c *Client) error {
+				return c.AddBetaTesterToGroups(ctx, "bt-1", []string{"group-1", "group-2"})
+			},
+		},
+		{
+			name:         "RemoveBetaTesterFromGroups",
+			method:       http.MethodDelete,
+			path:         "/v1/betaTesters/bt-1/relationships/betaGroups",
+			resourceType: ResourceTypeBetaGroups,
+			ids:          []string{"group-1", "group-2"},
+			call: func(c *Client) error {
+				return c.RemoveBetaTesterFromGroups(ctx, "bt-1", []string{"group-1", "group-2"})
+			},
+		},
+		{
+			name:         "RemoveBetaTesterFromApps",
+			method:       http.MethodDelete,
+			path:         "/v1/betaTesters/bt-1/relationships/apps",
+			resourceType: ResourceTypeApps,
+			ids:          []string{"app-1", "app-2"},
+			call: func(c *Client) error {
+				return c.RemoveBetaTesterFromApps(ctx, "bt-1", []string{"app-1", "app-2"})
+			},
+		},
+		{
+			name:         "AddBuildsToBetaTester",
+			method:       http.MethodPost,
+			path:         "/v1/betaTesters/bt-1/relationships/builds",
+			resourceType: ResourceTypeBuilds,
+			ids:          []string{"build-1", "build-2"},
+			call: func(c *Client) error {
+				return c.AddBuildsToBetaTester(ctx, "bt-1", []string{"build-1", "build-2"})
+			},
+		},
+		{
+			name:         "RemoveBuildsFromBetaTester",
+			method:       http.MethodDelete,
+			path:         "/v1/betaTesters/bt-1/relationships/builds",
+			resourceType: ResourceTypeBuilds,
+			ids:          []string{"build-1", "build-2"},
+			call: func(c *Client) error {
+				return c.RemoveBuildsFromBetaTester(ctx, "bt-1", []string{"build-1", "build-2"})
+			},
+		},
+		{
+			name:         "RemoveBetaTestersFromApp",
+			method:       http.MethodDelete,
+			path:         "/v1/apps/app-1/relationships/betaTesters",
+			resourceType: ResourceTypeBetaTesters,
+			ids:          []string{"tester-1", "tester-2"},
+			call: func(c *Client) error {
+				return c.RemoveBetaTestersFromApp(ctx, "app-1", []string{"tester-1", "tester-2"})
+			},
+		},
 	}
-}
 
-func TestDeleteBetaFeedbackCrashSubmission_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaFeedbackCrashSubmissions/sub-1" {
-			t.Fatalf("expected path /v1/betaFeedbackCrashSubmissions/sub-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			response := jsonResponse(http.StatusNoContent, "")
+			client := newTestClient(t, func(req *http.Request) {
+				if req.Method != tt.method {
+					t.Fatalf("expected %s, got %s", tt.method, req.Method)
+				}
+				if req.URL.Path != tt.path {
+					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
+				}
+				body, err := io.ReadAll(req.Body)
+				if err != nil {
+					t.Fatalf("read body error: %v", err)
+				}
+				var payload struct {
+					Data []ResourceData `json:"data"`
+				}
+				if err := json.Unmarshal(body, &payload); err != nil {
+					t.Fatalf("decode body error: %v", err)
+				}
+				if len(payload.Data) != len(tt.ids) {
+					t.Fatalf("expected %d relationships, got %d", len(tt.ids), len(payload.Data))
+				}
+				for i, id := range tt.ids {
+					if payload.Data[i].Type != tt.resourceType {
+						t.Fatalf("expected relationship type %q at index %d, got %q", tt.resourceType, i, payload.Data[i].Type)
+					}
+					if payload.Data[i].ID != id {
+						t.Fatalf("expected relationship id %q at index %d, got %q", id, i, payload.Data[i].ID)
+					}
+				}
+				assertAuthorized(t, req)
+			}, response)
 
-	if err := client.DeleteBetaFeedbackCrashSubmission(context.Background(), "sub-1"); err != nil {
-		t.Fatalf("DeleteBetaFeedbackCrashSubmission() error: %v", err)
-	}
-}
-
-func TestDeleteBetaFeedbackScreenshotSubmission_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaFeedbackScreenshotSubmissions/sub-1" {
-			t.Fatalf("expected path /v1/betaFeedbackScreenshotSubmissions/sub-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteBetaFeedbackScreenshotSubmission(context.Background(), "sub-1"); err != nil {
-		t.Fatalf("DeleteBetaFeedbackScreenshotSubmission() error: %v", err)
-	}
-}
-
-func TestAddBetaTesterToGroups_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/betaGroups" {
-			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/betaGroups, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload RelationshipList
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 beta group relationships, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBetaGroups {
-			t.Fatalf("expected type betaGroups, got %q", payload.Data[0].Type)
-		}
-		if payload.Data[0].ID != "group-1" {
-			t.Fatalf("expected group-1, got %q", payload.Data[0].ID)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.AddBetaTesterToGroups(context.Background(), "bt-1", []string{"group-1", "group-2"}); err != nil {
-		t.Fatalf("AddBetaTesterToGroups() error: %v", err)
-	}
-}
-
-func TestRemoveBetaTesterFromGroups_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/betaGroups" {
-			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/betaGroups, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload RelationshipList
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 beta group relationships, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBetaGroups {
-			t.Fatalf("expected type betaGroups, got %q", payload.Data[0].Type)
-		}
-		if payload.Data[1].ID != "group-2" {
-			t.Fatalf("expected group-2, got %q", payload.Data[1].ID)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.RemoveBetaTesterFromGroups(context.Background(), "bt-1", []string{"group-1", "group-2"}); err != nil {
-		t.Fatalf("RemoveBetaTesterFromGroups() error: %v", err)
-	}
-}
-
-func TestRemoveBetaTesterFromApps_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/apps" {
-			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/apps, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload RelationshipList
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 app relationships, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeApps {
-			t.Fatalf("expected type apps, got %q", payload.Data[0].Type)
-		}
-		if payload.Data[0].ID != "app-1" {
-			t.Fatalf("expected app-1, got %q", payload.Data[0].ID)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.RemoveBetaTesterFromApps(context.Background(), "bt-1", []string{"app-1", "app-2"}); err != nil {
-		t.Fatalf("RemoveBetaTesterFromApps() error: %v", err)
-	}
-}
-
-func TestAddBuildsToBetaTester_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/builds" {
-			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/builds, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload RelationshipList
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 build relationships, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBuilds {
-			t.Fatalf("expected type builds, got %q", payload.Data[0].Type)
-		}
-		if payload.Data[0].ID != "build-1" {
-			t.Fatalf("expected build-1, got %q", payload.Data[0].ID)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.AddBuildsToBetaTester(context.Background(), "bt-1", []string{"build-1", "build-2"}); err != nil {
-		t.Fatalf("AddBuildsToBetaTester() error: %v", err)
-	}
-}
-
-func TestRemoveBuildsFromBetaTester_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaTesters/bt-1/relationships/builds" {
-			t.Fatalf("expected path /v1/betaTesters/bt-1/relationships/builds, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload RelationshipList
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 build relationships, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBuilds {
-			t.Fatalf("expected type builds, got %q", payload.Data[0].Type)
-		}
-		if payload.Data[1].ID != "build-2" {
-			t.Fatalf("expected build-2, got %q", payload.Data[1].ID)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.RemoveBuildsFromBetaTester(context.Background(), "bt-1", []string{"build-1", "build-2"}); err != nil {
-		t.Fatalf("RemoveBuildsFromBetaTester() error: %v", err)
-	}
-}
-
-func TestRemoveBetaTestersFromApp_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/relationships/betaTesters" {
-			t.Fatalf("expected path /v1/apps/app-1/relationships/betaTesters, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload RelationshipRequest
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if len(payload.Data) != 2 {
-			t.Fatalf("expected 2 beta tester relationships, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBetaTesters {
-			t.Fatalf("expected type betaTesters, got %q", payload.Data[0].Type)
-		}
-		if payload.Data[0].ID != "tester-1" {
-			t.Fatalf("expected tester-1, got %q", payload.Data[0].ID)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.RemoveBetaTestersFromApp(context.Background(), "app-1", []string{"tester-1", "tester-2"}); err != nil {
-		t.Fatalf("RemoveBetaTestersFromApp() error: %v", err)
+			if err := tt.call(client); err != nil {
+				t.Fatalf("%s() error: %v", tt.name, err)
+			}
+		})
 	}
 }
 
@@ -6553,185 +6466,221 @@ func TestGetProfiles_UsesNextURL(t *testing.T) {
 	}
 }
 
-func TestGetProfile_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"profiles","id":"p1","attributes":{"name":"Profile","profileType":"IOS_APP_DEVELOPMENT"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1" {
-			t.Fatalf("expected path /v1/profiles/p1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
+func TestGetProfile_SendsRequestVariants(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name      string
+		wantQuery string
+		call      func(*Client) error
+	}{
+		{
+			name: "without include",
+			call: func(c *Client) error {
+				_, err := c.GetProfile(ctx, "p1")
+				return err
+			},
+		},
+		{
+			name:      "with include",
+			wantQuery: "bundleId,certificates",
+			call: func(c *Client) error {
+				_, err := c.GetProfile(ctx, "p1", WithProfilesInclude([]string{"bundleId", "certificates"}))
+				return err
+			},
+		},
+	}
 
-	if _, err := client.GetProfile(context.Background(), "p1"); err != nil {
-		t.Fatalf("GetProfile() error: %v", err)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			response := jsonResponse(http.StatusOK, `{"data":{"type":"profiles","id":"p1","attributes":{"name":"Profile","profileType":"IOS_APP_DEVELOPMENT"}}}`)
+			client := newTestClient(t, func(req *http.Request) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/profiles/p1" {
+					t.Fatalf("expected path /v1/profiles/p1, got %s", req.URL.Path)
+				}
+				if tt.wantQuery != "" && req.URL.Query().Get("include") != tt.wantQuery {
+					t.Fatalf("expected include=%s, got %q", tt.wantQuery, req.URL.Query().Get("include"))
+				}
+				assertAuthorized(t, req)
+			}, response)
+
+			if err := tt.call(client); err != nil {
+				t.Fatalf("GetProfile() error: %v", err)
+			}
+		})
 	}
 }
 
-func TestGetProfile_WithInclude(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"profiles","id":"p1","attributes":{"name":"Profile","profileType":"IOS_APP_DEVELOPMENT"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1" {
-			t.Fatalf("expected path /v1/profiles/p1, got %s", req.URL.Path)
-		}
-		values := req.URL.Query()
-		if values.Get("include") != "bundleId,certificates" {
-			t.Fatalf("expected include=bundleId,certificates, got %q", values.Get("include"))
-		}
-		assertAuthorized(t, req)
-	}, response)
+func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
+	ctx := context.Background()
+	nextCerts := "https://api.appstoreconnect.apple.com/v1/profiles/p1/certificates?cursor=abc"
+	nextDevices := "https://api.appstoreconnect.apple.com/v1/profiles/p1/devices?cursor=abc"
 
-	if _, err := client.GetProfile(context.Background(), "p1", WithProfilesInclude([]string{"bundleId", "certificates"})); err != nil {
-		t.Fatalf("GetProfile() error: %v", err)
+	tests := []struct {
+		name     string
+		response string
+		check    func(*testing.T, *http.Request)
+		call     func(*Client) error
+	}{
+		{
+			name:     "GetProfileBundleID",
+			response: `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Bundle","identifier":"com.example"}}}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/profiles/p1/bundleId" {
+					t.Fatalf("expected path /v1/profiles/p1/bundleId, got %s", req.URL.Path)
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileBundleID(ctx, "p1")
+				return err
+			},
+		},
+		{
+			name:     "GetProfileCertificates",
+			response: `{"data":[{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}]}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/profiles/p1/certificates" {
+					t.Fatalf("expected path /v1/profiles/p1/certificates, got %s", req.URL.Path)
+				}
+				if req.URL.Query().Get("limit") != "5" {
+					t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileCertificates(ctx, "p1", WithProfileCertificatesLimit(5))
+				return err
+			},
+		},
+		{
+			name:     "GetProfileCertificates next URL",
+			response: `{"data":[]}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.URL.String() != nextCerts {
+					t.Fatalf("expected next URL %q, got %q", nextCerts, req.URL.String())
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileCertificates(ctx, "p1", WithProfileCertificatesLimit(5), WithProfileCertificatesNextURL(nextCerts))
+				return err
+			},
+		},
+		{
+			name:     "GetProfileDevices",
+			response: `{"data":[{"type":"devices","id":"d1","attributes":{"name":"Device","platform":"IOS","udid":"UDID","status":"ENABLED"}}]}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/profiles/p1/devices" {
+					t.Fatalf("expected path /v1/profiles/p1/devices, got %s", req.URL.Path)
+				}
+				if req.URL.Query().Get("limit") != "10" {
+					t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileDevices(ctx, "p1", WithProfileDevicesLimit(10))
+				return err
+			},
+		},
+		{
+			name:     "GetProfileDevices next URL",
+			response: `{"data":[]}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.URL.String() != nextDevices {
+					t.Fatalf("expected next URL %q, got %q", nextDevices, req.URL.String())
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileDevices(ctx, "p1", WithProfileDevicesLimit(10), WithProfileDevicesNextURL(nextDevices))
+				return err
+			},
+		},
+		{
+			name:     "GetProfileBundleIDRelationship",
+			response: `{"data":{"type":"bundleIds","id":"b1"}}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/profiles/p1/relationships/bundleId" {
+					t.Fatalf("expected path /v1/profiles/p1/relationships/bundleId, got %s", req.URL.Path)
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileBundleIDRelationship(ctx, "p1")
+				return err
+			},
+		},
+		{
+			name:     "GetProfileCertificatesRelationships",
+			response: `{"data":[{"type":"certificates","id":"c1"}]}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/profiles/p1/relationships/certificates" {
+					t.Fatalf("expected path /v1/profiles/p1/relationships/certificates, got %s", req.URL.Path)
+				}
+				if req.URL.Query().Get("limit") != "2" {
+					t.Fatalf("expected limit=2, got %q", req.URL.Query().Get("limit"))
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileCertificatesRelationships(ctx, "p1", WithLinkagesLimit(2))
+				return err
+			},
+		},
+		{
+			name:     "GetProfileDevicesRelationships",
+			response: `{"data":[{"type":"devices","id":"d1"}]}`,
+			check: func(t *testing.T, req *http.Request) {
+				t.Helper()
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/profiles/p1/relationships/devices" {
+					t.Fatalf("expected path /v1/profiles/p1/relationships/devices, got %s", req.URL.Path)
+				}
+				if req.URL.Query().Get("limit") != "3" {
+					t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
+				}
+			},
+			call: func(c *Client) error {
+				_, err := c.GetProfileDevicesRelationships(ctx, "p1", WithLinkagesLimit(3))
+				return err
+			},
+		},
 	}
-}
 
-func TestGetProfileBundleID_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Bundle","identifier":"com.example"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1/bundleId" {
-			t.Fatalf("expected path /v1/profiles/p1/bundleId, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				tt.check(t, req)
+				assertAuthorized(t, req)
+			}, jsonResponse(http.StatusOK, tt.response))
 
-	if _, err := client.GetProfileBundleID(context.Background(), "p1"); err != nil {
-		t.Fatalf("GetProfileBundleID() error: %v", err)
-	}
-}
-
-func TestGetProfileCertificates_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1/certificates" {
-			t.Fatalf("expected path /v1/profiles/p1/certificates, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfileCertificates(context.Background(), "p1", WithProfileCertificatesLimit(5)); err != nil {
-		t.Fatalf("GetProfileCertificates() error: %v", err)
-	}
-}
-
-func TestGetProfileCertificates_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/profiles/p1/certificates?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfileCertificates(context.Background(), "p1", WithProfileCertificatesLimit(5), WithProfileCertificatesNextURL(next)); err != nil {
-		t.Fatalf("GetProfileCertificates() error: %v", err)
-	}
-}
-
-func TestGetProfileDevices_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"devices","id":"d1","attributes":{"name":"Device","platform":"IOS","udid":"UDID","status":"ENABLED"}}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1/devices" {
-			t.Fatalf("expected path /v1/profiles/p1/devices, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "10" {
-			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfileDevices(context.Background(), "p1", WithProfileDevicesLimit(10)); err != nil {
-		t.Fatalf("GetProfileDevices() error: %v", err)
-	}
-}
-
-func TestGetProfileDevices_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/profiles/p1/devices?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfileDevices(context.Background(), "p1", WithProfileDevicesLimit(10), WithProfileDevicesNextURL(next)); err != nil {
-		t.Fatalf("GetProfileDevices() error: %v", err)
-	}
-}
-
-func TestGetProfileBundleIDRelationship_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"b1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1/relationships/bundleId" {
-			t.Fatalf("expected path /v1/profiles/p1/relationships/bundleId, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfileBundleIDRelationship(context.Background(), "p1"); err != nil {
-		t.Fatalf("GetProfileBundleIDRelationship() error: %v", err)
-	}
-}
-
-func TestGetProfileCertificatesRelationships_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"c1"}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1/relationships/certificates" {
-			t.Fatalf("expected path /v1/profiles/p1/relationships/certificates, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "2" {
-			t.Fatalf("expected limit=2, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfileCertificatesRelationships(context.Background(), "p1", WithLinkagesLimit(2)); err != nil {
-		t.Fatalf("GetProfileCertificatesRelationships() error: %v", err)
-	}
-}
-
-func TestGetProfileDevicesRelationships_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"devices","id":"d1"}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/profiles/p1/relationships/devices" {
-			t.Fatalf("expected path /v1/profiles/p1/relationships/devices, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "3" {
-			t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetProfileDevicesRelationships(context.Background(), "p1", WithLinkagesLimit(3)); err != nil {
-		t.Fatalf("GetProfileDevicesRelationships() error: %v", err)
+			if err := tt.call(client); err != nil {
+				t.Fatalf("%s() error: %v", tt.name, err)
+			}
+		})
 	}
 }
 
