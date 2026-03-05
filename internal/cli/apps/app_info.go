@@ -550,7 +550,6 @@ func buildAppInfoSetBatchResult(appID string, versionID string, dryRun bool, res
 			result.Failed++
 		case "planned":
 			result.Planned++
-			result.Succeeded++
 		default:
 			result.Succeeded++
 		}
