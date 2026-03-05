@@ -17,9 +17,10 @@ import (
 )
 
 type validateSubscriptionsFixture struct {
-	groups               string
-	subscriptionsByGroup map[string]string
-	imagesBySubscription map[string]string
+	groups                    string
+	subscriptionsByGroup      map[string]string
+	imagesBySubscription      map[string]string
+	imageStatusBySubscription map[string]int
 }
 
 func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsFixture) *asc.Client {
@@ -48,6 +49,9 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/images"):
 			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/images")
+			if status, ok := fixture.imageStatusBySubscription[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
 			if body, ok := fixture.imagesBySubscription[subscriptionID]; ok {
 				return jsonResponse(http.StatusOK, body)
 			}
@@ -266,5 +270,45 @@ func TestValidateSubscriptionsWarnsWhenSubscriptionImageMissing(t *testing.T) {
 	}
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+}
+
+func TestValidateSubscriptionsSkipsImageWarningWhenImageEndpointForbidden(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.imageStatusBySubscription = map[string]int{
+		"sub-1": http.StatusForbidden,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected image probe failure to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Summary.Errors != 0 || report.Summary.Warnings != 0 || report.Summary.Infos == 0 {
+		t.Fatalf("expected informational skipped-image check only, got %+v", report.Summary)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.images.recommended") {
+		t.Fatalf("expected no promotional-image recommendation when probe is skipped, got %+v", report.Checks)
+	}
+	if !hasCheckWithID(report.Checks, "subscriptions.images.unverified") {
+		t.Fatalf("expected subscriptions.images.unverified check, got %+v", report.Checks)
 	}
 }

@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,12 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
+
+type subscriptionImageStatus struct {
+	HasImage   bool
+	Verified   bool
+	SkipReason string
+}
 
 func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) ([]validation.Subscription, error) {
 	groupsCtx, groupsCancel := shared.ContextWithTimeout(ctx)
@@ -61,19 +68,21 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 		}
 
 		for _, sub := range subsResult.Data {
-			hasImage, err := subscriptionHasImage(ctx, client, sub.ID)
+			imageStatus, err := subscriptionHasImage(ctx, client, sub.ID)
 			if err != nil {
 				return nil, fmt.Errorf("fetch subscription images for %s: %w", strings.TrimSpace(sub.ID), err)
 			}
 
 			attrs := sub.Attributes
 			subscriptions = append(subscriptions, validation.Subscription{
-				ID:        sub.ID,
-				Name:      attrs.Name,
-				ProductID: attrs.ProductID,
-				State:     attrs.State,
-				GroupID:   groupID,
-				HasImage:  hasImage,
+				ID:                   sub.ID,
+				Name:                 attrs.Name,
+				ProductID:            attrs.ProductID,
+				State:                attrs.State,
+				GroupID:              groupID,
+				HasImage:             imageStatus.HasImage,
+				ImageCheckSkipped:    imageStatus.Verified == false,
+				ImageCheckSkipReason: imageStatus.SkipReason,
 			})
 		}
 	}
@@ -81,17 +90,32 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 	return subscriptions, nil
 }
 
-func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (bool, error) {
+func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (subscriptionImageStatus, error) {
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	resp, err := client.GetSubscriptionImages(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionImagesLimit(1))
 	if err != nil {
 		if asc.IsNotFound(err) {
-			return false, nil
+			return subscriptionImageStatus{Verified: true}, nil
 		}
-		return false, err
+		if errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err) {
+			return subscriptionImageStatus{
+				Verified:   false,
+				SkipReason: "Image verification was skipped because this App Store Connect account cannot read subscription image assets",
+			}, nil
+		}
+		if asc.IsRetryable(err) {
+			return subscriptionImageStatus{
+				Verified:   false,
+				SkipReason: "Image verification was skipped because the App Store Connect image endpoint was temporarily unavailable or rate limited",
+			}, nil
+		}
+		return subscriptionImageStatus{}, err
 	}
 
-	return resp != nil && len(resp.Data) > 0, nil
+	return subscriptionImageStatus{
+		HasImage: resp != nil && len(resp.Data) > 0,
+		Verified: true,
+	}, nil
 }

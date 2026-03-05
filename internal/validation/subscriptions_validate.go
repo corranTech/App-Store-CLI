@@ -7,12 +7,14 @@ import (
 
 // Subscription represents an auto-renewable subscription for review-readiness validation.
 type Subscription struct {
-	ID        string
-	Name      string
-	ProductID string
-	State     string
-	GroupID   string
-	HasImage  bool
+	ID                   string
+	Name                 string
+	ProductID            string
+	State                string
+	GroupID              string
+	HasImage             bool
+	ImageCheckSkipped    bool
+	ImageCheckSkipReason string
 }
 
 // SubscriptionsInput collects subscription validation inputs.
@@ -53,11 +55,27 @@ func subscriptionImageChecks(subs []Subscription) []CheckResult {
 		if state == "REMOVED_FROM_SALE" || state == "DEVELOPER_REMOVED_FROM_SALE" {
 			continue
 		}
+		label := formatSubscriptionLabel(sub)
+		if sub.ImageCheckSkipped {
+			remediation := strings.TrimSpace(sub.ImageCheckSkipReason)
+			if remediation == "" {
+				remediation = "Review this subscription's promotional image in App Store Connect; validation could not verify image presence automatically"
+			}
+			checks = append(checks, CheckResult{
+				ID:           "subscriptions.images.unverified",
+				Severity:     SeverityInfo,
+				Field:        "images",
+				ResourceType: "subscription",
+				ResourceID:   strings.TrimSpace(sub.ID),
+				Message:      fmt.Sprintf("Could not verify whether %s has a subscription promotional image", label),
+				Remediation:  remediation,
+			})
+			continue
+		}
 		if sub.HasImage {
 			continue
 		}
 
-		label := formatSubscriptionLabel(sub)
 		checks = append(checks, CheckResult{
 			ID:           "subscriptions.images.recommended",
 			Severity:     SeverityWarning,

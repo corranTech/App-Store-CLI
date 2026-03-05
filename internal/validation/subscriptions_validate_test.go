@@ -75,3 +75,21 @@ func TestSubscriptionImageChecks_IgnoresRemovedFromSale(t *testing.T) {
 		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
 	}
 }
+
+func TestSubscriptionImageChecks_AddsInfoWhenImageCheckSkipped(t *testing.T) {
+	checks := subscriptionImageChecks([]Subscription{
+		{
+			ID:                   "sub-1",
+			Name:                 "Monthly",
+			ProductID:            "com.example.monthly",
+			ImageCheckSkipped:    true,
+			ImageCheckSkipReason: "permission denied",
+		},
+	})
+	if !hasCheckID(checks, "subscriptions.images.unverified") {
+		t.Fatalf("expected unverified image check, got %v", checks)
+	}
+	if checks[0].Severity != SeverityInfo {
+		t.Fatalf("expected info severity, got %s", checks[0].Severity)
+	}
+}

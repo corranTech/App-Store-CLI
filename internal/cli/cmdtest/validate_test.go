@@ -18,25 +18,26 @@ import (
 )
 
 type validateFixture struct {
-	app                  string
-	versions             string
-	version              string
-	appInfos             string
-	appInfoLocs          string
-	versionLocs          string
-	ageRating            string
-	reviewDetails        string
-	primaryCategory      string
-	build                string
-	priceSchedule        string
-	availabilityV2       string
-	availabilityV2Status int
-	territories          string
-	screenshotSets       map[string]string
-	screenshotsBySet     map[string]string
-	subscriptionGroups   string
-	subscriptionsByGroup map[string]string
-	imagesBySubscription map[string]string
+	app                       string
+	versions                  string
+	version                   string
+	appInfos                  string
+	appInfoLocs               string
+	versionLocs               string
+	ageRating                 string
+	reviewDetails             string
+	primaryCategory           string
+	build                     string
+	priceSchedule             string
+	availabilityV2            string
+	availabilityV2Status      int
+	territories               string
+	screenshotSets            map[string]string
+	screenshotsBySet          map[string]string
+	subscriptionGroups        string
+	subscriptionsByGroup      map[string]string
+	imagesBySubscription      map[string]string
+	imageStatusBySubscription map[string]int
 }
 
 func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
@@ -126,6 +127,9 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/images"):
 			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/images")
+			if status, ok := fixture.imageStatusBySubscription[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
 			if body, ok := fixture.imagesBySubscription[subscriptionID]; ok {
 				return jsonResponse(http.StatusOK, body)
 			}
@@ -150,6 +154,21 @@ func jsonResponse(status int, body string) (*http.Response, error) {
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}, nil
+}
+
+func apiErrorJSONForStatus(status int) string {
+	switch status {
+	case http.StatusUnauthorized:
+		return `{"errors":[{"status":"401","code":"UNAUTHORIZED","title":"Unauthorized","detail":"not allowed"}]}`
+	case http.StatusForbidden:
+		return `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`
+	case http.StatusTooManyRequests:
+		return `{"errors":[{"status":"429","code":"RATE_LIMITED","title":"Too Many Requests","detail":"rate limited"}]}`
+	case http.StatusServiceUnavailable:
+		return `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","title":"Service Unavailable","detail":"temporarily unavailable"}]}`
+	default:
+		return fmt.Sprintf(`{"errors":[{"status":"%d","title":"%s","detail":"request failed"}]}`, status, http.StatusText(status))
+	}
 }
 
 func hasCheckWithID(checks []validation.CheckResult, id string) bool {
@@ -408,6 +427,46 @@ func TestValidateWarnsWhenSubscriptionImageMissing(t *testing.T) {
 	}
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+}
+
+func TestValidateSkipsImageWarningWhenImageEndpointForbidden(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.imageStatusBySubscription = map[string]int{
+		"sub-1": http.StatusForbidden,
+	}
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected image probe failure to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Summary.Errors != 0 || report.Summary.Warnings != 0 || report.Summary.Infos == 0 {
+		t.Fatalf("expected informational skipped-image check only, got %+v", report.Summary)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.images.recommended") {
+		t.Fatalf("expected no promotional-image recommendation when probe is skipped, got %+v", report.Checks)
+	}
+	if !hasCheckWithID(report.Checks, "subscriptions.images.unverified") {
+		t.Fatalf("expected subscriptions.images.unverified check, got %+v", report.Checks)
 	}
 }
 
