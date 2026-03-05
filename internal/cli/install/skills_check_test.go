@@ -3,6 +3,7 @@ package install
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -80,13 +81,13 @@ func TestSkillsOutputHasUpdates(t *testing.T) {
 
 func TestMaybeCheckForSkillUpdates_NotifiesAndPersistsTimestamp(t *testing.T) {
 	origLoad := loadConfigForSkillsCheck
-	origSave := saveConfigForSkillsCheck
+	origPersist := persistSkillsCheckedAtForCheck
 	origNow := nowForSkillsCheck
 	origRun := runSkillsCheckCommand
 	origProgress := progressEnabledForCheck
 	t.Cleanup(func() {
 		loadConfigForSkillsCheck = origLoad
-		saveConfigForSkillsCheck = origSave
+		persistSkillsCheckedAtForCheck = origPersist
 		nowForSkillsCheck = origNow
 		runSkillsCheckCommand = origRun
 		progressEnabledForCheck = origProgress
@@ -99,8 +100,8 @@ func TestMaybeCheckForSkillUpdates_NotifiesAndPersistsTimestamp(t *testing.T) {
 	loadConfigForSkillsCheck = func() (*config.Config, error) { return cfg, nil }
 
 	savedAt := ""
-	saveConfigForSkillsCheck = func(in *config.Config) error {
-		savedAt = strings.TrimSpace(in.SkillsCheckedAt)
+	persistSkillsCheckedAtForCheck = func(value string) error {
+		savedAt = strings.TrimSpace(value)
 		return nil
 	}
 
@@ -125,13 +126,13 @@ func TestMaybeCheckForSkillUpdates_NotifiesAndPersistsTimestamp(t *testing.T) {
 
 func TestMaybeCheckForSkillUpdates_SkipsWhenCheckedRecently(t *testing.T) {
 	origLoad := loadConfigForSkillsCheck
-	origSave := saveConfigForSkillsCheck
+	origPersist := persistSkillsCheckedAtForCheck
 	origNow := nowForSkillsCheck
 	origRun := runSkillsCheckCommand
 	origProgress := progressEnabledForCheck
 	t.Cleanup(func() {
 		loadConfigForSkillsCheck = origLoad
-		saveConfigForSkillsCheck = origSave
+		persistSkillsCheckedAtForCheck = origPersist
 		nowForSkillsCheck = origNow
 		runSkillsCheckCommand = origRun
 		progressEnabledForCheck = origProgress
@@ -145,8 +146,8 @@ func TestMaybeCheckForSkillUpdates_SkipsWhenCheckedRecently(t *testing.T) {
 	loadConfigForSkillsCheck = func() (*config.Config, error) {
 		return &config.Config{SkillsCheckedAt: fixedNow.Add(-1 * time.Hour).Format(skillsCheckedAtLayout)}, nil
 	}
-	saveConfigForSkillsCheck = func(in *config.Config) error {
-		t.Fatal("save should not be called for recent checks")
+	persistSkillsCheckedAtForCheck = func(value string) error {
+		t.Fatal("persist should not be called for recent checks")
 		return nil
 	}
 
@@ -208,7 +209,7 @@ func TestMaybeCheckForSkillUpdates_RunsByDefaultWhenUnset(t *testing.T) {
 	}
 }
 
-func TestDefaultRunSkillsCheckCommand_UsesNoInstall(t *testing.T) {
+func TestDefaultRunSkillsCheckCommand_UsesNoPromptInstall(t *testing.T) {
 	origLookup := lookupNpx
 	t.Cleanup(func() {
 		lookupNpx = origLookup
@@ -233,11 +234,11 @@ func TestDefaultRunSkillsCheckCommand_UsesNoInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("defaultRunSkillsCheckCommand() error: %v", err)
 	}
-	if !strings.Contains(output, "--no-install skills check") {
-		t.Fatalf("expected --no-install invocation, got %q", output)
+	if !strings.Contains(output, "--no skills check") {
+		t.Fatalf("expected --no invocation, got %q", output)
 	}
-	if strings.Contains(output, "--yes") {
-		t.Fatalf("expected no --yes flag in invocation, got %q", output)
+	if strings.Contains(output, "--no-install") {
+		t.Fatalf("expected no --no-install flag in invocation, got %q", output)
 	}
 }
 
@@ -299,11 +300,95 @@ func TestDefaultRunSkillsCheckCommand_UsesNonProjectWorkingDirectory(t *testing.
 		t.Fatalf("defaultRunSkillsCheckCommand() error: %v", err)
 	}
 	workingDir := strings.TrimSpace(output)
-	if workingDir != homeDir {
-		t.Fatalf("expected command working directory %q, got %q", homeDir, workingDir)
+	normalizedWorkingDir := workingDir
+	if resolved, resolveErr := filepath.EvalSymlinks(workingDir); resolveErr == nil {
+		normalizedWorkingDir = resolved
 	}
-	if workingDir == projectDir {
-		t.Fatalf("expected command not to run in project directory %q", projectDir)
+	normalizedHomeDir := homeDir
+	if resolved, resolveErr := filepath.EvalSymlinks(homeDir); resolveErr == nil {
+		normalizedHomeDir = resolved
+	}
+	if normalizedWorkingDir != normalizedHomeDir {
+		t.Fatalf("expected command working directory %q, got %q", normalizedHomeDir, normalizedWorkingDir)
+	}
+	normalizedProjectDir := projectDir
+	if resolved, resolveErr := filepath.EvalSymlinks(projectDir); resolveErr == nil {
+		normalizedProjectDir = resolved
+	}
+	if normalizedWorkingDir == normalizedProjectDir {
+		t.Fatalf("expected command not to run in project directory %q", normalizedProjectDir)
+	}
+}
+
+func TestDefaultRunSkillsCheckCommand_SetsNpmOfflineEnv(t *testing.T) {
+	origLookup := lookupNpx
+	t.Cleanup(func() {
+		lookupNpx = origLookup
+	})
+
+	mockNpx := filepath.Join(t.TempDir(), "npx-mock.sh")
+	if err := os.WriteFile(mockNpx, []byte("#!/bin/sh\nprintf \"%s\\n\" \"$npm_config_offline\"\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	if err := os.Chmod(mockNpx, 0o755); err != nil {
+		t.Fatalf("Chmod() error: %v", err)
+	}
+
+	lookupNpx = func(file string) (string, error) {
+		return mockNpx, nil
+	}
+
+	output, err := defaultRunSkillsCheckCommand(context.Background())
+	if err != nil {
+		t.Fatalf("defaultRunSkillsCheckCommand() error: %v", err)
+	}
+	if strings.TrimSpace(output) != "true" {
+		t.Fatalf("expected npm_config_offline=true, got %q", output)
+	}
+}
+
+func TestDefaultPersistSkillsCheckedAt_PreservesUnknownFields(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("ASC_CONFIG_PATH", cfgPath)
+
+	initial := `{
+  "key_id": "ABC123",
+  "custom_future_key": "keep-me",
+  "custom_nested": {"enabled": true},
+  "skills_checked_at": "2026-03-01T00:00:00Z"
+}`
+	if err := os.WriteFile(cfgPath, []byte(initial), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	want := "2026-03-05T14:00:00Z"
+	if err := defaultPersistSkillsCheckedAt(want); err != nil {
+		t.Fatalf("defaultPersistSkillsCheckedAt() error: %v", err)
+	}
+
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v", err)
+	}
+
+	var got string
+	if err := json.Unmarshal(doc["skills_checked_at"], &got); err != nil {
+		t.Fatalf("unmarshal skills_checked_at error: %v", err)
+	}
+	if got != want {
+		t.Fatalf("skills_checked_at = %q, want %q", got, want)
+	}
+
+	if _, ok := doc["custom_future_key"]; !ok {
+		t.Fatal("expected custom_future_key to be preserved")
+	}
+	if _, ok := doc["custom_nested"]; !ok {
+		t.Fatal("expected custom_nested to be preserved")
 	}
 }
 

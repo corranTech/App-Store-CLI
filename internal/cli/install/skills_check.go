@@ -3,6 +3,7 @@ package install
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,11 +23,11 @@ const (
 )
 
 var (
-	loadConfigForSkillsCheck = config.Load
-	saveConfigForSkillsCheck = config.Save
-	nowForSkillsCheck        = time.Now
-	runSkillsCheckCommand    = defaultRunSkillsCheckCommand
-	progressEnabledForCheck  = shared.ProgressEnabled
+	loadConfigForSkillsCheck       = config.Load
+	persistSkillsCheckedAtForCheck = defaultPersistSkillsCheckedAt
+	nowForSkillsCheck              = time.Now
+	runSkillsCheckCommand          = defaultRunSkillsCheckCommand
+	progressEnabledForCheck        = shared.ProgressEnabled
 )
 
 // MaybeCheckForSkillUpdates checks for skill updates once per interval and prints
@@ -63,8 +64,7 @@ func MaybeCheckForSkillUpdates(ctx context.Context) {
 
 	// Persist the check timestamp regardless of check result to avoid repeated
 	// invocation overhead during failures.
-	cfg.SkillsCheckedAt = now.Format(skillsCheckedAtLayout)
-	_ = saveConfigForSkillsCheck(cfg)
+	_ = persistSkillsCheckedAtForCheck(now.Format(skillsCheckedAtLayout))
 
 	if runErr != nil {
 		return
@@ -130,10 +130,12 @@ func defaultRunSkillsCheckCommand(ctx context.Context) (string, error) {
 		return "", nil
 	}
 
-	// Avoid implicit package downloads during background checks.
-	cmd := exec.CommandContext(ctx, npxPath, "--no-install", "skills", "check")
+	// Do not auto-install packages during background checks.
+	cmd := exec.CommandContext(ctx, npxPath, "--no", "skills", "check")
 	// Avoid resolving project-local node_modules in the current repository.
 	cmd.Dir = skillsCheckWorkingDirectory()
+	// Avoid contacting npm registries during passive background checks.
+	cmd.Env = append(os.Environ(), "npm_config_offline=true")
 	var combined bytes.Buffer
 	cmd.Stdout = &combined
 	cmd.Stderr = &combined
@@ -150,4 +152,34 @@ func skillsCheckWorkingDirectory() string {
 		return homeDir
 	}
 	return os.TempDir()
+}
+
+func defaultPersistSkillsCheckedAt(timestamp string) error {
+	path, err := config.Path()
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return err
+	}
+
+	encoded, err := json.Marshal(strings.TrimSpace(timestamp))
+	if err != nil {
+		return err
+	}
+	doc["skills_checked_at"] = encoded
+
+	updated, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, updated, 0o600)
 }
