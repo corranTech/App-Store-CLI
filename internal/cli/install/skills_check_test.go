@@ -209,62 +209,62 @@ func TestMaybeCheckForSkillUpdates_RunsByDefaultWhenUnset(t *testing.T) {
 	}
 }
 
-func TestDefaultRunSkillsCheckCommand_UsesNoPromptInstall(t *testing.T) {
-	origLookup := lookupNpx
+func TestDefaultRunSkillsCheckCommand_UsesSkillsBinaryCheckCommand(t *testing.T) {
+	origLookup := lookupSkillsCheckCLI
 	t.Cleanup(func() {
-		lookupNpx = origLookup
+		lookupSkillsCheckCLI = origLookup
 	})
 
-	mockNpx := filepath.Join(t.TempDir(), "npx-mock.sh")
-	if err := os.WriteFile(mockNpx, []byte("#!/bin/sh\necho \"$@\"\n"), 0o755); err != nil {
+	mockSkills := filepath.Join(t.TempDir(), "skills-mock.sh")
+	if err := os.WriteFile(mockSkills, []byte("#!/bin/sh\necho \"$@\"\n"), 0o755); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
-	if err := os.Chmod(mockNpx, 0o755); err != nil {
+	if err := os.Chmod(mockSkills, 0o755); err != nil {
 		t.Fatalf("Chmod() error: %v", err)
 	}
 
-	lookupNpx = func(file string) (string, error) {
-		if file != "npx" {
-			t.Fatalf("lookupNpx called with %q, want npx", file)
+	lookupSkillsCheckCLI = func(file string) (string, error) {
+		if file != "skills" {
+			t.Fatalf("lookupSkillsCheckCLI called with %q, want skills", file)
 		}
-		return mockNpx, nil
+		return mockSkills, nil
 	}
 
 	output, err := defaultRunSkillsCheckCommand(context.Background())
 	if err != nil {
 		t.Fatalf("defaultRunSkillsCheckCommand() error: %v", err)
 	}
-	if !strings.Contains(output, "--no skills check") {
-		t.Fatalf("expected --no invocation, got %q", output)
+	if !strings.Contains(output, "check") {
+		t.Fatalf("expected check invocation, got %q", output)
 	}
-	if strings.Contains(output, "--no-install") {
-		t.Fatalf("expected no --no-install flag in invocation, got %q", output)
+	if strings.Contains(output, "--no") {
+		t.Fatalf("expected no npx flags in invocation, got %q", output)
 	}
 }
 
-func TestDefaultRunSkillsCheckCommand_MissingNpxIsNoop(t *testing.T) {
-	origLookup := lookupNpx
+func TestDefaultRunSkillsCheckCommand_MissingSkillsCLIIsNoop(t *testing.T) {
+	origLookup := lookupSkillsCheckCLI
 	t.Cleanup(func() {
-		lookupNpx = origLookup
+		lookupSkillsCheckCLI = origLookup
 	})
 
-	lookupNpx = func(file string) (string, error) {
+	lookupSkillsCheckCLI = func(file string) (string, error) {
 		return "", errors.New("not found")
 	}
 
 	output, err := defaultRunSkillsCheckCommand(context.Background())
 	if err != nil {
-		t.Fatalf("expected nil error when npx is unavailable, got %v", err)
+		t.Fatalf("expected nil error when skills is unavailable, got %v", err)
 	}
 	if output != "" {
-		t.Fatalf("expected empty output when npx is unavailable, got %q", output)
+		t.Fatalf("expected empty output when skills is unavailable, got %q", output)
 	}
 }
 
 func TestDefaultRunSkillsCheckCommand_UsesNonProjectWorkingDirectory(t *testing.T) {
-	origLookup := lookupNpx
+	origLookup := lookupSkillsCheckCLI
 	t.Cleanup(func() {
-		lookupNpx = origLookup
+		lookupSkillsCheckCLI = origLookup
 	})
 
 	homeDir := t.TempDir()
@@ -283,16 +283,16 @@ func TestDefaultRunSkillsCheckCommand_UsesNonProjectWorkingDirectory(t *testing.
 		_ = os.Chdir(originalWD)
 	})
 
-	mockNpx := filepath.Join(t.TempDir(), "npx-mock.sh")
-	if err := os.WriteFile(mockNpx, []byte("#!/bin/sh\nprintf \"%s\\n\" \"$PWD\"\n"), 0o755); err != nil {
+	mockSkills := filepath.Join(t.TempDir(), "skills-mock.sh")
+	if err := os.WriteFile(mockSkills, []byte("#!/bin/sh\nprintf \"%s\\n\" \"$PWD\"\n"), 0o755); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
-	if err := os.Chmod(mockNpx, 0o755); err != nil {
+	if err := os.Chmod(mockSkills, 0o755); err != nil {
 		t.Fatalf("Chmod() error: %v", err)
 	}
 
-	lookupNpx = func(file string) (string, error) {
-		return mockNpx, nil
+	lookupSkillsCheckCLI = func(file string) (string, error) {
+		return mockSkills, nil
 	}
 
 	output, err := defaultRunSkillsCheckCommand(context.Background())
@@ -320,30 +320,52 @@ func TestDefaultRunSkillsCheckCommand_UsesNonProjectWorkingDirectory(t *testing.
 	}
 }
 
-func TestDefaultRunSkillsCheckCommand_SetsNpmOfflineEnv(t *testing.T) {
-	origLookup := lookupNpx
+func TestDefaultRunSkillsCheckCommand_SkipsProjectLocalSkillsBinary(t *testing.T) {
+	origLookup := lookupSkillsCheckCLI
 	t.Cleanup(func() {
-		lookupNpx = origLookup
+		lookupSkillsCheckCLI = origLookup
 	})
 
-	mockNpx := filepath.Join(t.TempDir(), "npx-mock.sh")
-	if err := os.WriteFile(mockNpx, []byte("#!/bin/sh\nprintf \"%s\\n\" \"$npm_config_offline\"\n"), 0o755); err != nil {
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, ".git"), []byte("gitdir"), 0o644); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
-	if err := os.Chmod(mockNpx, 0o755); err != nil {
+	workingDir := filepath.Join(repoRoot, "subdir")
+	if err := os.MkdirAll(workingDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(workingDir); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	localSkills := filepath.Join(repoRoot, "node_modules", ".bin", "skills")
+	if err := os.MkdirAll(filepath.Dir(localSkills), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.WriteFile(localSkills, []byte("#!/bin/sh\necho should-not-run\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	if err := os.Chmod(localSkills, 0o755); err != nil {
 		t.Fatalf("Chmod() error: %v", err)
 	}
 
-	lookupNpx = func(file string) (string, error) {
-		return mockNpx, nil
+	lookupSkillsCheckCLI = func(file string) (string, error) {
+		return localSkills, nil
 	}
 
 	output, err := defaultRunSkillsCheckCommand(context.Background())
 	if err != nil {
 		t.Fatalf("defaultRunSkillsCheckCommand() error: %v", err)
 	}
-	if strings.TrimSpace(output) != "true" {
-		t.Fatalf("expected npm_config_offline=true, got %q", output)
+	if output != "" {
+		t.Fatalf("expected project-local skills binary to be skipped, got %q", output)
 	}
 }
 

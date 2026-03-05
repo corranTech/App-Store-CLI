@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ var (
 	nowForSkillsCheck              = time.Now
 	runSkillsCheckCommand          = defaultRunSkillsCheckCommand
 	progressEnabledForCheck        = shared.ProgressEnabled
+	lookupSkillsCheckCLI           = exec.LookPath
 )
 
 // MaybeCheckForSkillUpdates checks for skill updates once per interval and prints
@@ -125,17 +127,17 @@ func skillsOutputHasUpdates(output string) bool {
 }
 
 func defaultRunSkillsCheckCommand(ctx context.Context) (string, error) {
-	npxPath, err := lookupNpx("npx")
+	skillsPath, err := lookupSkillsCheckCLI("skills")
 	if err != nil {
 		return "", nil
 	}
+	if shouldSkipProjectLocalSkillsBinary(skillsPath) {
+		return "", nil
+	}
 
-	// Do not auto-install packages during background checks.
-	cmd := exec.CommandContext(ctx, npxPath, "--no", "skills", "check")
+	cmd := exec.CommandContext(ctx, skillsPath, "check")
 	// Avoid resolving project-local node_modules in the current repository.
 	cmd.Dir = skillsCheckWorkingDirectory()
-	// Avoid contacting npm registries during passive background checks.
-	cmd.Env = append(os.Environ(), "npm_config_offline=true")
 	var combined bytes.Buffer
 	cmd.Stdout = &combined
 	cmd.Stderr = &combined
@@ -152,6 +154,55 @@ func skillsCheckWorkingDirectory() string {
 		return homeDir
 	}
 	return os.TempDir()
+}
+
+func shouldSkipProjectLocalSkillsBinary(binaryPath string) bool {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return false
+	}
+
+	repoRoot := cwd
+	if root, ok := detectRepoRoot(cwd); ok {
+		repoRoot = root
+	}
+
+	resolvedBinary := resolvePathForComparison(binaryPath)
+	resolvedRoot := resolvePathForComparison(repoRoot)
+	return isPathWithin(resolvedBinary, resolvedRoot)
+}
+
+func detectRepoRoot(start string) (string, bool) {
+	dir := start
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
+}
+
+func resolvePathForComparison(path string) string {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return filepath.Clean(path)
+	}
+	if resolved, err := filepath.EvalSymlinks(absPath); err == nil {
+		return resolved
+	}
+	return absPath
+}
+
+func isPathWithin(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
 }
 
 func defaultPersistSkillsCheckedAt(timestamp string) error {

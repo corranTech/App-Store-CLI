@@ -129,9 +129,12 @@ func TestRun_InvokesSkillsUpdateCheckForSubcommand(t *testing.T) {
 	origCheck := maybeCheckForSkillUpdates
 	t.Cleanup(func() { maybeCheckForSkillUpdates = origCheck })
 
-	called := false
+	called := make(chan struct{}, 1)
 	maybeCheckForSkillUpdates = func(ctx context.Context) {
-		called = true
+		select {
+		case called <- struct{}{}:
+		default:
+		}
 	}
 
 	_, _ = captureCommandOutput(t, func() {
@@ -141,8 +144,34 @@ func TestRun_InvokesSkillsUpdateCheckForSubcommand(t *testing.T) {
 		}
 	})
 
-	if !called {
+	select {
+	case <-called:
+	case <-time.After(500 * time.Millisecond):
 		t.Fatal("expected skills update check to be invoked")
+	}
+}
+
+func TestRun_DoesNotBlockOnSkillsUpdateCheck(t *testing.T) {
+	resetReportFlags(t)
+
+	origCheck := maybeCheckForSkillUpdates
+	t.Cleanup(func() { maybeCheckForSkillUpdates = origCheck })
+
+	maybeCheckForSkillUpdates = func(ctx context.Context) {
+		time.Sleep(400 * time.Millisecond)
+	}
+
+	start := time.Now()
+	_, _ = captureCommandOutput(t, func() {
+		code := Run([]string{"completion", "--shell", "bash"}, "1.0.0")
+		if code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+	elapsed := time.Since(start)
+
+	if elapsed >= 250*time.Millisecond {
+		t.Fatalf("expected run not to block on skills update check, elapsed=%s", elapsed)
 	}
 }
 
