@@ -142,7 +142,7 @@ func TestAppInfoSetBatchDryRunInlineLocales(t *testing.T) {
 		}
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
-			return appInfoSetJSONResponse(http.StatusOK, `{
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{
 				"data":[
 					{
 						"type":"appStoreVersions",
@@ -152,7 +152,7 @@ func TestAppInfoSetBatchDryRunInlineLocales(t *testing.T) {
 				]
 			}`), nil
 		case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusOK, `{
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{
 				"data":[
 					{
 						"type":"appStoreVersionLocalizations",
@@ -255,7 +255,7 @@ func TestAppInfoSetFromDirPartialFailureReturnsReportedError(t *testing.T) {
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
-			return appInfoSetJSONResponse(http.StatusOK, `{
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{
 				"data":[
 					{
 						"type":"appStoreVersions",
@@ -265,7 +265,7 @@ func TestAppInfoSetFromDirPartialFailureReturnsReportedError(t *testing.T) {
 				]
 			}`), nil
 		case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusOK, `{
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{
 				"data":[
 					{
 						"type":"appStoreVersionLocalizations",
@@ -278,7 +278,7 @@ func TestAppInfoSetFromDirPartialFailureReturnsReportedError(t *testing.T) {
 			if req.Method != http.MethodPatch {
 				t.Fatalf("expected PATCH for existing locale, got %s", req.Method)
 			}
-			return appInfoSetJSONResponse(http.StatusOK, `{
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{
 				"data":{
 					"type":"appStoreVersionLocalizations",
 					"id":"loc-en",
@@ -289,7 +289,7 @@ func TestAppInfoSetFromDirPartialFailureReturnsReportedError(t *testing.T) {
 			if req.Method != http.MethodPost {
 				t.Fatalf("expected POST for missing locale, got %s", req.Method)
 			}
-			return appInfoSetJSONResponse(http.StatusUnprocessableEntity, `{
+			return appInfoSetBatchJSONResponse(http.StatusUnprocessableEntity, `{
 				"errors":[
 					{
 						"status":"422",
@@ -385,13 +385,13 @@ func TestRunAppInfoSetBatchPartialFailureReturnsExitError(t *testing.T) {
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"createdDate":"2026-02-01T00:00:00Z"}}]}`), nil
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"createdDate":"2026-02-01T00:00:00Z"}}]}`), nil
 		case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`), nil
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`), nil
 		case "/v1/appStoreVersionLocalizations/loc-en":
-			return appInfoSetJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}}`), nil
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}}`), nil
 		case "/v1/appStoreVersionLocalizations":
-			return appInfoSetJSONResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`), nil
+			return appInfoSetBatchJSONResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`), nil
 		default:
 			t.Fatalf("unexpected request path: %s", req.URL.Path)
 			return nil, nil
@@ -418,7 +418,7 @@ func TestRunAppInfoSetBatchPartialFailureReturnsExitError(t *testing.T) {
 	}
 }
 
-func appInfoSetJSONResponse(status int, body string) *http.Response {
+func appInfoSetBatchJSONResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
 		Body:       io.NopCloser(strings.NewReader(body)),
