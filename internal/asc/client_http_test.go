@@ -9703,3 +9703,133 @@ func TestListReviewSubmissionsGlobal_UsesNextURL(t *testing.T) {
 		t.Fatalf("ListReviewSubmissions() error: %v", err)
 	}
 }
+
+func TestValidateAPIPath_AcceptsValidPaths(t *testing.T) {
+	valid := []string{
+		"",
+		"/v1/apps",
+		"/v1/apps/123456789",
+		"/v1/apps/123456789/builds",
+		"/v1/apps/123456789?filter[bundleId]=com.example",
+		"/v2/inAppPurchases/iap-id-123/pricePoints",
+		"/v1/betaGroups/BG-abc-def/betaTesters",
+		"https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
+		"http://localhost:8080/test",
+	}
+	for _, path := range valid {
+		if err := validateAPIPath(path); err != nil {
+			t.Errorf("validateAPIPath(%q) = %v, want nil", path, err)
+		}
+	}
+}
+
+func TestValidateAPIPath_RejectsControlCharacters(t *testing.T) {
+	cases := []string{
+		"/v1/apps/\x00bad",
+		"/v1/apps/\x1fbad",
+		"/v1/apps/bad\x7f",
+		"/v1/apps/\tbad",
+		"/v1/apps/\nbad",
+	}
+	for _, path := range cases {
+		if err := validateAPIPath(path); err == nil {
+			t.Errorf("validateAPIPath(%q) = nil, want error for control character", path)
+		}
+	}
+}
+
+func TestValidateAPIPath_RejectsPercentEncoding(t *testing.T) {
+	cases := []string{
+		"/v1/apps/%2e%2e/builds",
+		"/v1/apps/id%3Ffields%3Dname",
+		"/v1/apps/100%25done",
+	}
+	for _, path := range cases {
+		if err := validateAPIPath(path); err == nil {
+			t.Errorf("validateAPIPath(%q) = nil, want error for %%", path)
+		}
+	}
+}
+
+func TestValidateAPIPath_RejectsFragment(t *testing.T) {
+	if err := validateAPIPath("/v1/apps/id#fragment"); err == nil {
+		t.Error("validateAPIPath with # = nil, want error")
+	}
+}
+
+func TestValidateAPIPath_RejectsBackslash(t *testing.T) {
+	if err := validateAPIPath("/v1/apps\\builds"); err == nil {
+		t.Error("validateAPIPath with \\ = nil, want error")
+	}
+}
+
+func TestValidateAPIPath_RejectsPathTraversal(t *testing.T) {
+	cases := []string{
+		"/v1/apps/../secrets",
+		"/v1/../v1/apps",
+		"/v1/apps/id/../../other",
+	}
+	for _, path := range cases {
+		if err := validateAPIPath(path); err == nil {
+			t.Errorf("validateAPIPath(%q) = nil, want error for traversal", path)
+		}
+	}
+}
+
+func TestValidateAPIPath_RejectsEmbeddedQueryInID(t *testing.T) {
+	path := "/v1/apps/fileId?fields=name"
+	if err := validateAPIPath(path); err != nil {
+		t.Errorf("validateAPIPath(%q) = %v; query string after path is allowed (callers append queries)", path, err)
+	}
+}
+
+func TestValidateAPIPath_SkipsFullURLs(t *testing.T) {
+	urls := []string{
+		"https://api.appstoreconnect.apple.com/v1/apps?cursor=abc%3D",
+		"http://localhost:8080/test?q=%25",
+	}
+	for _, u := range urls {
+		if err := validateAPIPath(u); err != nil {
+			t.Errorf("validateAPIPath(%q) = %v, want nil (full URLs are skipped)", u, err)
+		}
+	}
+}
+
+func TestNewRequest_RejectsUnsafePath(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, nil, response)
+
+	cases := []string{
+		"/v1/apps/\x00injected",
+		"/v1/apps/%2e%2e/builds",
+		"/v1/apps/../secrets",
+		"/v1/apps/id#fragment",
+		"/v1/apps\\builds",
+	}
+	for _, path := range cases {
+		_, err := client.newRequest(context.Background(), "GET", path, nil)
+		if err == nil {
+			t.Errorf("newRequest(%q) = nil, want error", path)
+		}
+	}
+}
+
+func TestNewRequest_AcceptsSafePath(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, nil, response)
+
+	paths := []string{
+		"/v1/apps/123456789",
+		"/v1/apps/123456789?filter[bundleId]=com.example",
+		"https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
+	}
+	for _, path := range paths {
+		req, err := client.newRequest(context.Background(), "GET", path, nil)
+		if err != nil {
+			t.Errorf("newRequest(%q) error: %v", path, err)
+		}
+		if req == nil {
+			t.Errorf("newRequest(%q) returned nil request", path)
+		}
+	}
+}
