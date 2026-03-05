@@ -207,6 +207,11 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		return validation.Report{}, err
 	}
 
+	subscriptions, err := fetchSubscriptions(requestCtx, client, opts.AppID)
+	if err != nil {
+		return validation.Report{}, fmt.Errorf("failed to fetch subscriptions: %w", err)
+	}
+
 	platform := strings.TrimSpace(opts.Platform)
 	if platform == "" {
 		platform = string(versionResp.Data.Attributes.Platform)
@@ -229,6 +234,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		AvailabilityID:       availabilityID,
 		AvailableTerritories: availableTerritories,
 		ScreenshotSets:       screenshotSets,
+		Subscriptions:        subscriptions,
 		AgeRatingDeclaration: ageRatingDecl,
 	}, opts.Strict)
 

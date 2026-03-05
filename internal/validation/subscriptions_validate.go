@@ -12,6 +12,7 @@ type Subscription struct {
 	ProductID string
 	State     string
 	GroupID   string
+	HasImage  bool
 }
 
 // SubscriptionsInput collects subscription validation inputs.
@@ -31,7 +32,9 @@ type SubscriptionsReport struct {
 
 // ValidateSubscriptions validates subscription review readiness and returns a report.
 func ValidateSubscriptions(input SubscriptionsInput, strict bool) SubscriptionsReport {
-	checks := subscriptionReviewReadinessChecks(input.Subscriptions)
+	checks := make([]CheckResult, 0)
+	checks = append(checks, subscriptionImageChecks(input.Subscriptions)...)
+	checks = append(checks, subscriptionReviewReadinessChecks(input.Subscriptions)...)
 	summary := summarize(checks, strict)
 
 	return SubscriptionsReport{
@@ -41,6 +44,28 @@ func ValidateSubscriptions(input SubscriptionsInput, strict bool) SubscriptionsR
 		Checks:            checks,
 		Strict:            strict,
 	}
+}
+
+func subscriptionImageChecks(subs []Subscription) []CheckResult {
+	var checks []CheckResult
+	for _, sub := range subs {
+		if sub.HasImage {
+			continue
+		}
+
+		label := formatSubscriptionLabel(sub)
+		checks = append(checks, CheckResult{
+			ID:           "subscriptions.images.required",
+			Severity:     SeverityError,
+			Field:        "images",
+			ResourceType: "subscription",
+			ResourceID:   strings.TrimSpace(sub.ID),
+			Message:      fmt.Sprintf("%s has no subscription image", label),
+			Remediation:  "Upload a subscription image for this subscription in App Store Connect",
+		})
+	}
+
+	return checks
 }
 
 func subscriptionReviewReadinessChecks(subs []Subscription) []CheckResult {
@@ -107,9 +132,9 @@ func formatSubscriptionLabel(sub Subscription) string {
 func remediationForSubscriptionState(state string) string {
 	switch strings.ToUpper(strings.TrimSpace(state)) {
 	case "MISSING_METADATA":
-		return "Complete required metadata for this subscription in App Store Connect"
+		return "Complete required metadata for this subscription, including its image, in App Store Connect"
 	case "READY_TO_SUBMIT":
-		return "Submit this subscription for review in App Store Connect"
+		return "Submit this subscription for review in App Store Connect so it is attached to the next app review submission"
 	case "DEVELOPER_ACTION_NEEDED":
 		return "Resolve developer action required issues for this subscription in App Store Connect"
 	case "REJECTED":

@@ -51,6 +51,7 @@ Checks:
   - Build attached and processed
   - Pricing schedule and territory availability
   - Screenshot presence and size compatibility
+  - Subscription review readiness and required images
   - Age rating completeness
 
 Examples:

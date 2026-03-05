@@ -19,6 +19,7 @@ import (
 type validateSubscriptionsFixture struct {
 	groups               string
 	subscriptionsByGroup map[string]string
+	imagesBySubscription map[string]string
 }
 
 func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsFixture) *asc.Client {
@@ -45,6 +46,12 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(http.StatusOK, body)
 			}
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/images"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/images")
+			if body, ok := fixture.imagesBySubscription[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		default:
 			return jsonResponse(http.StatusNotFound, notFound)
 		}
@@ -63,6 +70,9 @@ func validValidateSubscriptionsFixture() validateSubscriptionsFixture {
 		groups: `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Group"}}]}`,
 		subscriptionsByGroup: map[string]string{
 			"group-1": `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"APPROVED"}}]}`,
+		},
+		imagesBySubscription: map[string]string{
+			"sub-1": `{"data":[{"type":"subscriptionImages","id":"image-1","attributes":{"fileName":"monthly.png","fileSize":1024}}]}`,
 		},
 	}
 }
@@ -195,5 +205,52 @@ func TestValidateSubscriptionsWarnsAndStrictFails(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected subscriptions.review_readiness.needs_attention check, got %+v", strictReport.Checks)
+	}
+}
+
+func TestValidateSubscriptionsErrorsWhenSubscriptionImageMissing(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.imagesBySubscription["sub-1"] = `{"data":[]}`
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if runErr == nil {
+		t.Fatal("expected missing image to be blocking")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Summary.Errors == 0 {
+		t.Fatalf("expected errors, got %+v", report.Summary)
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.ID == "subscriptions.images.required" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected subscriptions.images.required check, got %+v", report.Checks)
 	}
 }

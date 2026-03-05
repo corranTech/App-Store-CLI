@@ -58,6 +58,7 @@ type Input struct {
 	AvailabilityID       string
 	AvailableTerritories int
 	ScreenshotSets       []ScreenshotSet
+	Subscriptions        []Subscription
 	AgeRatingDeclaration *AgeRatingDeclaration
 }
 

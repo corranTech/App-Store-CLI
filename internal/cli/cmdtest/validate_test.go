@@ -34,6 +34,9 @@ type validateFixture struct {
 	territories          string
 	screenshotSets       map[string]string
 	screenshotsBySet     map[string]string
+	subscriptionGroups   string
+	subscriptionsByGroup map[string]string
+	imagesBySubscription map[string]string
 }
 
 func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
@@ -110,6 +113,23 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 			if body, ok := fixture.screenshotsBySet[setID]; ok {
 				return jsonResponse(http.StatusOK, body)
 			}
+		case path == "/v1/apps/app-1/subscriptionGroups":
+			if fixture.subscriptionGroups != "" {
+				return jsonResponse(http.StatusOK, fixture.subscriptionGroups)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptionGroups/") && strings.HasSuffix(path, "/subscriptions"):
+			groupID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptionGroups/"), "/subscriptions")
+			if body, ok := fixture.subscriptionsByGroup[groupID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/images"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/images")
+			if body, ok := fixture.imagesBySubscription[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		}
 
 		return jsonResponse(http.StatusNotFound, `{"errors":[{"status":404}]}`)
@@ -184,6 +204,13 @@ func validValidateFixture() validateFixture {
 		},
 		screenshotsBySet: map[string]string{
 			"set-1": `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":1024,"imageAsset":{"width":1242,"height":2688}}}]}`,
+		},
+		subscriptionGroups: `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`,
+		subscriptionsByGroup: map[string]string{
+			"group-1": `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"APPROVED"}}]}`,
+		},
+		imagesBySubscription: map[string]string{
+			"sub-1": `{"data":[{"type":"subscriptionImages","id":"image-1","attributes":{"fileName":"monthly.png","fileSize":1024}}]}`,
 		},
 	}
 }
@@ -295,6 +322,81 @@ func TestValidateOutputsJSONAndTable(t *testing.T) {
 
 	if !strings.Contains(stdout, "Severity") {
 		t.Fatalf("expected table output to include headers, got %q", stdout)
+	}
+}
+
+func TestValidateWarnsWhenSubscriptionNeedsAttention(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"READY_TO_SUBMIT"}}]}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected warning-only validate run, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Summary.Warnings == 0 {
+		t.Fatalf("expected warnings, got %+v", report.Summary)
+	}
+	if !hasCheckWithID(report.Checks, "subscriptions.review_readiness.needs_attention") {
+		t.Fatalf("expected subscriptions.review_readiness.needs_attention, got %+v", report.Checks)
+	}
+}
+
+func TestValidateErrorsWhenSubscriptionImageMissing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.imagesBySubscription["sub-1"] = `{"data":[]}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if runErr == nil {
+		t.Fatal("expected missing subscription image to block validate")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Summary.Errors == 0 {
+		t.Fatalf("expected errors, got %+v", report.Summary)
+	}
+	if !hasCheckWithID(report.Checks, "subscriptions.images.required") {
+		t.Fatalf("expected subscriptions.images.required, got %+v", report.Checks)
 	}
 }
 

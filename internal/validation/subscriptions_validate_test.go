@@ -41,3 +41,24 @@ func TestSubscriptionReviewReadinessChecks_IgnoresRemovedFromSale(t *testing.T) 
 		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
 	}
 }
+
+func TestSubscriptionImageChecks_ErrorsWhenImageMissing(t *testing.T) {
+	checks := subscriptionImageChecks([]Subscription{
+		{ID: "sub-1", Name: "Monthly", ProductID: "com.example.monthly"},
+	})
+	if !hasCheckID(checks, "subscriptions.images.required") {
+		t.Fatalf("expected image check, got %v", checks)
+	}
+	if checks[0].Severity != SeverityError {
+		t.Fatalf("expected error severity, got %s", checks[0].Severity)
+	}
+}
+
+func TestSubscriptionImageChecks_AllowsSubscriptionsWithImages(t *testing.T) {
+	checks := subscriptionImageChecks([]Subscription{
+		{ID: "sub-1", HasImage: true},
+	})
+	if len(checks) != 0 {
+		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
+	}
+}
