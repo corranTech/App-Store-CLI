@@ -128,16 +128,31 @@ func skillsOutputHasUpdates(output string) bool {
 
 func defaultRunSkillsCheckCommand(ctx context.Context) (string, error) {
 	skillsPath, err := lookupSkillsCheckCLI("skills")
+	if err == nil && !shouldSkipProjectLocalSkillsBinary(skillsPath) {
+		cmd := exec.CommandContext(ctx, skillsPath, "check")
+		// Avoid resolving project-local node_modules in the current repository.
+		cmd.Dir = skillsCheckWorkingDirectory()
+		var combined bytes.Buffer
+		cmd.Stdout = &combined
+		cmd.Stderr = &combined
+
+		if err := cmd.Run(); err != nil {
+			return combined.String(), err
+		}
+		return combined.String(), nil
+	}
+
+	npxPath, err := lookupNpx("npx")
 	if err != nil {
 		return "", nil
 	}
-	if shouldSkipProjectLocalSkillsBinary(skillsPath) {
-		return "", nil
-	}
 
-	cmd := exec.CommandContext(ctx, skillsPath, "check")
+	// Fall back to the install-skills execution path while avoiding network fetches.
+	cmd := exec.CommandContext(ctx, npxPath, "--no", "skills", "check")
 	// Avoid resolving project-local node_modules in the current repository.
 	cmd.Dir = skillsCheckWorkingDirectory()
+	// Avoid contacting npm registries during passive background checks.
+	cmd.Env = append(os.Environ(), "npm_config_offline=true")
 	var combined bytes.Buffer
 	cmd.Stdout = &combined
 	cmd.Stderr = &combined
