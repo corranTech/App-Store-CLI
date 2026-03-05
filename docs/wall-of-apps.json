@@ -200,6 +200,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Peakme: Hike, Track, Explore",
+    "link": "https://apps.apple.com/app/id6733216670",
+    "creator": "leszko11",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/22/a4/41/22a441e6-20c5-a464-2b0f-3db405633856/AppIcon-0-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Pickle Rite",
     "link": "https://apps.apple.com/us/app/pickle-rite/id6754095362",
     "creator": "Badarinath Venkatnarayansetty",
