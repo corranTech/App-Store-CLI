@@ -194,9 +194,9 @@ func shouldSkipProjectLocalSkillsBinary(binaryPath string) bool {
 		return false
 	}
 
-	repoRoot := cwd
-	if root, ok := detectRepoRoot(cwd); ok {
-		repoRoot = root
+	repoRoot, ok := detectRepoRoot(cwd)
+	if !ok {
+		return false
 	}
 
 	resolvedBinary := resolvePathForComparison(binaryPath)

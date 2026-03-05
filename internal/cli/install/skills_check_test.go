@@ -562,6 +562,32 @@ func TestDefaultRunSkillsCheckCommand_SkipsProjectLocalSkillsBinary(t *testing.T
 	}
 }
 
+func TestShouldSkipProjectLocalSkillsBinary_NoRepoRootDoesNotSkip(t *testing.T) {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	workingDir := t.TempDir()
+	if err := os.Chdir(workingDir); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	binaryPath := filepath.Join(workingDir, "bin", "skills")
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	if shouldSkipProjectLocalSkillsBinary(binaryPath) {
+		t.Fatal("expected no-repo-root working directory not to skip binary path")
+	}
+}
+
 func TestDefaultPersistSkillsCheckedAt_PreservesUnknownFields(t *testing.T) {
 	cfgPath := filepath.Join(t.TempDir(), "config.json")
 	t.Setenv("ASC_CONFIG_PATH", cfgPath)
