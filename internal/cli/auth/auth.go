@@ -773,14 +773,7 @@ Examples:
 			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv
 			envComplete := envKeyID != "" && envIssuerID != "" && hasKeyEnv
 
-			environmentNote := ""
-			if profile != "" && envProvided {
-				environmentNote = fmt.Sprintf("Profile %q selected; environment credentials will be ignored.", profile)
-			} else if bypassKeychain && envComplete {
-				environmentNote = "Environment credentials detected (ASC_KEY_ID present). With ASC_BYPASS_KEYCHAIN set to 1/true/yes/on, they will be used when no profile is selected."
-			} else if bypassKeychain && envProvided && !envComplete {
-				environmentNote = "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."
-			}
+			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envComplete)
 			if normalizedOutput == "table" && environmentNote != "" {
 				fmt.Println(environmentNote)
 			}
@@ -876,6 +869,19 @@ func defaultAuthStatusOutputFormat() string {
 		return "json"
 	}
 	return "table"
+}
+
+func authStatusEnvironmentNote(profile string, bypassKeychain, envProvided, envComplete bool) string {
+	if profile != "" && envProvided {
+		return fmt.Sprintf("Profile %q selected; environment credentials will be ignored.", profile)
+	}
+	if !bypassKeychain || !envProvided {
+		return ""
+	}
+	if !envComplete {
+		return "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."
+	}
+	return "Environment credentials detected (ASC_KEY_ID present). In bypass mode, stored config credentials are preferred; environment credentials are only used when no stored config credential is selected."
 }
 
 func boolPointer(value bool) *bool {

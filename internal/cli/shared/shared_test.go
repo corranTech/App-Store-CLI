@@ -898,7 +898,7 @@ func TestStrictAuthEnabled_EnvFalseyValues(t *testing.T) {
 	}
 }
 
-func TestStrictAuthEnabled_InvalidValueWarnsAndDisables(t *testing.T) {
+func TestStrictAuthEnabled_InvalidValueWarnsAndEnables(t *testing.T) {
 	previousStrict := strictAuth
 	strictAuth = false
 	t.Cleanup(func() {
@@ -907,8 +907,8 @@ func TestStrictAuthEnabled_InvalidValueWarnsAndDisables(t *testing.T) {
 	t.Setenv(strictAuthEnvVar, "maybe")
 
 	stdout, stderr := captureOutput(t, func() {
-		if strictAuthEnabled() {
-			t.Fatal("expected strict auth to be disabled for invalid value")
+		if !strictAuthEnabled() {
+			t.Fatal("expected strict auth to be enabled for invalid value")
 		}
 	})
 
@@ -917,6 +917,9 @@ func TestStrictAuthEnabled_InvalidValueWarnsAndDisables(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "invalid ASC_STRICT_AUTH value \"maybe\"") {
 		t.Fatalf("expected invalid value warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "strict auth enabled conservatively") {
+		t.Fatalf("expected warning to explain conservative behavior, got %q", stderr)
 	}
 }
 

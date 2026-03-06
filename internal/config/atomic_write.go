@@ -17,8 +17,8 @@ var syncDirFn = syncDir
 
 func writeConfigFile(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+	if err := ensureConfigDirPath(dir); err != nil {
+		return err
 	}
 	if parentDir := filepath.Dir(dir); parentDir != dir {
 		if err := syncDirFn(parentDir); err != nil {
@@ -70,6 +70,90 @@ func writeConfigFile(path string, data []byte) error {
 	}
 
 	success = true
+	return nil
+}
+
+func ensureConfigDirPath(dir string) error {
+	cleanDir := filepath.Clean(dir)
+	absDir, err := filepath.Abs(cleanDir)
+	if err != nil {
+		return err
+	}
+
+	current := absDir
+	var pending []string
+	for {
+		info, err := os.Lstat(current)
+		switch {
+		case err == nil:
+			if info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("refusing to follow symlink component %q", current)
+			}
+			if !info.IsDir() {
+				return fmt.Errorf("config directory component %q is not a directory", current)
+			}
+			for i := len(pending) - 1; i >= 0; i-- {
+				current = filepath.Join(current, pending[i])
+				if err := ensureConfigDirComponent(current); err != nil {
+					return err
+				}
+			}
+			return nil
+		case !errors.Is(err, os.ErrNotExist):
+			return err
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return fmt.Errorf("failed to create config directory: no existing parent for %q", absDir)
+		}
+		pending = append(pending, filepath.Base(current))
+		current = parent
+	}
+}
+
+func ensureConfigDirComponent(path string) error {
+	info, err := os.Lstat(path)
+	switch {
+	case err == nil:
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to follow symlink component %q", path)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("config directory component %q is not a directory", path)
+		}
+		return nil
+	case !errors.Is(err, os.ErrNotExist):
+		return err
+	}
+
+	if err := os.Mkdir(path, 0o700); err != nil {
+		if !errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("failed to create config directory: %w", err)
+		}
+		info, err = os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to follow symlink component %q", path)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("config directory component %q is not a directory", path)
+		}
+		return nil
+	}
+
+	info, err = os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to follow symlink component %q", path)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("config directory component %q is not a directory", path)
+	}
 	return nil
 }
 

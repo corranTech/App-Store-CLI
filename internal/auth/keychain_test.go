@@ -75,7 +75,7 @@ func TestShouldBypassKeychainEnvSemantics(t *testing.T) {
 		{name: "falsey false", value: ptrTo("false"), expect: false},
 		{name: "falsey no", value: ptrTo("no"), expect: false},
 		{name: "falsey off", value: ptrTo("off"), expect: false},
-		{name: "invalid value", value: ptrTo("banana"), expect: false},
+		{name: "invalid value", value: ptrTo("banana"), expect: true},
 	}
 
 	for _, tt := range tests {
@@ -92,19 +92,24 @@ func TestShouldBypassKeychainEnvSemantics(t *testing.T) {
 	}
 }
 
-func TestShouldBypassKeychain_InvalidValueWarnsAndDisables(t *testing.T) {
+func TestShouldBypassKeychain_InvalidValueWarnsAndEnables(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "banana")
+	resetInvalidBypassKeychainWarnings()
+	t.Cleanup(resetInvalidBypassKeychainWarnings)
 
 	stderr := captureStderr(t, func() {
-		if shouldBypassKeychain() {
-			t.Fatal("expected invalid value to keep keychain enabled")
+		if !shouldBypassKeychain() {
+			t.Fatal("expected invalid value to enable keychain bypass conservatively")
+		}
+		if !shouldBypassKeychain() {
+			t.Fatal("expected invalid value to keep keychain bypass enabled conservatively")
 		}
 	})
 
-	if !strings.Contains(stderr, `Warning: invalid ASC_BYPASS_KEYCHAIN value "banana"`) {
-		t.Fatalf("expected invalid value warning, got %q", stderr)
+	if count := strings.Count(stderr, `Warning: invalid ASC_BYPASS_KEYCHAIN value "banana"`); count != 1 {
+		t.Fatalf("expected one invalid value warning, got %d in %q", count, stderr)
 	}
-	if !strings.Contains(stderr, "keychain bypass disabled") {
+	if !strings.Contains(stderr, "keychain bypass enabled conservatively") {
 		t.Fatalf("expected warning to explain conservative behavior, got %q", stderr)
 	}
 }

@@ -606,11 +606,11 @@ func strictAuthEnabled() bool {
 	default:
 		fmt.Fprintf(
 			os.Stderr,
-			"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, y/n, or on/off); strict auth disabled\n",
+			"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, y/n, or on/off); strict auth enabled conservatively\n",
 			strictAuthEnvVar,
 			value,
 		)
-		return false
+		return true
 	}
 }
 

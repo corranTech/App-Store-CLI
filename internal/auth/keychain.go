@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/99designs/keyring"
 
@@ -23,6 +24,11 @@ import (
 //
 // This is distinct from keychain being unavailable (`keyring.ErrNoAvailImpl`).
 var ErrKeychainAccessDenied = errors.New("keychain access denied")
+
+var (
+	invalidBypassKeychainWarningsMu sync.Mutex
+	invalidBypassKeychainWarnings   = map[string]struct{}{}
+)
 
 const (
 	keyringService    = "asc"
@@ -105,14 +111,41 @@ func shouldBypassKeychain() bool {
 	case "0", "false", "no", "off":
 		return false
 	default:
-		fmt.Fprintf(
-			os.Stderr,
-			"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, or on/off); keychain bypass disabled\n",
-			bypassKeychainEnv,
-			trimmed,
-		)
-		return false
+		warnInvalidBypassKeychainValueOnce(trimmed, true)
+		return true
 	}
+}
+
+func warnInvalidBypassKeychainValueOnce(value string, bypassEnabled bool) {
+	if value == "" {
+		return
+	}
+
+	invalidBypassKeychainWarningsMu.Lock()
+	if _, ok := invalidBypassKeychainWarnings[value]; ok {
+		invalidBypassKeychainWarningsMu.Unlock()
+		return
+	}
+	invalidBypassKeychainWarnings[value] = struct{}{}
+	invalidBypassKeychainWarningsMu.Unlock()
+
+	message := "keychain bypass disabled"
+	if bypassEnabled {
+		message = "keychain bypass enabled conservatively"
+	}
+	fmt.Fprintf(
+		os.Stderr,
+		"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, or on/off); %s\n",
+		bypassKeychainEnv,
+		value,
+		message,
+	)
+}
+
+func resetInvalidBypassKeychainWarnings() {
+	invalidBypassKeychainWarningsMu.Lock()
+	defer invalidBypassKeychainWarningsMu.Unlock()
+	invalidBypassKeychainWarnings = map[string]struct{}{}
 }
 
 // ShouldBypassKeychain reports whether keychain usage is disabled via env.
