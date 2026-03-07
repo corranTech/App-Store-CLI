@@ -230,6 +230,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("snitch flush does not accept positional arguments; use --file PATH to specify a log file")
+			}
+
 			path := strings.TrimSpace(*logFile)
 			if path == "" {
 				path = filepath.Join(".asc", "snitch.log")
