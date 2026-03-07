@@ -1,7 +1,6 @@
 package snitch
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -375,24 +374,19 @@ func readLocalLog(path string) ([]LogEntry, error) {
 		return nil, nil
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(trimmed))
-	entries := make([]LogEntry, 0)
-	lineNumber := 0
-	for scanner.Scan() {
-		lineNumber++
-		line := strings.TrimSpace(scanner.Text())
+	lines := strings.Split(trimmed, "\n")
+	entries := make([]LogEntry, 0, len(lines))
+	for i, rawLine := range lines {
+		line := strings.TrimSpace(rawLine)
 		if line == "" {
 			continue
 		}
 
 		var entry LogEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			return nil, fmt.Errorf("invalid log entry on line %d: %w", lineNumber, err)
+			return nil, fmt.Errorf("invalid log entry on line %d: %w", i+1, err)
 		}
 		entries = append(entries, entry)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
 	}
 
 	return entries, nil

@@ -486,6 +486,44 @@ func TestReadLocalLogAndFormatEntries(t *testing.T) {
 	}
 }
 
+func TestReadLocalLogSupportsLargeEntries(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "snitch.log")
+
+	entry := LogEntry{
+		Description: "large local entry",
+		Severity:    "bug",
+		Actual:      strings.Repeat("stacktrace line\n", 6000),
+		ASCVersion:  "1.2.3",
+		OS:          "darwin/arm64",
+		Timestamp:   time.Now().UTC(),
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("json.Marshal() error: %v", err)
+	}
+	if len(data) <= 64*1024 {
+		t.Fatalf("expected marshaled entry to exceed scanner limit, got %d bytes", len(data))
+	}
+	if err := os.WriteFile(logPath, append(data, '\n'), 0o644); err != nil {
+		t.Fatalf("os.WriteFile() error: %v", err)
+	}
+
+	entries, err := readLocalLog(logPath)
+	if err != nil {
+		t.Fatalf("readLocalLog() error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].Description != entry.Description {
+		t.Fatalf("expected description %q, got %q", entry.Description, entries[0].Description)
+	}
+	if entries[0].Actual != entry.Actual {
+		t.Fatalf("expected large actual payload to round-trip")
+	}
+}
+
 func TestReadLocalLogInvalidLine(t *testing.T) {
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "snitch.log")
