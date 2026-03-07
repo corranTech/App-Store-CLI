@@ -346,7 +346,6 @@ func resolveCredentials() (resolvedCredentials, error) {
 	var actualKeyID, actualIssuerID, actualKeyPath, actualKeyPEM string
 	profile := resolveProfileName()
 	var envCreds envCredentials
-	envResolved := false
 	sources := credentialSource{}
 
 	// Priority 1: Stored credentials (keychain/config)
@@ -360,7 +359,7 @@ func resolveCredentials() (resolvedCredentials, error) {
 		if errors.Is(err, auth.ErrKeychainAccessDenied) {
 			return resolvedCredentials{}, fmt.Errorf("keychain access denied; set ASC_BYPASS_KEYCHAIN=1 to bypass: %w", err)
 		}
-		if !errors.Is(err, config.ErrNotFound) {
+		if !allowsEnvFallbackForStoredError(err) {
 			return resolvedCredentials{}, err
 		}
 	} else if cfg != nil {
@@ -377,13 +376,11 @@ func resolveCredentials() (resolvedCredentials, error) {
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
 	if actualKeyID == "" || actualIssuerID == "" || (actualKeyPath == "" && actualKeyPEM == "") {
-		if !envResolved {
-			resolved, err := resolveEnvCredentials()
-			if err != nil {
-				return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
-			}
-			envCreds = resolved
+		resolved, err := resolveEnvCredentials()
+		if err != nil {
+			return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
 		}
+		envCreds = resolved
 		if actualKeyID == "" && envCreds.keyID != "" {
 			actualKeyID = envCreds.keyID
 			sources.keyID = "env"
@@ -414,6 +411,10 @@ func resolveCredentials() (resolvedCredentials, error) {
 		keyPath:  actualKeyPath,
 		keyPEM:   actualKeyPEM,
 	}, nil
+}
+
+func allowsEnvFallbackForStoredError(err error) bool {
+	return errors.Is(err, config.ErrNotFound) || errors.Is(err, auth.ErrDefaultCredentialsNotFound)
 }
 
 func getASCClient() (*asc.Client, error) {

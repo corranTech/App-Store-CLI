@@ -80,36 +80,37 @@ func ensureConfigDirPath(dir string) error {
 		return err
 	}
 
-	current := absDir
-	var pending []string
-	for {
-		info, err := os.Lstat(current)
-		switch {
-		case err == nil:
-			if info.Mode()&os.ModeSymlink != 0 {
-				return fmt.Errorf("refusing to follow symlink component %q", current)
-			}
-			if !info.IsDir() {
-				return fmt.Errorf("config directory component %q is not a directory", current)
-			}
-			for i := len(pending) - 1; i >= 0; i-- {
-				current = filepath.Join(current, pending[i])
-				if err := ensureConfigDirComponent(current); err != nil {
-					return err
-				}
-			}
-			return nil
-		case !errors.Is(err, os.ErrNotExist):
+	for _, component := range configDirComponents(absDir) {
+		if err := ensureConfigDirComponent(component); err != nil {
 			return err
 		}
-
-		parent := filepath.Dir(current)
-		if parent == current {
-			return fmt.Errorf("failed to create config directory: no existing parent for %q", absDir)
-		}
-		pending = append(pending, filepath.Base(current))
-		current = parent
 	}
+	return nil
+}
+
+func configDirComponents(absDir string) []string {
+	clean := filepath.Clean(absDir)
+	volume := filepath.VolumeName(clean)
+	remainder := clean[len(volume):]
+	root := volume
+	if strings.HasPrefix(remainder, string(filepath.Separator)) {
+		root += string(filepath.Separator)
+		remainder = strings.TrimPrefix(remainder, string(filepath.Separator))
+	}
+	if root == "" {
+		root = string(filepath.Separator)
+	}
+
+	components := []string{root}
+	current := root
+	for _, part := range strings.Split(remainder, string(filepath.Separator)) {
+		if part == "" {
+			continue
+		}
+		current = filepath.Join(current, part)
+		components = append(components, current)
+	}
+	return components
 }
 
 func ensureConfigDirComponent(path string) error {
@@ -117,6 +118,9 @@ func ensureConfigDirComponent(path string) error {
 	switch {
 	case err == nil:
 		if info.Mode()&os.ModeSymlink != 0 {
+			if isAllowedConfigDirSymlink(path) {
+				return nil
+			}
 			return fmt.Errorf("refusing to follow symlink component %q", path)
 		}
 		if !info.IsDir() {
@@ -136,6 +140,9 @@ func ensureConfigDirComponent(path string) error {
 			return err
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
+			if isAllowedConfigDirSymlink(path) {
+				return nil
+			}
 			return fmt.Errorf("refusing to follow symlink component %q", path)
 		}
 		if !info.IsDir() {
@@ -149,12 +156,33 @@ func ensureConfigDirComponent(path string) error {
 		return err
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
+		if isAllowedConfigDirSymlink(path) {
+			return nil
+		}
 		return fmt.Errorf("refusing to follow symlink component %q", path)
 	}
 	if !info.IsDir() {
 		return fmt.Errorf("config directory component %q is not a directory", path)
 	}
 	return nil
+}
+
+func isAllowedConfigDirSymlink(path string) bool {
+	if runtime.GOOS != "darwin" {
+		return false
+	}
+
+	switch filepath.Clean(path) {
+	case "/var", "/tmp", "/etc":
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return false
+		}
+		expected := filepath.Join("/private", strings.TrimPrefix(filepath.Clean(path), "/"))
+		return filepath.Clean(resolved) == expected
+	default:
+		return false
+	}
 }
 
 func createTempConfigFile(dir, pattern string, perm os.FileMode) (*os.File, error) {

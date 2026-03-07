@@ -166,6 +166,29 @@ func TestSaveAtRejectsSymlinkParentDirectory(t *testing.T) {
 	}
 }
 
+func TestSaveAtRejectsSymlinkAncestorDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, "actual")
+	nestedDir := filepath.Join(targetDir, "nested")
+	if err := os.MkdirAll(nestedDir, 0o700); err != nil {
+		t.Fatalf("MkdirAll(nestedDir) error: %v", err)
+	}
+
+	linkDir := filepath.Join(tempDir, "linked")
+	if err := os.Symlink(targetDir, linkDir); err != nil {
+		t.Skipf("symlink not supported in this environment: %v", err)
+	}
+
+	path := filepath.Join(linkDir, "nested", "config.json")
+	err := SaveAt(path, &Config{KeyID: "KEY123"})
+	if err == nil {
+		t.Fatal("expected symlink ancestor write to fail, got nil")
+	}
+	if _, statErr := os.Stat(filepath.Join(nestedDir, "config.json")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("expected nested target config file to remain absent, got %v", statErr)
+	}
+}
+
 func TestLoadMissingConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))

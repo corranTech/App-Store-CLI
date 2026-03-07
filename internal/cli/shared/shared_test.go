@@ -1041,6 +1041,40 @@ func TestResolveCredentials_BypassKeychainFallsBackToEnvWhenConfigMissing(t *tes
 	}
 }
 
+func TestResolveCredentials_DefaultSelectionErrorFallsBackToEnv(t *testing.T) {
+	resetPrivateKeyTemp(t)
+
+	tempDir := t.TempDir()
+	envKeyPath := filepath.Join(tempDir, "AuthKey-Env.p8")
+	writeECDSAPEM(t, envKeyPath)
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "ENVKEY")
+	t.Setenv("ASC_ISSUER_ID", "ENVISS")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", envKeyPath)
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() { selectedProfile = previousProfile })
+
+	previous := getCredentialsWithSourceFn
+	getCredentialsWithSourceFn = func(string) (*config.Config, string, error) {
+		return nil, "", auth.ErrDefaultCredentialsNotFound
+	}
+	t.Cleanup(func() { getCredentialsWithSourceFn = previous })
+
+	creds, err := resolveCredentials()
+	if err != nil {
+		t.Fatalf("resolveCredentials() error: %v", err)
+	}
+	if creds.keyID != "ENVKEY" || creds.issuerID != "ENVISS" || creds.keyPath != envKeyPath {
+		t.Fatalf("expected env fallback after default-selection error, got %+v", creds)
+	}
+}
+
 func TestResolveCredentials_AllowsStoredPEMWithoutPath(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "AuthKey.p8")
