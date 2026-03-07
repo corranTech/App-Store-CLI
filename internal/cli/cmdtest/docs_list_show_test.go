@@ -119,7 +119,7 @@ func TestDocsShowPrintsWorkflowsGuide(t *testing.T) {
 	if !strings.Contains(stdout, "asc workflow") || !strings.Contains(stdout, "asc release run") {
 		t.Fatalf("expected workflows guide to document workflow and release commands, got %q", stdout)
 	}
-	if !strings.Contains(stdout, `asc status --app "$APP_ID"`) {
+	if !strings.Contains(stdout, `asc status --app "APP_ID"`) {
 		t.Fatalf("expected workflows guide to mention status monitoring, got %q", stdout)
 	}
 }

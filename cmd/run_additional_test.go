@@ -289,7 +289,7 @@ func TestRootCommand_WorkflowHelpMentionsReleaseAndStatusMonitoring(t *testing.T
 	if !strings.Contains(usage, `asc release run --app $APP_ID --version $VERSION --build $BUILD_ID --metadata-dir ./metadata/version/$VERSION --confirm`) {
 		t.Fatalf("expected workflow help to show the high-level release step, got %q", usage)
 	}
-	if !strings.Contains(usage, `asc status --app "$APP_ID"`) {
+	if !strings.Contains(usage, `asc status --app "APP_ID"`) {
 		t.Fatalf("expected workflow help to mention post-release status monitoring, got %q", usage)
 	}
 }

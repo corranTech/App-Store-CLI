@@ -101,7 +101,7 @@ Example workflow file (.asc/workflow.json):
 }
 
 After running the release workflow, monitor submission progress with:
-  asc status --app "$APP_ID"
+  asc status --app "APP_ID"
 
 Try it:
   asc workflow validate
