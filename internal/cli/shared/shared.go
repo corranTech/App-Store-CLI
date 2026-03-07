@@ -608,7 +608,7 @@ func strictAuthEnabled() bool {
 		return false
 	default:
 		warnInvalidStrictAuthValueOnce(value)
-		return true
+		return false
 	}
 }
 
@@ -627,7 +627,7 @@ func warnInvalidStrictAuthValueOnce(value string) {
 
 	fmt.Fprintf(
 		os.Stderr,
-		"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, y/n, or on/off); strict auth enabled conservatively\n",
+		"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, y/n, or on/off); strict auth disabled\n",
 		strictAuthEnvVar,
 		value,
 	)
