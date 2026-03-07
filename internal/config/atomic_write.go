@@ -114,44 +114,23 @@ func configDirComponents(absDir string) []string {
 }
 
 func ensureConfigDirComponent(path string) error {
-	info, err := os.Lstat(path)
+	err := validateConfigDirComponent(path)
 	switch {
 	case err == nil:
-		if info.Mode()&os.ModeSymlink != 0 {
-			if isAllowedConfigDirSymlink(path) {
-				return nil
-			}
-			return fmt.Errorf("refusing to follow symlink component %q", path)
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("config directory component %q is not a directory", path)
-		}
 		return nil
 	case !errors.Is(err, os.ErrNotExist):
 		return err
 	}
 
-	if err := os.Mkdir(path, 0o700); err != nil {
-		if !errors.Is(err, os.ErrExist) {
-			return fmt.Errorf("failed to create config directory: %w", err)
-		}
-		info, err = os.Lstat(path)
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			if isAllowedConfigDirSymlink(path) {
-				return nil
-			}
-			return fmt.Errorf("refusing to follow symlink component %q", path)
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("config directory component %q is not a directory", path)
-		}
-		return nil
+	if err := os.Mkdir(path, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	info, err = os.Lstat(path)
+	return validateConfigDirComponent(path)
+}
+
+func validateConfigDirComponent(path string) error {
+	info, err := os.Lstat(path)
 	if err != nil {
 		return err
 	}

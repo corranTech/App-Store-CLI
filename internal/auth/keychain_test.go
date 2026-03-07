@@ -75,7 +75,7 @@ func TestShouldBypassKeychainEnvSemantics(t *testing.T) {
 		{name: "falsey false", value: ptrTo("false"), expect: false},
 		{name: "falsey no", value: ptrTo("no"), expect: false},
 		{name: "falsey off", value: ptrTo("off"), expect: false},
-		{name: "invalid value", value: ptrTo("banana"), expect: true},
+		{name: "invalid value", value: ptrTo("banana"), expect: false},
 	}
 
 	for _, tt := range tests {
@@ -92,24 +92,24 @@ func TestShouldBypassKeychainEnvSemantics(t *testing.T) {
 	}
 }
 
-func TestShouldBypassKeychain_InvalidValueWarnsAndEnables(t *testing.T) {
+func TestShouldBypassKeychain_InvalidValueWarnsAndDisables(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "banana")
 	resetInvalidBypassKeychainWarnings()
 	t.Cleanup(resetInvalidBypassKeychainWarnings)
 
 	stderr := captureStderr(t, func() {
-		if !shouldBypassKeychain() {
-			t.Fatal("expected invalid value to enable keychain bypass conservatively")
+		if shouldBypassKeychain() {
+			t.Fatal("expected invalid value to keep keychain bypass disabled")
 		}
-		if !shouldBypassKeychain() {
-			t.Fatal("expected invalid value to keep keychain bypass enabled conservatively")
+		if shouldBypassKeychain() {
+			t.Fatal("expected invalid value to continue keeping keychain bypass disabled")
 		}
 	})
 
 	if count := strings.Count(stderr, `Warning: invalid ASC_BYPASS_KEYCHAIN value "banana"`); count != 1 {
 		t.Fatalf("expected one invalid value warning, got %d in %q", count, stderr)
 	}
-	if !strings.Contains(stderr, "keychain bypass enabled conservatively") {
+	if !strings.Contains(stderr, "keychain bypass disabled") {
 		t.Fatalf("expected warning to explain conservative behavior, got %q", stderr)
 	}
 }
@@ -180,6 +180,42 @@ func TestKeychainAvailableBypassSkipsKeyring(t *testing.T) {
 	}
 	if available {
 		t.Fatal("expected keychain unavailable when bypassed")
+	}
+}
+
+func TestKeychainAvailableInvalidBypassStillChecksKeyring(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "banana")
+	resetInvalidBypassKeychainWarnings()
+	t.Cleanup(resetInvalidBypassKeychainWarnings)
+
+	previous := keyringOpener
+	called := false
+	keyringOpener = func() (keyring.Keyring, error) {
+		called = true
+		return nil, keyring.ErrNoAvailImpl
+	}
+	t.Cleanup(func() {
+		keyringOpener = previous
+	})
+
+	stderr := captureStderr(t, func() {
+		available, err := KeychainAvailable()
+		if err != nil {
+			t.Fatalf("KeychainAvailable() error: %v", err)
+		}
+		if available {
+			t.Fatal("expected keychain to remain unavailable when opener reports no backend")
+		}
+	})
+
+	if !called {
+		t.Fatal("expected invalid bypass value to still consult the keyring opener")
+	}
+	if !strings.Contains(stderr, `Warning: invalid ASC_BYPASS_KEYCHAIN value "banana"`) {
+		t.Fatalf("expected invalid bypass warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "keychain bypass disabled") {
+		t.Fatalf("expected warning to explain disabled bypass behavior, got %q", stderr)
 	}
 }
 

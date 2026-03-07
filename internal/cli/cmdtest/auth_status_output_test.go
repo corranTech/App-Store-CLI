@@ -244,7 +244,7 @@ func TestAuthStatusInvalidBypassWarningPrintedOnce(t *testing.T) {
 	if count := strings.Count(stderr, `Warning: invalid ASC_BYPASS_KEYCHAIN value "banana"`); count != 1 {
 		t.Fatalf("expected one bypass warning, got %d in %q", count, stderr)
 	}
-	if !strings.Contains(stderr, "keychain bypass enabled conservatively") {
+	if !strings.Contains(stderr, "keychain bypass disabled") {
 		t.Fatalf("expected conservative bypass warning, got %q", stderr)
 	}
 
@@ -254,7 +254,7 @@ func TestAuthStatusInvalidBypassWarningPrintedOnce(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
 		t.Fatalf("failed to unmarshal auth status json: %v; stdout=%q", err, stdout)
 	}
-	if payload.StorageBackend != "Config File" {
-		t.Fatalf("expected storage backend %q, got %q", "Config File", payload.StorageBackend)
+	if payload.StorageBackend == "" {
+		t.Fatalf("expected storage backend in auth status output, got empty payload: %q", stdout)
 	}
 }

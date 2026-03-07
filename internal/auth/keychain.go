@@ -115,12 +115,12 @@ func shouldBypassKeychain() bool {
 	case "0", "false", "no", "off":
 		return false
 	default:
-		warnInvalidBypassKeychainValueOnce(trimmed, true)
-		return true
+		warnInvalidBypassKeychainValueOnce(trimmed)
+		return false
 	}
 }
 
-func warnInvalidBypassKeychainValueOnce(value string, bypassEnabled bool) {
+func warnInvalidBypassKeychainValueOnce(value string) {
 	if value == "" {
 		return
 	}
@@ -133,16 +133,12 @@ func warnInvalidBypassKeychainValueOnce(value string, bypassEnabled bool) {
 	invalidBypassKeychainWarnings[value] = struct{}{}
 	invalidBypassKeychainWarningsMu.Unlock()
 
-	message := "keychain bypass disabled"
-	if bypassEnabled {
-		message = "keychain bypass enabled conservatively"
-	}
 	fmt.Fprintf(
 		os.Stderr,
 		"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, or on/off); %s\n",
 		bypassKeychainEnv,
 		value,
-		message,
+		"keychain bypass disabled",
 	)
 }
 
