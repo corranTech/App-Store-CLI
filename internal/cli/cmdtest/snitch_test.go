@@ -6,6 +6,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -127,6 +128,46 @@ func TestSnitchLocalLog(t *testing.T) {
 
 	if !strings.Contains(stderr, "Friction logged") {
 		t.Fatalf("expected friction logged message, got %q", stderr)
+	}
+}
+
+func TestSnitchDryRunLocalDoesNotWriteLog(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	defer func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Fatalf("os.Chdir restore error: %v", err)
+		}
+	}()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("os.Chdir temp dir error: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"snitch", "--dry-run", "--local", "local dry run entry"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected no error for dry-run local, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "Dry run: would create issue") {
+		t.Fatalf("expected dry-run output, got %q", stderr)
+	}
+	if strings.Contains(stderr, "Friction logged") {
+		t.Fatalf("did not expect local log write output, got %q", stderr)
+	}
+
+	logPath := filepath.Join(".asc", "snitch.log")
+	if _, err := os.Stat(logPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no local log file, got err=%v", err)
 	}
 }
 

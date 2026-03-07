@@ -105,7 +105,7 @@ Examples:
 				OS:          fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 			}
 
-			if *local {
+			if *local && !*dryRun {
 				return writeLocalLog(entry)
 			}
 
