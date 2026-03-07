@@ -114,10 +114,6 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if token == "" && *confirm {
-				return fmt.Errorf("snitch: GITHUB_TOKEN or GH_TOKEN is required to create issues")
-			}
-
 			var duplicates []GitHubIssue
 			if token != "" {
 				var err error
@@ -134,6 +130,10 @@ Examples:
 			if *dryRun || !*confirm {
 				printPreview(entry, *dryRun)
 				return nil
+			}
+
+			if token == "" {
+				return fmt.Errorf("snitch: GITHUB_TOKEN or GH_TOKEN is required to create issues")
 			}
 
 			issue, err := createIssue(requestCtx, token, entry)

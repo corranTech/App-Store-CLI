@@ -77,6 +77,37 @@ func TestSnitchDryRunNoToken(t *testing.T) {
 	}
 }
 
+func TestSnitchDryRunConfirmNoToken(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"snitch", "--dry-run", "--confirm", "test dry run confirm"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error for dry-run confirm, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "Dry run: would create issue") {
+		t.Fatalf("expected dry-run output, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "skipping duplicate search") {
+		t.Fatalf("expected offline duplicate search note, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "test dry run confirm") {
+		t.Fatalf("expected issue title in dry-run output, got %q", stderr)
+	}
+	if strings.Contains(stderr, "GITHUB_TOKEN or GH_TOKEN is required") {
+		t.Fatalf("did not expect token requirement in dry-run confirm output, got %q", stderr)
+	}
+}
+
 func TestSnitchPreviewWithoutConfirmNoToken(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GH_TOKEN", "")
