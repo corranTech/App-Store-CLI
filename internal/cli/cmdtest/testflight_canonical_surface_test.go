@@ -96,6 +96,15 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 		wantNotShown []string
 	}{
 		{
+			name:        "testflight apps alias help",
+			args:        []string{"testflight", "apps"},
+			wantUsage:   "asc apps <subcommand> [flags]",
+			wantWarning: "",
+			wantNotShown: []string{
+				"asc testflight apps <subcommand> [flags]",
+			},
+		},
+		{
 			name:        "feedback root help",
 			args:        []string{"feedback"},
 			wantUsage:   "asc testflight feedback list [flags]",
@@ -237,12 +246,12 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 	}
 }
 
-func TestTestFlightAppsHelpShowsViewNotGet(t *testing.T) {
+func TestTestFlightHelpHidesTestFlightApps(t *testing.T) {
 	root := RootCommand("1.2.3")
 
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "apps"}); err != nil {
+		if err := root.Parse([]string{"testflight"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
@@ -254,11 +263,8 @@ func TestTestFlightAppsHelpShowsViewNotGet(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "view") {
-		t.Fatalf("expected apps help to contain view, got %q", stderr)
-	}
-	if strings.Contains(stderr, "get\t") {
-		t.Fatalf("expected apps help to hide get, got %q", stderr)
+	if strings.Contains(stderr, "\n  apps ") {
+		t.Fatalf("expected testflight help to hide apps, got %q", stderr)
 	}
 }
 

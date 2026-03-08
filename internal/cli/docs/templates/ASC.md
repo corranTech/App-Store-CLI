@@ -43,7 +43,6 @@ Do not memorize flags. Always use `--help` for the current interface.
 | Generate ASC.md | `asc init` |
 | List apps | `asc apps` |
 | List builds | `asc builds list --app "APP_ID"` |
-| List TestFlight apps | `asc testflight apps list` |
 | List TestFlight groups | `asc testflight groups list --app "APP_ID"` |
 | List internal TestFlight groups | `asc testflight groups list --app "APP_ID" --internal` |
 | Release (full pipeline) | `asc release run --app "APP_ID" --version "VERSION" --build "BUILD_ID" --metadata-dir "./metadata/version/VERSION" --dry-run` |

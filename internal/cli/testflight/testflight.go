@@ -24,8 +24,6 @@ func TestFlightCommand() *ffcli.Command {
 		LongHelp: `Manage TestFlight workflows.
 
 Examples:
-  asc testflight apps list
-  asc testflight apps view --app "APP_ID"
   asc testflight groups list --app "APP_ID"
   asc testflight testers list --app "APP_ID"
   asc testflight feedback list --app "APP_ID"
@@ -41,7 +39,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: testflightVisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			TestFlightAppsSurfaceCommand(),
 			TestFlightGroupsCommand(),
 			TestFlightTestersCommand(),
 			TestFlightFeedbackCommand(),
@@ -57,6 +54,7 @@ Examples:
 			DeprecatedBetaTestersAliasCommand(),
 			DeprecatedBetaFeedbackAliasCommand(),
 			DeprecatedBetaCrashLogsAliasCommand(),
+			DeprecatedTestFlightAppsAliasCommand(),
 			DeprecatedBetaDetailsAliasCommand(),
 			DeprecatedBetaLicenseAgreementsAliasCommand(),
 			DeprecatedBetaNotificationsAliasCommand(),

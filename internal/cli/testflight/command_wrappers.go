@@ -263,30 +263,19 @@ Examples:
 	return cmd
 }
 
-func TestFlightAppsSurfaceCommand() *ffcli.Command {
-	cmd := rewriteCommandTree(
-		TestFlightAppsCommand(),
-		"asc testflight apps",
-		"asc testflight apps",
-		map[string]string{
-			"get": "view",
-		},
-		[]textReplacement{
-			{old: "Get ", new: "View "},
-			{old: "get ", new: "view "},
-			{old: "Fetch ", new: "View "},
-			{old: "fetch ", new: "view "},
-		},
-	)
-	setUsageFuncRecursively(cmd, testflightVisibleUsageFunc)
-	cmd.Subcommands = append(cmd.Subcommands,
-		deprecatedAliasCommand(
-			TestFlightAppsGetCommand(),
-			"asc testflight apps view --app \"APP_ID\"",
-			"DEPRECATED: use `asc testflight apps view`.",
-			"DEPRECATED: use `asc testflight apps view --app APP_ID`.",
+func DeprecatedTestFlightAppsAliasCommand() *ffcli.Command {
+	cmd := deprecatedAliasCommand(
+		rewriteCommandPresentation(
+			TestFlightAppsCommand(),
+			"asc testflight apps",
+			"asc apps",
+			map[string]string{},
 		),
+		"asc apps <subcommand> [flags]",
+		"DEPRECATED: use `asc apps`.",
+		"DEPRECATED: use `asc apps list` and `asc apps get`.",
 	)
+	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
 	return cmd
 }
 
