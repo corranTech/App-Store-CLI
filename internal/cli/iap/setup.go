@@ -39,6 +39,15 @@ type iapSetupOptions struct {
 	NoVerify         bool
 }
 
+func (o iapSetupOptions) hasPricing(startDateInput string) bool {
+	return o.BaseTerritory != "" ||
+		o.PricePointID != "" ||
+		o.Tier > 0 ||
+		o.Price != "" ||
+		strings.TrimSpace(startDateInput) != "" ||
+		o.RefreshTierCache
+}
+
 type iapSetupStepResult struct {
 	Name    string `json:"name"`
 	Status  string `json:"status"`
@@ -190,7 +199,7 @@ Examples:
 				return shared.UsageError("--tier must be a positive integer")
 			}
 
-			hasPricing := opts.BaseTerritory != "" || opts.PricePointID != "" || opts.Tier > 0 || opts.Price != "" || strings.TrimSpace(*startDate) != "" || opts.RefreshTierCache
+			hasPricing := opts.hasPricing(*startDate)
 			if hasPricing {
 				if opts.BaseTerritory == "" {
 					return shared.UsageError("--base-territory is required when pricing flags are provided")
@@ -318,7 +327,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 		})
 	}
 
-	hasPricing := opts.BaseTerritory != "" || opts.PricePointID != "" || opts.Tier > 0 || opts.Price != "" || opts.StartDate != "" || opts.RefreshTierCache
+	hasPricing := opts.hasPricing(opts.StartDate)
 	if !hasPricing {
 		result.Steps = append(result.Steps,
 			iapSetupStepResult{
@@ -516,7 +525,7 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 		verification.LocalizationExists = &value
 	}
 
-	hasPricing := opts.BaseTerritory != "" || opts.PricePointID != "" || opts.Tier > 0 || opts.Price != "" || opts.StartDate != "" || opts.RefreshTierCache
+	hasPricing := opts.hasPricing(opts.StartDate)
 	if hasPricing {
 		summary, err := resolveIAPPriceSummary(ctx, client, iapResp.Data, opts.BaseTerritory, now)
 		if err != nil {
@@ -562,13 +571,16 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 					Message: "current price missing after schedule creation",
 				}, fmt.Errorf("current price missing after schedule creation")
 			}
-			if opts.Price != "" && strings.TrimSpace(summary.CurrentPrice.Amount) != opts.Price {
-				verification.Status = "failed"
-				return verification, iapSetupStepResult{
-					Name:    iapSetupStepVerifyState,
-					Status:  "failed",
-					Message: fmt.Sprintf("current price mismatch: got %q", summary.CurrentPrice.Amount),
-				}, fmt.Errorf("current price mismatch: got %q want %q", summary.CurrentPrice.Amount, opts.Price)
+			if opts.Price != "" {
+				priceFilter := shared.PriceFilter{Price: opts.Price}
+				if !priceFilter.MatchesPrice(summary.CurrentPrice.Amount) {
+					verification.Status = "failed"
+					return verification, iapSetupStepResult{
+						Name:    iapSetupStepVerifyState,
+						Status:  "failed",
+						Message: fmt.Sprintf("current price mismatch: got %q", summary.CurrentPrice.Amount),
+					}, fmt.Errorf("current price mismatch: got %q want %q", summary.CurrentPrice.Amount, opts.Price)
+				}
 			}
 
 			value := true
@@ -637,8 +649,11 @@ func verifyScheduledIAPSetupPrice(ctx context.Context, client *asc.Client, iapID
 	if !ok {
 		return nil, "", fmt.Errorf("scheduled price point %q was not returned for territory %q", matched.PricePointID, territory)
 	}
-	if expectedPrice != "" && strings.TrimSpace(value.CustomerPrice) != expectedPrice {
-		return nil, "", fmt.Errorf("scheduled price mismatch: got %q want %q", value.CustomerPrice, expectedPrice)
+	if expectedPrice != "" {
+		priceFilter := shared.PriceFilter{Price: expectedPrice}
+		if !priceFilter.MatchesPrice(value.CustomerPrice) {
+			return nil, "", fmt.Errorf("scheduled price mismatch: got %q want %q", value.CustomerPrice, expectedPrice)
+		}
 	}
 
 	return &iapMoney{
