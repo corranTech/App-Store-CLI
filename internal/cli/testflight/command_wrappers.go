@@ -131,6 +131,9 @@ func renameCommandNames(cmd *ffcli.Command, nameRenames map[string]string) {
 
 	if renamed, ok := nameRenames[cmd.Name]; ok {
 		cmd.Name = renamed
+		if cmd.FlagSet != nil {
+			cmd.FlagSet.Init(renamed, cmd.FlagSet.ErrorHandling())
+		}
 	}
 	for _, sub := range cmd.Subcommands {
 		renameCommandNames(sub, nameRenames)
