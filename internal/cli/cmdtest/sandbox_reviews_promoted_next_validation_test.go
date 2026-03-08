@@ -182,7 +182,7 @@ func TestPromotedPurchasesListPaginateFromNextWithoutApp(t *testing.T) {
 			if req.Method != http.MethodGet || req.URL.String() != firstURL {
 				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
 			}
-			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-1"}],"links":{"next":"` + secondURL + `"}}`
+			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-1","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-1"}}}}],"links":{"next":"` + secondURL + `"}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -192,7 +192,7 @@ func TestPromotedPurchasesListPaginateFromNextWithoutApp(t *testing.T) {
 			if req.Method != http.MethodGet || req.URL.String() != secondURL {
 				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
 			}
-			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-2"}],"links":{"next":""}}`
+			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-2","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-2"}}}}],"links":{"next":""}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),

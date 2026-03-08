@@ -15,7 +15,26 @@ func SubscriptionsPromotedPurchasesCommand() *ffcli.Command {
 		"asc subscriptions promoted-purchases",
 	)
 	if cmd != nil {
-		cmd.ShortHelp = "Manage promoted purchases for subscriptions."
+		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
+			PathPrefix:      "asc subscriptions promoted-purchases",
+			ProductType:     "SUBSCRIPTION",
+			ProductSingular: "a subscription",
+			ProductPlural:   "subscriptions",
+			RootShortHelp:   "Manage promoted purchases for subscriptions.",
+			RootLongHelp: `Manage promoted purchases for subscriptions.
+
+Only promoted purchases attached to subscriptions are listed or modified.
+Link operations preserve any in-app purchase promoted purchases already
+attached to the app.
+
+Examples:
+  asc subscriptions promoted-purchases list --app "APP_ID"
+  asc subscriptions promoted-purchases get --promoted-purchase-id "PROMO_ID"
+  asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true
+  asc subscriptions promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled false
+  asc subscriptions promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm
+  asc subscriptions promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_ID"`,
+		})
 		configureSubscriptionsPromotedPurchasesCreate(cmd)
 	}
 	return cmd

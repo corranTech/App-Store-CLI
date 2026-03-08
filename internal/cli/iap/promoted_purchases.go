@@ -15,7 +15,26 @@ func IAPPromotedPurchasesCommand() *ffcli.Command {
 		"asc iap promoted-purchases",
 	)
 	if cmd != nil {
-		cmd.ShortHelp = "Manage promoted purchases for in-app purchases."
+		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
+			PathPrefix:      "asc iap promoted-purchases",
+			ProductType:     "IN_APP_PURCHASE",
+			ProductSingular: "an in-app purchase",
+			ProductPlural:   "in-app purchases",
+			RootShortHelp:   "Manage promoted purchases for in-app purchases.",
+			RootLongHelp: `Manage promoted purchases for in-app purchases.
+
+Only promoted purchases attached to in-app purchases are listed or modified.
+Link operations preserve any subscription promoted purchases already attached
+to the app.
+
+Examples:
+  asc iap promoted-purchases list --app "APP_ID"
+  asc iap promoted-purchases get --promoted-purchase-id "PROMO_ID"
+  asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --visible-for-all-users true
+  asc iap promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled false
+  asc iap promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm
+  asc iap promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_ID"`,
+		})
 		configureIAPPromotedPurchasesCreate(cmd)
 	}
 	return cmd

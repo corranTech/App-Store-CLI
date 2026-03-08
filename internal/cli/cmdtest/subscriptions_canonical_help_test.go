@@ -149,6 +149,21 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 		t.Fatalf("expected canonical promoted-purchases create help to hide --product-type, got %q", promotedPurchasesCreateUsage)
 	}
 
+	subscriptionsPromotedPurchasesCmd := findSubcommand(root, "subscriptions", "promoted-purchases")
+	if subscriptionsPromotedPurchasesCmd == nil {
+		t.Fatal("expected subscriptions promoted-purchases command")
+	}
+	subscriptionsPromotedPurchasesUsage := subscriptionsPromotedPurchasesCmd.UsageFunc(subscriptionsPromotedPurchasesCmd)
+	if strings.Contains(subscriptionsPromotedPurchasesUsage, "subscriptions and in-app purchases") {
+		t.Fatalf("expected subscriptions promoted-purchases help to avoid generic mixed-scope wording, got %q", subscriptionsPromotedPurchasesUsage)
+	}
+	if strings.Contains(subscriptionsPromotedPurchasesUsage, "--product-type SUBSCRIPTION") {
+		t.Fatalf("expected subscriptions promoted-purchases help to avoid stale generic create example, got %q", subscriptionsPromotedPurchasesUsage)
+	}
+	if !strings.Contains(subscriptionsPromotedPurchasesUsage, `asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true`) {
+		t.Fatalf("expected subscriptions promoted-purchases help to show scoped create example, got %q", subscriptionsPromotedPurchasesUsage)
+	}
+
 	iapCmd := findSubcommand(root, "iap")
 	if iapCmd == nil {
 		t.Fatal("expected iap command")
@@ -159,6 +174,21 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	}
 	if usageListsSubcommand(iapUsage, "promoted-purchase") {
 		t.Fatalf("expected iap help to hide deprecated singular promoted-purchase shim, got %q", iapUsage)
+	}
+
+	iapPromotedPurchasesCmd := findSubcommand(root, "iap", "promoted-purchases")
+	if iapPromotedPurchasesCmd == nil {
+		t.Fatal("expected iap promoted-purchases command")
+	}
+	iapPromotedPurchasesUsage := iapPromotedPurchasesCmd.UsageFunc(iapPromotedPurchasesCmd)
+	if strings.Contains(iapPromotedPurchasesUsage, "subscriptions and in-app purchases") {
+		t.Fatalf("expected iap promoted-purchases help to avoid generic mixed-scope wording, got %q", iapPromotedPurchasesUsage)
+	}
+	if strings.Contains(iapPromotedPurchasesUsage, "--product-type SUBSCRIPTION") {
+		t.Fatalf("expected iap promoted-purchases help to avoid stale subscription create example, got %q", iapPromotedPurchasesUsage)
+	}
+	if !strings.Contains(iapPromotedPurchasesUsage, `asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --visible-for-all-users true`) {
+		t.Fatalf("expected iap promoted-purchases help to show scoped create example, got %q", iapPromotedPurchasesUsage)
 	}
 }
 
