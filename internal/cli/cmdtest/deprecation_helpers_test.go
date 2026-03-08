@@ -6,10 +6,8 @@ import (
 )
 
 const (
-	feedbackRootDeprecationWarning  = "Warning: `asc feedback` is deprecated. Use `asc testflight feedback list`."
-	crashesRootDeprecationWarning   = "Warning: `asc crashes` is deprecated. Use `asc testflight crashes list`."
-	betaFeedbackDeprecationWarning  = "Warning: `asc testflight beta-feedback ...` is deprecated. Use `asc testflight feedback ...` and `asc testflight crashes ...`."
-	betaCrashLogsDeprecationWarning = "Warning: `asc testflight beta-crash-logs ...` is deprecated. Use `asc testflight crashes log`."
+	feedbackRootDeprecationWarning = "Warning: `asc feedback` is deprecated. Use `asc testflight feedback list`."
+	crashesRootDeprecationWarning  = "Warning: `asc crashes` is deprecated. Use `asc testflight crashes list`."
 )
 
 func requireStderrContainsWarning(t *testing.T, stderr, warning string) {

@@ -191,7 +191,7 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 			name:        "beta feedback alias help",
 			args:        []string{"testflight", "beta-feedback"},
 			wantUsage:   "asc testflight feedback <subcommand> | asc testflight crashes <subcommand>",
-			wantWarning: betaFeedbackDeprecationWarning,
+			wantWarning: "",
 			wantNotShown: []string{
 				"crash-submissions",
 				"screenshot-submissions",
@@ -203,7 +203,7 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 			name:        "beta crash logs alias help",
 			args:        []string{"testflight", "beta-crash-logs"},
 			wantUsage:   "asc testflight crashes log --crash-log-id \"CRASH_LOG_ID\"",
-			wantWarning: betaCrashLogsDeprecationWarning,
+			wantWarning: "",
 			wantNotShown: []string{
 				"asc testflight beta-crash-logs <subcommand> [flags]",
 				"get",
@@ -1001,13 +1001,13 @@ func TestLegacyFeedbackAndCrashAliasesWarnAndDelegate(t *testing.T) {
 			name:        "beta feedback alias",
 			args:        []string{"testflight", "beta-feedback", "crash-log", "get", "--id", "sub-1"},
 			wantPath:    "/v1/betaFeedbackCrashSubmissions/sub-1/crashLog",
-			wantWarning: "Warning: `asc testflight beta-feedback ...` is deprecated. Use `asc testflight feedback ...` and `asc testflight crashes ...`.",
+			wantWarning: "",
 		},
 		{
 			name:        "beta crash logs alias",
 			args:        []string{"testflight", "beta-crash-logs", "get", "--id", "log-1"},
 			wantPath:    "/v1/betaCrashLogs/log-1",
-			wantWarning: "Warning: `asc testflight beta-crash-logs ...` is deprecated. Use `asc testflight crashes log`.",
+			wantWarning: "",
 		},
 	}
 
@@ -1047,6 +1047,12 @@ func TestLegacyFeedbackAndCrashAliasesWarnAndDelegate(t *testing.T) {
 
 			if !strings.Contains(stdout, `"id":"ok-1"`) {
 				t.Fatalf("expected delegated output, got %q", stdout)
+			}
+			if test.wantWarning == "" {
+				if stderr != "" {
+					t.Fatalf("expected empty stderr, got %q", stderr)
+				}
+				return
 			}
 			if !strings.Contains(stderr, test.wantWarning) {
 				t.Fatalf("expected warning %q, got %q", test.wantWarning, stderr)

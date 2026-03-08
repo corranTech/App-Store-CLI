@@ -18,15 +18,14 @@ func DeprecatedBetaCrashLogsAliasCommand() *ffcli.Command {
 	cmd := &ffcli.Command{
 		Name:       "beta-crash-logs",
 		ShortUsage: "asc testflight crashes log --crash-log-id \"CRASH_LOG_ID\"",
-		ShortHelp:  "DEPRECATED: compatibility alias for direct crash-log lookups.",
-		LongHelp:   "DEPRECATED: use `asc testflight crashes log --crash-log-id CRASH_LOG_ID`.",
+		ShortHelp:  "Compatibility alias for direct crash-log lookups.",
+		LongHelp:   "Compatibility alias: use `asc testflight crashes log --crash-log-id CRASH_LOG_ID`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{
 			deprecatedBetaCrashLogsGetAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaCrashLogsWarning())
 			return flag.ErrHelp
 		},
 	}
@@ -43,12 +42,11 @@ func deprecatedBetaCrashLogsGetAliasCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "get",
 		ShortUsage: "asc testflight crashes log --crash-log-id \"CRASH_LOG_ID\"",
-		ShortHelp:  "DEPRECATED: use `asc testflight crashes log`.",
-		LongHelp:   "DEPRECATED: use `asc testflight crashes log --crash-log-id CRASH_LOG_ID`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight crashes log`.",
+		LongHelp:   "Compatibility alias: use `asc testflight crashes log --crash-log-id CRASH_LOG_ID`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaCrashLogsWarning())
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -74,8 +72,4 @@ func runCrashLogByCrashLogID(ctx context.Context, crashLogID string, output shar
 	}
 
 	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-}
-
-func deprecatedBetaCrashLogsWarning() string {
-	return "Warning: `asc testflight beta-crash-logs ...` is deprecated. Use `asc testflight crashes log`."
 }

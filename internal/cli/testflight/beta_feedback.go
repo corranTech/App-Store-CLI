@@ -431,8 +431,8 @@ func DeprecatedBetaFeedbackAliasCommand() *ffcli.Command {
 	cmd := &ffcli.Command{
 		Name:       "beta-feedback",
 		ShortUsage: "asc testflight feedback <subcommand> | asc testflight crashes <subcommand>",
-		ShortHelp:  "DEPRECATED: compatibility aliases for older feedback paths.",
-		LongHelp: `DEPRECATED: compatibility aliases for older feedback and crash paths.
+		ShortHelp:  "Compatibility aliases for older feedback paths.",
+		LongHelp: `Compatibility aliases for older feedback and crash paths.
 
 Prefer:
   asc testflight feedback ...
@@ -445,7 +445,6 @@ Prefer:
 			deprecatedBetaFeedbackCrashLogAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			return flag.ErrHelp
 		},
 	}
@@ -459,8 +458,8 @@ func deprecatedBetaFeedbackCrashSubmissionsAliasCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "crash-submissions",
 		ShortUsage: "asc testflight crashes <view|delete> [flags]",
-		ShortHelp:  "DEPRECATED: use `asc testflight crashes ...`.",
-		LongHelp:   `DEPRECATED: use ` + "`asc testflight crashes view`" + ` and ` + "`asc testflight crashes delete`" + `.`,
+		ShortHelp:  "Compatibility alias: use `asc testflight crashes ...`.",
+		LongHelp:   `Compatibility alias: use ` + "`asc testflight crashes view`" + ` and ` + "`asc testflight crashes delete`" + `.`,
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -468,7 +467,6 @@ func deprecatedBetaFeedbackCrashSubmissionsAliasCommand() *ffcli.Command {
 			deprecatedBetaFeedbackCrashSubmissionsDeleteAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			return flag.ErrHelp
 		},
 	}
@@ -483,12 +481,11 @@ func deprecatedBetaFeedbackCrashSubmissionsGetAliasCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "get",
 		ShortUsage: "asc testflight crashes view --submission-id \"SUBMISSION_ID\"",
-		ShortHelp:  "DEPRECATED: use `asc testflight crashes view`.",
-		LongHelp:   "DEPRECATED: use `asc testflight crashes view --submission-id SUBMISSION_ID`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight crashes view`.",
+		LongHelp:   "Compatibility alias: use `asc testflight crashes view --submission-id SUBMISSION_ID`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -509,12 +506,11 @@ func deprecatedBetaFeedbackCrashSubmissionsDeleteAliasCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc testflight crashes delete --submission-id \"SUBMISSION_ID\" --confirm",
-		ShortHelp:  "DEPRECATED: use `asc testflight crashes delete`.",
-		LongHelp:   "DEPRECATED: use `asc testflight crashes delete --submission-id SUBMISSION_ID --confirm`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight crashes delete`.",
+		LongHelp:   "Compatibility alias: use `asc testflight crashes delete --submission-id SUBMISSION_ID --confirm`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -535,8 +531,8 @@ func deprecatedBetaFeedbackScreenshotSubmissionsAliasCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "screenshot-submissions",
 		ShortUsage: "asc testflight feedback <view|delete> [flags]",
-		ShortHelp:  "DEPRECATED: use `asc testflight feedback ...`.",
-		LongHelp:   "DEPRECATED: use `asc testflight feedback view` and `asc testflight feedback delete`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight feedback ...`.",
+		LongHelp:   "Compatibility alias: use `asc testflight feedback view` and `asc testflight feedback delete`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -544,7 +540,6 @@ func deprecatedBetaFeedbackScreenshotSubmissionsAliasCommand() *ffcli.Command {
 			deprecatedBetaFeedbackScreenshotSubmissionsDeleteAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			return flag.ErrHelp
 		},
 	}
@@ -559,12 +554,11 @@ func deprecatedBetaFeedbackScreenshotSubmissionsGetAliasCommand() *ffcli.Command
 	return &ffcli.Command{
 		Name:       "get",
 		ShortUsage: "asc testflight feedback view --submission-id \"SUBMISSION_ID\"",
-		ShortHelp:  "DEPRECATED: use `asc testflight feedback view`.",
-		LongHelp:   "DEPRECATED: use `asc testflight feedback view --submission-id SUBMISSION_ID`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight feedback view`.",
+		LongHelp:   "Compatibility alias: use `asc testflight feedback view --submission-id SUBMISSION_ID`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -585,12 +579,11 @@ func deprecatedBetaFeedbackScreenshotSubmissionsDeleteAliasCommand() *ffcli.Comm
 	return &ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc testflight feedback delete --submission-id \"SUBMISSION_ID\" --confirm",
-		ShortHelp:  "DEPRECATED: use `asc testflight feedback delete`.",
-		LongHelp:   "DEPRECATED: use `asc testflight feedback delete --submission-id SUBMISSION_ID --confirm`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight feedback delete`.",
+		LongHelp:   "Compatibility alias: use `asc testflight feedback delete --submission-id SUBMISSION_ID --confirm`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -611,15 +604,14 @@ func deprecatedBetaFeedbackCrashLogAliasCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "crash-log",
 		ShortUsage: "asc testflight crashes log [flags]",
-		ShortHelp:  "DEPRECATED: use `asc testflight crashes log`.",
-		LongHelp:   "DEPRECATED: use `asc testflight crashes log --submission-id SUBMISSION_ID`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight crashes log`.",
+		LongHelp:   "Compatibility alias: use `asc testflight crashes log --submission-id SUBMISSION_ID`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{
 			deprecatedBetaFeedbackCrashLogGetAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			return flag.ErrHelp
 		},
 	}
@@ -634,12 +626,11 @@ func deprecatedBetaFeedbackCrashLogGetAliasCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "get",
 		ShortUsage: "asc testflight crashes log --submission-id \"SUBMISSION_ID\"",
-		ShortHelp:  "DEPRECATED: use `asc testflight crashes log`.",
-		LongHelp:   "DEPRECATED: use `asc testflight crashes log --submission-id SUBMISSION_ID`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight crashes log`.",
+		LongHelp:   "Compatibility alias: use `asc testflight crashes log --submission-id SUBMISSION_ID`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Fprintln(os.Stderr, deprecatedBetaFeedbackWarning())
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -741,8 +732,4 @@ func runCrashLogBySubmissionID(ctx context.Context, submissionID string, output 
 	}
 
 	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-}
-
-func deprecatedBetaFeedbackWarning() string {
-	return "Warning: `asc testflight beta-feedback ...` is deprecated. Use `asc testflight feedback ...` and `asc testflight crashes ...`."
 }
