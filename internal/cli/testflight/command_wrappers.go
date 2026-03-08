@@ -71,6 +71,7 @@ func rewriteCommandTree(cmd *ffcli.Command, oldRootPath, newRootPath string, nam
 
 	pathReplacements := collectCommandPathReplacements(cmd, oldRootPath, newRootPath, nameRenames)
 	replacements := append(pathReplacements, textReplacements...)
+	sortTextReplacements(replacements)
 
 	renameCommandNames(cmd, nameRenames)
 	rewriteCommandStrings(cmd, replacements)
@@ -112,12 +113,14 @@ func collectCommandPathReplacements(cmd *ffcli.Command, oldRootPath, newRootPath
 	}
 
 	walk(cmd, oldRootPath, newRootPath)
+	sortTextReplacements(replacements)
+	return replacements
+}
 
+func sortTextReplacements(replacements []textReplacement) {
 	sort.SliceStable(replacements, func(i, j int) bool {
 		return len(replacements[i].old) > len(replacements[j].old)
 	})
-
-	return replacements
 }
 
 func renameCommandNames(cmd *ffcli.Command, nameRenames map[string]string) {
@@ -324,6 +327,13 @@ func TestFlightGroupsCommand() *ffcli.Command {
 
 Examples:
   asc testflight groups compatibility view --group-id "GROUP_ID"`
+		if viewCmd := findSubcommand(compatibilityCmd, "view"); viewCmd != nil {
+			viewCmd.ShortHelp = "View recruitment compatibility for a group."
+			viewCmd.LongHelp = `View recruitment compatibility for a group.
+
+Examples:
+  asc testflight groups compatibility view --group-id "GROUP_ID"`
+		}
 	}
 	return cmd
 }

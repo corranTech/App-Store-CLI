@@ -42,7 +42,7 @@ Examples:
 }
 
 func TestFlightFeedbackListCommand() *ffcli.Command {
-	return feedbackcmd.NewListCommand(feedbackcmd.ListCommandConfig{
+	return feedbackcmd.NewListCommand(shared.ListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc testflight feedback list [flags]",
 		ShortHelp:  "List TestFlight feedback.",
@@ -147,7 +147,7 @@ Examples:
 }
 
 func TestFlightCrashesListCommand() *ffcli.Command {
-	return crashescmd.NewListCommand(crashescmd.ListCommandConfig{
+	return crashescmd.NewListCommand(shared.ListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc testflight crashes list [flags]",
 		ShortHelp:  "List TestFlight crash submissions.",

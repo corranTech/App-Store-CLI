@@ -13,16 +13,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-type ListCommandConfig struct {
-	Name              string
-	ShortUsage        string
-	ShortHelp         string
-	LongHelp          string
-	ErrorPrefix       string
-	DeprecatedWarning string
-	UsageFunc         func(*ffcli.Command) string
-}
-
 type listCommandFlags struct {
 	appID           *string
 	output          shared.OutputFlags
@@ -58,7 +48,7 @@ func bindListCommandFlags(fs *flag.FlagSet) listCommandFlags {
 }
 
 // NewListCommand builds a crashes list command with configurable help and warnings.
-func NewListCommand(config ListCommandConfig) *ffcli.Command {
+func NewListCommand(config shared.ListCommandConfig) *ffcli.Command {
 	name := strings.TrimSpace(config.Name)
 	if name == "" {
 		name = "crashes"
@@ -84,7 +74,7 @@ func NewListCommand(config ListCommandConfig) *ffcli.Command {
 	}
 }
 
-func runListCommand(ctx context.Context, config ListCommandConfig, flags listCommandFlags) error {
+func runListCommand(ctx context.Context, config shared.ListCommandConfig, flags listCommandFlags) error {
 	prefix := strings.TrimSpace(config.ErrorPrefix)
 	if prefix == "" {
 		prefix = "crashes"
@@ -166,7 +156,7 @@ func runListCommand(ctx context.Context, config ListCommandConfig, flags listCom
 
 // Crashes command factory
 func CrashesCommand() *ffcli.Command {
-	return NewListCommand(ListCommandConfig{
+	return NewListCommand(shared.ListCommandConfig{
 		Name:       "crashes",
 		ShortUsage: "asc testflight crashes list [flags]",
 		ShortHelp:  "DEPRECATED: use `asc testflight crashes list`.",

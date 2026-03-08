@@ -13,16 +13,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-type ListCommandConfig struct {
-	Name              string
-	ShortUsage        string
-	ShortHelp         string
-	LongHelp          string
-	ErrorPrefix       string
-	DeprecatedWarning string
-	UsageFunc         func(*ffcli.Command) string
-}
-
 type listCommandFlags struct {
 	appID              *string
 	output             shared.OutputFlags
@@ -60,7 +50,7 @@ func bindListCommandFlags(fs *flag.FlagSet) listCommandFlags {
 }
 
 // NewListCommand builds a feedback list command with configurable help and warnings.
-func NewListCommand(config ListCommandConfig) *ffcli.Command {
+func NewListCommand(config shared.ListCommandConfig) *ffcli.Command {
 	name := strings.TrimSpace(config.Name)
 	if name == "" {
 		name = "feedback"
@@ -86,7 +76,7 @@ func NewListCommand(config ListCommandConfig) *ffcli.Command {
 	}
 }
 
-func runListCommand(ctx context.Context, config ListCommandConfig, flags listCommandFlags) error {
+func runListCommand(ctx context.Context, config shared.ListCommandConfig, flags listCommandFlags) error {
 	prefix := strings.TrimSpace(config.ErrorPrefix)
 	if prefix == "" {
 		prefix = "feedback"
@@ -164,7 +154,7 @@ func runListCommand(ctx context.Context, config ListCommandConfig, flags listCom
 
 // Feedback command factory
 func FeedbackCommand() *ffcli.Command {
-	return NewListCommand(ListCommandConfig{
+	return NewListCommand(shared.ListCommandConfig{
 		Name:       "feedback",
 		ShortUsage: "asc testflight feedback list [flags]",
 		ShortHelp:  "DEPRECATED: use `asc testflight feedback list`.",

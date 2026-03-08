@@ -344,6 +344,31 @@ func TestTestFlightGroupsHelpHidesRawRelationshipSurface(t *testing.T) {
 	}
 }
 
+func TestTestFlightGroupsCompatibilityHelpUsesCanonicalCopy(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "groups", "compatibility"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "View recruitment compatibility for a group.") {
+		t.Fatalf("expected canonical compatibility copy, got %q", stderr)
+	}
+	if strings.Contains(stderr, "recruitment criteria") {
+		t.Fatalf("expected help without leaked schema phrasing, got %q", stderr)
+	}
+}
+
 func TestTestFlightMetricsHelpShowsCanonicalScopes(t *testing.T) {
 	root := RootCommand("1.2.3")
 
