@@ -527,6 +527,16 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 
 	hasPricing := opts.hasPricing(opts.StartDate)
 	if hasPricing {
+		expectedVerificationPrice, err := resolveExpectedIAPSetupVerificationPrice(ctx, client, result.IAPID, opts)
+		if err != nil {
+			verification.Status = "failed"
+			return verification, iapSetupStepResult{
+				Name:    iapSetupStepVerifyState,
+				Status:  "failed",
+				Message: err.Error(),
+			}, err
+		}
+
 		summary, err := resolveIAPPriceSummary(ctx, client, iapResp.Data, opts.BaseTerritory, now)
 		if err != nil {
 			verification.Status = "failed"
@@ -548,7 +558,7 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 			}, fmt.Errorf("base territory mismatch: got %q want %q", summary.BaseTerritory, opts.BaseTerritory)
 		}
 		if isFutureSetupStartDate(opts.StartDate, now) {
-			scheduledPrice, scheduledStartDate, err := verifyScheduledIAPSetupPrice(ctx, client, result.IAPID, opts.BaseTerritory, opts.StartDate, opts.Price)
+			scheduledPrice, scheduledStartDate, err := verifyScheduledIAPSetupPrice(ctx, client, result.IAPID, opts.BaseTerritory, opts.StartDate, expectedVerificationPrice)
 			if err != nil {
 				verification.Status = "failed"
 				return verification, iapSetupStepResult{
@@ -571,15 +581,15 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 					Message: "current price missing after schedule creation",
 				}, fmt.Errorf("current price missing after schedule creation")
 			}
-			if opts.Price != "" {
-				priceFilter := shared.PriceFilter{Price: opts.Price}
+			if expectedVerificationPrice != "" {
+				priceFilter := shared.PriceFilter{Price: expectedVerificationPrice}
 				if !priceFilter.MatchesPrice(summary.CurrentPrice.Amount) {
 					verification.Status = "failed"
 					return verification, iapSetupStepResult{
 						Name:    iapSetupStepVerifyState,
 						Status:  "failed",
 						Message: fmt.Sprintf("current price mismatch: got %q", summary.CurrentPrice.Amount),
-					}, fmt.Errorf("current price mismatch: got %q want %q", summary.CurrentPrice.Amount, opts.Price)
+					}, fmt.Errorf("current price mismatch: got %q want %q", summary.CurrentPrice.Amount, expectedVerificationPrice)
 				}
 			}
 
@@ -660,6 +670,38 @@ func verifyScheduledIAPSetupPrice(ctx context.Context, client *asc.Client, iapID
 		Amount:   value.CustomerPrice,
 		Currency: currency,
 	}, matched.StartDate, nil
+}
+
+func resolveExpectedIAPSetupVerificationPrice(ctx context.Context, client *asc.Client, iapID string, opts iapSetupOptions) (string, error) {
+	if opts.Price != "" {
+		return opts.Price, nil
+	}
+
+	if opts.Tier == 0 && opts.PricePointID == "" {
+		return "", nil
+	}
+
+	tiers, err := shared.ResolveIAPTiers(ctx, client, iapID, opts.BaseTerritory, true)
+	if err != nil {
+		return "", fmt.Errorf("resolve live tiers for verification: %w", err)
+	}
+
+	if opts.Tier > 0 {
+		for _, tier := range tiers {
+			if tier.Tier == opts.Tier {
+				return strings.TrimSpace(tier.CustomerPrice), nil
+			}
+		}
+		return "", fmt.Errorf("tier %d not found during verification", opts.Tier)
+	}
+
+	for _, tier := range tiers {
+		if strings.TrimSpace(tier.PricePointID) == strings.TrimSpace(opts.PricePointID) {
+			return strings.TrimSpace(tier.CustomerPrice), nil
+		}
+	}
+
+	return "", fmt.Errorf("price point %q not found in %s during verification", opts.PricePointID, opts.BaseTerritory)
 }
 
 func printIAPSetupResult(result *iapSetupResult, format string, pretty bool) error {
