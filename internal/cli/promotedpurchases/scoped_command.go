@@ -49,19 +49,19 @@ func ConfigureScopedPromotedPurchasesCommand(cmd *ffcli.Command, cfg ScopedPromo
 		cmd.LongHelp = cfg.RootLongHelp
 	}
 
-	if listCmd := FindDirectSubcommand(cmd, "list"); listCmd != nil {
+	if listCmd := findDirectSubcommand(cmd, "list"); listCmd != nil {
 		configureScopedPromotedPurchasesListCommand(listCmd, cfg)
 	}
-	if getCmd := FindDirectSubcommand(cmd, "get"); getCmd != nil {
+	if getCmd := findDirectSubcommand(cmd, "get"); getCmd != nil {
 		wrapScopedPromotedPurchaseDetailCommand(getCmd, cfg)
 	}
-	if updateCmd := FindDirectSubcommand(cmd, "update"); updateCmd != nil {
+	if updateCmd := findDirectSubcommand(cmd, "update"); updateCmd != nil {
 		wrapScopedPromotedPurchaseDetailCommand(updateCmd, cfg)
 	}
-	if deleteCmd := FindDirectSubcommand(cmd, "delete"); deleteCmd != nil {
+	if deleteCmd := findDirectSubcommand(cmd, "delete"); deleteCmd != nil {
 		wrapScopedPromotedPurchaseDetailCommand(deleteCmd, cfg)
 	}
-	if linkCmd := FindDirectSubcommand(cmd, "link"); linkCmd != nil {
+	if linkCmd := findDirectSubcommand(cmd, "link"); linkCmd != nil {
 		configureScopedPromotedPurchasesLinkCommand(linkCmd, cfg)
 	}
 }

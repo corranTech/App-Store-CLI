@@ -23,7 +23,7 @@ type FixedProductTypeCreateConfig struct {
 
 // ConfigureFixedProductTypeCreateCommand rewrites the create subcommand to enforce a fixed product type.
 func ConfigureFixedProductTypeCreateCommand(cmd *ffcli.Command, cfg FixedProductTypeCreateConfig) {
-	createCmd := FindDirectSubcommand(cmd, "create")
+	createCmd := findDirectSubcommand(cmd, "create")
 	if createCmd == nil || createCmd.FlagSet == nil || createCmd.Exec == nil {
 		return
 	}
@@ -69,8 +69,7 @@ func ConfigureFixedProductTypeCreateCommand(cmd *ffcli.Command, cfg FixedProduct
 	}
 }
 
-// FindDirectSubcommand returns the direct child subcommand with the provided name.
-func FindDirectSubcommand(cmd *ffcli.Command, name string) *ffcli.Command {
+func findDirectSubcommand(cmd *ffcli.Command, name string) *ffcli.Command {
 	if cmd == nil {
 		return nil
 	}
