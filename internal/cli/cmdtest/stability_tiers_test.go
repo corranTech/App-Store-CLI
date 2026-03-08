@@ -3,6 +3,8 @@ package cmdtest
 import (
 	"strings"
 	"testing"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
 // TestExperimentalCommandsHaveStabilityLabel ensures every command surface
@@ -12,10 +14,15 @@ import (
 func TestExperimentalCommandsHaveStabilityLabel(t *testing.T) {
 	root := RootCommand("1.2.3")
 
+	webCmd := findSubcommand(root, "web")
+	if webCmd == nil {
+		t.Fatal("command [web] not found")
+	}
+	assertExperimentalCommandTree(t, webCmd, []string{"web"})
+
 	cases := []struct {
 		path []string // subcommand path from root
 	}{
-		{[]string{"web"}},
 		{[]string{"screenshots", "run"}},
 		{[]string{"screenshots", "capture"}},
 		{[]string{"screenshots", "frame"}},
@@ -27,12 +34,28 @@ func TestExperimentalCommandsHaveStabilityLabel(t *testing.T) {
 
 	for _, tc := range cases {
 		cmd := findSubcommand(root, tc.path...)
-		if cmd == nil {
-			t.Errorf("command %v not found", tc.path)
-			continue
-		}
-		if !strings.HasPrefix(cmd.ShortHelp, "[experimental]") {
-			t.Errorf("command %v: expected ShortHelp to start with [experimental], got %q", tc.path, cmd.ShortHelp)
-		}
+		assertExperimentalCommand(t, cmd, tc.path)
+	}
+}
+
+func assertExperimentalCommandTree(t *testing.T, cmd *ffcli.Command, path []string) {
+	t.Helper()
+
+	assertExperimentalCommand(t, cmd, path)
+
+	for _, sub := range cmd.Subcommands {
+		assertExperimentalCommandTree(t, sub, append(path, sub.Name))
+	}
+}
+
+func assertExperimentalCommand(t *testing.T, cmd *ffcli.Command, path []string) {
+	t.Helper()
+
+	if cmd == nil {
+		t.Errorf("command %v not found", path)
+		return
+	}
+	if !strings.HasPrefix(cmd.ShortHelp, "[experimental]") {
+		t.Errorf("command %v: expected ShortHelp to start with [experimental], got %q", path, cmd.ShortHelp)
 	}
 }
