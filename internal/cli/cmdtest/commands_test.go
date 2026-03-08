@@ -157,6 +157,9 @@ func TestCompletionZshPrintsScriptToStdout(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
+	if strings.Contains(stdout, "offer-codes") || strings.Contains(stdout, "win-back-offers") || strings.Contains(stdout, "promoted-purchases") {
+		t.Fatalf("expected hidden deprecated root commands to be omitted from completion output, got %q", stdout)
+	}
 }
 
 func TestCompletionInvalidShellErrorsToStderr(t *testing.T) {
@@ -225,6 +228,31 @@ func TestUnknownCommandSuggestsSimilarCommand(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Did you mean: finance") {
 		t.Fatalf("expected suggestion message, got %q", stderr)
+	}
+}
+
+func TestUnknownCommandDoesNotSuggestHiddenDeprecatedRootCommands(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"offer-codez"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Unknown command: offer-codez") {
+		t.Fatalf("expected unknown command message, got %q", stderr)
+	}
+	if strings.Contains(stderr, "Did you mean:") {
+		t.Fatalf("expected hidden deprecated commands to be excluded from suggestions, got %q", stderr)
 	}
 }
 
@@ -1172,6 +1200,16 @@ func TestIAPValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
+			name:    "iap promoted-purchases list missing app",
+			args:    []string{"iap", "promoted-purchases", "list"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "iap promoted-purchases create rejects subscription product type",
+			args:    []string{"iap", "promoted-purchases", "create", "--app", "APP_ID", "--product-id", "IAP_ID", "--product-type", "SUBSCRIPTION", "--visible-for-all-users", "true"},
+			wantErr: "--product-type is fixed to IN_APP_PURCHASE",
+		},
+		{
 			name:    "iap submit missing confirm",
 			args:    []string{"iap", "submit", "--iap-id", "IAP_ID"},
 			wantErr: "--confirm is required",
@@ -1549,6 +1587,16 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
+			name:    "subscriptions promoted-purchases list missing app",
+			args:    []string{"subscriptions", "promoted-purchases", "list"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "subscriptions promoted-purchases create rejects iap product type",
+			args:    []string{"subscriptions", "promoted-purchases", "create", "--app", "APP_ID", "--product-id", "SUB_ID", "--product-type", "IN_APP_PURCHASE", "--visible-for-all-users", "true"},
+			wantErr: "--product-type is fixed to SUBSCRIPTION",
+		},
+		{
 			name:    "subscriptions grace-periods get missing id",
 			args:    []string{"subscriptions", "grace-periods", "get"},
 			wantErr: "--id is required",
@@ -1694,9 +1742,24 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
+			name:    "subscriptions offer-codes generate missing offer-code",
+			args:    []string{"subscriptions", "offer-codes", "generate"},
+			wantErr: "--offer-code is required",
+		},
+		{
+			name:    "subscriptions offer-codes values missing id",
+			args:    []string{"subscriptions", "offer-codes", "values"},
+			wantErr: "--id is required",
+		},
+		{
 			name:    "subscriptions offer-codes prices missing offer-code-id",
 			args:    []string{"subscriptions", "offer-codes", "prices"},
 			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "subscriptions win-back-offers list missing subscription",
+			args:    []string{"subscriptions", "win-back-offers", "list"},
+			wantErr: "--subscription is required",
 		},
 		{
 			name:    "subscriptions price-points list missing subscription-id",

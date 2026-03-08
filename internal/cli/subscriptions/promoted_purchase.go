@@ -15,7 +15,7 @@ import (
 func SubscriptionsPromotedPurchaseCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("promoted-purchase", flag.ExitOnError)
 
-	return &ffcli.Command{
+	return shared.DeprecateCommandTree(&ffcli.Command{
 		Name:       "promoted-purchase",
 		ShortUsage: "asc subscriptions promoted-purchase <subcommand> [flags]",
 		ShortHelp:  "Inspect promoted purchase for a subscription.",
@@ -31,7 +31,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
 		},
-	}
+	}, shared.CommandTreeDeprecationConfig{
+		CurrentPrefix:     "asc subscriptions promoted-purchase",
+		ReplacementPrefix: "asc subscriptions promoted-purchases",
+		RewriteLongHelp:   true,
+	})
 }
 
 // SubscriptionsPromotedPurchaseGetCommand returns the promoted purchase get subcommand.

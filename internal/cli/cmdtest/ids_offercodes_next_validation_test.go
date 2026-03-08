@@ -49,9 +49,7 @@ func TestPassTypeIDsListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -110,9 +108,7 @@ func TestPassTypeIDsListPaginateFromNext(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"pass-next-1"`) || !strings.Contains(stdout, `"id":"pass-next-2"`) {
 		t.Fatalf("expected paginated pass type IDs in output, got %q", stdout)
 	}
@@ -158,9 +154,7 @@ func TestMerchantIDsListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -219,9 +213,7 @@ func TestMerchantIDsListPaginateFromNext(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"merchant-next-1"`) || !strings.Contains(stdout, `"id":"merchant-next-2"`) {
 		t.Fatalf("expected paginated merchant IDs in output, got %q", stdout)
 	}
@@ -267,9 +259,7 @@ func TestOfferCodesListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -328,9 +318,7 @@ func TestOfferCodesListPaginateFromNextWithoutOfferCode(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"otc-next-1"`) || !strings.Contains(stdout, `"id":"otc-next-2"`) {
 		t.Fatalf("expected paginated one-time-use codes in output, got %q", stdout)
 	}
@@ -376,9 +364,7 @@ func TestOfferCodesCustomCodesListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -437,9 +423,7 @@ func TestOfferCodesCustomCodesListPaginateFromNextWithoutOfferCodeID(t *testing.
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"custom-next-1"`) || !strings.Contains(stdout, `"id":"custom-next-2"`) {
 		t.Fatalf("expected paginated custom codes in output, got %q", stdout)
 	}
@@ -485,9 +469,7 @@ func TestOfferCodesPricesListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -546,9 +528,7 @@ func TestOfferCodesPricesListPaginateFromNextWithoutOfferCodeID(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"price-next-1"`) || !strings.Contains(stdout, `"id":"price-next-2"`) {
 		t.Fatalf("expected paginated offer code prices in output, got %q", stdout)
 	}

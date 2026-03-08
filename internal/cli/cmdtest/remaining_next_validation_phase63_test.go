@@ -593,8 +593,131 @@ func TestUsersVisibleAppsGetPaginateFromNextWithoutIDPhase63(t *testing.T) {
 	)
 }
 
+func runLegacyWinBackOffersInvalidNextURLCases(
+	t *testing.T,
+	argsPrefix []string,
+	wantErrPrefix string,
+) {
+	t.Helper()
+
+	tests := []struct {
+		name    string
+		next    string
+		wantErr string
+	}{
+		{
+			name:    "invalid scheme",
+			next:    "http://api.appstoreconnect.apple.com/v1/winBackOffers?cursor=AQ",
+			wantErr: wantErrPrefix + " must be an App Store Connect URL",
+		},
+		{
+			name:    "malformed URL",
+			next:    "https://api.appstoreconnect.apple.com/%zz",
+			wantErr: wantErrPrefix + " must be a valid URL:",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			args := append(append([]string{}, argsPrefix...), "--next", test.next)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("expected error %q, got %v", test.wantErr, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
+		})
+	}
+}
+
+func runLegacyWinBackOffersPaginateFromNext(
+	t *testing.T,
+	argsPrefix []string,
+	firstURL string,
+	secondURL string,
+	firstBody string,
+	secondBody string,
+	wantIDs ...string,
+) {
+	t.Helper()
+
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.String() != firstURL {
+				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(firstBody)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			if req.Method != http.MethodGet || req.URL.String() != secondURL {
+				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(secondBody)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	args := append(append([]string{}, argsPrefix...), "--paginate", "--next", firstURL)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
+	for _, id := range wantIDs {
+		needle := `"id":"` + id + `"`
+		if !strings.Contains(stdout, needle) {
+			t.Fatalf("expected output to contain %q, got %q", needle, stdout)
+		}
+	}
+}
+
 func TestWinBackOffersListRejectsInvalidNextURLPhase63(t *testing.T) {
-	runGameCenterAchievementsInvalidNextURLCases(
+	runLegacyWinBackOffersInvalidNextURLCases(
 		t,
 		[]string{"win-back-offers", "list"},
 		"win-back-offers list: --next",
@@ -608,7 +731,7 @@ func TestWinBackOffersListPaginateFromNextWithoutSubscriptionPhase63(t *testing.
 	firstBody := `{"data":[{"type":"winBackOffers","id":"win-back-offer-next-1"}],"links":{"next":"` + secondURL + `"}}`
 	secondBody := `{"data":[{"type":"winBackOffers","id":"win-back-offer-next-2"}],"links":{"next":""}}`
 
-	runGameCenterAchievementsPaginateFromNext(
+	runLegacyWinBackOffersPaginateFromNext(
 		t,
 		[]string{"win-back-offers", "list"},
 		firstURL,
@@ -621,7 +744,7 @@ func TestWinBackOffersListPaginateFromNextWithoutSubscriptionPhase63(t *testing.
 }
 
 func TestWinBackOffersPricesRejectsInvalidNextURLPhase63(t *testing.T) {
-	runGameCenterAchievementsInvalidNextURLCases(
+	runLegacyWinBackOffersInvalidNextURLCases(
 		t,
 		[]string{"win-back-offers", "prices"},
 		"win-back-offers prices: --next",
@@ -635,7 +758,7 @@ func TestWinBackOffersPricesPaginateFromNextWithoutIDPhase63(t *testing.T) {
 	firstBody := `{"data":[{"type":"winBackOfferPrices","id":"win-back-offer-price-next-1"}],"links":{"next":"` + secondURL + `"}}`
 	secondBody := `{"data":[{"type":"winBackOfferPrices","id":"win-back-offer-price-next-2"}],"links":{"next":""}}`
 
-	runGameCenterAchievementsPaginateFromNext(
+	runLegacyWinBackOffersPaginateFromNext(
 		t,
 		[]string{"win-back-offers", "prices"},
 		firstURL,
@@ -648,7 +771,7 @@ func TestWinBackOffersPricesPaginateFromNextWithoutIDPhase63(t *testing.T) {
 }
 
 func TestWinBackOffersPricesRelationshipsRejectsInvalidNextURLPhase63(t *testing.T) {
-	runGameCenterAchievementsInvalidNextURLCases(
+	runLegacyWinBackOffersInvalidNextURLCases(
 		t,
 		[]string{"win-back-offers", "prices-relationships"},
 		"win-back-offers prices-relationships: --next",
@@ -662,7 +785,7 @@ func TestWinBackOffersPricesRelationshipsPaginateFromNextWithoutIDPhase63(t *tes
 	firstBody := `{"data":[{"type":"winBackOfferPrices","id":"win-back-offer-price-link-next-1"}],"links":{"next":"` + secondURL + `"}}`
 	secondBody := `{"data":[{"type":"winBackOfferPrices","id":"win-back-offer-price-link-next-2"}],"links":{"next":""}}`
 
-	runGameCenterAchievementsPaginateFromNext(
+	runLegacyWinBackOffersPaginateFromNext(
 		t,
 		[]string{"win-back-offers", "prices-relationships"},
 		firstURL,
@@ -675,7 +798,7 @@ func TestWinBackOffersPricesRelationshipsPaginateFromNextWithoutIDPhase63(t *tes
 }
 
 func TestWinBackOffersRelationshipsRejectsInvalidNextURLPhase63(t *testing.T) {
-	runGameCenterAchievementsInvalidNextURLCases(
+	runLegacyWinBackOffersInvalidNextURLCases(
 		t,
 		[]string{"win-back-offers", "relationships"},
 		"win-back-offers relationships: --next",
@@ -689,7 +812,7 @@ func TestWinBackOffersRelationshipsPaginateFromNextWithoutSubscriptionPhase63(t 
 	firstBody := `{"data":[{"type":"winBackOffers","id":"win-back-offer-link-next-1"}],"links":{"next":"` + secondURL + `"}}`
 	secondBody := `{"data":[{"type":"winBackOffers","id":"win-back-offer-link-next-2"}],"links":{"next":""}}`
 
-	runGameCenterAchievementsPaginateFromNext(
+	runLegacyWinBackOffersPaginateFromNext(
 		t,
 		[]string{"win-back-offers", "relationships"},
 		firstURL,

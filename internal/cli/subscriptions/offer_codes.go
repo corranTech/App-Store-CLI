@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/offercodes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -25,7 +26,9 @@ func SubscriptionsOfferCodesCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions offer-codes list --subscription-id "SUB_ID"
-  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "PRICE_ID"`,
+  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "PRICE_ID"
+  asc subscriptions offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
+  asc subscriptions offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -35,6 +38,8 @@ Examples:
 			SubscriptionsOfferCodesUpdateCommand(),
 			SubscriptionsOfferCodesCustomCodesCommand(),
 			SubscriptionsOfferCodesOneTimeCodesCommand(),
+			SubscriptionsOfferCodesGenerateCommand(),
+			SubscriptionsOfferCodesValuesCommand(),
 			SubscriptionsOfferCodesPricesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -610,4 +615,22 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// SubscriptionsOfferCodesGenerateCommand returns the nested generate shim under subscriptions.
+func SubscriptionsOfferCodesGenerateCommand() *ffcli.Command {
+	return shared.RewriteCommandTreePath(
+		offercodes.OfferCodesGenerateCommand(),
+		"asc offer-codes",
+		"asc subscriptions offer-codes",
+	)
+}
+
+// SubscriptionsOfferCodesValuesCommand returns the nested values shim under subscriptions.
+func SubscriptionsOfferCodesValuesCommand() *ffcli.Command {
+	return shared.RewriteCommandTreePath(
+		offercodes.OfferCodesValuesCommand(),
+		"asc offer-codes",
+		"asc subscriptions offer-codes",
+	)
 }

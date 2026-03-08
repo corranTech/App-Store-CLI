@@ -16,6 +16,12 @@ type rootCommandGroup struct {
 	commands []string
 }
 
+var hiddenPrimaryRootCommands = map[string]struct{}{
+	"offer-codes":        {},
+	"win-back-offers":    {},
+	"promoted-purchases": {},
+}
+
 var rootUsageGroups = []rootCommandGroup{
 	{
 		title:    "GETTING STARTED COMMANDS",
@@ -54,7 +60,7 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 	{
 		title:    "MONETIZATION COMMANDS",
-		commands: []string{"iap", "app-events", "subscriptions", "offer-codes", "win-back-offers", "promoted-purchases"},
+		commands: []string{"iap", "app-events", "subscriptions"},
 	},
 	{
 		title:    "SIGNING COMMANDS",
@@ -121,6 +127,7 @@ func RootUsageFunc(c *ffcli.Command) string {
 }
 
 func writeRootGroupedSubcommands(b *strings.Builder, subcommands []*ffcli.Command) {
+	subcommands = VisibleRootSubcommands(subcommands)
 	if len(subcommands) == 0 {
 		return
 	}
@@ -173,6 +180,26 @@ func writeRootGroupedSubcommands(b *strings.Builder, subcommands []*ffcli.Comman
 	}
 	_ = tw.Flush()
 	b.WriteString("\n")
+}
+
+// VisibleRootSubcommands returns the root commands shown in primary discovery surfaces.
+func VisibleRootSubcommands(subcommands []*ffcli.Command) []*ffcli.Command {
+	if len(subcommands) == 0 {
+		return nil
+	}
+
+	visible := make([]*ffcli.Command, 0, len(subcommands))
+	for _, sub := range subcommands {
+		if sub == nil {
+			continue
+		}
+		if _, hidden := hiddenPrimaryRootCommands[sub.Name]; hidden {
+			continue
+		}
+		visible = append(visible, sub)
+	}
+
+	return visible
 }
 
 func writeRootFlags(b *strings.Builder, fs *flag.FlagSet) {

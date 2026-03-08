@@ -100,6 +100,33 @@ func VersionCommand(version string) *ffcli.Command {
 
 // Subcommands returns all root subcommands in display order.
 func Subcommands(version string) []*ffcli.Command {
+	deprecatedOfferCodes := shared.HideCommandFromParentHelp(shared.DeprecateCommandTree(offercodes.OfferCodesCommand(), shared.CommandTreeDeprecationConfig{
+		CurrentPrefix:     "asc offer-codes",
+		ReplacementPrefix: "asc subscriptions offer-codes",
+		RewriteLongHelp:   true,
+	}))
+
+	deprecatedWinBackOffers := shared.HideCommandFromParentHelp(shared.DeprecateCommandTree(winbackoffers.WinBackOffersCommand(), shared.CommandTreeDeprecationConfig{
+		CurrentPrefix:     "asc win-back-offers",
+		ReplacementPrefix: "asc subscriptions win-back-offers",
+		RewriteLongHelp:   true,
+	}))
+
+	deprecatedPromotedPurchases := shared.HideCommandFromParentHelp(shared.DeprecateCommandTree(promotedpurchases.PromotedPurchasesCommand(), shared.CommandTreeDeprecationConfig{
+		Notice:          `DEPRECATED: Use "asc subscriptions promoted-purchases ..." for subscriptions or "asc iap promoted-purchases ..." for in-app purchases.`,
+		Warning:         `Warning: "asc promoted-purchases" is deprecated. Use "asc subscriptions promoted-purchases ..." for subscriptions or "asc iap promoted-purchases ..." for in-app purchases.`,
+		RewriteLongHelp: false,
+	}))
+	if deprecatedPromotedPurchases != nil {
+		deprecatedPromotedPurchases.LongHelp = `DEPRECATED: Use the canonical product-specific paths instead.
+
+Examples:
+  asc subscriptions promoted-purchases list --app "APP_ID"
+  asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true
+  asc iap promoted-purchases list --app "APP_ID"
+  asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --visible-for-all-users true`
+	}
+
 	subs := []*ffcli.Command{
 		auth.AuthCommand(),
 		auth.AuthDoctorCommand(),
@@ -133,8 +160,8 @@ func Subcommands(version string) []*ffcli.Command {
 		certificates.CertificatesCommand(),
 		passtypeids.PassTypeIDsCommand(),
 		profiles.ProfilesCommand(),
-		offercodes.OfferCodesCommand(),
-		winbackoffers.WinBackOffersCommand(),
+		deprecatedOfferCodes,
+		deprecatedWinBackOffers,
 		users.UsersCommand(),
 		actors.ActorsCommand(),
 		devices.DevicesCommand(),
@@ -175,7 +202,7 @@ func Subcommands(version string) []*ffcli.Command {
 		agerating.AgeRatingCommand(),
 		accessibility.AccessibilityCommand(),
 		encryption.EncryptionCommand(),
-		promotedpurchases.PromotedPurchasesCommand(),
+		deprecatedPromotedPurchases,
 		migrate.MigrateCommand(),
 		notify.NotifyCommand(),
 		gamecenter.GameCenterCommand(),
@@ -184,6 +211,6 @@ func Subcommands(version string) []*ffcli.Command {
 		VersionCommand(version),
 	}
 
-	subs = append(subs, completion.CompletionCommand(subs))
+	subs = append(subs, completion.CompletionCommand(shared.VisibleHelpSubcommands(subs)))
 	return subs
 }

@@ -211,11 +211,12 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 	}
 
 	// SUBCOMMANDS
-	if len(c.Subcommands) > 0 {
+	subcommands := VisibleHelpSubcommands(c.Subcommands)
+	if len(subcommands) > 0 {
 		b.WriteString(Bold("SUBCOMMANDS"))
 		b.WriteString("\n")
 		tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
-		for _, sub := range c.Subcommands {
+		for _, sub := range subcommands {
 			fmt.Fprintf(tw, "  %s\t%s\n", sub.Name, sub.ShortHelp)
 		}
 		tw.Flush()

@@ -1,0 +1,233 @@
+package shared
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+)
+
+// CommandTreeDeprecationConfig controls how a command tree is marked deprecated.
+type CommandTreeDeprecationConfig struct {
+	CurrentPrefix     string
+	ReplacementPrefix string
+	Notice            string
+	Warning           string
+	RewriteLongHelp   bool
+}
+
+var hiddenCommandHelpRegistry struct {
+	sync.RWMutex
+	commands map[*ffcli.Command]struct{}
+}
+
+func init() {
+	hiddenCommandHelpRegistry.commands = make(map[*ffcli.Command]struct{})
+}
+
+// RewriteCommandTreePath rewrites usage/help path prefixes for an existing command tree.
+func RewriteCommandTreePath(cmd *ffcli.Command, currentPrefix, replacementPrefix string) *ffcli.Command {
+	if cmd == nil || currentPrefix == "" || replacementPrefix == "" {
+		return cmd
+	}
+
+	rewriteCommandTree(cmd, func(node *ffcli.Command) {
+		originalUsage := strings.TrimSpace(node.ShortUsage)
+		rewrittenUsage := originalUsage
+		if strings.TrimSpace(node.ShortUsage) != "" {
+			rewrittenUsage = strings.ReplaceAll(node.ShortUsage, currentPrefix, replacementPrefix)
+			node.ShortUsage = rewrittenUsage
+		}
+		if strings.TrimSpace(node.LongHelp) != "" {
+			node.LongHelp = strings.ReplaceAll(node.LongHelp, currentPrefix, replacementPrefix)
+		}
+		if node.Exec != nil {
+			currentErrorPrefix := commandErrorPrefixFromUsage(originalUsage)
+			replacementErrorPrefix := commandErrorPrefixFromUsage(rewrittenUsage)
+			if currentErrorPrefix != "" && replacementErrorPrefix != "" && currentErrorPrefix != replacementErrorPrefix {
+				originalExec := node.Exec
+				node.Exec = func(ctx context.Context, args []string) error {
+					err := originalExec(ctx, args)
+					if err == nil || errors.Is(err, flag.ErrHelp) {
+						return err
+					}
+					return rewriteCommandErrorPrefix(err, currentErrorPrefix, replacementErrorPrefix)
+				}
+			}
+		}
+	})
+
+	return cmd
+}
+
+// HideCommandFromParentHelp hides a command from its parent's help output while keeping it executable.
+func HideCommandFromParentHelp(cmd *ffcli.Command) *ffcli.Command {
+	if cmd == nil {
+		return nil
+	}
+
+	hiddenCommandHelpRegistry.Lock()
+	hiddenCommandHelpRegistry.commands[cmd] = struct{}{}
+	hiddenCommandHelpRegistry.Unlock()
+	return cmd
+}
+
+// VisibleHelpSubcommands returns the subcommands that should appear in help output.
+func VisibleHelpSubcommands(subcommands []*ffcli.Command) []*ffcli.Command {
+	if len(subcommands) == 0 {
+		return nil
+	}
+
+	hiddenCommandHelpRegistry.RLock()
+	defer hiddenCommandHelpRegistry.RUnlock()
+
+	visible := make([]*ffcli.Command, 0, len(subcommands))
+	for _, sub := range subcommands {
+		if sub == nil {
+			continue
+		}
+		if _, hidden := hiddenCommandHelpRegistry.commands[sub]; hidden {
+			continue
+		}
+		visible = append(visible, sub)
+	}
+
+	return visible
+}
+
+// DeprecateCommandTree marks a command tree as deprecated while preserving runtime behavior.
+func DeprecateCommandTree(cmd *ffcli.Command, cfg CommandTreeDeprecationConfig) *ffcli.Command {
+	if cmd == nil {
+		return nil
+	}
+
+	rewriteCommandTree(cmd, func(node *ffcli.Command) {
+		notice := strings.TrimSpace(cfg.Notice)
+		if notice == "" && cfg.CurrentPrefix != "" && cfg.ReplacementPrefix != "" {
+			replacement := commandPathFromUsage(strings.ReplaceAll(node.ShortUsage, cfg.CurrentPrefix, cfg.ReplacementPrefix))
+			if replacement != "" {
+				notice = fmt.Sprintf("DEPRECATED: Use %q instead.", replacement)
+			}
+		}
+
+		warning := strings.TrimSpace(cfg.Warning)
+		if warning == "" && cfg.CurrentPrefix != "" && cfg.ReplacementPrefix != "" {
+			current := commandPathFromUsage(node.ShortUsage)
+			replacement := commandPathFromUsage(strings.ReplaceAll(node.ShortUsage, cfg.CurrentPrefix, cfg.ReplacementPrefix))
+			if current != "" && replacement != "" {
+				warning = fmt.Sprintf("Warning: %q is deprecated. Use %q instead.", current, replacement)
+			}
+		}
+
+		if notice != "" {
+			node.ShortHelp = notice
+
+			originalLongHelp := strings.TrimSpace(node.LongHelp)
+			if cfg.RewriteLongHelp && cfg.CurrentPrefix != "" && cfg.ReplacementPrefix != "" && originalLongHelp != "" {
+				originalLongHelp = strings.ReplaceAll(originalLongHelp, cfg.CurrentPrefix, cfg.ReplacementPrefix)
+			}
+
+			if originalLongHelp == "" {
+				node.LongHelp = notice
+			} else {
+				node.LongHelp = notice + "\n\n" + originalLongHelp
+			}
+		} else if cfg.RewriteLongHelp && cfg.CurrentPrefix != "" && cfg.ReplacementPrefix != "" && strings.TrimSpace(node.LongHelp) != "" {
+			node.LongHelp = strings.ReplaceAll(node.LongHelp, cfg.CurrentPrefix, cfg.ReplacementPrefix)
+		}
+
+		if warning != "" && node.Exec != nil {
+			originalExec := node.Exec
+			node.Exec = func(ctx context.Context, args []string) error {
+				fmt.Fprintln(os.Stderr, warning)
+				return originalExec(ctx, args)
+			}
+		}
+	})
+
+	return cmd
+}
+
+func rewriteCommandTree(cmd *ffcli.Command, visit func(node *ffcli.Command)) {
+	if cmd == nil {
+		return
+	}
+
+	visit(cmd)
+	for _, sub := range cmd.Subcommands {
+		rewriteCommandTree(sub, visit)
+	}
+}
+
+func commandPathFromUsage(usage string) string {
+	usage = strings.TrimSpace(usage)
+	if usage == "" {
+		return ""
+	}
+
+	tokens := strings.Fields(usage)
+	if len(tokens) == 0 {
+		return ""
+	}
+
+	path := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		switch {
+		case strings.HasPrefix(token, "--"):
+			return strings.Join(path, " ")
+		case strings.HasPrefix(token, "["):
+			return strings.Join(path, " ")
+		case strings.HasPrefix(token, "<"):
+			return strings.Join(path, " ")
+		default:
+			path = append(path, token)
+		}
+	}
+
+	return strings.Join(path, " ")
+}
+
+func commandErrorPrefixFromUsage(usage string) string {
+	path := commandPathFromUsage(usage)
+	path = strings.TrimSpace(strings.TrimPrefix(path, "asc "))
+	return path
+}
+
+type rewrittenCommandError struct {
+	err               error
+	currentPrefix     string
+	replacementPrefix string
+}
+
+func (e *rewrittenCommandError) Error() string {
+	if e == nil || e.err == nil {
+		return ""
+	}
+	return strings.Replace(e.err.Error(), e.currentPrefix, e.replacementPrefix, 1)
+}
+
+func (e *rewrittenCommandError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.err
+}
+
+func rewriteCommandErrorPrefix(err error, currentPrefix, replacementPrefix string) error {
+	if err == nil || currentPrefix == "" || replacementPrefix == "" {
+		return err
+	}
+	if !strings.HasPrefix(err.Error(), currentPrefix) {
+		return err
+	}
+	return &rewrittenCommandError{
+		err:               err,
+		currentPrefix:     currentPrefix,
+		replacementPrefix: replacementPrefix,
+	}
+}

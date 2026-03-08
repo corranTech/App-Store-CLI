@@ -49,9 +49,7 @@ func TestSandboxListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -110,9 +108,7 @@ func TestSandboxListPaginateFromNext(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"sandbox-next-1"`) || !strings.Contains(stdout, `"id":"sandbox-next-2"`) {
 		t.Fatalf("expected paginated sandbox testers in output, got %q", stdout)
 	}
@@ -158,9 +154,7 @@ func TestPromotedPurchasesListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -220,9 +214,7 @@ func TestPromotedPurchasesListPaginateFromNextWithoutApp(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"promo-next-1"`) || !strings.Contains(stdout, `"id":"promo-next-2"`) {
 		t.Fatalf("expected paginated promoted purchases in output, got %q", stdout)
 	}
@@ -378,9 +370,7 @@ func TestReviewsSummarizationsRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -440,9 +430,7 @@ func TestReviewsSummarizationsPaginateFromNextWithoutApp(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"summary-next-1"`) || !strings.Contains(stdout, `"id":"summary-next-2"`) {
 		t.Fatalf("expected paginated summarizations in output, got %q", stdout)
 	}

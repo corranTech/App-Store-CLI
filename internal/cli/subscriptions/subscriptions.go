@@ -30,7 +30,10 @@ Examples:
   asc subscriptions list --group "GROUP_ID"
   asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly"
   asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"`,
+  asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"
+  asc subscriptions offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
+  asc subscriptions win-back-offers list --subscription "SUB_ID"
+  asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --product-type SUBSCRIPTION --visible-for-all-users`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -48,10 +51,12 @@ Examples:
 			SubscriptionsIntroductoryOffersCommand(),
 			SubscriptionsPromotionalOffersCommand(),
 			SubscriptionsOfferCodesCommand(),
+			SubscriptionsWinBackOffersCommand(),
 			SubscriptionsPricePointsCommand(),
 			SubscriptionsReviewScreenshotsCommand(),
 			SubscriptionsAppStoreReviewScreenshotCommand(),
-			SubscriptionsPromotedPurchaseCommand(),
+			SubscriptionsPromotedPurchasesCommand(),
+			shared.HideCommandFromParentHelp(SubscriptionsPromotedPurchaseCommand()),
 			SubscriptionsGracePeriodsCommand(),
 			SubscriptionsSubmitCommand(),
 		},

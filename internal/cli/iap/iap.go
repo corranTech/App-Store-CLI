@@ -34,7 +34,8 @@ Examples:
   asc iap localizations list --iap-id "IAP_ID"
   asc iap images create --iap-id "IAP_ID" --file "./image.png"
   asc iap availability set --iap-id "IAP_ID" --territories "USA,CAN"
-  asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"`,
+  asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
+  asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --product-type IN_APP_PURCHASE --visible-for-all-users`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -49,7 +50,8 @@ Examples:
 			IAPReviewScreenshotsCommand(),
 			IAPAvailabilityCommand(),
 			IAPAvailabilitiesCommand(),
-			IAPPromotedPurchaseCommand(),
+			IAPPromotedPurchasesCommand(),
+			shared.HideCommandFromParentHelp(IAPPromotedPurchaseCommand()),
 			IAPContentCommand(),
 			IAPPricePointsCommand(),
 			IAPPriceSchedulesCommand(),
