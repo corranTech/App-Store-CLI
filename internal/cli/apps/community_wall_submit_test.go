@@ -208,3 +208,38 @@ func TestSubmitCommunityWallEntryRejectsDuplicateAppID(t *testing.T) {
 		t.Fatalf("expected duplicate app ID message, got %v", err)
 	}
 }
+
+func TestWaitForRepoReturnsFriendlyTimeoutAfterSleepCancellation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/repos/tester/App-Store-Connect-CLI" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	previousAPIBase := communityWallGitHubAPIBase
+	previousHTTPClient := communityWallGitHubClient
+	previousSleep := communityWallSleep
+	communityWallGitHubAPIBase = server.URL
+	communityWallGitHubClient = func() *http.Client { return server.Client() }
+	t.Cleanup(func() {
+		communityWallGitHubAPIBase = previousAPIBase
+		communityWallGitHubClient = previousHTTPClient
+		communityWallSleep = previousSleep
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	communityWallSleep = func(time.Duration) {
+		cancel()
+	}
+
+	client := communityWallGitHubClientAPI{Token: "token"}
+	err := client.waitForRepo(ctx, "tester", "App-Store-Connect-CLI")
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if !strings.Contains(err.Error(), "timed out waiting for fork tester/App-Store-Connect-CLI") {
+		t.Fatalf("expected friendly timeout error, got %v", err)
+	}
+}

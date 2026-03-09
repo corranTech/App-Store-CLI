@@ -515,8 +515,9 @@ func submitCommunityWallEntry(ctx context.Context, req communityWallSubmitReques
 	}
 
 	branch := communityWallBranchName(candidate.App, communityWallNow())
-	commitMessage := communityWallCommitMessage(candidate.App)
-	prTitle := communityWallPullRequestTitle(candidate.App)
+	changeTitle := communityWallChangeTitle(candidate.App)
+	commitMessage := changeTitle
+	prTitle := changeTitle
 	prBody := communityWallPullRequestBody(req.Input, candidate)
 	upstreamRepo := communityWallUpstreamOwner + "/" + communityWallUpstreamRepo
 	forkRepo := req.GitHubLogin + "/" + communityWallUpstreamRepo
@@ -599,11 +600,7 @@ func submitCommunityWallEntry(ctx context.Context, req communityWallSubmitReques
 	return result, nil
 }
 
-func communityWallCommitMessage(appName string) string {
-	return fmt.Sprintf("apps wall: add %s", strings.TrimSpace(appName))
-}
-
-func communityWallPullRequestTitle(appName string) string {
+func communityWallChangeTitle(appName string) string {
 	return fmt.Sprintf("apps wall: add %s", strings.TrimSpace(appName))
 }
 
@@ -1017,8 +1014,15 @@ func (client communityWallGitHubClientAPI) createFork(ctx context.Context, owner
 
 func (client communityWallGitHubClientAPI) waitForRepo(ctx context.Context, owner, repo string) error {
 	for {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("timed out waiting for fork %s/%s: %w", owner, repo, err)
+		}
+
 		exists, err := client.repoExists(ctx, owner, repo)
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return fmt.Errorf("timed out waiting for fork %s/%s: %w", owner, repo, ctxErr)
+			}
 			return err
 		}
 		if exists {
