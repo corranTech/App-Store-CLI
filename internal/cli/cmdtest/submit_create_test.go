@@ -517,3 +517,87 @@ func TestSubmitCreatePreflightBlocksWhenRequiredLocalizationFieldsAreMissing(t *
 		t.Fatalf("expected empty stdout on preflight failure, got: %q", stdout)
 	}
 }
+
+func TestSubmitCreateWarnsForSubscriptionPreflightStates(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}],"links":{}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionGroups/group-1/subscriptions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-ready","attributes":{"name":"Monthly Ready","productId":"com.example.ready","state":"READY_TO_SUBMIT"}},{"type":"subscriptions","id":"sub-missing","attributes":{"name":"Monthly Missing","productId":"com.example.missing","state":"MISSING_METADATA"}}],"links":{}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-02-22T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "Warning: the following subscriptions are MISSING_METADATA") {
+		t.Fatalf("expected missing metadata warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Monthly Missing") {
+		t.Fatalf("expected missing metadata subscription name, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Run `asc validate subscriptions` for details on what's missing.") {
+		t.Fatalf("expected validate subscriptions guidance, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Warning: the following subscriptions are READY_TO_SUBMIT") {
+		t.Fatalf("expected ready-to-submit warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Monthly Ready") {
+		t.Fatalf("expected ready-to-submit subscription name, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "asc subscriptions review submit --subscription-id \"SUB_ID\" --confirm") {
+		t.Fatalf("expected corrected submit command guidance, got %q", stderr)
+	}
+	if stdout == "" {
+		t.Fatal("expected JSON output on stdout")
+	}
+}

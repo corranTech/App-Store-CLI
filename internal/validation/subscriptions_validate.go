@@ -268,7 +268,7 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 							ResourceType: "subscriptionGroup",
 							ResourceID:   groupID,
 							Locale:       locale,
-							Message:      fmt.Sprintf("Subscription group %s localization for %s has an empty display name", groupID, locale),
+							Message:      fmt.Sprintf("Subscription group %s localization for %s has an empty display name", groupLabel, locale),
 							Remediation:  "Set a display name for this group localization",
 						})
 					}
