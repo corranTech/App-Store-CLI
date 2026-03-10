@@ -20,7 +20,7 @@ func BuildsAddGroupsCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs or names")
-	skipInternal := fs.Bool("skip-internal", false, "Skip internal beta groups (they automatically receive processed builds)")
+	skipInternal := fs.Bool("skip-internal", false, "Skip internal beta groups instead of adding them")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -62,34 +62,29 @@ Examples:
 				return fmt.Errorf("builds add-groups: %w", err)
 			}
 
-			externalGroupIDs := make([]string, 0, len(resolvedGroups))
+			groupIDsToAdd := make([]string, 0, len(resolvedGroups))
 			skippedInternalGroups := make([]resolvedBuildBetaGroup, 0, len(resolvedGroups))
 			for _, group := range resolvedGroups {
 				if group.IsInternalGroup {
-					if !*skipInternal {
-						return fmt.Errorf(
-							"builds add-groups: cannot add build to group %q (%s): this is an internal beta group. Internal groups automatically receive all processed builds.\nHint: Use --skip-internal to skip internal groups, or remove internal group IDs from --group",
-							group.NameForDisplay(),
-							group.ID,
-						)
+					if *skipInternal {
+						skippedInternalGroups = append(skippedInternalGroups, group)
+						continue
 					}
-					skippedInternalGroups = append(skippedInternalGroups, group)
-					continue
 				}
-				externalGroupIDs = append(externalGroupIDs, group.ID)
+				groupIDsToAdd = append(groupIDsToAdd, group.ID)
 			}
 
 			for _, group := range skippedInternalGroups {
 				fmt.Fprintf(
 					os.Stderr,
-					"Skipped internal group %q (%s): builds are auto-distributed\n",
+					"Skipped internal group %q (%s) because --skip-internal was set\n",
 					group.NameForDisplay(),
 					group.ID,
 				)
 			}
 
-			if len(externalGroupIDs) == 0 {
-				fmt.Fprintf(os.Stderr, "No external groups to add for build %s\n", trimmedBuildID)
+			if len(groupIDsToAdd) == 0 {
+				fmt.Fprintf(os.Stderr, "No groups to add for build %s after applying filters\n", trimmedBuildID)
 				result := &asc.BuildBetaGroupsUpdateResult{
 					BuildID:  trimmedBuildID,
 					GroupIDs: []string{},
@@ -98,14 +93,14 @@ Examples:
 				return shared.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
-			if err := client.AddBetaGroupsToBuild(requestCtx, trimmedBuildID, externalGroupIDs); err != nil {
+			if err := client.AddBetaGroupsToBuild(requestCtx, trimmedBuildID, groupIDsToAdd); err != nil {
 				return fmt.Errorf("builds add-groups: failed to add groups: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully added %d group(s) to build %s\n", len(externalGroupIDs), trimmedBuildID)
+			fmt.Fprintf(os.Stderr, "Successfully added %d group(s) to build %s\n", len(groupIDsToAdd), trimmedBuildID)
 			result := &asc.BuildBetaGroupsUpdateResult{
 				BuildID:  trimmedBuildID,
-				GroupIDs: externalGroupIDs,
+				GroupIDs: groupIDsToAdd,
 				Action:   "added",
 			}
 
