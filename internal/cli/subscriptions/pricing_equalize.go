@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,6 +20,8 @@ import (
 
 const defaultEqualizeWorkers = 8
 
+var errEqualizePricePointFound = errors.New("equalize price point found")
+
 // SubscriptionsPricingEqualizeCommand returns the equalize subcommand.
 func SubscriptionsPricingEqualizeCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("equalize", flag.ExitOnError)
@@ -28,6 +30,7 @@ func SubscriptionsPricingEqualizeCommand() *ffcli.Command {
 	baseTerritory := fs.String("base-territory", "USA", "Territory to use as the pricing base")
 	basePrice := fs.String("base-price", "", "Customer price in the base territory (required)")
 	dryRun := fs.Bool("dry-run", false, "Show equalized prices without applying them")
+	confirm := fs.Bool("confirm", false, "Confirm applying equalized prices (required unless --dry-run)")
 	workers := fs.Int("workers", defaultEqualizeWorkers, "Number of concurrent API requests")
 	output := shared.BindOutputFlags(fs)
 
@@ -43,13 +46,16 @@ operation. This replaces the manual process of exporting equalizations and
 importing a CSV.
 
 Examples:
-  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49"
-  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "38.49" --base-territory "USA"
+  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --confirm
+  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "38.49" --base-territory "USA" --confirm
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --dry-run
-  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --workers 16`,
+  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --confirm --workers 16`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("subscriptions pricing equalize does not accept positional arguments")
+			}
 			subID := strings.TrimSpace(*subscriptionID)
 			if subID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
@@ -60,9 +66,15 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --base-price is required")
 				return flag.ErrHelp
 			}
+			if err := shared.ValidateFinitePriceFlag("--base-price", price); err != nil {
+				return shared.UsageError(err.Error())
+			}
 			territory := strings.ToUpper(strings.TrimSpace(*baseTerritory))
 			if territory == "" {
 				territory = "USA"
+			}
+			if !*dryRun && !*confirm {
+				return shared.UsageError("--confirm is required unless --dry-run is set")
 			}
 			numWorkers := *workers
 			if numWorkers < 1 {
@@ -93,28 +105,64 @@ Examples:
 			}
 			fmt.Fprintf(os.Stderr, "Got %d territory equalizations\n", len(equalizations))
 
+			allTerritories := make([]equalization, 0, len(equalizations)+1)
+			allTerritories = append(allTerritories, equalization{
+				Territory:    territory,
+				Price:        price,
+				PricePointID: pricePointID,
+			})
+			allTerritories = append(allTerritories, equalizations...)
+
 			if *dryRun {
 				return printEqualizeResult(&equalizeResult{
 					SubscriptionID: subID,
 					BaseTerritory:  territory,
 					BasePrice:      price,
 					DryRun:         true,
-					Territories:    equalizations,
-					Total:          len(equalizations),
+					Territories:    allTerritories,
+					Total:          len(allTerritories),
 				}, *output.Output, *output.Pretty)
 			}
 
 			// Step 3: Set prices for all territories concurrently
-			fmt.Fprintf(os.Stderr, "Setting prices for %d territories (%d workers)...\n", len(equalizations), numWorkers)
+			fmt.Fprintf(os.Stderr, "Setting prices for %d territories (%d workers)...\n", len(allTerritories), numWorkers)
 			var succeeded atomic.Int32
 			var failed atomic.Int32
 			failures := make([]equalizeFailure, 0)
 			var mu sync.Mutex
 
+			existingCtx, existingCancel := shared.ContextWithTimeout(ctx)
+			existingPrices, err := client.GetSubscriptionPricesRelationships(existingCtx, subID)
+			existingCancel()
+			if err != nil {
+				return fmt.Errorf("equalize: failed to check existing prices: %w", err)
+			}
+
+			remainingTerritories := allTerritories
+			if len(existingPrices.Data) == 0 && len(allTerritories) > 0 {
+				fmt.Fprintf(os.Stderr, "Subscription has no prices; setting initial price in %s first...\n", territory)
+
+				baseTarget := allTerritories[0]
+				initialCtx, initialCancel := shared.ContextWithTimeout(ctx)
+				_, err := client.SetSubscriptionInitialPrice(initialCtx, subID, baseTarget.PricePointID, baseTarget.Territory, asc.SubscriptionPriceCreateAttributes{})
+				initialCancel()
+				if err != nil {
+					failed.Add(1)
+					failures = append(failures, equalizeFailure{
+						Territory: baseTarget.Territory,
+						Price:     baseTarget.Price,
+						Error:     err.Error(),
+					})
+				} else {
+					succeeded.Add(1)
+					remainingTerritories = allTerritories[1:]
+				}
+			}
+
 			sem := make(chan struct{}, numWorkers)
 			var wg sync.WaitGroup
 
-			for _, eq := range equalizations {
+			for _, eq := range remainingTerritories {
 				wg.Add(1)
 				go func(e equalization) {
 					defer wg.Done()
@@ -147,7 +195,7 @@ Examples:
 				BaseTerritory:  territory,
 				BasePrice:      price,
 				DryRun:         false,
-				Total:          len(equalizations),
+				Total:          len(allTerritories),
 				Succeeded:      int(succeeded.Load()),
 				Failed:         int(failed.Load()),
 				Failures:       failures,
@@ -158,11 +206,9 @@ Examples:
 			if err := printEqualizeResult(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-
 			if result.Failed > 0 {
-				return fmt.Errorf("equalize: %d of %d territory price updates failed", result.Failed, result.Total)
+				return shared.NewReportedError(fmt.Errorf("equalize: %d territory update(s) failed", result.Failed))
 			}
-
 			return nil
 		},
 	}
@@ -200,11 +246,9 @@ type pricePointIDPayload struct {
 }
 
 func findPricePoint(ctx context.Context, client *asc.Client, subID, territory, targetPrice string) (string, error) {
-	// Parse target price as a float for numeric comparison (e.g., "3.5" matches "3.50").
-	targetFloat, targetErr := strconv.ParseFloat(targetPrice, 64)
-
 	// List price points filtered by the base territory, paginating to find the matching price
 	var pricePointID string
+	priceFilter := shared.PriceFilter{Price: targetPrice}
 
 	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
 	firstPage, err := client.GetSubscriptionPricePoints(firstCtx, subID,
@@ -218,7 +262,7 @@ func findPricePoint(ctx context.Context, client *asc.Client, subID, territory, t
 
 	// Check first page
 	for _, pp := range firstPage.Data {
-		if pricesMatch(pp.Attributes.CustomerPrice, targetPrice, targetFloat, targetErr) {
+		if priceFilter.MatchesPrice(pp.Attributes.CustomerPrice) {
 			pricePointID = pp.ID
 			return pricePointID, nil
 		}
@@ -239,9 +283,9 @@ func findPricePoint(ctx context.Context, client *asc.Client, subID, territory, t
 				return nil
 			}
 			for _, pp := range typed.Data {
-				if pricesMatch(pp.Attributes.CustomerPrice, targetPrice, targetFloat, targetErr) {
+				if priceFilter.MatchesPrice(pp.Attributes.CustomerPrice) {
 					pricePointID = pp.ID
-					return fmt.Errorf("found") // break pagination
+					return errEqualizePricePointFound
 				}
 			}
 			return nil
@@ -252,7 +296,7 @@ func findPricePoint(ctx context.Context, client *asc.Client, subID, territory, t
 		return pricePointID, nil
 	}
 
-	if err != nil && err.Error() != "found" {
+	if err != nil && !errors.Is(err, errEqualizePricePointFound) {
 		return "", err
 	}
 
@@ -356,24 +400,6 @@ func printEqualizeTable(result *equalizeResult) error {
 	}
 
 	return nil
-}
-
-// pricesMatch compares a candidate price string against the target using numeric
-// comparison when possible, falling back to exact string match. This handles cases
-// like "3.5" matching "3.50".
-func pricesMatch(candidate, targetStr string, targetFloat float64, targetErr error) bool {
-	candidate = strings.TrimSpace(candidate)
-	if candidate == targetStr {
-		return true
-	}
-	if targetErr != nil {
-		return false
-	}
-	candidateFloat, err := strconv.ParseFloat(candidate, 64)
-	if err != nil {
-		return false
-	}
-	return candidateFloat == targetFloat
 }
 
 func printEqualizeMarkdown(result *equalizeResult) error {
