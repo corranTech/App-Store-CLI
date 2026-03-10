@@ -127,7 +127,10 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 				valSub.Localizations = localizations
 				valSub.LocalizationCheckSkipped = !localizationStatus.Verified
 				valSub.LocalizationCheckSkipReason = localizationStatus.SkipReason
-				priceCount, priceStatus := fetchSubscriptionPriceCount(ctx, client, sub.ID)
+				priceCount, priceStatus, err := fetchSubscriptionPriceCount(ctx, client, sub.ID)
+				if err != nil {
+					return nil, fmt.Errorf("fetch subscription prices for %s: %w", strings.TrimSpace(sub.ID), err)
+				}
 				valSub.PriceCount = priceCount
 				valSub.PriceCheckSkipped = !priceStatus.Verified
 				valSub.PriceCheckSkipReason = priceStatus.SkipReason
@@ -231,18 +234,21 @@ func fetchSubscriptionLocalizations(ctx context.Context, client *asc.Client, sub
 }
 
 // fetchSubscriptionPriceCount checks whether a subscription has any prices set.
-func fetchSubscriptionPriceCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus) {
+func fetchSubscriptionPriceCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus, error) {
 	reqCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	resp, err := client.GetSubscriptionPrices(reqCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPricesLimit(1))
 	if err != nil {
-		if reason, ok := metadataCheckSkipReason(err, "subscription prices"); ok {
-			return 0, metadataCheckStatus{SkipReason: reason}
+		if errors.Is(err, context.Canceled) {
+			return 0, metadataCheckStatus{}, err
 		}
-		return 0, metadataCheckStatus{SkipReason: "Validation skipped subscription prices because the App Store Connect endpoint returned an unexpected error"}
+		if reason, ok := metadataCheckSkipReason(err, "subscription prices"); ok {
+			return 0, metadataCheckStatus{SkipReason: reason}, nil
+		}
+		return 0, metadataCheckStatus{SkipReason: "Validation skipped subscription prices because the App Store Connect endpoint returned an unexpected error"}, nil
 	}
-	return len(resp.Data), metadataCheckStatus{Verified: true}
+	return len(resp.Data), metadataCheckStatus{Verified: true}, nil
 }
 
 func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (subscriptionImageStatus, error) {

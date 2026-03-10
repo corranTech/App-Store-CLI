@@ -30,6 +30,7 @@ type validateSubscriptionsFixture struct {
 	localizationsStatusBySub   map[string]int
 	pricesBySubscription       map[string]string
 	pricesStatusBySubscription map[string]int
+	priceErrorBySubscription   map[string]error
 	subscriptionGroupsStatus   int
 }
 
@@ -80,6 +81,9 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/prices"):
 			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/prices")
+			if err, ok := fixture.priceErrorBySubscription[subscriptionID]; ok {
+				return nil, err
+			}
 			if status, ok := fixture.pricesStatusBySubscription[subscriptionID]; ok {
 				return jsonResponse(status, apiErrorJSONForStatus(status))
 			}
@@ -640,6 +644,41 @@ func TestValidateSubscriptionsTreatsMetadataProbeFailuresAsInformational(t *test
 	}
 	if hasCheckWithID(report.Checks, "subscriptions.diagnostics.pricing_missing") {
 		t.Fatalf("expected no false pricing-missing check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateSubscriptionsPropagatesCanceledPriceProbe(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"MISSING_METADATA"}}]}`
+	fixture.priceErrorBySubscription = map[string]error{
+		"sub-1": context.Canceled,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout when pricing probe is canceled, got %q", stdout)
+	}
+	if runErr == nil {
+		t.Fatal("expected canceled price probe to abort validation")
+	}
+	if !errors.Is(runErr, context.Canceled) {
+		t.Fatalf("expected context canceled error, got %v", runErr)
 	}
 }
 
