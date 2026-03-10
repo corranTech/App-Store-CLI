@@ -319,6 +319,7 @@ func fetchEqualizations(ctx context.Context, client *asc.Client, pricePointID, b
 	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
 	resp, err := client.GetSubscriptionPricePointEqualizations(firstCtx, pricePointID,
 		asc.WithSubscriptionPricePointsInclude([]string{"territory"}),
+		asc.WithSubscriptionPricePointsFields([]string{"customerPrice", "territory"}),
 		asc.WithSubscriptionPricePointsLimit(200),
 	)
 	firstCancel()

@@ -12,6 +12,49 @@ import (
 	"testing"
 )
 
+func TestSubscriptionsPricingEqualizeValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing subscription id",
+			args:    []string{"subscriptions", "pricing", "equalize", "--base-price", "3.49"},
+			wantErr: "Error: --subscription-id is required",
+		},
+		{
+			name:    "missing base price",
+			args:    []string{"subscriptions", "pricing", "equalize", "--subscription-id", "sub-1"},
+			wantErr: "Error: --base-price is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
 func TestSubscriptionsPricingEqualize_RequiresConfirmUnlessDryRun(t *testing.T) {
 	setupAuth(t)
 
@@ -107,6 +150,9 @@ func TestSubscriptionsPricingEqualize_DryRunMatchesBasePriceNumerically(t *testi
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
 			if got := req.URL.Query().Get("include"); got != "territory" {
 				t.Fatalf("expected include=territory, got %q", got)
+			}
+			if got := req.URL.Query().Get("fields[subscriptionPricePoints]"); got != "customerPrice,territory" {
+				t.Fatalf("expected fields[subscriptionPricePoints]=customerPrice,territory, got %q", got)
 			}
 			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"4.49"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil
