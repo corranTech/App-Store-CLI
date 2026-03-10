@@ -101,6 +101,8 @@ Examples:
 				return err
 			}
 
+			runSubmitCreateSubscriptionPreflight(requestCtx, client, resolvedAppID)
+
 			// Attach build to version
 			if err := client.AttachBuildToVersion(requestCtx, resolvedVersionID, strings.TrimSpace(*buildID)); err != nil {
 				return fmt.Errorf("submit create: failed to attach build: %w", err)
@@ -340,6 +342,73 @@ Examples:
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+// runSubmitCreateSubscriptionPreflight checks whether the app has subscriptions
+// that need attention before submission. This is advisory (warnings only) because
+// the submit flow cannot include subscriptions in the review submission — they
+// use a separate submission path.
+func runSubmitCreateSubscriptionPreflight(ctx context.Context, client *asc.Client, appID string) {
+	groupsResp, err := client.GetSubscriptionGroups(ctx, appID, asc.WithSubscriptionGroupsLimit(200))
+	if err != nil {
+		// Non-fatal: skip subscription preflight if we can't fetch groups.
+		return
+	}
+	if len(groupsResp.Data) == 0 {
+		return
+	}
+
+	var readyToSubmit []string
+	var missingMetadata []string
+
+	for _, group := range groupsResp.Data {
+		groupID := strings.TrimSpace(group.ID)
+		if groupID == "" {
+			continue
+		}
+
+		subsResp, err := client.GetSubscriptions(ctx, groupID, asc.WithSubscriptionsLimit(200))
+		if err != nil {
+			continue
+		}
+
+		for _, sub := range subsResp.Data {
+			state := strings.ToUpper(strings.TrimSpace(sub.Attributes.State))
+			label := strings.TrimSpace(sub.Attributes.Name)
+			if label == "" {
+				label = strings.TrimSpace(sub.Attributes.ProductID)
+			}
+			if label == "" {
+				label = sub.ID
+			}
+
+			switch state {
+			case "READY_TO_SUBMIT":
+				readyToSubmit = append(readyToSubmit, label)
+			case "MISSING_METADATA":
+				missingMetadata = append(missingMetadata, label)
+			}
+		}
+	}
+
+	if len(missingMetadata) > 0 {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Warning: the following subscriptions are MISSING_METADATA and will not be included in review:")
+		for _, name := range missingMetadata {
+			fmt.Fprintf(os.Stderr, "  - %s\n", name)
+		}
+		fmt.Fprintln(os.Stderr, "Run `asc validate subscriptions` for details on what's missing.")
+	}
+
+	if len(readyToSubmit) > 0 {
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Warning: the following subscriptions are READY_TO_SUBMIT but are not automatically included in this submission:")
+		for _, name := range readyToSubmit {
+			fmt.Fprintf(os.Stderr, "  - %s\n", name)
+		}
+		fmt.Fprintln(os.Stderr, "If this is their first review, you must submit them via the app version page in App Store Connect.")
+		fmt.Fprintln(os.Stderr, "For subsequent reviews, use `asc subscriptions submissions create`.")
 	}
 }
 
