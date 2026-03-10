@@ -77,11 +77,8 @@ Examples:
 				return shared.UsageError("--confirm is required unless --dry-run is set")
 			}
 			numWorkers := *workers
-			if numWorkers < 1 {
-				numWorkers = 1
-			}
-			if numWorkers > 32 {
-				numWorkers = 32
+			if numWorkers < 1 || numWorkers > 32 {
+				return shared.UsageError("--workers must be between 1 and 32")
 			}
 
 			client, err := shared.GetASCClient()

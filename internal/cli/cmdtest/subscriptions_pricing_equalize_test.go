@@ -49,6 +49,42 @@ func TestSubscriptionsPricingEqualize_RequiresConfirmUnlessDryRun(t *testing.T) 
 	}
 }
 
+func TestSubscriptionsPricingEqualize_RejectsOutOfRangeWorkers(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "equalize",
+			"--subscription-id", "sub-1",
+			"--base-price", "0.99",
+			"--dry-run",
+			"--workers", "0",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}
+
 func TestSubscriptionsPricingEqualize_DryRunMatchesBasePriceNumerically(t *testing.T) {
 	setupAuth(t)
 
@@ -193,7 +229,7 @@ func TestSubscriptionsPricingEqualize_ApplyFailsWhenAvailabilityIsMissing(t *tes
 			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99"}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"}}],"links":{}}`
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/subscriptionAvailability":
 			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"not found","detail":"missing"}]}`), nil
@@ -247,7 +283,7 @@ func TestSubscriptionsPricingEqualize_ApplyFailsWhenAvailabilityDoesNotCoverAllT
 			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99"}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"}}],"links":{}}`
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/subscriptionAvailability":
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`), nil
@@ -398,7 +434,7 @@ func TestSubscriptionsPricingEqualize_FailedInitialPriceStopsBeforePostingRemain
 			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99"}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"}}],"links":{}}`
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/subscriptionAvailability":
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`), nil
