@@ -402,6 +402,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "SajdaTV",
+    "link": "https://apps.apple.com/us/app/sajdatv/id6759179587",
+    "creator": "Abdo-codes",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a2/86/a6/a286a647-d984-7f1d-6f2b-7d4fda64c3e2/App_Icon-marketing.lsr/512x512bb.jpg",
+    "platform": ["tvOS"]
+  },
+  {
     "app": "Siraj — Your Ramadan Light",
     "link": "https://apps.apple.com/app/id6759178047",
     "creator": "SwifAI",
