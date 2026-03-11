@@ -257,8 +257,10 @@ func fetchSubscriptionPriceCount(ctx context.Context, client *asc.Client, subscr
 		return 0, metadataCheckStatus{SkipReason: "Validation skipped subscription prices because the App Store Connect endpoint returned an unexpected error"}, nil
 	}
 	total := asc.ParsePagingTotal(resp.Meta)
-	if total == 0 {
-		total = len(resp.Data)
+	if total == 0 && len(resp.Data) > 0 {
+		// Paging total missing but data exists — limit=1 can't determine
+		// the real count, so mark as unverified to avoid false warnings.
+		return 0, metadataCheckStatus{SkipReason: "Validation could not determine the total subscription price count because the API response omitted paging metadata"}, nil
 	}
 	return total, metadataCheckStatus{Verified: true}, nil
 }
