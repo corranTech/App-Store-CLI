@@ -340,6 +340,53 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityForbidden(t *t
 	}
 }
 
+func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityRateLimited(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2Status = http.StatusTooManyRequests
+	fixture.availabilityV2 = apiErrorJSONForStatus(http.StatusTooManyRequests)
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected availability rate-limit to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+
+	var skipCheck *validation.CheckResult
+	for i := range report.Checks {
+		if report.Checks[i].ID == "subscriptions.pricing_coverage.unverified" {
+			skipCheck = &report.Checks[i]
+			break
+		}
+	}
+	if skipCheck == nil {
+		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+	}
+	if !strings.Contains(skipCheck.Remediation, "temporarily unavailable or rate limited") {
+		t.Fatalf("expected retryable remediation, got %+v", *skipCheck)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("did not expect pricing coverage warning when availability is retryable, got %+v", report.Checks)
+	}
+}
+
 func TestValidateSubscriptionsSurfacesSkippedPricingVerificationForApprovedSubscriptions(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.expectedPriceInclude = "territory"
