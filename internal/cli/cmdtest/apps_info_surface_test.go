@@ -2,9 +2,11 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -77,57 +79,128 @@ func TestAppsInfoHelpShowsNewSurface(t *testing.T) {
 	}
 }
 
-func TestRemovedAppInfoCommandPrintsDetailedMigration(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+func TestDeprecatedAppInfoGetAliasWarnsAndMatchesAppsInfoViewOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-info", "get", "--app", "APP_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
 	})
 
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appInfos/info-1" {
+			t.Fatalf("expected path /v1/appInfos/info-1, got %s", req.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body: io.NopCloser(strings.NewReader(`{
+				"data":{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}
+			}`)),
+			Header: http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	run := func(args []string) (string, string) {
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		return captureOutput(t, func() {
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+		})
 	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+
+	canonicalStdout, canonicalStderr := run([]string{"apps", "info", "view", "--info-id", "info-1", "--include", "ageRatingDeclaration", "--output", "json"})
+	aliasStdout, aliasStderr := run([]string{"app-info", "get", "--app-info", "info-1", "--include", "ageRatingDeclaration", "--output", "json"})
+
+	if canonicalStderr != "" {
+		t.Fatalf("expected canonical command to avoid warnings, got %q", canonicalStderr)
 	}
-	if !strings.Contains(stderr, "`asc app-info` was removed") {
-		t.Fatalf("expected removed command error, got %q", stderr)
+	if !strings.Contains(aliasStderr, "Warning: `asc app-info get` is deprecated. Use `asc apps info view`.") {
+		t.Fatalf("expected deprecation warning, got %q", aliasStderr)
 	}
-	if !strings.Contains(stderr, `asc apps info view --app "APP_ID"`) {
-		t.Fatalf("expected view migration guidance, got %q", stderr)
+
+	var canonicalPayload map[string]any
+	if err := json.Unmarshal([]byte(canonicalStdout), &canonicalPayload); err != nil {
+		t.Fatalf("parse canonical stdout: %v", err)
 	}
-	if !strings.Contains(stderr, `asc apps info list --app "APP_ID"`) {
-		t.Fatalf("expected detailed migration guidance, got %q", stderr)
+	var aliasPayload map[string]any
+	if err := json.Unmarshal([]byte(aliasStdout), &aliasPayload); err != nil {
+		t.Fatalf("parse alias stdout: %v", err)
+	}
+	if canonicalStdout != aliasStdout {
+		t.Fatalf("expected canonical and alias output to match, canonical=%q alias=%q", canonicalStdout, aliasStdout)
 	}
 }
 
-func TestRemovedAppInfosCommandPrintsDetailedMigration(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+func TestDeprecatedAppInfosListAliasWarnsAndMatchesAppsInfoListOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-infos", "list", "--app", "APP_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
 	})
 
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/appInfos" {
+			t.Fatalf("expected path /v1/apps/app-1/appInfos, got %s", req.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body: io.NopCloser(strings.NewReader(`{
+				"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}]
+			}`)),
+			Header: http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	run := func(args []string) (string, string) {
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		return captureOutput(t, func() {
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+		})
 	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+
+	canonicalStdout, canonicalStderr := run([]string{"apps", "info", "list", "--app", "app-1", "--output", "json"})
+	aliasStdout, aliasStderr := run([]string{"app-infos", "list", "--app", "app-1", "--output", "json"})
+
+	if canonicalStderr != "" {
+		t.Fatalf("expected canonical command to avoid warnings, got %q", canonicalStderr)
 	}
-	if !strings.Contains(stderr, "`asc app-infos` was removed") {
-		t.Fatalf("expected removed command error, got %q", stderr)
+	if !strings.Contains(aliasStderr, "Warning: `asc app-infos list` is deprecated. Use `asc apps info list`.") {
+		t.Fatalf("expected deprecation warning, got %q", aliasStderr)
 	}
-	if !strings.Contains(stderr, `asc apps info list --app "APP_ID"`) {
-		t.Fatalf("expected list migration guidance, got %q", stderr)
+
+	var canonicalPayload map[string]any
+	if err := json.Unmarshal([]byte(canonicalStdout), &canonicalPayload); err != nil {
+		t.Fatalf("parse canonical stdout: %v", err)
+	}
+	var aliasPayload map[string]any
+	if err := json.Unmarshal([]byte(aliasStdout), &aliasPayload); err != nil {
+		t.Fatalf("parse alias stdout: %v", err)
+	}
+	if canonicalStdout != aliasStdout {
+		t.Fatalf("expected canonical and alias output to match, canonical=%q alias=%q", canonicalStdout, aliasStdout)
 	}
 }

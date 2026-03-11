@@ -85,6 +85,7 @@ func appsInfoCategoryRelationshipCommand(name, shortHelp string, fetch appInfoCa
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	infoID := fs.String("info-id", "", "App Info ID (optional override)")
+	legacyID := fs.String("id", "", "Deprecated alias for --info-id")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -99,8 +100,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			infoIDValue, err := resolveLegacyIDAlias(*infoID, *legacyID)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*infoID) == "" {
+			if resolvedAppID == "" && infoIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
@@ -113,7 +118,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resolvedInfoID, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*infoID))
+			resolvedInfoID, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, infoIDValue)
 			if err != nil {
 				return fmt.Errorf("apps info relationships %s: %w", name, err)
 			}
@@ -126,4 +131,16 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func resolveLegacyIDAlias(infoID, legacyID string) (string, error) {
+	infoIDValue := strings.TrimSpace(infoID)
+	legacyValue := strings.TrimSpace(legacyID)
+	if infoIDValue != "" && legacyValue != "" && infoIDValue != legacyValue {
+		return "", fmt.Errorf("--info-id and --id are mutually exclusive")
+	}
+	if infoIDValue != "" {
+		return infoIDValue, nil
+	}
+	return legacyValue, nil
 }

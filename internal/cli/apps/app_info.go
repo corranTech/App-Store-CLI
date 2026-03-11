@@ -55,6 +55,7 @@ func AppsInfoViewCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	infoID := fs.String("info-id", "", "App Info ID (optional override)")
+	legacyAppInfoID := fs.String("app-info", "", "Deprecated alias for --info-id")
 	versionID := fs.String("version-id", "", "App Store version ID (optional override)")
 	version := fs.String("version", "", "App Store version string (optional)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (required with --version)")
@@ -85,6 +86,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			infoIDValue, err := resolveInfoIDFlags(*infoID, *legacyAppInfoID)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("--limit must be between 1 and 200")
 			}
@@ -96,7 +101,7 @@ Examples:
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" && strings.TrimSpace(*infoID) == "" {
+			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" && infoIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
@@ -105,7 +110,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if strings.TrimSpace(*infoID) != "" && len(includeValues) == 0 {
+			if infoIDValue != "" && len(includeValues) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --info-id requires --include")
 				return flag.ErrHelp
 			}
@@ -146,7 +151,7 @@ Examples:
 			defer cancel()
 
 			if len(includeValues) > 0 {
-				appInfoIDValue, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*infoID))
+				appInfoIDValue, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, infoIDValue)
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
 				}
@@ -397,6 +402,18 @@ Examples:
 			return nil
 		},
 	}
+}
+
+func resolveInfoIDFlags(infoID, legacyAppInfoID string) (string, error) {
+	infoIDValue := strings.TrimSpace(infoID)
+	legacyValue := strings.TrimSpace(legacyAppInfoID)
+	if infoIDValue != "" && legacyValue != "" && infoIDValue != legacyValue {
+		return "", fmt.Errorf("--info-id and --app-info are mutually exclusive")
+	}
+	if infoIDValue != "" {
+		return infoIDValue, nil
+	}
+	return legacyValue, nil
 }
 
 func runAppInfoSetSingleLocale(
