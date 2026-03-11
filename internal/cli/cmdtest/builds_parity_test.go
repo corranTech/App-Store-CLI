@@ -267,6 +267,11 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 			wantErr: "--type must be one of",
 		},
 		{
+			name:    "beta-groups deprecated root links missing type",
+			args:    []string{"testflight", "beta-groups", "links", "view", "--group-id", "GROUP_ID"},
+			wantErr: "--type is required",
+		},
+		{
 			name:    "beta-testers relationships missing type",
 			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "TESTER_ID"},
 			wantErr: "--type is required",
@@ -280,6 +285,11 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 			name:    "beta-testers relationships invalid type",
 			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "TESTER_ID", "--type", "nope"},
 			wantErr: "--type must be one of",
+		},
+		{
+			name:    "beta-testers deprecated root links missing type",
+			args:    []string{"testflight", "beta-testers", "links", "view", "--tester-id", "TESTER_ID"},
+			wantErr: "--type is required",
 		},
 		{
 			name:    "beta-testers metrics missing tester-id",

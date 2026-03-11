@@ -149,12 +149,30 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 			},
 		},
 		{
+			name:        "beta groups relationships alias help",
+			args:        []string{"testflight", "beta-groups", "relationships"},
+			wantUsage:   "asc testflight groups links <subcommand> [flags]",
+			wantWarning: "",
+			wantNotShown: []string{
+				"asc testflight groups relationships <subcommand> [flags]",
+			},
+		},
+		{
 			name:        "beta testers alias help",
 			args:        []string{"testflight", "beta-testers"},
 			wantUsage:   "asc testflight testers <subcommand> [flags]",
 			wantWarning: "",
 			wantNotShown: []string{
 				"asc testflight beta-testers <subcommand> [flags]",
+			},
+		},
+		{
+			name:        "beta testers relationships alias help",
+			args:        []string{"testflight", "beta-testers", "relationships"},
+			wantUsage:   "asc testflight testers links <subcommand> [flags]",
+			wantWarning: "",
+			wantNotShown: []string{
+				"asc testflight testers relationships <subcommand> [flags]",
 			},
 		},
 		{

@@ -708,14 +708,27 @@ func DeprecatedBetaGroupsAliasCommand() *ffcli.Command {
 				"beta-groups":               "groups",
 				"beta-recruitment-criteria": "recruitment",
 				"beta-recruitment-criterion-compatible-build-check": "compatibility",
-				"get":    "view",
-				"update": "edit",
+				"relationships": "links",
+				"get":           "view",
+				"update":        "edit",
 			},
 		),
 		"asc testflight groups <subcommand> [flags]",
 		"Compatibility alias: use `asc testflight groups`.",
 		"Compatibility alias: use `asc testflight groups ...`.",
 	)
+	if linksCmd := rewriteCommandTree(
+		BetaGroupsRelationshipsCommand(),
+		"asc testflight beta-groups relationships",
+		"asc testflight groups links",
+		map[string]string{
+			"relationships": "links",
+			"get":           "view",
+		},
+		nil,
+	); linksCmd != nil {
+		cmd.Subcommands = append(cmd.Subcommands, linksCmd)
+	}
 	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
 	markDeprecatedSubcommands(cmd)
 	return cmd
@@ -728,15 +741,28 @@ func DeprecatedBetaTestersAliasCommand() *ffcli.Command {
 			"asc testflight beta-testers",
 			"asc testflight testers",
 			map[string]string{
-				"beta-testers": "testers",
-				"beta-groups":  "groups",
-				"get":          "view",
+				"beta-testers":  "testers",
+				"beta-groups":   "groups",
+				"relationships": "links",
+				"get":           "view",
 			},
 		),
 		"asc testflight testers <subcommand> [flags]",
 		"Compatibility alias: use `asc testflight testers`.",
 		"Compatibility alias: use `asc testflight testers ...`.",
 	)
+	if linksCmd := rewriteCommandTree(
+		BetaTestersRelationshipsCommand(),
+		"asc testflight beta-testers relationships",
+		"asc testflight testers links",
+		map[string]string{
+			"relationships": "links",
+			"get":           "view",
+		},
+		nil,
+	); linksCmd != nil {
+		cmd.Subcommands = append(cmd.Subcommands, linksCmd)
+	}
 	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
 	markDeprecatedSubcommands(cmd)
 	return cmd
