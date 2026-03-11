@@ -45,6 +45,7 @@ type validateFixture struct {
 	localizationsBySub         map[string]string
 	localizationsStatusBySub   map[string]int
 	pricesBySubscription       map[string]string
+	expectedPriceInclude       string
 	pricesStatusBySubscription map[string]int
 	priceErrorBySubscription   map[string]error
 	subscriptionGroupsStatus   int
@@ -160,6 +161,9 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/prices"):
 			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/prices")
+			if fixture.expectedPriceInclude != "" && req.URL.Query().Get("include") != fixture.expectedPriceInclude {
+				t.Fatalf("expected include=%q, got %q", fixture.expectedPriceInclude, req.URL.Query().Get("include"))
+			}
 			if err, ok := fixture.priceErrorBySubscription[subscriptionID]; ok {
 				return nil, err
 			}
@@ -1505,8 +1509,9 @@ func TestValidateWarnsPartialSubscriptionPricingCoverage(t *testing.T) {
 	fixture := validValidateFixture()
 	// Subscription with pricing for 1 territory but app available in many.
 	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"APPROVED"}}]}`
+	fixture.expectedPriceInclude = "territory"
 	fixture.pricesBySubscription = map[string]string{
-		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"}}],"meta":{"paging":{"total":1,"limit":1}}}`,
+		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
 	}
 	// Make the app available in 5 territories so the coverage gap is clear.
 	fixture.territories = `{"data":[` +
@@ -1542,6 +1547,44 @@ func TestValidateWarnsPartialSubscriptionPricingCoverage(t *testing.T) {
 	}
 	if !hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
 		t.Fatalf("expected pricing coverage warning, got %+v", report.Checks)
+	}
+}
+
+func TestValidateSurfacesSkippedActiveSubscriptionPriceProbeAsInformational(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesStatusBySubscription = map[string]int{
+		"sub-1": http.StatusForbidden,
+	}
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected skipped active-subscription price probe to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if !hasCheckWithID(report.Checks, "subscriptions.pricing.unverified") {
+		t.Fatalf("expected subscriptions.pricing.unverified check, got %+v", report.Checks)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.diagnostics.pricing_unverified") {
+		t.Fatalf("did not expect missing-metadata pricing diagnostic for approved subscription, got %+v", report.Checks)
 	}
 }
 

@@ -15,6 +15,7 @@ func Validate(input Input, strict bool) Report {
 	checks = append(checks, subscriptionFetchChecks(input.SubscriptionFetchSkipReason)...)
 	checks = append(checks, subscriptionImageChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionReviewReadinessChecks(input.Subscriptions)...)
+	checks = append(checks, subscriptionPricingVerificationChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionMetadataDiagnostics(input.Subscriptions)...)
 	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, input.AvailableTerritories)...)
 	checks = append(checks, iapFetchChecks(input.IAPFetchSkipReason)...)

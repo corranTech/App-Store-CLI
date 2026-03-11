@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -239,14 +240,18 @@ func fetchSubscriptionLocalizations(ctx context.Context, client *asc.Client, sub
 	return locs, metadataCheckStatus{Verified: true}, nil
 }
 
-// fetchSubscriptionPriceCount returns the total number of territory prices
-// configured for a subscription. It uses the paging metadata total from a
-// limit=1 request to avoid fetching all price resources.
+// fetchSubscriptionPriceCount returns the number of unique territories with
+// prices configured for a subscription. It paginates all price resources so
+// scheduled price changes for the same territory don't inflate coverage.
 func fetchSubscriptionPriceCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus, error) {
 	reqCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
-	resp, err := client.GetSubscriptionPrices(reqCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPricesLimit(1))
+	resp, err := client.GetSubscriptionPrices(
+		reqCtx,
+		strings.TrimSpace(subscriptionID),
+		asc.WithSubscriptionPricesInclude([]string{"territory"}),
+		asc.WithSubscriptionPricesLimit(200),
+	)
+	cancel()
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return 0, metadataCheckStatus{}, err
@@ -256,13 +261,56 @@ func fetchSubscriptionPriceCount(ctx context.Context, client *asc.Client, subscr
 		}
 		return 0, metadataCheckStatus{SkipReason: "Validation skipped subscription prices because the App Store Connect endpoint returned an unexpected error"}, nil
 	}
-	total := asc.ParsePagingTotal(resp.Meta)
-	if total == 0 && len(resp.Data) > 0 {
-		// Paging total missing but data exists — limit=1 can't determine
-		// the real count, so mark as unverified to avoid false warnings.
-		return 0, metadataCheckStatus{SkipReason: "Validation could not determine the total subscription price count because the API response omitted paging metadata"}, nil
+
+	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+		defer pageCancel()
+		return client.GetSubscriptionPrices(pageCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPricesNextURL(nextURL))
+	})
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return 0, metadataCheckStatus{}, err
+		}
+		if reason, ok := metadataCheckSkipReason(err, "subscription prices"); ok {
+			return 0, metadataCheckStatus{SkipReason: reason}, nil
+		}
+		return 0, metadataCheckStatus{SkipReason: "Validation skipped subscription prices because the App Store Connect endpoint returned an unexpected error"}, nil
 	}
-	return total, metadataCheckStatus{Verified: true}, nil
+
+	typed, ok := paginated.(*asc.SubscriptionPricesResponse)
+	if !ok {
+		return 0, metadataCheckStatus{}, fmt.Errorf("unexpected subscription prices response type %T", paginated)
+	}
+
+	territories := make(map[string]struct{}, len(typed.Data))
+	for _, price := range typed.Data {
+		territoryID, err := subscriptionPriceTerritoryID(price.Relationships)
+		if err != nil {
+			return 0, metadataCheckStatus{SkipReason: "Validation could not determine unique subscription pricing territories because the API response relationships could not be decoded"}, nil
+		}
+		territoryID = strings.TrimSpace(territoryID)
+		if territoryID == "" {
+			return 0, metadataCheckStatus{SkipReason: "Validation could not determine unique subscription pricing territories because the API response omitted territory relationships"}, nil
+		}
+		territories[territoryID] = struct{}{}
+	}
+
+	return len(territories), metadataCheckStatus{Verified: true}, nil
+}
+
+func subscriptionPriceTerritoryID(raw json.RawMessage) (string, error) {
+	if len(raw) == 0 {
+		return "", nil
+	}
+
+	var relationships asc.SubscriptionPriceRelationships
+	if err := json.Unmarshal(raw, &relationships); err != nil {
+		return "", fmt.Errorf("decode subscription price relationships: %w", err)
+	}
+	if relationships.Territory == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(relationships.Territory.Data.ID), nil
 }
 
 func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (subscriptionImageStatus, error) {

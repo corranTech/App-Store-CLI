@@ -168,6 +168,42 @@ func TestSubscriptionPricingCoverage_SkipsWhenPriceCheckSkipped(t *testing.T) {
 	}
 }
 
+func TestSubscriptionPricingVerificationChecks_AddsInfoWhenPriceCheckSkipped(t *testing.T) {
+	checks := subscriptionPricingVerificationChecks([]Subscription{
+		{
+			ID:                   "sub-1",
+			Name:                 "Monthly",
+			ProductID:            "com.example.monthly",
+			State:                "APPROVED",
+			PriceCheckSkipped:    true,
+			PriceCheckSkipReason: "price endpoint forbidden",
+		},
+	})
+	if !hasCheckID(checks, "subscriptions.pricing.unverified") {
+		t.Fatalf("expected pricing-unverified check, got %v", checks)
+	}
+	if checks[0].Severity != SeverityInfo {
+		t.Fatalf("expected info severity, got %s", checks[0].Severity)
+	}
+	if !strings.Contains(checks[0].Remediation, "price endpoint forbidden") {
+		t.Fatalf("expected remediation to preserve skip reason, got %+v", checks[0])
+	}
+}
+
+func TestSubscriptionPricingVerificationChecks_SkipsMissingMetadata(t *testing.T) {
+	checks := subscriptionPricingVerificationChecks([]Subscription{
+		{
+			ID:                   "sub-1",
+			State:                "MISSING_METADATA",
+			PriceCheckSkipped:    true,
+			PriceCheckSkipReason: "price endpoint forbidden",
+		},
+	})
+	if len(checks) != 0 {
+		t.Fatalf("expected MISSING_METADATA pricing skip to stay in diagnostics, got %v", checks)
+	}
+}
+
 func TestSubscriptionMetadataDiagnostics_ReportsConcreteMissingItems(t *testing.T) {
 	checks := subscriptionMetadataDiagnostics([]Subscription{
 		{
@@ -272,5 +308,24 @@ func TestValidateSubscriptionsIncludesPricingCoverageCheck(t *testing.T) {
 	}, false)
 	if !hasCheckID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
 		t.Fatalf("expected pricing coverage check in standalone validate, got %+v", report.Checks)
+	}
+}
+
+func TestValidateSubscriptionsIncludesPricingVerificationCheck(t *testing.T) {
+	report := ValidateSubscriptions(SubscriptionsInput{
+		AppID: "app-1",
+		Subscriptions: []Subscription{
+			{
+				ID:                   "sub-1",
+				Name:                 "Monthly",
+				ProductID:            "com.example.monthly",
+				State:                "APPROVED",
+				PriceCheckSkipped:    true,
+				PriceCheckSkipReason: "price endpoint forbidden",
+			},
+		},
+	}, false)
+	if !hasCheckID(report.Checks, "subscriptions.pricing.unverified") {
+		t.Fatalf("expected pricing verification check in standalone validate, got %+v", report.Checks)
 	}
 }

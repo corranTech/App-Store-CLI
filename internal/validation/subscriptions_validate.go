@@ -63,6 +63,7 @@ func ValidateSubscriptions(input SubscriptionsInput, strict bool) SubscriptionsR
 	checks := make([]CheckResult, 0)
 	checks = append(checks, subscriptionImageChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionReviewReadinessChecks(input.Subscriptions)...)
+	checks = append(checks, subscriptionPricingVerificationChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionMetadataDiagnostics(input.Subscriptions)...)
 	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, input.AvailableTerritories)...)
 	summary := summarize(checks, strict)
@@ -207,6 +208,42 @@ func remediationForSubscriptionState(state string) string {
 	default:
 		return "Review this subscription in App Store Connect and submit it for review if needed"
 	}
+}
+
+func subscriptionPricingVerificationChecks(subs []Subscription) []CheckResult {
+	ignoreStates := map[string]struct{}{
+		"DEVELOPER_REMOVED_FROM_SALE": {},
+		"MISSING_METADATA":            {},
+		"REMOVED_FROM_SALE":           {},
+	}
+
+	var checks []CheckResult
+	for _, sub := range subs {
+		state := strings.ToUpper(strings.TrimSpace(sub.State))
+		if _, ok := ignoreStates[state]; ok {
+			continue
+		}
+		if !sub.PriceCheckSkipped {
+			continue
+		}
+
+		label := formatSubscriptionLabel(sub)
+		remediation := strings.TrimSpace(sub.PriceCheckSkipReason)
+		if remediation == "" {
+			remediation = "Review this subscription's pricing in App Store Connect; validation could not verify it automatically"
+		}
+		checks = append(checks, CheckResult{
+			ID:           "subscriptions.pricing.unverified",
+			Severity:     SeverityInfo,
+			Field:        "pricing",
+			ResourceType: "subscription",
+			ResourceID:   strings.TrimSpace(sub.ID),
+			Message:      fmt.Sprintf("Could not verify whether %s has territory prices configured", label),
+			Remediation:  remediation,
+		})
+	}
+
+	return checks
 }
 
 // subscriptionPricingCoverageChecks warns when a subscription has prices configured
