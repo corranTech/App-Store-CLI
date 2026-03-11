@@ -2983,9 +2983,9 @@ func TestGetAgeRatingDeclarationForAppStoreVersion(t *testing.T) {
 					if got := req.URL.Query().Get("include"); got != "app" {
 						t.Fatalf("expected include=app, got %q", got)
 					}
-					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"appVersionState":"READY_FOR_SALE"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"appVersionState":"PENDING_DEVELOPER_RELEASE"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
 				case "/v1/apps/app-1/appInfos":
-					return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-draft","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}}]}`), nil
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-draft","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},{"type":"appInfos","id":"info-live","attributes":{"state":"PENDING_RELEASE"}}]}`), nil
 				case "/v1/appInfos/info-live/ageRatingDeclaration":
 					return jsonResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"age-2","attributes":{"gambling":true}}}`), nil
 				default:

@@ -379,9 +379,9 @@ func TestGetAppStoreVersionAgeRatingDeclarationRelationship_UsesAppInfoRelations
 					if got := req.URL.Query().Get("include"); got != "app" {
 						t.Fatalf("expected include=app, got %q", got)
 					}
-					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"appVersionState":"READY_FOR_SALE"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"appVersionState":"REPLACED_WITH_NEW_VERSION"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
 				case "/v1/apps/app-1/appInfos":
-					return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-draft","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}}]}`), nil
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-draft","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},{"type":"appInfos","id":"info-live","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}]}`), nil
 				case "/v1/appInfos/info-live/relationships/ageRatingDeclaration":
 					return jsonResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`), nil
 				default:
