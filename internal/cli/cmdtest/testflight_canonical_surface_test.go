@@ -39,6 +39,7 @@ func TestTestFlightHelpShowsCanonicalSubcommands(t *testing.T) {
 		"notifications",
 		"config",
 		"app-localizations",
+		"pre-release",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected help to contain %q, got %q", want, stderr)
@@ -510,6 +511,16 @@ func TestCanonicalTestFlightValidationPaths(t *testing.T) {
 			name:    "app localizations create missing locale",
 			args:    []string{"testflight", "app-localizations", "create", "--app", "APP_ID"},
 			wantErr: "--locale is required",
+		},
+		{
+			name:    "pre-release list missing app",
+			args:    []string{"testflight", "pre-release", "list"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "pre-release view missing id",
+			args:    []string{"testflight", "pre-release", "view"},
+			wantErr: "--id is required",
 		},
 	}
 
@@ -1349,5 +1360,110 @@ func TestTestFlightAppLocalizationsCreateOutput(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"loc-1"`) {
 		t.Fatalf("expected created localization in output, got %q", stdout)
+	}
+}
+
+func TestTestFlightPreReleaseHelpShowsCanonicalVerbs(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "pre-release"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{"list", "view", "app", "builds", "relationships"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected pre-release help to contain %q, got %q", want, stderr)
+		}
+	}
+}
+
+func TestTopLevelPreReleaseVersionsRemoved(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"pre-release-versions"}); err != nil {
+			runErr = err
+			return
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if strings.Contains(stderr, "Unknown command: pre-release-versions") {
+		t.Fatalf("expected targeted migration guidance, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Error: `asc pre-release-versions` was removed. Use `asc testflight pre-release` instead.") {
+		t.Fatalf("expected migration guidance, got %q", stderr)
+	}
+}
+
+func TestRemovedPreReleaseVersionsCommandsShowMigrationGuidance(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "list command",
+			args:    []string{"pre-release-versions", "list", "--app", "APP_ID"},
+			wantErr: "Error: `asc pre-release-versions list` was removed. Use `asc testflight pre-release list` instead.",
+		},
+		{
+			name:    "view command",
+			args:    []string{"pre-release-versions", "get", "--id", "PR_ID"},
+			wantErr: "Error: `asc pre-release-versions get` was removed. Use `asc testflight pre-release view` instead.",
+		},
+		{
+			name:    "app view command",
+			args:    []string{"pre-release-versions", "app", "get", "--id", "PR_ID"},
+			wantErr: "Error: `asc pre-release-versions app get` was removed. Use `asc testflight pre-release app view` instead.",
+		},
+		{
+			name:    "relationships view command",
+			args:    []string{"pre-release-versions", "relationships", "get", "--id", "PR_ID", "--type", "app"},
+			wantErr: "Error: `asc pre-release-versions relationships get` was removed. Use `asc testflight pre-release relationships view` instead.",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
+			}
+		})
 	}
 }
