@@ -146,7 +146,7 @@ Examples:
 			defer cancel()
 
 			if len(includeValues) > 0 {
-				appInfoIDValue, err := resolveAppsInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*infoID))
+				appInfoIDValue, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*infoID))
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
 				}
@@ -819,27 +819,6 @@ func warnAppInfoSetSubmitIncompleteLocale(locale string, attrs asc.AppStoreVersi
 		locale,
 		strings.Join(missing, ", "),
 	)
-}
-
-func resolveAppsInfoID(ctx context.Context, client *asc.Client, appID, infoID string) (string, error) {
-	if strings.TrimSpace(infoID) != "" {
-		return strings.TrimSpace(infoID), nil
-	}
-	if strings.TrimSpace(appID) == "" {
-		return "", fmt.Errorf("app id is required")
-	}
-
-	resp, err := client.GetAppInfos(ctx, appID)
-	if err != nil {
-		return "", err
-	}
-	if len(resp.Data) == 0 {
-		return "", fmt.Errorf("no app info found for app %q", appID)
-	}
-	if len(resp.Data) > 1 {
-		return "", fmt.Errorf("multiple app infos found for app %q; run `asc apps info list --app %q` or pass --info-id", appID, appID)
-	}
-	return resp.Data[0].ID, nil
 }
 
 func resolveAppStoreVersionForAppInfo(

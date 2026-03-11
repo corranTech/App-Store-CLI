@@ -106,7 +106,7 @@ Examples:
 
 			resolvedInfoID := infoIDValue
 			if resolvedInfoID == "" && strings.TrimSpace(*next) == "" {
-				resolvedInfoID, err = resolveAppsInfoID(requestCtx, client, resolvedAppID, infoIDValue)
+				resolvedInfoID, err = shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, infoIDValue)
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: %w", err)
 				}
