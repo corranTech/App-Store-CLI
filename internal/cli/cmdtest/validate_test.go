@@ -1580,6 +1580,76 @@ func TestValidateSkipsIAPGracefullyWhenForbidden(t *testing.T) {
 	}
 }
 
+func TestValidateSkipsIAPGracefullyWhenUnauthorized(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.iapsStatus = http.StatusUnauthorized
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected IAP unauthorized to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if !hasCheckWithID(report.Checks, "iap.readiness.unverified") {
+		t.Fatalf("expected iap.readiness.unverified info check, got %+v", report.Checks)
+	}
+	if report.Summary.Errors != 0 {
+		t.Fatalf("expected no blocking errors when IAP is unauthorized, got %+v", report.Summary)
+	}
+}
+
+func TestValidateSkipsIAPGracefullyWhenRateLimited(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.iapsStatus = http.StatusTooManyRequests
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected IAP rate limiting to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if !hasCheckWithID(report.Checks, "iap.readiness.unverified") {
+		t.Fatalf("expected iap.readiness.unverified info check, got %+v", report.Checks)
+	}
+	if report.Summary.Errors != 0 {
+		t.Fatalf("expected no blocking errors when IAP is rate limited, got %+v", report.Summary)
+	}
+}
+
 func TestValidateNoIAPChecksWhenAppHasNoIAPs(t *testing.T) {
 	fixture := validValidateFixture()
 	// No IAPs set (default empty)

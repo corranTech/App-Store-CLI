@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -29,9 +30,17 @@ func fetchIAPs(ctx context.Context, client *asc.Client, appID string) ([]validat
 		return nil, err
 	}
 
+	return mapIAPsResponse(paginated)
+}
+
+func mapIAPsResponse(paginated asc.PaginatedResponse) ([]validation.IAP, error) {
+	if paginated == nil {
+		return nil, fmt.Errorf("unexpected nil in-app purchases pagination response")
+	}
+
 	resp, ok := paginated.(*asc.InAppPurchasesV2Response)
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("unexpected in-app purchases pagination response type: %T", paginated)
 	}
 
 	iaps := make([]validation.IAP, 0, len(resp.Data))
