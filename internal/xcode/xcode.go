@@ -68,6 +68,7 @@ type bundleInfo struct {
 }
 
 func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
+	opts = normalizeArchiveOptions(opts)
 	if err := validateArchiveOptions(opts); err != nil {
 		return nil, err
 	}
@@ -102,6 +103,7 @@ func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
 }
 
 func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
+	opts = normalizeExportOptions(opts)
 	if err := validateExportOptions(opts); err != nil {
 		return nil, err
 	}
@@ -152,25 +154,25 @@ func validateArchiveOptions(opts ArchiveOptions) error {
 	if err := validateWorkspaceProjectPair(opts.WorkspacePath, opts.ProjectPath); err != nil {
 		return err
 	}
-	if strings.TrimSpace(opts.Scheme) == "" {
+	if opts.Scheme == "" {
 		return fmt.Errorf("--scheme is required")
 	}
-	if strings.TrimSpace(opts.ArchivePath) == "" {
+	if opts.ArchivePath == "" {
 		return fmt.Errorf("--archive-path is required")
 	}
-	if !strings.EqualFold(filepath.Ext(strings.TrimSpace(opts.ArchivePath)), ".xcarchive") {
+	if !strings.EqualFold(filepath.Ext(opts.ArchivePath), ".xcarchive") {
 		return fmt.Errorf("--archive-path must end with .xcarchive")
 	}
 	return nil
 }
 
 func validateArchiveInputPaths(opts ArchiveOptions) error {
-	if strings.TrimSpace(opts.WorkspacePath) != "" {
+	if opts.WorkspacePath != "" {
 		if err := validateExistingPath(opts.WorkspacePath, ".xcworkspace", "--workspace"); err != nil {
 			return err
 		}
 	}
-	if strings.TrimSpace(opts.ProjectPath) != "" {
+	if opts.ProjectPath != "" {
 		if err := validateExistingPath(opts.ProjectPath, ".xcodeproj", "--project"); err != nil {
 			return err
 		}
@@ -179,16 +181,16 @@ func validateArchiveInputPaths(opts ArchiveOptions) error {
 }
 
 func validateExportOptions(opts ExportOptions) error {
-	if strings.TrimSpace(opts.ArchivePath) == "" {
+	if opts.ArchivePath == "" {
 		return fmt.Errorf("--archive-path is required")
 	}
-	if strings.TrimSpace(opts.ExportOptions) == "" {
+	if opts.ExportOptions == "" {
 		return fmt.Errorf("--export-options is required")
 	}
-	if strings.TrimSpace(opts.IPAPath) == "" {
+	if opts.IPAPath == "" {
 		return fmt.Errorf("--ipa-path is required")
 	}
-	if !strings.EqualFold(filepath.Ext(strings.TrimSpace(opts.IPAPath)), ".ipa") {
+	if !strings.EqualFold(filepath.Ext(opts.IPAPath), ".ipa") {
 		return fmt.Errorf("--ipa-path must end with .ipa")
 	}
 	return nil
@@ -205,12 +207,36 @@ func validateExportInputPaths(opts ExportOptions) error {
 }
 
 func validateWorkspaceProjectPair(workspacePath, projectPath string) error {
-	hasWorkspace := strings.TrimSpace(workspacePath) != ""
-	hasProject := strings.TrimSpace(projectPath) != ""
+	hasWorkspace := workspacePath != ""
+	hasProject := projectPath != ""
 	if hasWorkspace == hasProject {
 		return fmt.Errorf("exactly one of --workspace or --project is required")
 	}
 	return nil
+}
+
+func normalizeArchiveOptions(opts ArchiveOptions) ArchiveOptions {
+	opts.WorkspacePath = normalizeDirectoryPath(opts.WorkspacePath)
+	opts.ProjectPath = normalizeDirectoryPath(opts.ProjectPath)
+	opts.Scheme = strings.TrimSpace(opts.Scheme)
+	opts.Configuration = strings.TrimSpace(opts.Configuration)
+	opts.ArchivePath = normalizeDirectoryPath(opts.ArchivePath)
+	return opts
+}
+
+func normalizeExportOptions(opts ExportOptions) ExportOptions {
+	opts.ArchivePath = normalizeDirectoryPath(opts.ArchivePath)
+	opts.ExportOptions = strings.TrimSpace(opts.ExportOptions)
+	opts.IPAPath = strings.TrimSpace(opts.IPAPath)
+	return opts
+}
+
+func normalizeDirectoryPath(pathValue string) string {
+	trimmed := strings.TrimSpace(pathValue)
+	if trimmed == "" {
+		return ""
+	}
+	return filepath.Clean(trimmed)
 }
 
 func validateExistingPath(pathValue, suffix, flagName string) error {

@@ -75,6 +75,48 @@ func TestValidateExistingPathAllowsTrailingSeparator(t *testing.T) {
 	}
 }
 
+func TestArchiveNormalizesTrailingSeparatorArchivePath(t *testing.T) {
+	tempDir := t.TempDir()
+	projectPath := filepath.Join(tempDir, "Demo.xcodeproj")
+	if err := os.MkdirAll(projectPath, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	logPath := filepath.Join(tempDir, "commands.log")
+
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "darwin"
+	lookPathFn = func(file string) (string, error) {
+		return "/usr/bin/xcodebuild", nil
+	}
+	commandContextFn = helperCommandContext(t, logPath)
+	t.Cleanup(restore)
+
+	archivePath := filepath.Join(tempDir, "artifacts", "Demo.xcarchive")
+	result, err := Archive(context.Background(), ArchiveOptions{
+		ProjectPath: projectPath,
+		Scheme:      "Demo",
+		ArchivePath: archivePath + string(os.PathSeparator),
+	})
+	if err != nil {
+		t.Fatalf("Archive() error: %v", err)
+	}
+
+	if result.ArchivePath != archivePath {
+		t.Fatalf("expected normalized archive path %q, got %q", archivePath, result.ArchivePath)
+	}
+	if _, err := os.Stat(filepath.Join(archivePath, "Info.plist")); err != nil {
+		t.Fatalf("expected archive to be created at normalized path: %v", err)
+	}
+
+	logData, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+	if !strings.Contains(string(logData), "|-archivePath|"+archivePath) {
+		t.Fatalf("expected normalized archive path in invocation, got %q", string(logData))
+	}
+}
+
 func TestArchiveCreatesArchiveAtExactPathAndReturnsMetadata(t *testing.T) {
 	tempDir := t.TempDir()
 	projectPath := filepath.Join(tempDir, "Demo.xcodeproj")
