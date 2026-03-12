@@ -1,6 +1,12 @@
 package reviews
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"flag"
+	"strings"
+	"testing"
+)
 
 func TestDeriveOutcome(t *testing.T) {
 	tests := []struct {
@@ -60,5 +66,37 @@ func TestDeriveOutcome(t *testing.T) {
 				t.Errorf("deriveOutcome(%q, %v) = %q, want %q", tt.submissionState, tt.itemStates, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSubmissionsHistoryCommand_MissingApp(t *testing.T) {
+	cmd := SubmissionsHistoryCommand()
+	if cmd.Name != "submissions-history" {
+		t.Fatalf("unexpected command name: %s", cmd.Name)
+	}
+
+	// Unset any env that could provide app ID
+	t.Setenv("ASC_APP_ID", "")
+
+	err := cmd.ParseAndRun(context.Background(), []string{})
+	if err == nil {
+		t.Fatal("expected error for missing --app, got nil")
+	}
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got: %v", err)
+	}
+}
+
+func TestSubmissionsHistoryCommand_InvalidLimit(t *testing.T) {
+	cmd := SubmissionsHistoryCommand()
+	t.Setenv("ASC_APP_ID", "test-app")
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	err := cmd.ParseAndRun(context.Background(), []string{"--limit", "999"})
+	if err == nil {
+		t.Fatal("expected error for invalid limit, got nil")
+	}
+	if !strings.Contains(err.Error(), "--limit must be between 1 and 200") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
