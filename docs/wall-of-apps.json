@@ -402,6 +402,13 @@
     "platform": ["iOS", "macOS"]
   },
   {
+    "app": "Protocol Zero: Sleep Sounds",
+    "link": "https://apps.apple.com/us/app/protocol-zero-sleep-sounds/id6755014746?uo=4",
+    "creator": "Aayush9029",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/38/1c/5b/381c5b87-8ab7-7351-138b-0cef5c4d5084/AppIcon-1x_U007ephone-0-1-85-220-0.jpeg/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Quietude",
     "link": "https://apps.apple.com/app/id6758955377",
     "creator": "vatrueshka",
