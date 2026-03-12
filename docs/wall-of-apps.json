@@ -166,6 +166,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "EduSwipe: AI Flashcards & SRS",
+    "link": "https://apps.apple.com/us/app/eduswipe-ai-flashcards-srs/id6744727106?uo=4",
+    "creator": "swdevpa",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/23/60/71/236071d7-7827-efd9-4c8f-03db0cee6aa9/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Finny: AI Money Tracker",
     "link": "https://apps.apple.com/vn/app/finny-finance-tracker-app/id6736472735",
     "creator": "dmeows",
