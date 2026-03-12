@@ -62,6 +62,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "BuddyTask: AI To Do List",
+    "link": "https://apps.apple.com/us/app/buddytask-ai-to-do-list/id6758902036?uo=4",
+    "creator": "IvanLohCK",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/80/f5/84/80f584d0-6956-72b2-1294-8a5157c450b9/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Cat on Chair",
     "link": "https://apps.apple.com/ca/app/cat-on-chair-focus-timer/id6746562271",
     "creator": "Ryan Yao",
