@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -85,12 +86,40 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			// Suppress unused variable warnings until Task 3 wires up API calls.
-			_ = platforms
-			_ = states
-			_ = paginate
+			opts := []asc.ReviewSubmissionsOption{
+				asc.WithReviewSubmissionsLimit(*limit),
+				asc.WithReviewSubmissionsPlatforms(platforms),
+				asc.WithReviewSubmissionsStates(states),
+			}
 
-			entries, err := enrichSubmissions(requestCtx, client, nil, strings.TrimSpace(*version))
+			// Fetch submissions (with or without pagination)
+			var submissions []asc.ReviewSubmissionResource
+			if *paginate {
+				paginateOpts := append(opts, asc.WithReviewSubmissionsLimit(200))
+				resp, pErr := shared.PaginateWithSpinner(requestCtx,
+					func(ctx context.Context) (asc.PaginatedResponse, error) {
+						return client.GetReviewSubmissions(ctx, resolvedAppID, paginateOpts...)
+					},
+					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetReviewSubmissions(ctx, resolvedAppID, asc.WithReviewSubmissionsNextURL(nextURL))
+					},
+				)
+				if pErr != nil {
+					return fmt.Errorf("review submissions-history: %w", pErr)
+				}
+				if aggResp, ok := resp.(*asc.ReviewSubmissionsResponse); ok {
+					submissions = aggResp.Data
+				}
+			} else {
+				resp, fErr := client.GetReviewSubmissions(requestCtx, resolvedAppID, opts...)
+				if fErr != nil {
+					return fmt.Errorf("review submissions-history: %w", fErr)
+				}
+				submissions = resp.Data
+			}
+
+			// Enrich with items + version strings
+			entries, err := enrichSubmissions(requestCtx, client, submissions, strings.TrimSpace(*version))
 			if err != nil {
 				return fmt.Errorf("review submissions-history: %w", err)
 			}
@@ -102,10 +131,87 @@ Examples:
 	}
 }
 
-// enrichSubmissions aggregates submission data with items.
-// This is a placeholder that will be fully implemented in Task 3.
-func enrichSubmissions(_ context.Context, _ *asc.Client, _ []asc.ReviewSubmissionResource, _ string) ([]SubmissionHistoryEntry, error) {
-	return nil, nil
+// enrichSubmissions takes already-fetched submissions and enriches each with
+// item states and version strings. Applies client-side version filtering and
+// sorts by submittedDate descending.
+func enrichSubmissions(ctx context.Context, client *asc.Client, submissions []asc.ReviewSubmissionResource, versionFilter string) ([]SubmissionHistoryEntry, error) {
+	var entries []SubmissionHistoryEntry
+	for _, sub := range submissions {
+		// Skip pre-submission drafts (no submittedDate)
+		if strings.TrimSpace(sub.Attributes.SubmittedDate) == "" {
+			continue
+		}
+
+		entry := SubmissionHistoryEntry{
+			SubmissionID:  sub.ID,
+			Platform:      string(sub.Attributes.Platform),
+			State:         string(sub.Attributes.SubmissionState),
+			SubmittedDate: sub.Attributes.SubmittedDate,
+		}
+
+		// Fetch items for this submission
+		itemsResp, err := client.GetReviewSubmissionItems(ctx, sub.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch items for submission %s: %w", sub.ID, err)
+		}
+
+		var itemStates []string
+		for _, item := range itemsResp.Data {
+			histItem := SubmissionHistoryItem{
+				ID:    item.ID,
+				State: item.Attributes.State,
+			}
+
+			// Extract version relationship if present
+			if item.Relationships != nil && item.Relationships.AppStoreVersion != nil {
+				histItem.Type = "appStoreVersion"
+				histItem.ResourceID = item.Relationships.AppStoreVersion.Data.ID
+
+				// Fetch version string
+				if histItem.ResourceID != "" {
+					verResp, verErr := client.GetAppStoreVersion(ctx, histItem.ResourceID)
+					if verErr != nil {
+						if asc.IsNotFound(verErr) {
+							entry.VersionString = "unknown"
+						} else {
+							return nil, fmt.Errorf("failed to fetch version %s: %w", histItem.ResourceID, verErr)
+						}
+					} else if entry.VersionString == "" {
+						entry.VersionString = verResp.Data.Attributes.VersionString
+					}
+				}
+			}
+
+			itemStates = append(itemStates, item.Attributes.State)
+			entry.Items = append(entry.Items, histItem)
+		}
+
+		entry.Outcome = deriveOutcome(entry.State, itemStates)
+
+		if entry.VersionString == "" {
+			entry.VersionString = "unknown"
+		}
+
+		entries = append(entries, entry)
+	}
+
+	// Client-side version filter
+	if versionFilter != "" {
+		var filtered []SubmissionHistoryEntry
+		for _, e := range entries {
+			if e.VersionString == versionFilter {
+				filtered = append(filtered, e)
+			}
+		}
+		entries = filtered
+	}
+
+	// Sort by submittedDate descending
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].SubmittedDate > entries[j].SubmittedDate
+	})
+
+	return entries, nil
 }
 
 // printHistoryTable renders submission history as a table.
