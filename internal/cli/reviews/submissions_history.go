@@ -40,9 +40,11 @@ type submissionVersionContext struct {
 	Platform      string
 }
 
-// SubmissionsHistoryCommand returns the submissions-history subcommand.
-func SubmissionsHistoryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-history", flag.ExitOnError)
+const reviewHistoryAliasWarning = "Warning: `asc review submissions-history` has been renamed to `asc review history`."
+
+// ReviewHistoryCommand returns the history subcommand.
+func ReviewHistoryCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("history", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
@@ -53,8 +55,8 @@ func SubmissionsHistoryCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "submissions-history",
-		ShortUsage: "asc review submissions-history [flags]",
+		Name:       "history",
+		ShortUsage: "asc review history [flags]",
 		ShortHelp:  "Show enriched review submission history for an app.",
 		LongHelp: `Show enriched review submission history for an app.
 
@@ -62,20 +64,20 @@ Each entry includes the submission state, platform, version string, submitted
 date, and a derived outcome (approved, rejected, or the raw state).
 
 Examples:
-  asc review submissions-history --app "123456789"
-  asc review submissions-history --app "123456789" --platform IOS --state COMPLETE
-  asc review submissions-history --app "123456789" --version "1.2.0"
-  asc review submissions-history --app "123456789" --paginate`,
+  asc review history --app "123456789"
+  asc review history --app "123456789" --platform IOS --state COMPLETE
+  asc review history --app "123456789" --version "1.2.0"
+  asc review history --app "123456789" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("review submissions-history: --limit must be between 1 and 200")
+				return fmt.Errorf("review history: --limit must be between 1 and 200")
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("review submissions-history: %w", err)
+				return fmt.Errorf("review history: %w", err)
 			}
 			states := shared.SplitCSVUpper(*state)
 
@@ -87,7 +89,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("review submissions-history: %w", err)
+				return fmt.Errorf("review history: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -105,12 +107,12 @@ Examples:
 
 			submissions, versionContexts, err := fetchReviewSubmissions(requestCtx, client, resolvedAppID, opts, *paginate)
 			if err != nil {
-				return fmt.Errorf("review submissions-history: %w", err)
+				return fmt.Errorf("review history: %w", err)
 			}
 
 			entries, err := enrichSubmissions(requestCtx, client, submissions, versionContexts, strings.TrimSpace(*version))
 			if err != nil {
-				return fmt.Errorf("review submissions-history: %w", err)
+				return fmt.Errorf("review history: %w", err)
 			}
 
 			tableFunc := func() error { return printHistoryTable(entries) }
@@ -118,6 +120,16 @@ Examples:
 			return shared.PrintOutputWithRenderers(entries, *output.Output, *output.Pretty, tableFunc, markdownFunc)
 		},
 	}
+}
+
+func reviewHistoryAliasCommand(canonical *ffcli.Command) *ffcli.Command {
+	return shared.DeprecatedAliasLeafCommand(
+		canonical,
+		"submissions-history",
+		"asc review submissions-history [flags]",
+		"asc review history",
+		reviewHistoryAliasWarning,
+	)
 }
 
 func fetchReviewSubmissions(ctx context.Context, client *asc.Client, appID string, opts []asc.ReviewSubmissionsOption, paginate bool) ([]asc.ReviewSubmissionResource, map[string]submissionVersionContext, error) {

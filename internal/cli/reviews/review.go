@@ -11,6 +11,33 @@ import (
 // ReviewCommand returns the review parent command.
 func ReviewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review", flag.ExitOnError)
+	historyCmd := ReviewHistoryCommand()
+	subcommands := []*ffcli.Command{
+		ReviewDetailsGetCommand(),
+		ReviewDetailsForVersionCommand(),
+		ReviewDetailsCreateCommand(),
+		ReviewDetailsUpdateCommand(),
+		ReviewDetailsAttachmentsListCommand(),
+		ReviewDetailsAttachmentsGetCommand(),
+		ReviewDetailsAttachmentsUploadCommand(),
+		ReviewDetailsAttachmentsDeleteCommand(),
+		historyCmd,
+		ReviewSubmissionsListCommand(),
+		ReviewSubmissionsGetCommand(),
+		ReviewSubmissionsCreateCommand(),
+		ReviewSubmissionsSubmitCommand(),
+		ReviewSubmissionsCancelCommand(),
+		ReviewSubmissionsUpdateCommand(),
+		ReviewSubmissionsItemsIDsCommand(),
+		ReviewItemsGetCommand(),
+		ReviewItemsListCommand(),
+		ReviewItemsAddCommand(),
+		ReviewItemsUpdateCommand(),
+		ReviewItemsRemoveCommand(),
+	}
+	if alias := reviewHistoryAliasCommand(historyCmd); alias != nil {
+		subcommands = append(subcommands, alias)
+	}
 
 	return &ffcli.Command{
 		Name:       "review",
@@ -32,32 +59,10 @@ Examples:
   asc review items-get --id "ITEM_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW
-  asc review submissions-history --app "123456789"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			ReviewDetailsGetCommand(),
-			ReviewDetailsForVersionCommand(),
-			ReviewDetailsCreateCommand(),
-			ReviewDetailsUpdateCommand(),
-			ReviewDetailsAttachmentsListCommand(),
-			ReviewDetailsAttachmentsGetCommand(),
-			ReviewDetailsAttachmentsUploadCommand(),
-			ReviewDetailsAttachmentsDeleteCommand(),
-			SubmissionsHistoryCommand(),
-			ReviewSubmissionsListCommand(),
-			ReviewSubmissionsGetCommand(),
-			ReviewSubmissionsCreateCommand(),
-			ReviewSubmissionsSubmitCommand(),
-			ReviewSubmissionsCancelCommand(),
-			ReviewSubmissionsUpdateCommand(),
-			ReviewSubmissionsItemsIDsCommand(),
-			ReviewItemsGetCommand(),
-			ReviewItemsListCommand(),
-			ReviewItemsAddCommand(),
-			ReviewItemsUpdateCommand(),
-			ReviewItemsRemoveCommand(),
-		},
+  asc review history --app "123456789"`,
+		FlagSet:     fs,
+		UsageFunc:   shared.VisibleUsageFunc,
+		Subcommands: subcommands,
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
 		},

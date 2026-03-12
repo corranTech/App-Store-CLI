@@ -81,9 +81,9 @@ func TestDeriveOutcome(t *testing.T) {
 	}
 }
 
-func TestSubmissionsHistoryCommand_MissingApp(t *testing.T) {
-	cmd := SubmissionsHistoryCommand()
-	if cmd.Name != "submissions-history" {
+func TestReviewHistoryCommand_MissingApp(t *testing.T) {
+	cmd := ReviewHistoryCommand()
+	if cmd.Name != "history" {
 		t.Fatalf("unexpected command name: %s", cmd.Name)
 	}
 
@@ -99,8 +99,8 @@ func TestSubmissionsHistoryCommand_MissingApp(t *testing.T) {
 	}
 }
 
-func TestSubmissionsHistoryCommand_InvalidLimit(t *testing.T) {
-	cmd := SubmissionsHistoryCommand()
+func TestReviewHistoryCommand_InvalidLimit(t *testing.T) {
+	cmd := ReviewHistoryCommand()
 	t.Setenv("ASC_APP_ID", "test-app")
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
@@ -110,6 +110,17 @@ func TestSubmissionsHistoryCommand_InvalidLimit(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "--limit must be between 1 and 200") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestReviewCommand_HidesDeprecatedHistoryAliasFromUsage(t *testing.T) {
+	cmd := ReviewCommand()
+	usage := cmd.UsageFunc(cmd)
+	if strings.Contains(usage, "submissions-history") {
+		t.Fatalf("expected review help to hide deprecated submissions-history alias, got:\n%s", usage)
+	}
+	if !strings.Contains(usage, "history") {
+		t.Fatalf("expected review help to include canonical history command, got:\n%s", usage)
 	}
 }
 
