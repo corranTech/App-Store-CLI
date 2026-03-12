@@ -108,8 +108,34 @@ func TestReviewHistoryCommand_InvalidLimit(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid limit, got nil")
 	}
-	if !strings.Contains(err.Error(), "--limit must be between 1 and 200") {
-		t.Fatalf("unexpected error: %v", err)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for invalid --limit, got: %v", err)
+	}
+}
+
+func TestReviewHistoryCommand_InvalidPlatform(t *testing.T) {
+	cmd := ReviewHistoryCommand()
+	t.Setenv("ASC_APP_ID", "test-app")
+
+	err := cmd.ParseAndRun(context.Background(), []string{"--platform", "NOT_A_REAL_PLATFORM"})
+	if err == nil {
+		t.Fatal("expected usage error for invalid --platform, got nil")
+	}
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for invalid --platform, got: %v", err)
+	}
+}
+
+func TestReviewHistoryCommand_InvalidState(t *testing.T) {
+	cmd := ReviewHistoryCommand()
+	t.Setenv("ASC_APP_ID", "test-app")
+
+	err := cmd.ParseAndRun(context.Background(), []string{"--state", "NOT_A_REAL_STATE"})
+	if err == nil {
+		t.Fatal("expected usage error for invalid --state, got nil")
+	}
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for invalid --state, got: %v", err)
 	}
 }
 
@@ -487,6 +513,69 @@ func TestEnrichSubmissions_PaginatesItemsBeforeOutcome(t *testing.T) {
 	}
 }
 
+func TestEnrichSubmissions_RequestsAndPopulatesItemRelationships(t *testing.T) {
+	transport := testRoundTripper(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/reviewSubmissions/sub-1/items" {
+			return testJSONResponse(404, `{"errors":[{"status":"404"}]}`), nil
+		}
+		if got := req.URL.Query().Get("include"); !strings.Contains(got, "appCustomProductPageVersion") || !strings.Contains(got, "backgroundAssetVersion") {
+			t.Fatalf("expected include to request non-conflicting item relationships, got %q", got)
+		}
+		if got := req.URL.Query().Get("include"); strings.Contains(got, "appStoreVersionExperimentV2") {
+			t.Fatalf("expected include to avoid appStoreVersionExperimentV2 conflict, got %q", got)
+		}
+		if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); !strings.Contains(got, "appCustomProductPageVersion") || !strings.Contains(got, "backgroundAssetVersion") {
+			t.Fatalf("expected fields[reviewSubmissionItems] to request relationship fields, got %q", got)
+		}
+		return testJSONResponse(200, `{
+			"data": [
+				{
+					"type": "reviewSubmissionItems",
+					"id": "item-cpp",
+					"attributes": {"state": "APPROVED"},
+					"relationships": {
+						"appCustomProductPageVersion": {
+							"data": {"type": "appCustomProductPageVersions", "id": "cppv-1"}
+						}
+					}
+				},
+				{
+					"type": "reviewSubmissionItems",
+					"id": "item-bg",
+					"attributes": {"state": "APPROVED"},
+					"relationships": {
+						"backgroundAssetVersion": {
+							"data": {"type": "backgroundAssetVersions", "id": "bgv-1"}
+						}
+					}
+				}
+			],
+			"links": {"self": "/v1/reviewSubmissions/sub-1/items"}
+		}`), nil
+	})
+
+	subs := makeSubmissions(
+		struct{ id, platform, state, date string }{"sub-1", "IOS", "COMPLETE", "2026-03-01T12:00:00Z"},
+	)
+	client := newTestHistoryClient(t, transport)
+	entries, err := enrichSubmissions(context.Background(), client, subs, nil, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if len(entries[0].Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(entries[0].Items))
+	}
+	if entries[0].Items[0].Type != "appCustomProductPageVersion" || entries[0].Items[0].ResourceID != "cppv-1" {
+		t.Fatalf("first item relationship = (%q, %q), want (%q, %q)", entries[0].Items[0].Type, entries[0].Items[0].ResourceID, "appCustomProductPageVersion", "cppv-1")
+	}
+	if entries[0].Items[1].Type != "backgroundAssetVersion" || entries[0].Items[1].ResourceID != "bgv-1" {
+		t.Fatalf("second item relationship = (%q, %q), want (%q, %q)", entries[0].Items[1].Type, entries[0].Items[1].ResourceID, "backgroundAssetVersion", "bgv-1")
+	}
+}
+
 func TestFormatItemsSummary(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -502,6 +591,62 @@ func TestFormatItemsSummary(t *testing.T) {
 			got := formatItemsSummary(tt.items)
 			if got != tt.want {
 				t.Errorf("formatItemsSummary() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPopulateSubmissionHistoryItem_SupportsAdditionalRelationshipTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		item     asc.ReviewSubmissionItemResource
+		wantType string
+		wantID   string
+	}{
+		{
+			name: "app custom product page version",
+			item: asc.ReviewSubmissionItemResource{
+				Relationships: &asc.ReviewSubmissionItemRelationships{
+					AppCustomProductPageVersion: &asc.Relationship{
+						Data: asc.ResourceData{ID: "cppv-1"},
+					},
+				},
+			},
+			wantType: "appCustomProductPageVersion",
+			wantID:   "cppv-1",
+		},
+		{
+			name: "app store version experiment v2",
+			item: asc.ReviewSubmissionItemResource{
+				Relationships: &asc.ReviewSubmissionItemRelationships{
+					AppStoreVersionExperimentV2: &asc.Relationship{
+						Data: asc.ResourceData{ID: "exp-v2-1"},
+					},
+				},
+			},
+			wantType: "appStoreVersionExperimentV2",
+			wantID:   "exp-v2-1",
+		},
+		{
+			name: "leaderboard version",
+			item: asc.ReviewSubmissionItemResource{
+				Relationships: &asc.ReviewSubmissionItemRelationships{
+					GameCenterLeaderboardVersion: &asc.Relationship{
+						Data: asc.ResourceData{ID: "gclv-1"},
+					},
+				},
+			},
+			wantType: "gameCenterLeaderboardVersion",
+			wantID:   "gclv-1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			histItem := SubmissionHistoryItem{}
+			populateSubmissionHistoryItem(&histItem, tt.item)
+			if histItem.Type != tt.wantType || histItem.ResourceID != tt.wantID {
+				t.Fatalf("populateSubmissionHistoryItem() = (%q, %q), want (%q, %q)", histItem.Type, histItem.ResourceID, tt.wantType, tt.wantID)
 			}
 		})
 	}

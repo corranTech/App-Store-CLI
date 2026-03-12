@@ -70,14 +70,17 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("review history: --limit must be between 1 and 200")
+				return shared.UsageError("--limit must be between 1 and 200")
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("review history: %w", err)
+				return shared.UsageError(err.Error())
 			}
-			states := shared.SplitCSVUpper(*state)
+			states, err := shared.NormalizeReviewSubmissionStates(shared.SplitCSVUpper(*state))
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -300,7 +303,13 @@ func enrichSubmissions(ctx context.Context, client *asc.Client, submissions []as
 }
 
 func fetchAllSubmissionItems(ctx context.Context, client *asc.Client, submissionID string) ([]asc.ReviewSubmissionItemResource, error) {
-	firstPage, err := client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsLimit(200))
+	firstPage, err := client.GetReviewSubmissionItems(
+		ctx,
+		submissionID,
+		asc.WithReviewSubmissionItemsLimit(200),
+		asc.WithReviewSubmissionItemsFields(reviewSubmissionItemHistoryFields()),
+		asc.WithReviewSubmissionItemsInclude(reviewSubmissionItemHistoryIncludes()),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -326,6 +335,38 @@ func fetchAllSubmissionItems(ctx context.Context, client *asc.Client, submission
 	return aggResp.Data, nil
 }
 
+func reviewSubmissionItemHistoryFields() []string {
+	return []string{
+		"state",
+		"appStoreVersion",
+		"appCustomProductPageVersion",
+		"appStoreVersionExperiment",
+		"appStoreVersionExperimentV2",
+		"appEvent",
+		"backgroundAssetVersion",
+		"gameCenterAchievementVersion",
+		"gameCenterActivityVersion",
+		"gameCenterChallengeVersion",
+		"gameCenterLeaderboardSetVersion",
+		"gameCenterLeaderboardVersion",
+	}
+}
+
+func reviewSubmissionItemHistoryIncludes() []string {
+	return []string{
+		"appStoreVersion",
+		"appCustomProductPageVersion",
+		"appStoreVersionExperiment",
+		"appEvent",
+		"backgroundAssetVersion",
+		"gameCenterAchievementVersion",
+		"gameCenterActivityVersion",
+		"gameCenterChallengeVersion",
+		"gameCenterLeaderboardSetVersion",
+		"gameCenterLeaderboardVersion",
+	}
+}
+
 func populateSubmissionHistoryItem(histItem *SubmissionHistoryItem, item asc.ReviewSubmissionItemResource) {
 	if histItem == nil || item.Relationships == nil {
 		return
@@ -335,12 +376,36 @@ func populateSubmissionHistoryItem(histItem *SubmissionHistoryItem, item asc.Rev
 	case item.Relationships.AppStoreVersion != nil:
 		histItem.Type = "appStoreVersion"
 		histItem.ResourceID = item.Relationships.AppStoreVersion.Data.ID
+	case item.Relationships.AppCustomProductPageVersion != nil:
+		histItem.Type = "appCustomProductPageVersion"
+		histItem.ResourceID = item.Relationships.AppCustomProductPageVersion.Data.ID
 	case item.Relationships.AppCustomProductPage != nil:
 		histItem.Type = "appCustomProductPage"
 		histItem.ResourceID = item.Relationships.AppCustomProductPage.Data.ID
+	case item.Relationships.AppStoreVersionExperimentV2 != nil:
+		histItem.Type = "appStoreVersionExperimentV2"
+		histItem.ResourceID = item.Relationships.AppStoreVersionExperimentV2.Data.ID
 	case item.Relationships.AppEvent != nil:
 		histItem.Type = "appEvent"
 		histItem.ResourceID = item.Relationships.AppEvent.Data.ID
+	case item.Relationships.BackgroundAssetVersion != nil:
+		histItem.Type = "backgroundAssetVersion"
+		histItem.ResourceID = item.Relationships.BackgroundAssetVersion.Data.ID
+	case item.Relationships.GameCenterAchievementVersion != nil:
+		histItem.Type = "gameCenterAchievementVersion"
+		histItem.ResourceID = item.Relationships.GameCenterAchievementVersion.Data.ID
+	case item.Relationships.GameCenterActivityVersion != nil:
+		histItem.Type = "gameCenterActivityVersion"
+		histItem.ResourceID = item.Relationships.GameCenterActivityVersion.Data.ID
+	case item.Relationships.GameCenterChallengeVersion != nil:
+		histItem.Type = "gameCenterChallengeVersion"
+		histItem.ResourceID = item.Relationships.GameCenterChallengeVersion.Data.ID
+	case item.Relationships.GameCenterLeaderboardSetVersion != nil:
+		histItem.Type = "gameCenterLeaderboardSetVersion"
+		histItem.ResourceID = item.Relationships.GameCenterLeaderboardSetVersion.Data.ID
+	case item.Relationships.GameCenterLeaderboardVersion != nil:
+		histItem.Type = "gameCenterLeaderboardVersion"
+		histItem.ResourceID = item.Relationships.GameCenterLeaderboardVersion.Data.ID
 	case item.Relationships.AppStoreVersionExperiment != nil:
 		histItem.Type = "appStoreVersionExperiment"
 		histItem.ResourceID = item.Relationships.AppStoreVersionExperiment.Data.ID

@@ -1737,6 +1737,20 @@ func WithReviewSubmissionItemsLimit(limit int) ReviewSubmissionItemsOption {
 	}
 }
 
+// WithReviewSubmissionItemsFields sets fields[reviewSubmissionItems] for item responses.
+func WithReviewSubmissionItemsFields(fields []string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithReviewSubmissionItemsInclude sets include for item responses.
+func WithReviewSubmissionItemsInclude(include []string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
 // WithReviewSubmissionItemsNextURL uses a next page URL directly.
 func WithReviewSubmissionItemsNextURL(next string) ReviewSubmissionItemsOption {
 	return func(q *reviewSubmissionItemsQuery) {

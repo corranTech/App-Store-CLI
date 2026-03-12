@@ -27,10 +27,18 @@ type ReviewSubmissionItemAttributes struct {
 type ReviewSubmissionItemRelationships struct {
 	ReviewSubmission                   *Relationship `json:"reviewSubmission,omitempty"`
 	AppStoreVersion                    *Relationship `json:"appStoreVersion,omitempty"`
+	AppCustomProductPageVersion        *Relationship `json:"appCustomProductPageVersion,omitempty"`
 	AppCustomProductPage               *Relationship `json:"appCustomProductPage,omitempty"`
 	AppEvent                           *Relationship `json:"appEvent,omitempty"`
 	AppStoreVersionExperiment          *Relationship `json:"appStoreVersionExperiment,omitempty"`
+	AppStoreVersionExperimentV2        *Relationship `json:"appStoreVersionExperimentV2,omitempty"`
 	AppStoreVersionExperimentTreatment *Relationship `json:"appStoreVersionExperimentTreatment,omitempty"`
+	BackgroundAssetVersion             *Relationship `json:"backgroundAssetVersion,omitempty"`
+	GameCenterAchievementVersion       *Relationship `json:"gameCenterAchievementVersion,omitempty"`
+	GameCenterActivityVersion          *Relationship `json:"gameCenterActivityVersion,omitempty"`
+	GameCenterChallengeVersion         *Relationship `json:"gameCenterChallengeVersion,omitempty"`
+	GameCenterLeaderboardSetVersion    *Relationship `json:"gameCenterLeaderboardSetVersion,omitempty"`
+	GameCenterLeaderboardVersion       *Relationship `json:"gameCenterLeaderboardVersion,omitempty"`
 }
 
 // ReviewSubmissionItemResource represents a review submission item resource.

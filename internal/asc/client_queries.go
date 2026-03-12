@@ -255,6 +255,8 @@ type reviewSubmissionsQuery struct {
 
 type reviewSubmissionItemsQuery struct {
 	listQuery
+	fields  []string
+	include []string
 }
 
 type preReleaseVersionsQuery struct {
@@ -1308,6 +1310,8 @@ func buildReviewSubmissionsQuery(query *reviewSubmissionsQuery) string {
 
 func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[reviewSubmissionItems]", query.fields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

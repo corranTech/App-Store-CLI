@@ -380,6 +380,42 @@ func TestGetReviewSubmissionItems(t *testing.T) {
 	}
 }
 
+func TestGetReviewSubmissionItems_WithIncludeAndFields(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
+		"data": [
+			{
+				"type": "reviewSubmissionItems",
+				"id": "item-456"
+			}
+		]
+	}`)
+
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/reviewSubmissions/submission-456/items" {
+			t.Fatalf("expected path /v1/reviewSubmissions/submission-456/items, got %s", req.URL.Path)
+		}
+		if got := req.URL.Query().Get("include"); got != "appStoreVersion,backgroundAssetVersion" {
+			t.Fatalf("expected include query, got %q", got)
+		}
+		if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != "state,appStoreVersion,backgroundAssetVersion" {
+			t.Fatalf("expected fields[reviewSubmissionItems] query, got %q", got)
+		}
+	}, response)
+
+	_, err := client.GetReviewSubmissionItems(
+		context.Background(),
+		"submission-456",
+		WithReviewSubmissionItemsInclude([]string{"appStoreVersion", "backgroundAssetVersion"}),
+		WithReviewSubmissionItemsFields([]string{"state", "appStoreVersion", "backgroundAssetVersion"}),
+	)
+	if err != nil {
+		t.Fatalf("GetReviewSubmissionItems() error: %v", err)
+	}
+}
+
 func TestGetReviewSubmissions_WithInclude(t *testing.T) {
 	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
 		"data": [

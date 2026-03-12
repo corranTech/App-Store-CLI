@@ -16,6 +16,7 @@ const (
 	ReviewSubmissionStateInReview         ReviewSubmissionState = "IN_REVIEW"
 	ReviewSubmissionStateUnresolvedIssues ReviewSubmissionState = "UNRESOLVED_ISSUES"
 	ReviewSubmissionStateCanceling        ReviewSubmissionState = "CANCELING"
+	ReviewSubmissionStateCompleting       ReviewSubmissionState = "COMPLETING"
 	ReviewSubmissionStateComplete         ReviewSubmissionState = "COMPLETE"
 )
 
