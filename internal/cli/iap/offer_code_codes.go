@@ -422,15 +422,20 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			normalizedExpiration, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err)
-				return flag.ErrHelp
-			}
+				normalizedExpiration, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err)
+					return flag.ErrHelp
+				}
+				normalizedEnvironment, err := normalizeIAPOfferCodeEnvironment(*environment)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err)
+					return flag.ErrHelp
+				}
 
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("iap offer-codes one-time-codes create: %w", err)
+				client, err := shared.GetASCClient()
+				if err != nil {
+					return fmt.Errorf("iap offer-codes one-time-codes create: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -442,7 +447,7 @@ Examples:
 						Attributes: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes{
 							NumberOfCodes:  *quantity,
 							ExpirationDate: normalizedExpiration,
-							Environment:    strings.TrimSpace(*environment),
+							Environment:    normalizedEnvironment,
 						},
 					Relationships: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships{
 						OfferCode: asc.Relationship{
@@ -462,6 +467,20 @@ Examples:
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+func normalizeIAPOfferCodeEnvironment(value string) (string, error) {
+	normalized := strings.TrimSpace(strings.ToUpper(value))
+	if normalized == "" {
+		return "", nil
+	}
+
+	switch normalized {
+	case "PRODUCTION", "SANDBOX":
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("--environment must be one of: PRODUCTION, SANDBOX")
 	}
 }
 
