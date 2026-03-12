@@ -244,48 +244,121 @@ func TestCreateReviewSubmissionItem(t *testing.T) {
 	}
 }
 
-func TestCreateReviewSubmissionItemDocumentedAdditionalTypes(t *testing.T) {
+func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 	tests := []struct {
-		name                 string
-		itemType             string
-		expectedRelationship string
-		expectedResourceType string
+		name            string
+		itemType        ReviewSubmissionItemType
+		itemID          string
+		wantType        ResourceType
+		getRelationship func(ReviewSubmissionItemCreateRelationships) *Relationship
 	}{
 		{
-			name:                 "background asset version",
-			itemType:             "backgroundAssetVersions",
-			expectedRelationship: "backgroundAssetVersion",
-			expectedResourceType: "backgroundAssetVersions",
+			name:     "app store version",
+			itemType: ReviewSubmissionItemTypeAppStoreVersion,
+			itemID:   "version-123",
+			wantType: ResourceTypeAppStoreVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.AppStoreVersion
+			},
 		},
 		{
-			name:                 "game center achievement version",
-			itemType:             "gameCenterAchievementVersions",
-			expectedRelationship: "gameCenterAchievementVersion",
-			expectedResourceType: "gameCenterAchievementVersions",
+			name:     "app custom product page version",
+			itemType: ReviewSubmissionItemTypeAppCustomProductPageVersion,
+			itemID:   "cppv-123",
+			wantType: ResourceTypeAppCustomProductPageVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.AppCustomProductPageVersion
+			},
 		},
 		{
-			name:                 "game center activity version",
-			itemType:             "gameCenterActivityVersions",
-			expectedRelationship: "gameCenterActivityVersion",
-			expectedResourceType: "gameCenterActivityVersions",
+			name:     "legacy app custom product page alias",
+			itemType: ReviewSubmissionItemTypeAppCustomProductPage,
+			itemID:   "cppv-legacy-123",
+			wantType: ResourceTypeAppCustomProductPageVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.AppCustomProductPageVersion
+			},
 		},
 		{
-			name:                 "game center challenge version",
-			itemType:             "gameCenterChallengeVersions",
-			expectedRelationship: "gameCenterChallengeVersion",
-			expectedResourceType: "gameCenterChallengeVersions",
+			name:     "app event",
+			itemType: ReviewSubmissionItemTypeAppEvent,
+			itemID:   "event-123",
+			wantType: ResourceTypeAppEvents,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.AppEvent
+			},
 		},
 		{
-			name:                 "game center leaderboard set version",
-			itemType:             "gameCenterLeaderboardSetVersions",
-			expectedRelationship: "gameCenterLeaderboardSetVersion",
-			expectedResourceType: "gameCenterLeaderboardSetVersions",
+			name:     "app store version experiment",
+			itemType: ReviewSubmissionItemTypeAppStoreVersionExperiment,
+			itemID:   "experiment-123",
+			wantType: ResourceTypeAppStoreVersionExperiments,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.AppStoreVersionExperiment
+			},
 		},
 		{
-			name:                 "game center leaderboard version",
-			itemType:             "gameCenterLeaderboardVersions",
-			expectedRelationship: "gameCenterLeaderboardVersion",
-			expectedResourceType: "gameCenterLeaderboardVersions",
+			name:     "app store version experiment treatment",
+			itemType: ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment,
+			itemID:   "treatment-123",
+			wantType: ResourceTypeAppStoreVersionExperimentTreatments,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.AppStoreVersionExperimentTreatment
+			},
+		},
+		{
+			name:     "background asset version",
+			itemType: ReviewSubmissionItemTypeBackgroundAssetVersion,
+			itemID:   "asset-123",
+			wantType: ResourceTypeBackgroundAssetVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.BackgroundAssetVersion
+			},
+		},
+		{
+			name:     "game center achievement version",
+			itemType: ReviewSubmissionItemTypeGameCenterAchievementVersion,
+			itemID:   "achievement-123",
+			wantType: ResourceTypeGameCenterAchievementVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.GameCenterAchievementVersion
+			},
+		},
+		{
+			name:     "game center activity version",
+			itemType: ReviewSubmissionItemTypeGameCenterActivityVersion,
+			itemID:   "activity-123",
+			wantType: ResourceTypeGameCenterActivityVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.GameCenterActivityVersion
+			},
+		},
+		{
+			name:     "game center challenge version",
+			itemType: ReviewSubmissionItemTypeGameCenterChallengeVersion,
+			itemID:   "challenge-123",
+			wantType: ResourceTypeGameCenterChallengeVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.GameCenterChallengeVersion
+			},
+		},
+		{
+			name:     "game center leaderboard set version",
+			itemType: ReviewSubmissionItemTypeGameCenterLeaderboardSetVersion,
+			itemID:   "leaderboard-set-123",
+			wantType: ResourceTypeGameCenterLeaderboardSetVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.GameCenterLeaderboardSetVersion
+			},
+		},
+		{
+			name:     "game center leaderboard version",
+			itemType: ReviewSubmissionItemTypeGameCenterLeaderboardVersion,
+			itemID:   "leaderboard-123",
+			wantType: ResourceTypeGameCenterLeaderboardVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.GameCenterLeaderboardVersion
+			},
 		},
 	}
 
@@ -314,54 +387,34 @@ func TestCreateReviewSubmissionItemDocumentedAdditionalTypes(t *testing.T) {
 					t.Fatalf("failed to read request body: %v", err)
 				}
 
-				var payload struct {
-					Data struct {
-						Type          string `json:"type"`
-						Relationships map[string]struct {
-							Data struct {
-								Type string `json:"type"`
-								ID   string `json:"id"`
-							} `json:"data"`
-						} `json:"relationships"`
-					} `json:"data"`
-				}
+				var payload ReviewSubmissionItemCreateRequest
 				if err := json.Unmarshal(body, &payload); err != nil {
 					t.Fatalf("failed to unmarshal request body: %v", err)
 				}
 
-				if payload.Data.Type != string(ResourceTypeReviewSubmissionItems) {
-					t.Fatalf("expected type reviewSubmissionItems, got %s", payload.Data.Type)
-				}
-
-				reviewSubmission, ok := payload.Data.Relationships["reviewSubmission"]
-				if !ok {
+				if payload.Data.Relationships.ReviewSubmission == nil {
 					t.Fatal("expected reviewSubmission relationship to be set")
 				}
-				if reviewSubmission.Data.Type != string(ResourceTypeReviewSubmissions) {
-					t.Fatalf("expected review submission type reviewSubmissions, got %s", reviewSubmission.Data.Type)
+				if payload.Data.Relationships.ReviewSubmission.Data.ID != "submission-123" {
+					t.Fatalf("expected submission ID submission-123, got %s", payload.Data.Relationships.ReviewSubmission.Data.ID)
 				}
-				if reviewSubmission.Data.ID != "submission-123" {
-					t.Fatalf("expected submission ID submission-123, got %s", reviewSubmission.Data.ID)
+				if got := countReviewSubmissionItemCreateRelationships(payload.Data.Relationships); got != 1 {
+					t.Fatalf("expected exactly one item relationship, got %d", got)
 				}
 
-				relationship, ok := payload.Data.Relationships[test.expectedRelationship]
-				if !ok {
-					t.Fatalf("expected %s relationship to be set", test.expectedRelationship)
+				relationship := test.getRelationship(payload.Data.Relationships)
+				if relationship == nil {
+					t.Fatalf("expected relationship for item type %q", test.itemType)
 				}
-				if relationship.Data.Type != test.expectedResourceType {
-					t.Fatalf("expected %s type %s, got %s", test.expectedRelationship, test.expectedResourceType, relationship.Data.Type)
+				if relationship.Data.Type != test.wantType {
+					t.Fatalf("expected relationship type %q, got %q", test.wantType, relationship.Data.Type)
 				}
-				if relationship.Data.ID != "resource-123" {
-					t.Fatalf("expected %s ID resource-123, got %s", test.expectedRelationship, relationship.Data.ID)
+				if relationship.Data.ID != test.itemID {
+					t.Fatalf("expected relationship id %q, got %q", test.itemID, relationship.Data.ID)
 				}
 			}, response)
 
-			resp, err := client.CreateReviewSubmissionItem(
-				context.Background(),
-				"submission-123",
-				ReviewSubmissionItemType(test.itemType),
-				"resource-123",
-			)
+			resp, err := client.CreateReviewSubmissionItem(context.Background(), "submission-123", test.itemType, test.itemID)
 			if err != nil {
 				t.Fatalf("CreateReviewSubmissionItem() error: %v", err)
 			}
@@ -657,4 +710,26 @@ func TestReviewSubmissionValidationErrors(t *testing.T) {
 	if err := client.DeleteReviewSubmissionItem(context.Background(), ""); err == nil {
 		t.Fatalf("expected itemID required error, got nil")
 	}
+}
+
+func countReviewSubmissionItemCreateRelationships(relationships ReviewSubmissionItemCreateRelationships) int {
+	count := 0
+	for _, relationship := range []*Relationship{
+		relationships.AppStoreVersion,
+		relationships.AppCustomProductPageVersion,
+		relationships.AppEvent,
+		relationships.AppStoreVersionExperiment,
+		relationships.AppStoreVersionExperimentTreatment,
+		relationships.BackgroundAssetVersion,
+		relationships.GameCenterAchievementVersion,
+		relationships.GameCenterActivityVersion,
+		relationships.GameCenterChallengeVersion,
+		relationships.GameCenterLeaderboardSetVersion,
+		relationships.GameCenterLeaderboardVersion,
+	} {
+		if relationship != nil {
+			count++
+		}
+	}
+	return count
 }

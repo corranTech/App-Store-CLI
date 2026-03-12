@@ -12,6 +12,7 @@ type ReviewSubmissionItemType string
 
 const (
 	ReviewSubmissionItemTypeAppStoreVersion                    ReviewSubmissionItemType = "appStoreVersions"
+	ReviewSubmissionItemTypeAppCustomProductPageVersion        ReviewSubmissionItemType = "appCustomProductPageVersions"
 	ReviewSubmissionItemTypeAppCustomProductPage               ReviewSubmissionItemType = "appCustomProductPages"
 	ReviewSubmissionItemTypeAppEvent                           ReviewSubmissionItemType = "appEvents"
 	ReviewSubmissionItemTypeAppStoreVersionExperiment          ReviewSubmissionItemType = "appStoreVersionExperiments"
@@ -81,7 +82,7 @@ type ReviewSubmissionItemResponse struct {
 type ReviewSubmissionItemCreateRelationships struct {
 	ReviewSubmission                   *Relationship `json:"reviewSubmission"`
 	AppStoreVersion                    *Relationship `json:"appStoreVersion,omitempty"`
-	AppCustomProductPage               *Relationship `json:"appCustomProductPage,omitempty"`
+	AppCustomProductPageVersion        *Relationship `json:"appCustomProductPageVersion,omitempty"`
 	AppEvent                           *Relationship `json:"appEvent,omitempty"`
 	AppStoreVersionExperiment          *Relationship `json:"appStoreVersionExperiment,omitempty"`
 	AppStoreVersionExperimentTreatment *Relationship `json:"appStoreVersionExperimentTreatment,omitempty"`
@@ -102,6 +103,129 @@ type ReviewSubmissionItemCreateData struct {
 // ReviewSubmissionItemCreateRequest is a request to create a review submission item.
 type ReviewSubmissionItemCreateRequest struct {
 	Data ReviewSubmissionItemCreateData `json:"data"`
+}
+
+type reviewSubmissionItemTypeSpec struct {
+	canonical         ReviewSubmissionItemType
+	aliases           []string
+	applyRelationship func(*ReviewSubmissionItemCreateRelationships, string)
+}
+
+var reviewSubmissionItemTypeSpecs = []reviewSubmissionItemTypeSpec{
+	{
+		canonical: ReviewSubmissionItemTypeAppStoreVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.AppStoreVersion = reviewSubmissionItemRelationship(ResourceTypeAppStoreVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeAppCustomProductPageVersion,
+		aliases:   []string{string(ReviewSubmissionItemTypeAppCustomProductPage)},
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.AppCustomProductPageVersion = reviewSubmissionItemRelationship(ResourceTypeAppCustomProductPageVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeAppEvent,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.AppEvent = reviewSubmissionItemRelationship(ResourceTypeAppEvents, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeAppStoreVersionExperiment,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.AppStoreVersionExperiment = reviewSubmissionItemRelationship(ResourceTypeAppStoreVersionExperiments, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.AppStoreVersionExperimentTreatment = reviewSubmissionItemRelationship(ResourceTypeAppStoreVersionExperimentTreatments, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeBackgroundAssetVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.BackgroundAssetVersion = reviewSubmissionItemRelationship(ResourceTypeBackgroundAssetVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeGameCenterAchievementVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.GameCenterAchievementVersion = reviewSubmissionItemRelationship(ResourceTypeGameCenterAchievementVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeGameCenterActivityVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.GameCenterActivityVersion = reviewSubmissionItemRelationship(ResourceTypeGameCenterActivityVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeGameCenterChallengeVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.GameCenterChallengeVersion = reviewSubmissionItemRelationship(ResourceTypeGameCenterChallengeVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeGameCenterLeaderboardSetVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.GameCenterLeaderboardSetVersion = reviewSubmissionItemRelationship(ResourceTypeGameCenterLeaderboardSetVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeGameCenterLeaderboardVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.GameCenterLeaderboardVersion = reviewSubmissionItemRelationship(ResourceTypeGameCenterLeaderboardVersions, itemID)
+		},
+	},
+}
+
+// ReviewSubmissionItemTypeNames returns the canonical CLI values accepted by review items-add.
+func ReviewSubmissionItemTypeNames() []string {
+	names := make([]string, 0, len(reviewSubmissionItemTypeSpecs))
+	for _, spec := range reviewSubmissionItemTypeSpecs {
+		names = append(names, string(spec.canonical))
+	}
+	return names
+}
+
+// ParseReviewSubmissionItemType returns the canonical item type for a CLI value.
+func ParseReviewSubmissionItemType(value string) (ReviewSubmissionItemType, bool) {
+	normalized := strings.TrimSpace(value)
+	for _, spec := range reviewSubmissionItemTypeSpecs {
+		if normalized == string(spec.canonical) {
+			return spec.canonical, true
+		}
+		for _, alias := range spec.aliases {
+			if normalized == alias {
+				return spec.canonical, true
+			}
+		}
+	}
+	return "", false
+}
+
+func reviewSubmissionItemTypeSpecFor(itemType ReviewSubmissionItemType) (reviewSubmissionItemTypeSpec, bool) {
+	canonical, ok := ParseReviewSubmissionItemType(string(itemType))
+	if !ok {
+		return reviewSubmissionItemTypeSpec{}, false
+	}
+	for _, spec := range reviewSubmissionItemTypeSpecs {
+		if spec.canonical == canonical {
+			return spec, true
+		}
+	}
+	return reviewSubmissionItemTypeSpec{}, false
+}
+
+func reviewSubmissionItemRelationship(resourceType ResourceType, itemID string) *Relationship {
+	return &Relationship{
+		Data: ResourceData{
+			Type: resourceType,
+			ID:   itemID,
+		},
+	}
 }
 
 // ReviewSubmissionItemUpdateAttributes describes attributes for updating a review submission item.
@@ -210,54 +334,11 @@ func (c *Client) CreateReviewSubmissionItem(ctx context.Context, submissionID st
 		},
 	}
 
-	switch itemType {
-	case ReviewSubmissionItemTypeAppStoreVersion:
-		relationships.AppStoreVersion = &Relationship{
-			Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeAppCustomProductPage:
-		relationships.AppCustomProductPage = &Relationship{
-			Data: ResourceData{Type: ResourceTypeAppCustomProductPages, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeAppEvent:
-		relationships.AppEvent = &Relationship{
-			Data: ResourceData{Type: ResourceTypeAppEvents, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeAppStoreVersionExperiment:
-		relationships.AppStoreVersionExperiment = &Relationship{
-			Data: ResourceData{Type: ResourceTypeAppStoreVersionExperiments, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment:
-		relationships.AppStoreVersionExperimentTreatment = &Relationship{
-			Data: ResourceData{Type: ResourceTypeAppStoreVersionExperimentTreatments, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeBackgroundAssetVersion:
-		relationships.BackgroundAssetVersion = &Relationship{
-			Data: ResourceData{Type: ResourceTypeBackgroundAssetVersions, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeGameCenterAchievementVersion:
-		relationships.GameCenterAchievementVersion = &Relationship{
-			Data: ResourceData{Type: ResourceTypeGameCenterAchievementVersions, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeGameCenterActivityVersion:
-		relationships.GameCenterActivityVersion = &Relationship{
-			Data: ResourceData{Type: ResourceTypeGameCenterActivityVersions, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeGameCenterChallengeVersion:
-		relationships.GameCenterChallengeVersion = &Relationship{
-			Data: ResourceData{Type: ResourceTypeGameCenterChallengeVersions, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeGameCenterLeaderboardSetVersion:
-		relationships.GameCenterLeaderboardSetVersion = &Relationship{
-			Data: ResourceData{Type: ResourceTypeGameCenterLeaderboardSetVersions, ID: itemID},
-		}
-	case ReviewSubmissionItemTypeGameCenterLeaderboardVersion:
-		relationships.GameCenterLeaderboardVersion = &Relationship{
-			Data: ResourceData{Type: ResourceTypeGameCenterLeaderboardVersions, ID: itemID},
-		}
-	default:
+	spec, ok := reviewSubmissionItemTypeSpecFor(itemType)
+	if !ok {
 		return nil, fmt.Errorf("unsupported itemType: %s", itemType)
 	}
+	spec.applyRelationship(&relationships, itemID)
 
 	payload := ReviewSubmissionItemCreateRequest{
 		Data: ReviewSubmissionItemCreateData{
