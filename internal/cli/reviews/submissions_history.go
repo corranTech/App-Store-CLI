@@ -40,8 +40,6 @@ type submissionVersionContext struct {
 	Platform      string
 }
 
-const reviewHistoryAliasWarning = "Warning: `asc review submissions-history` has been renamed to `asc review history`."
-
 // ReviewHistoryCommand returns the history subcommand.
 func ReviewHistoryCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("history", flag.ExitOnError)
@@ -120,16 +118,6 @@ Examples:
 			return shared.PrintOutputWithRenderers(entries, *output.Output, *output.Pretty, tableFunc, markdownFunc)
 		},
 	}
-}
-
-func reviewHistoryAliasCommand(canonical *ffcli.Command) *ffcli.Command {
-	return shared.DeprecatedAliasLeafCommand(
-		canonical,
-		"submissions-history",
-		"asc review submissions-history [flags]",
-		"asc review history",
-		reviewHistoryAliasWarning,
-	)
 }
 
 func fetchReviewSubmissions(ctx context.Context, client *asc.Client, appID string, opts []asc.ReviewSubmissionsOption, paginate bool) ([]asc.ReviewSubmissionResource, map[string]submissionVersionContext, error) {

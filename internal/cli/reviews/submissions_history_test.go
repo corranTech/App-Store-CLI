@@ -113,17 +113,6 @@ func TestReviewHistoryCommand_InvalidLimit(t *testing.T) {
 	}
 }
 
-func TestReviewCommand_HidesDeprecatedHistoryAliasFromUsage(t *testing.T) {
-	cmd := ReviewCommand()
-	usage := cmd.UsageFunc(cmd)
-	if strings.Contains(usage, "submissions-history") {
-		t.Fatalf("expected review help to hide deprecated submissions-history alias, got:\n%s", usage)
-	}
-	if !strings.Contains(usage, "history") {
-		t.Fatalf("expected review help to include canonical history command, got:\n%s", usage)
-	}
-}
-
 type testRoundTripper func(*http.Request) (*http.Response, error)
 
 func (fn testRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
