@@ -396,18 +396,19 @@ func IAPOfferCodesOneTimeCodesCreateCommand() *ffcli.Command {
 	offerCodeID := fs.String("offer-code-id", "", "Offer code ID (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to generate (required, positive integer)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
-	environment := fs.String("environment", "", "Offer code environment")
+	environment := fs.String("environment", "", "Offer code environment: PRODUCTION or SANDBOX")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc iap offer-codes one-time-codes create --offer-code-id \"OFFER_CODE_ID\" --quantity N --expiration-date \"YYYY-MM-DD\" [flags]",
-		ShortHelp:  "Generate one-time use codes for an in-app purchase offer code.",
-		LongHelp: `Generate one-time use codes for an in-app purchase offer code.
+			ShortUsage: "asc iap offer-codes one-time-codes create --offer-code-id \"OFFER_CODE_ID\" --quantity N --expiration-date \"YYYY-MM-DD\" [--environment PRODUCTION|SANDBOX] [flags]",
+			ShortHelp:  "Generate one-time use codes for an in-app purchase offer code.",
+			LongHelp: `Generate one-time use codes for an in-app purchase offer code.
 
 Examples:
   asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31"
-  asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 500 --expiration-date "2026-09-30"`,
+  asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 500 --expiration-date "2026-09-30"
+  asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31" --environment SANDBOX`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
