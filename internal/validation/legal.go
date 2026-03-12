@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func legalChecks(copyright string, hasSubscriptions bool, hasIAPs bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
+func legalChecks(copyright string, hasActiveMonetization bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
 	var checks []CheckResult
 
 	// Copyright is required by Apple.
@@ -56,8 +56,8 @@ func legalChecks(copyright string, hasSubscriptions bool, hasIAPs bool, versionL
 	for _, loc := range appInfoLocs {
 		privacyURL := strings.TrimSpace(loc.PrivacyPolicyURL)
 
-		// When app has subscriptions or IAPs, privacy policy is required (error).
-		if privacyURL == "" && (hasSubscriptions || hasIAPs) {
+		// When app has active subscriptions or IAPs, privacy policy is required (error).
+		if privacyURL == "" && hasActiveMonetization {
 			checks = append(checks, CheckResult{
 				ID:           "legal.required.privacy_policy_url",
 				Severity:     SeverityError,
