@@ -525,7 +525,8 @@ func (c *Client) GetAppAvailabilityV2TerritoryAvailabilitiesRelationships(ctx co
 	return &response, nil
 }
 
-// CreateAppAvailabilityV2 creates or updates app availability.
+// CreateAppAvailabilityV2 calls POST /v2/appAvailabilities.
+// Apple documents this endpoint as app pre-order creation, not generic app-availability bootstrap.
 func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attrs AppAvailabilityV2CreateAttributes) (*AppAvailabilityV2Response, error) {
 	appID = strings.TrimSpace(appID)
 	if appID == "" {
@@ -575,7 +576,8 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 			Data: relationshipData,
 		}
 	} else if len(attrs.TerritoryAvailabilities) > 0 {
-		payload.Included = make([]AppAvailabilityV2IncludedResource, 0, len(attrs.TerritoryAvailabilities))
+		payload.Included = make([]AppAvailabilityV2IncludedResource, 0, len(attrs.TerritoryAvailabilities)*2)
+		includedTerritories := make(map[string]struct{}, len(attrs.TerritoryAvailabilities))
 		relationshipData := make([]ResourceData, 0, len(attrs.TerritoryAvailabilities))
 		for _, availability := range attrs.TerritoryAvailabilities {
 			territoryID := strings.ToUpper(strings.TrimSpace(availability.TerritoryID))
@@ -600,15 +602,19 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 					},
 				},
 			}
-			// Only include the inline-created territoryAvailabilities resources.
-			// Territories are existing resources referenced via relationship — they
-			// must NOT appear in included, or Apple rejects them for lacking a local-id.
 			payload.Included = append(payload.Included, AppAvailabilityV2IncludedResource{
 				Type:          ResourceTypeTerritoryAvailabilities,
 				ID:            resourceID,
 				Attributes:    attributes,
 				Relationships: relationships,
 			})
+			if _, exists := includedTerritories[territoryID]; !exists {
+				payload.Included = append(payload.Included, AppAvailabilityV2IncludedResource{
+					Type: ResourceTypeTerritories,
+					ID:   territoryID,
+				})
+				includedTerritories[territoryID] = struct{}{}
+			}
 		}
 		payload.Data.Relationships.TerritoryAvailabilities = &RelationshipList{
 			Data: relationshipData,
