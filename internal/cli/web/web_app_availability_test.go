@@ -170,6 +170,7 @@ func TestWebAppsAvailabilityCreateCreatesMissingAvailability(t *testing.T) {
 		return &webcore.AppAvailability{
 			ID:                        "avail-123",
 			AvailableInNewTerritories: false,
+			AvailableTerritories:      []string{"GBR", "USA"},
 		}, nil
 	}
 
@@ -194,6 +195,9 @@ func TestWebAppsAvailabilityCreateCreatesMissingAvailability(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"availabilityId":"avail-123"`) {
 		t.Fatalf("expected JSON output to include availability id, got %q", stdout)
+	}
+	if !strings.Contains(stdout, `"availableTerritories":["GBR","USA"]`) {
+		t.Fatalf("expected JSON output to use created territories, got %q", stdout)
 	}
 	if received.AppID != "app-1" {
 		t.Fatalf("expected app id app-1, got %q", received.AppID)

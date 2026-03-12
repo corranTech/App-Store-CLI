@@ -150,7 +150,7 @@ Examples:
 				AppID:                     resolvedAppID,
 				AvailabilityID:            strings.TrimSpace(created.ID),
 				AvailableInNewTerritories: created.AvailableInNewTerritories,
-				AvailableTerritories:      territoryIDs,
+				AvailableTerritories:      created.AvailableTerritories,
 			}
 			return shared.PrintOutputWithRenderers(
 				result,
