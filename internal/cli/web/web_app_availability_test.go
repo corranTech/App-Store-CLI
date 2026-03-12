@@ -48,6 +48,13 @@ func captureWebCommandOutput(t *testing.T, fn func()) (string, string) {
 		errC <- buf.String()
 	}()
 
+	defer func() {
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+		_ = wOut.Close()
+		_ = wErr.Close()
+	}()
+
 	fn()
 
 	_ = wOut.Close()
