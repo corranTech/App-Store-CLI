@@ -52,13 +52,23 @@ func interpolateStepOutputs(input string, outputs map[string]map[string]string, 
 			return "", fmt.Errorf("unknown step output %q", "steps."+stepName+"."+outputName)
 		}
 
-		b.WriteString(input[last:match[0]])
+		replaceStart := match[0]
+		replaceEnd := match[1]
+		if shellEscape && match[0] > 0 && match[1] < len(input) {
+			quote := input[match[0]-1]
+			if (quote == '"' || quote == '\'') && input[match[1]] == quote {
+				replaceStart--
+				replaceEnd++
+			}
+		}
+
+		b.WriteString(input[last:replaceStart])
 		if shellEscape {
 			b.WriteString(shellQuote(value))
 		} else {
 			b.WriteString(value)
 		}
-		last = match[1]
+		last = replaceEnd
 	}
 	b.WriteString(input[last:])
 	return b.String(), nil
