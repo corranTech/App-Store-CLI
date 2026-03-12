@@ -364,7 +364,15 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			response := reviewSubmissionsJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-123"}}`)
+			response := reviewSubmissionsJSONResponse(http.StatusCreated, `{
+				"data": {
+					"type": "reviewSubmissionItems",
+					"id": "item-123",
+					"attributes": {
+						"state": "READY_FOR_REVIEW"
+					}
+				}
+			}`)
 
 			client := newTestClient(t, func(req *http.Request) {
 				if req.Method != http.MethodPost {
@@ -406,8 +414,16 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 				}
 			}, response)
 
-			if _, err := client.CreateReviewSubmissionItem(context.Background(), "submission-123", test.itemType, test.itemID); err != nil {
+			resp, err := client.CreateReviewSubmissionItem(context.Background(), "submission-123", test.itemType, test.itemID)
+			if err != nil {
 				t.Fatalf("CreateReviewSubmissionItem() error: %v", err)
+			}
+
+			if resp.Data.ID != "item-123" {
+				t.Fatalf("expected ID item-123, got %s", resp.Data.ID)
+			}
+			if resp.Data.Attributes.State != "READY_FOR_REVIEW" {
+				t.Fatalf("expected state READY_FOR_REVIEW, got %s", resp.Data.Attributes.State)
 			}
 		})
 	}

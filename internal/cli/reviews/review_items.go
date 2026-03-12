@@ -165,7 +165,7 @@ Examples:
 
 			normalizedType, err := normalizeReviewSubmissionItemType(*itemType)
 			if err != nil {
-				return fmt.Errorf("review items-add: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			client, err := shared.GetASCClient()
@@ -298,7 +298,7 @@ func normalizeReviewSubmissionItemType(value string) (asc.ReviewSubmissionItemTy
 	if itemType, ok := asc.ParseReviewSubmissionItemType(value); ok {
 		return itemType, nil
 	}
-	return "", shared.UsageErrorf("--item-type must be one of: %s", strings.Join(reviewSubmissionItemTypeList(), ", "))
+	return "", fmt.Errorf("--item-type must be one of: %s", strings.Join(reviewSubmissionItemTypeList(), ", "))
 }
 
 func reviewSubmissionItemTypeList() []string {

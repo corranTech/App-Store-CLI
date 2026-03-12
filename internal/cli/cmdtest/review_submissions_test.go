@@ -167,7 +167,7 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 func TestReviewCommandItemsInvalidItemType(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	_, stderr := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
 			"review", "items-add",
 			"--submission", "SUBMISSION_ID",
@@ -179,8 +179,27 @@ func TestReviewCommandItemsInvalidItemType(t *testing.T) {
 		}
 	})
 
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
 	if !strings.Contains(stderr, "--item-type must be one of:") {
 		t.Fatalf("expected invalid item type error, got %q", stderr)
+	}
+	wantSupportedTypes := []string{
+		"backgroundAssetVersions",
+		"gameCenterAchievementVersions",
+		"gameCenterActivityVersions",
+		"gameCenterChallengeVersions",
+		"gameCenterLeaderboardSetVersions",
+		"gameCenterLeaderboardVersions",
+	}
+	for _, supportedType := range wantSupportedTypes {
+		if !strings.Contains(stderr, supportedType) {
+			t.Fatalf("expected stderr to list %s, got %q", supportedType, stderr)
+		}
+	}
+	if strings.Contains(stderr, "gameCenterLeaderboardReleases") {
+		t.Fatalf("did not expect undocumented leaderboard release type in stderr, got %q", stderr)
 	}
 }
 
