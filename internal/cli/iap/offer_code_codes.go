@@ -401,9 +401,9 @@ func IAPOfferCodesOneTimeCodesCreateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "create",
-			ShortUsage: "asc iap offer-codes one-time-codes create --offer-code-id \"OFFER_CODE_ID\" --quantity N --expiration-date \"YYYY-MM-DD\" [--environment PRODUCTION|SANDBOX] [flags]",
-			ShortHelp:  "Generate one-time use codes for an in-app purchase offer code.",
-			LongHelp: `Generate one-time use codes for an in-app purchase offer code.
+		ShortUsage: "asc iap offer-codes one-time-codes create --offer-code-id \"OFFER_CODE_ID\" --quantity N --expiration-date \"YYYY-MM-DD\" [--environment PRODUCTION|SANDBOX] [flags]",
+		ShortHelp:  "Generate one-time use codes for an in-app purchase offer code.",
+		LongHelp: `Generate one-time use codes for an in-app purchase offer code.
 
 Examples:
   asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31"
@@ -423,20 +423,20 @@ Examples:
 				return flag.ErrHelp
 			}
 
-				normalizedExpiration, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err)
-					return flag.ErrHelp
-				}
-				normalizedEnvironment, err := normalizeIAPOfferCodeEnvironment(*environment)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err)
-					return flag.ErrHelp
-				}
+			normalizedExpiration, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+				return flag.ErrHelp
+			}
+			normalizedEnvironment, err := normalizeIAPOfferCodeEnvironment(*environment)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+				return flag.ErrHelp
+			}
 
-				client, err := shared.GetASCClient()
-				if err != nil {
-					return fmt.Errorf("iap offer-codes one-time-codes create: %w", err)
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("iap offer-codes one-time-codes create: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -445,11 +445,11 @@ Examples:
 			req := asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest{
 				Data: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateData{
 					Type: asc.ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
-						Attributes: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes{
-							NumberOfCodes:  *quantity,
-							ExpirationDate: normalizedExpiration,
-							Environment:    normalizedEnvironment,
-						},
+					Attributes: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes{
+						NumberOfCodes:  *quantity,
+						ExpirationDate: normalizedExpiration,
+						Environment:    normalizedEnvironment,
+					},
 					Relationships: asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships{
 						OfferCode: asc.Relationship{
 							Data: asc.ResourceData{
