@@ -484,11 +484,13 @@ Examples:
 				return fmt.Errorf("builds: %w", err)
 			}
 
-			platformValue := strings.ToUpper(strings.TrimSpace(*platform))
-			if platformValue != "" {
-				if _, err := shared.NormalizePlatform(platformValue); err != nil {
-					return fmt.Errorf("builds: %w", err)
+			platformValue := ""
+			if strings.TrimSpace(*platform) != "" {
+				normalizedPlatform, err := shared.NormalizePlatform(*platform)
+				if err != nil {
+					return shared.UsageError(err.Error())
 				}
+				platformValue = string(normalizedPlatform)
 			}
 
 			versionValue := strings.TrimSpace(*version)

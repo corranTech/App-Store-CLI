@@ -229,6 +229,11 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--processing-state must be one of",
 		},
 		{
+			name:    "builds list invalid platform",
+			args:    []string{"builds", "list", "--app", "APP_123", "--platform", "ANDROID"},
+			wantErr: "--platform must be one of",
+		},
+		{
 			name:    "builds wait missing selector",
 			args:    []string{"builds", "wait"},
 			wantErr: "--app is required when --build is not provided",
