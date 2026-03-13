@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -535,6 +536,7 @@ Examples:
 			opts := []asc.BuildsOption{
 				asc.WithBuildsLimit(*limit),
 				asc.WithBuildsNextURL(nextValue),
+				asc.WithBuildsInclude([]string{"preReleaseVersion"}),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildsSort(*sort))
@@ -638,6 +640,69 @@ func findPreReleaseVersionIDsForBuildsList(
 	return ids, nil
 }
 
+func attachBuildInfoPreReleaseVersion(
+	ctx context.Context,
+	client *asc.Client,
+	build *asc.BuildResponse,
+) error {
+	if client == nil || build == nil {
+		return nil
+	}
+	if strings.TrimSpace(build.Data.ID) == "" {
+		return nil
+	}
+
+	preReleaseVersion, err := client.GetBuildPreReleaseVersion(ctx, build.Data.ID)
+	if err != nil {
+		return nil
+	}
+
+	included, err := json.Marshal([]asc.PreReleaseVersion{preReleaseVersion.Data})
+	if err != nil {
+		return fmt.Errorf("failed to encode pre-release version include: %w", err)
+	}
+	build.Included = included
+
+	relationships, err := mergeBuildRelationship(build.Data.Relationships, "preReleaseVersion", map[string]any{
+		"preReleaseVersion": map[string]any{
+			"data": map[string]string{
+				"type": "preReleaseVersions",
+				"id":   preReleaseVersion.Data.ID,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	build.Data.Relationships = relationships
+	return nil
+}
+
+func mergeBuildRelationship(relationships json.RawMessage, key string, value map[string]any) (json.RawMessage, error) {
+	merged := make(map[string]json.RawMessage)
+	if len(relationships) > 0 {
+		if err := json.Unmarshal(relationships, &merged); err != nil {
+			return nil, fmt.Errorf("failed to decode existing build relationships: %w", err)
+		}
+	}
+
+	entry, ok := value[key]
+	if !ok {
+		return nil, fmt.Errorf("missing %s relationship payload", key)
+	}
+	encodedEntry, err := json.Marshal(entry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode %s relationship: %w", key, err)
+	}
+	merged[key] = encodedEntry
+
+	raw, err := json.Marshal(merged)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode merged build relationships: %w", err)
+	}
+	return raw, nil
+}
+
 // BuildsInfoCommand returns a build info subcommand.
 func BuildsInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds info", flag.ExitOnError)
@@ -672,6 +737,9 @@ Examples:
 			build, err := client.GetBuild(requestCtx, strings.TrimSpace(*buildID))
 			if err != nil {
 				return fmt.Errorf("builds info: failed to fetch: %w", err)
+			}
+			if err := attachBuildInfoPreReleaseVersion(requestCtx, client, build); err != nil {
+				return fmt.Errorf("builds info: %w", err)
 			}
 
 			format := *output.Output
