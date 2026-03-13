@@ -20,6 +20,8 @@ var focusedScreenshotDisplayTypes = []string{
 	"APP_IPAD_PRO_3GEN_129",
 }
 
+var screenshotFileChecksumFunc = computeFileChecksum
+
 func focusedScreenshotSizeCatalog() []asc.ScreenshotSizeEntry {
 	focused := make([]asc.ScreenshotSizeEntry, 0, len(focusedScreenshotDisplayTypes))
 	for _, displayType := range focusedScreenshotDisplayTypes {
@@ -212,51 +214,10 @@ Examples:
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
-			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
-			defer cancel()
-
-			set, err := ensureScreenshotSet(requestCtx, client, locID, apiDisplayType)
+			result, err := uploadScreenshots(ctx, client, locID, apiDisplayType, files, *skipExisting, *replace)
 			if err != nil {
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
-
-			skippedResults := make([]asc.AssetUploadResultItem, 0)
-			if *skipExisting || *replace {
-				existingResp, err := client.GetAppScreenshots(requestCtx, set.ID)
-				if err != nil {
-					return fmt.Errorf("screenshots upload: %w", err)
-				}
-
-				if *replace {
-					if err := deleteExistingScreenshots(requestCtx, client, existingResp.Data); err != nil {
-						return fmt.Errorf("screenshots upload: %w", err)
-					}
-				}
-
-				if *skipExisting {
-					files, skippedResults, err = filterExistingScreenshotFiles(files, existingResp.Data)
-					if err != nil {
-						return fmt.Errorf("screenshots upload: %w", err)
-					}
-				}
-			}
-
-			results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files))
-			if len(files) > 0 {
-				results, err = UploadScreenshotsToSet(requestCtx, client, set.ID, files, true)
-				if err != nil {
-					return fmt.Errorf("screenshots upload: %w", err)
-				}
-			}
-			results = append(skippedResults, results...)
-
-			result := asc.AppScreenshotUploadResult{
-				VersionLocalizationID: locID,
-				SetID:                 set.ID,
-				DisplayType:           set.Attributes.ScreenshotDisplayType,
-				Results:               results,
-			}
-
 			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
@@ -702,6 +663,64 @@ func ensureScreenshotSet(ctx context.Context, client *asc.Client, localizationID
 	return created.Data, nil
 }
 
+func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace bool) (asc.AppScreenshotUploadResult, error) {
+	if client == nil {
+		return asc.AppScreenshotUploadResult{}, fmt.Errorf("client is required")
+	}
+
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	set, err := ensureScreenshotSet(requestCtx, client, localizationID, displayType)
+	if err != nil {
+		cancel()
+		return asc.AppScreenshotUploadResult{}, err
+	}
+
+	existingScreenshots := make([]asc.Resource[asc.AppScreenshotAttributes], 0)
+	if skipExisting || replace {
+		existingResp, err := client.GetAppScreenshots(requestCtx, set.ID)
+		if err != nil {
+			cancel()
+			return asc.AppScreenshotUploadResult{}, err
+		}
+		existingScreenshots = existingResp.Data
+	}
+	cancel()
+
+	skippedResults := make([]asc.AssetUploadResultItem, 0)
+	if skipExisting {
+		files, skippedResults, err = filterExistingScreenshotFiles(files, existingScreenshots)
+		if err != nil {
+			return asc.AppScreenshotUploadResult{}, err
+		}
+	}
+
+	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
+	defer cancel()
+
+	if replace {
+		if err := deleteExistingScreenshots(uploadCtx, client, existingScreenshots); err != nil {
+			return asc.AppScreenshotUploadResult{}, err
+		}
+	}
+
+	results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files))
+	if len(files) > 0 {
+		uploadedResults, err := UploadScreenshotsToSet(uploadCtx, client, set.ID, files, !replace)
+		if err != nil {
+			return asc.AppScreenshotUploadResult{}, err
+		}
+		results = append(results, uploadedResults...)
+	}
+	results = append(skippedResults, results...)
+
+	return asc.AppScreenshotUploadResult{
+		VersionLocalizationID: localizationID,
+		SetID:                 set.ID,
+		DisplayType:           set.Attributes.ScreenshotDisplayType,
+		Results:               results,
+	}, nil
+}
+
 func deleteExistingScreenshots(ctx context.Context, client *asc.Client, screenshots []asc.Resource[asc.AppScreenshotAttributes]) error {
 	for _, screenshot := range screenshots {
 		if err := client.DeleteAppScreenshot(ctx, screenshot.ID); err != nil {
@@ -724,7 +743,7 @@ func filterExistingScreenshotFiles(files []string, screenshots []asc.Resource[as
 	filtered := make([]string, 0, len(files))
 	skipped := make([]asc.AssetUploadResultItem, 0)
 	for _, filePath := range files {
-		checksum, err := computeFileChecksum(filePath)
+		checksum, err := screenshotFileChecksumFunc(filePath)
 		if err != nil {
 			return nil, nil, err
 		}
