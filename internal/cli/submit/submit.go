@@ -99,7 +99,7 @@ Examples:
 			}
 
 			localizationCtx, localizationCancel := shared.ContextWithTimeout(ctx)
-			if err := runSubmitCreateLocalizationPreflight(localizationCtx, client, resolvedVersionID); err != nil {
+			if err := runSubmitCreateLocalizationPreflight(localizationCtx, client, resolvedAppID, resolvedVersionID); err != nil {
 				localizationCancel()
 				return err
 			}
@@ -154,7 +154,7 @@ Examples:
 	}
 }
 
-func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Client, versionID string) error {
+func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Client, appID, versionID string) error {
 	localizations, err := client.GetAppStoreVersionLocalizations(ctx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
 	if err != nil {
 		return fmt.Errorf("submit create: failed to fetch version localizations for preflight: %w", err)
@@ -164,7 +164,11 @@ func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Clien
 		return fmt.Errorf("submit create: submit preflight failed")
 	}
 
-	issues := shared.SubmitReadinessIssuesByLocale(localizations.Data)
+	opts := shared.SubmitReadinessOptions{
+		RequireWhatsNew: isAppUpdate(ctx, client, appID),
+	}
+
+	issues := shared.SubmitReadinessIssuesByLocaleWithOptions(localizations.Data, opts)
 	if len(issues) == 0 {
 		return nil
 	}
@@ -173,8 +177,23 @@ func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Clien
 	for _, issue := range issues {
 		fmt.Fprintf(os.Stderr, "  - %s: %s\n", issue.Locale, strings.Join(issue.MissingFields, ", "))
 	}
-	fmt.Fprintln(os.Stderr, "Fix these with `asc apps info edit` (optionally using --copy-from-locale) before retrying submit create.")
+	fmt.Fprintln(os.Stderr, "Fix these with `asc metadata push` or `asc apps info edit` before retrying submit create.")
 	return fmt.Errorf("submit create: submit preflight failed")
+}
+
+// isAppUpdate returns true if the app already has a version in READY_FOR_SALE
+// state, meaning this submission is an update and whatsNew is required.
+func isAppUpdate(ctx context.Context, client *asc.Client, appID string) bool {
+	versions, err := client.GetAppStoreVersions(ctx, appID,
+		asc.WithAppStoreVersionsStates([]string{"READY_FOR_SALE"}),
+		asc.WithAppStoreVersionsLimit(1),
+	)
+	if err != nil {
+		// On failure, assume update to be safe — better to warn about
+		// missing whatsNew than to let it through and have Apple reject.
+		return true
+	}
+	return len(versions.Data) > 0
 }
 
 func SubmitStatusCommand() *ffcli.Command {
