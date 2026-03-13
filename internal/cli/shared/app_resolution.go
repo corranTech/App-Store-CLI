@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -51,7 +52,12 @@ func ResolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID 
 		return "", fmt.Errorf("no app info found for app %q", appID)
 	}
 	if len(resp.Data) > 1 {
-		return "", fmt.Errorf("multiple app infos found for app %q; run `asc apps info list --app %q` to inspect candidates, then pass the explicit app info ID", appID, appID)
+		selected := SelectBestAppInfoID(resp)
+		if selected == "" {
+			return "", fmt.Errorf("multiple app infos found for app %q; run `asc apps info list --app %q` to inspect candidates, then pass the explicit app info ID", appID, appID)
+		}
+		fmt.Fprintf(os.Stderr, "Multiple app infos found for app %s, auto-selected %s (editable).\n", appID, selected)
+		return selected, nil
 	}
 	return resp.Data[0].ID, nil
 }

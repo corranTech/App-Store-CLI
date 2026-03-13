@@ -90,3 +90,92 @@ func TestResolveAppStoreVersionIDAndState_FallsBackToTrimmedAppStoreState(t *tes
 		t.Fatalf("expected fallback state READY_FOR_SALE, got %q", versionState)
 	}
 }
+
+func TestResolveAppInfoID_ExplicitOverride(t *testing.T) {
+	id, err := ResolveAppInfoID(context.Background(), nil, "app-1", "explicit-id")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "explicit-id" {
+		t.Fatalf("expected explicit-id, got %q", id)
+	}
+}
+
+func TestResolveAppInfoID_SingleAppInfo(t *testing.T) {
+	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+		return appResolutionJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}}]}`)
+	})
+
+	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "info-1" {
+		t.Fatalf("expected info-1, got %q", id)
+	}
+}
+
+func TestResolveAppInfoID_AutoSelectsEditableFromMultiple(t *testing.T) {
+	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+		return appResolutionJSONResponse(http.StatusOK, `{"data":[
+			{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}},
+			{"type":"appInfos","id":"info-editable","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
+		]}`)
+	})
+
+	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "info-editable" {
+		t.Fatalf("expected info-editable, got %q", id)
+	}
+}
+
+func TestResolveAppInfoID_AutoSelectsNonLiveWhenNoPrepare(t *testing.T) {
+	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+		return appResolutionJSONResponse(http.StatusOK, `{"data":[
+			{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}},
+			{"type":"appInfos","id":"info-review","attributes":{"state":"IN_REVIEW"}}
+		]}`)
+	})
+
+	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "info-review" {
+		t.Fatalf("expected info-review, got %q", id)
+	}
+}
+
+func TestResolveAppInfoID_FallsBackToFirstWhenAllLive(t *testing.T) {
+	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+		return appResolutionJSONResponse(http.StatusOK, `{"data":[
+			{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}},
+			{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_DISTRIBUTION"}}
+		]}`)
+	})
+
+	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "info-1" {
+		t.Fatalf("expected info-1 (first), got %q", id)
+	}
+}
+
+func TestResolveAppInfoID_NoAppInfos(t *testing.T) {
+	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+		return appResolutionJSONResponse(http.StatusOK, `{"data":[]}`)
+	})
+
+	_, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "no app info found") {
+		t.Fatalf("expected 'no app info found' error, got: %v", err)
+	}
+}
