@@ -10,6 +10,7 @@ import (
 
 func TestUploadScreenshotsSkipExistingStartsUploadTimeoutAfterChecksumFiltering(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "200ms")
+	t.Setenv("ASC_UPLOAD_TIMEOUT", "30s")
 
 	filePath := writeAssetsTestPNG(t, t.TempDir(), "01-home.png")
 	fileSizeBytes := fileSize(t, filePath)
