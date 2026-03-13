@@ -11,6 +11,7 @@ const AppleStandardEULAURL = "https://www.apple.com/legal/internet-services/itun
 var (
 	descriptionURLPattern = regexp.MustCompile(`https?://[^\s]+`)
 	termsKeywordPattern   = regexp.MustCompile(`(?i)\bterms of use\b|\bterms\b|\beula\b`)
+	termsURLPattern       = regexp.MustCompile(`(^|[^a-z0-9])(terms?|eula|tos|termsofservice)([^a-z0-9]|$)`)
 )
 
 func legalChecks(copyright string, hasActiveMonetization bool, hasReviewRelevantSubscriptions bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
@@ -158,9 +159,7 @@ func isAppleStandardEULAURL(raw string) bool {
 
 func urlLooksLikeTermsLink(raw string) bool {
 	lower := strings.ToLower(raw)
-	return strings.Contains(lower, "terms") ||
-		strings.Contains(lower, "eula") ||
-		strings.Contains(lower, "tos")
+	return termsURLPattern.MatchString(lower)
 }
 
 // isValidHTTPURL returns true for absolute HTTP/HTTPS URLs with a hostname and no raw whitespace.

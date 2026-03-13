@@ -214,6 +214,11 @@ func TestHasTermsOfUseLink(t *testing.T) {
 			want:        true,
 		},
 		{
+			name:        "tos path url accepted",
+			description: "https://example.com/tos",
+			want:        true,
+		},
+		{
 			name:        "keyword without url",
 			description: "Terms of Use available in the app settings.",
 			want:        false,
@@ -221,6 +226,11 @@ func TestHasTermsOfUseLink(t *testing.T) {
 		{
 			name:        "random url without terms context",
 			description: "Learn more at https://example.com/about",
+			want:        false,
+		},
+		{
+			name:        "photos url is not mistaken for tos",
+			description: "Gallery: https://example.com/photos",
 			want:        false,
 		},
 	}
