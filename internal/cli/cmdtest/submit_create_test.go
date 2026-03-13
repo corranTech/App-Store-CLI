@@ -819,6 +819,124 @@ func TestSubmitCreateLocalizationPreflightDoesNotConsumeSubmitTimeoutBudget(t *t
 	}
 }
 
+func TestSubmitCreateRecoversFromAlreadyAddedError(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 10)
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		// Version resolution + isAppUpdate check
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE") {
+				return submitCreateJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		// Localization preflight
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Desc","keywords":"kw","supportUrl":"https://example.com","whatsNew":"Bug fixes"}}]}`)
+
+		// Subscription preflight
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		// No stale submissions
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		// Attach build to version
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		// Create new review submission
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		// Add version fails with "already added" error
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusConflict, `{
+				"errors": [{
+					"status": "409",
+					"code": "ENTITY_ERROR",
+					"title": "The request entity is not valid.",
+					"detail": "An attribute value is not valid.",
+					"meta": {
+						"associatedErrors": {
+							"/v1/reviewSubmissionItems": [{
+								"code": "ENTITY_ERROR.RELATIONSHIP.INVALID",
+								"detail": "appStoreVersions with id 883340862 was already added to another reviewSubmission with id fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a"
+							}]
+						}
+					}
+				}]
+			}`)
+
+		// Cancel the empty new submission we created
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"CANCELING"}}}`)
+
+		// Submit the existing submission for review
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-13T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	// Verify recovery message was logged
+	if !strings.Contains(stderr, "Version already in review submission") {
+		t.Errorf("expected recovery message in stderr, got: %q", stderr)
+	}
+
+	// Verify the existing submission was submitted (not the new one)
+	foundExistingSubmit := false
+	for _, req := range requests {
+		if req == "PATCH /v1/reviewSubmissions/fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a" {
+			foundExistingSubmit = true
+		}
+	}
+	if !foundExistingSubmit {
+		t.Fatal("expected existing submission to be submitted for review")
+	}
+
+	// Verify stdout has valid JSON result
+	if stdout == "" {
+		t.Fatal("expected JSON output on stdout")
+	}
+	if !strings.Contains(stdout, "fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a") {
+		t.Errorf("expected output to reference existing submission ID, got: %q", stdout)
+	}
+}
+
 func sleepWithContext(ctx context.Context) error {
 	timer := time.NewTimer(70 * time.Millisecond)
 	defer timer.Stop()

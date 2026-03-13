@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -135,14 +136,27 @@ Examples:
 				return fmt.Errorf("submit create: failed to create review submission: %w", err)
 			}
 
-			// Step 2: Add the app store version as a submission item
+			// Step 2: Add the app store version as a submission item.
+			// If the version is already in another submission, recover by
+			// submitting that existing submission instead.
+			submissionIDToSubmit := reviewSubmission.Data.ID
 			_, err = client.AddReviewSubmissionItem(requestCtx, reviewSubmission.Data.ID, resolvedVersionID)
 			if err != nil {
-				return fmt.Errorf("submit create: failed to add version to submission: %w", err)
+				existingID := extractExistingSubmissionID(err)
+				if existingID == "" {
+					return fmt.Errorf("submit create: failed to add version to submission: %w", err)
+				}
+				fmt.Fprintf(os.Stderr, "Version already in review submission %s, reusing it.\n", existingID)
+				submissionIDToSubmit = existingID
+
+				// Clean up the empty submission we just created.
+				if _, cancelErr := client.CancelReviewSubmission(requestCtx, reviewSubmission.Data.ID); cancelErr != nil {
+					fmt.Fprintf(os.Stderr, "Warning: failed to cancel empty submission %s: %v\n", reviewSubmission.Data.ID, cancelErr)
+				}
 			}
 
 			// Step 3: Submit for review
-			submitResp, err := client.SubmitReviewSubmission(requestCtx, reviewSubmission.Data.ID)
+			submitResp, err := client.SubmitReviewSubmission(requestCtx, submissionIDToSubmit)
 			if err != nil {
 				return fmt.Errorf("submit create: failed to submit for review: %w", err)
 			}
@@ -560,6 +574,32 @@ func subscriptionPreflightSkipReason(err error, resourceLabel string) string {
 		return fmt.Sprintf("App Store Connect could not be reached while loading %s", resourceLabel)
 	}
 	return fmt.Sprintf("failed to load %s: %v", resourceLabel, err)
+}
+
+// alreadyAddedPattern matches Apple's error message when a version is already
+// in another review submission. The capture group extracts the submission ID.
+// Uses \S+ rather than a strict UUID pattern because the API spec defines
+// ReviewSubmission.id as a generic string.
+var alreadyAddedPattern = regexp.MustCompile(
+	`(?i)already added to another reviewSubmission with id\s+(\S+)`,
+)
+
+// extractExistingSubmissionID inspects an error returned by AddReviewSubmissionItem
+// to see if it indicates the version is already in another review submission.
+// If so, it returns the existing submission's ID; otherwise it returns "".
+func extractExistingSubmissionID(err error) string {
+	var apiErr *asc.APIError
+	if !errors.As(err, &apiErr) {
+		return ""
+	}
+	for _, entries := range apiErr.AssociatedErrors {
+		for _, entry := range entries {
+			if m := alreadyAddedPattern.FindStringSubmatch(entry.Detail); len(m) == 2 {
+				return m[1]
+			}
+		}
+	}
+	return ""
 }
 
 // cancelStaleReviewSubmissions cancels any READY_FOR_REVIEW submissions for the
