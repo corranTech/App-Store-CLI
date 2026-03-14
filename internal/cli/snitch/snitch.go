@@ -121,6 +121,7 @@ Examples:
 				Repro:       strings.TrimSpace(*repro),
 				Expected:    strings.TrimSpace(*expected),
 				Actual:      strings.TrimSpace(*actual),
+				Labels:      append([]string(nil), labels...),
 				Severity:    sev,
 				Timestamp:   time.Now().UTC(),
 				ASCVersion:  version,
@@ -290,6 +291,7 @@ type LogEntry struct {
 	Repro       string    `json:"repro,omitempty"`
 	Expected    string    `json:"expected,omitempty"`
 	Actual      string    `json:"actual,omitempty"`
+	Labels      []string  `json:"labels,omitempty"`
 	Severity    string    `json:"severity"`
 	Timestamp   time.Time `json:"timestamp"`
 	ASCVersion  string    `json:"asc_version"`
