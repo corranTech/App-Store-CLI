@@ -794,6 +794,17 @@ func TestCredentialStorageLabel(t *testing.T) {
 }
 
 func TestAuthTokenCommand(t *testing.T) {
+	t.Run("rejects without --confirm", func(t *testing.T) {
+		cmd := AuthTokenCommand()
+		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		err := cmd.Exec(context.Background(), []string{})
+		if err == nil || !strings.Contains(err.Error(), "--confirm is required") {
+			t.Fatalf("expected --confirm required error, got %v", err)
+		}
+	})
+
 	t.Run("no credentials and no env", func(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
@@ -805,7 +816,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		t.Setenv("ASC_PRIVATE_KEY_B64", "")
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--confirm"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		err := cmd.Exec(context.Background(), []string{})
@@ -824,7 +835,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		}
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{"--name", "missing"}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--confirm", "--name", "missing"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		err := cmd.Exec(context.Background(), []string{})
@@ -843,7 +854,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		}
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--confirm"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		stdout, _ := captureAuthOutput(t, func() {
@@ -868,7 +879,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		}
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--confirm", "--output", "json"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		stdout, _ := captureAuthOutput(t, func() {
@@ -910,7 +921,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		}
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{"--name", "second", "--output", "json"}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--confirm", "--name", "second", "--output", "json"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		stdout, _ := captureAuthOutput(t, func() {
@@ -953,7 +964,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		}
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--confirm"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		err = cmd.Exec(context.Background(), []string{})

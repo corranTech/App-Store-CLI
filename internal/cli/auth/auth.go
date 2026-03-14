@@ -896,27 +896,32 @@ func AuthTokenCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth token", flag.ExitOnError)
 
 	name := fs.String("name", "", "Profile name (uses default profile if omitted)")
+	confirm := fs.Bool("confirm", false, "Acknowledge that a sensitive token will be printed")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "text", "Output format: text (raw token), json", "text", "json")
 
 	return &ffcli.Command{
 		Name:       "token",
-		ShortUsage: "asc auth token [flags]",
+		ShortUsage: "asc auth token --confirm [flags]",
 		ShortHelp:  "Print a signed JWT for direct App Store Connect API calls.",
 		LongHelp: `Print a signed JWT for direct App Store Connect API calls.
 
-The token is valid for 10 minutes and printed to stdout so it can be used
-in shell pipelines.
+The --confirm flag is required to acknowledge that a sensitive token will
+be printed. The token is valid for 10 minutes and printed to stdout so it
+can be used in shell pipelines.
 
 Examples:
-  asc auth token
-  asc auth token --name "MyKey"
-  asc auth token --output json
-  curl -H "Authorization: Bearer $(asc auth token)" https://api.appstoreconnect.apple.com/v1/apps`,
+  asc auth token --confirm
+  asc auth token --confirm --name "MyKey"
+  asc auth token --confirm --output json
+  curl -H "Authorization: Bearer $(asc auth token --confirm)" https://api.appstoreconnect.apple.com/v1/apps`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+			if !*confirm {
+				return fmt.Errorf("auth token: --confirm is required to print a sensitive JWT; if the token leaks, it grants API access for 10 minutes")
 			}
 			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
 			if err != nil {
