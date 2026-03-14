@@ -2,7 +2,10 @@ package xcodecloud
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
+	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -43,27 +46,42 @@ type xcodeCloudActionResourceListConfig struct {
 	ShortUsage  string
 	ShortHelp   string
 	LongHelp    string
-	ParentUsage string
 	ErrorPrefix string
 	FetchPage   func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error)
 }
 
 func newXcodeCloudActionResourceListCommand(config xcodeCloudActionResourceListConfig) *ffcli.Command {
-	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  config.ShortUsage,
-		ShortHelp:   config.ShortHelp,
-		LongHelp:    config.LongHelp,
-		ParentFlag:  "action-id",
-		ParentUsage: config.ParentUsage,
-		LimitMax:    200,
-		ErrorPrefix: config.ErrorPrefix,
-		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	actionID := fs.String("action-id", "", "Build action ID to list resources for")
+	runID := fs.String("run-id", "", "Build run ID to resolve a single action from")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: config.ShortUsage,
+		ShortHelp:  config.ShortHelp,
+		LongHelp:   config.LongHelp,
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			return runXcodeCloudActionResourceList(
+				ctx,
+				*actionID,
+				*runID,
+				*limit,
+				*next,
+				*paginate,
+				*output.Output,
+				*output.Pretty,
+				config.ErrorPrefix,
+				config.FetchPage,
+			)
 		},
-		FetchPage: config.FetchPage,
-	})
+	}
 }
 
 type xcodeCloudActionResourceGetConfig struct {
@@ -101,7 +119,6 @@ type xcodeCloudActionResourceCommandConfig struct {
 	ListShortUsage  string
 	ListShortHelp   string
 	ListLongHelp    string
-	ListParentUsage string
 	ListErrorPrefix string
 	ListFetchPage   func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error)
 
@@ -123,7 +140,6 @@ func newXcodeCloudActionResourceCommand(config xcodeCloudActionResourceCommandCo
 			ShortUsage:  config.ListShortUsage,
 			ShortHelp:   config.ListShortHelp,
 			LongHelp:    config.ListLongHelp,
-			ParentUsage: config.ListParentUsage,
 			ErrorPrefix: config.ListErrorPrefix,
 			FetchPage:   config.ListFetchPage,
 		}),
@@ -146,6 +162,7 @@ var xcodeCloudIssuesCommandConfig = xcodeCloudActionResourceCommandConfig{
 
 Examples:
   asc xcode-cloud issues list --action-id "ACTION_ID"
+  asc xcode-cloud issues list --run-id "BUILD_RUN_ID"
   asc xcode-cloud issues get --id "ISSUE_ID"`,
 	ListShortUsage: "asc xcode-cloud issues list [flags]",
 	ListShortHelp:  "List issues for a build action.",
@@ -153,10 +170,10 @@ Examples:
 
 Examples:
   asc xcode-cloud issues list --action-id "ACTION_ID"
+  asc xcode-cloud issues list --run-id "BUILD_RUN_ID"
   asc xcode-cloud issues list --action-id "ACTION_ID" --output table
   asc xcode-cloud issues list --action-id "ACTION_ID" --limit 50
   asc xcode-cloud issues list --action-id "ACTION_ID" --paginate`,
-	ListParentUsage: "Build action ID to list issues for",
 	ListErrorPrefix: "xcode-cloud issues list",
 	ListFetchPage: func(ctx context.Context, client *asc.Client, actionID string, limit int, next string) (asc.PaginatedResponse, error) {
 		return client.GetCiBuildActionIssues(ctx, actionID,
@@ -196,7 +213,6 @@ Examples:
   asc xcode-cloud test-results list --action-id "ACTION_ID" --output table
   asc xcode-cloud test-results list --action-id "ACTION_ID" --limit 50
   asc xcode-cloud test-results list --action-id "ACTION_ID" --paginate`,
-	ListParentUsage: "Build action ID to list test results for",
 	ListErrorPrefix: "xcode-cloud test-results list",
 	ListFetchPage: func(ctx context.Context, client *asc.Client, actionID string, limit int, next string) (asc.PaginatedResponse, error) {
 		return client.GetCiBuildActionTestResults(ctx, actionID,
@@ -216,4 +232,91 @@ Examples:
 	GetFetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 		return client.GetCiTestResult(ctx, id)
 	},
+}
+
+func runXcodeCloudActionResourceList(
+	ctx context.Context,
+	actionID string,
+	runID string,
+	limit int,
+	next string,
+	paginate bool,
+	output string,
+	pretty bool,
+	errorPrefix string,
+	fetchPage func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error),
+) error {
+	if strings.TrimSpace(actionID) != "" && strings.TrimSpace(runID) != "" {
+		return shared.UsageError("--action-id and --run-id are mutually exclusive")
+	}
+	if limit != 0 && (limit < 1 || limit > 200) {
+		return fmt.Errorf("%s: --limit must be between 1 and 200", errorPrefix)
+	}
+
+	nextURL := strings.TrimSpace(next)
+	if err := shared.ValidateNextURL(nextURL); err != nil {
+		return fmt.Errorf("%s: %w", errorPrefix, err)
+	}
+
+	resolvedActionID := strings.TrimSpace(actionID)
+	resolvedRunID := strings.TrimSpace(runID)
+	if resolvedActionID == "" && resolvedRunID == "" && nextURL == "" {
+		return shared.UsageError("--action-id or --run-id is required")
+	}
+
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return fmt.Errorf("%s: %w", errorPrefix, err)
+	}
+
+	requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+	defer cancel()
+
+	if nextURL == "" && resolvedActionID == "" {
+		resolvedActionID, err = resolveSingleBuildActionIDForRun(requestCtx, client, resolvedRunID)
+		if err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return err
+			}
+			return fmt.Errorf("%s: %w", errorPrefix, err)
+		}
+	}
+
+	if paginate {
+		resp, err := shared.PaginateWithSpinner(requestCtx,
+			func(ctx context.Context) (asc.PaginatedResponse, error) {
+				return fetchPage(ctx, client, resolvedActionID, 200, nextURL)
+			},
+			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return fetchPage(ctx, client, resolvedActionID, 0, nextURL)
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("%s: %w", errorPrefix, err)
+		}
+		return shared.PrintOutput(resp, output, pretty)
+	}
+
+	resp, err := fetchPage(requestCtx, client, resolvedActionID, limit, nextURL)
+	if err != nil {
+		return fmt.Errorf("%s: %w", errorPrefix, err)
+	}
+
+	return shared.PrintOutput(resp, output, pretty)
+}
+
+func resolveSingleBuildActionIDForRun(ctx context.Context, client *asc.Client, runID string) (string, error) {
+	resp, err := client.GetCiBuildActions(ctx, runID, asc.WithCiBuildActionsLimit(2))
+	if err != nil {
+		return "", fmt.Errorf("resolve build actions for run %q: %w", runID, err)
+	}
+
+	if len(resp.Data) == 0 {
+		return "", shared.UsageErrorf("no build actions found for --run-id %q", runID)
+	}
+	if len(resp.Data) > 1 || strings.TrimSpace(resp.Links.Next) != "" {
+		return "", shared.UsageErrorf("--run-id %q matched multiple build actions; use --action-id or inspect asc xcode-cloud actions --run-id %q", runID, runID)
+	}
+
+	return strings.TrimSpace(resp.Data[0].ID), nil
 }
