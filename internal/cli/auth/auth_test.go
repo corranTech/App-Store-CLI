@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	authsvc "github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -794,34 +793,19 @@ func TestCredentialStorageLabel(t *testing.T) {
 }
 
 func TestAuthTokenCommand(t *testing.T) {
-	t.Run("rejects without --confirm", func(t *testing.T) {
-		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
-			t.Fatalf("Parse() error: %v", err)
-		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "--confirm is required") {
-			t.Fatalf("expected --confirm required error, got %v", err)
-		}
-	})
-
-	t.Run("no credentials and no env", func(t *testing.T) {
+	t.Run("no credentials", func(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", cfgPath)
-		t.Setenv("ASC_KEY_ID", "")
-		t.Setenv("ASC_ISSUER_ID", "")
-		t.Setenv("ASC_PRIVATE_KEY_PATH", "")
-		t.Setenv("ASC_PRIVATE_KEY", "")
-		t.Setenv("ASC_PRIVATE_KEY_B64", "")
+		clearResolvedAuthEnv(t)
 
 		cmd := AuthTokenCommand()
 		if err := cmd.FlagSet.Parse([]string{"--confirm"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "no credentials stored") {
-			t.Fatalf("expected no credentials error, got %v", err)
+		if err == nil || !strings.Contains(err.Error(), "missing authentication") {
+			t.Fatalf("expected missing authentication error, got %v", err)
 		}
 	})
 
@@ -829,13 +813,14 @@ func TestAuthTokenCommand(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
 		keyPath := writeTempECDSAKeyFile(t)
 		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY", "ISS", keyPath, cfgPath); err != nil {
 			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
 		}
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{"--confirm", "--name", "missing"}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--name", "missing", "--confirm"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		err := cmd.Exec(context.Background(), []string{})
@@ -844,10 +829,76 @@ func TestAuthTokenCommand(t *testing.T) {
 		}
 	})
 
+	t.Run("requires confirm", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
+		keyPath := writeTempECDSAKeyFile(t)
+		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY123", "ISS456", keyPath, cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+
+		cmd := AuthTokenCommand()
+		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "--confirm is required") {
+			t.Fatalf("expected confirm required error, got %q", stderr)
+		}
+	})
+
+	t.Run("falls back to env credentials", func(t *testing.T) {
+		keyPath := writeTempECDSAKeyFile(t)
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+		clearResolvedAuthEnv(t)
+		t.Setenv("ASC_KEY_ID", "ENVKEY")
+		t.Setenv("ASC_ISSUER_ID", "ENVISS")
+		t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+		t.Setenv("ASC_PRIVATE_KEY", "")
+		t.Setenv("ASC_PRIVATE_KEY_B64", "")
+
+		cmd := AuthTokenCommand()
+		if err := cmd.FlagSet.Parse([]string{"--confirm", "--output", "json"}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, _ := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+
+		var payload struct {
+			Token   string `json:"token"`
+			KeyID   string `json:"keyId"`
+			Profile string `json:"profile"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+			t.Fatalf("failed to unmarshal json: %v; stdout=%q", err, stdout)
+		}
+		if payload.KeyID != "ENVKEY" {
+			t.Fatalf("expected keyId ENVKEY, got %q", payload.KeyID)
+		}
+		if payload.Profile != "" {
+			t.Fatalf("expected empty profile for env credentials, got %q", payload.Profile)
+		}
+		if parts := strings.Split(payload.Token, "."); len(parts) != 3 {
+			t.Fatalf("expected JWT in token field, got %q", payload.Token)
+		}
+	})
+
 	t.Run("prints raw token to stdout", func(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
 		keyPath := writeTempECDSAKeyFile(t)
 		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY123", "ISS456", keyPath, cfgPath); err != nil {
 			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
@@ -873,6 +924,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
 		keyPath := writeTempECDSAKeyFile(t)
 		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY123", "ISS456", keyPath, cfgPath); err != nil {
 			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
@@ -912,6 +964,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
 		keyPath := writeTempECDSAKeyFile(t)
 		if err := authsvc.StoreCredentialsConfigAt("first", "KEY_A", "ISS_A", keyPath, cfgPath); err != nil {
 			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
@@ -921,7 +974,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		}
 
 		cmd := AuthTokenCommand()
-		if err := cmd.FlagSet.Parse([]string{"--confirm", "--name", "second", "--output", "json"}); err != nil {
+		if err := cmd.FlagSet.Parse([]string{"--name", "second", "--confirm", "--output", "json"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		stdout, _ := captureAuthOutput(t, func() {
@@ -946,6 +999,7 @@ func TestAuthTokenCommand(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		clearResolvedAuthEnv(t)
 		keyPath := writeTempECDSAKeyFile(t)
 		if err := authsvc.StoreCredentialsConfigAt("first", "KEY_A", "ISS_A", keyPath, cfgPath); err != nil {
 			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
@@ -968,7 +1022,7 @@ func TestAuthTokenCommand(t *testing.T) {
 			t.Fatalf("Parse() error: %v", err)
 		}
 		err = cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "use --name to select") {
+		if err == nil || !strings.Contains(err.Error(), "use --name or --profile to select one") {
 			t.Fatalf("expected multiple credentials error, got %v", err)
 		}
 	})
@@ -986,92 +1040,6 @@ func TestAuthTokenCommand(t *testing.T) {
 		})
 		if !strings.Contains(stderr, "unexpected argument") {
 			t.Fatalf("expected unexpected argument error, got %q", stderr)
-		}
-	})
-}
-
-func TestResolveTokenCredential(t *testing.T) {
-	t.Run("uses default when no profile specified", func(t *testing.T) {
-		cfgPath := filepath.Join(t.TempDir(), "config.json")
-		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-		t.Setenv("ASC_CONFIG_PATH", cfgPath)
-		keyPath := writeTempECDSAKeyFile(t)
-		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY", "ISS", keyPath, cfgPath); err != nil {
-			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
-		}
-
-		cred, err := resolveTokenCredential("")
-		if err != nil {
-			t.Fatalf("resolveTokenCredential() error: %v", err)
-		}
-		if cred.KeyID != "KEY" {
-			t.Fatalf("expected KeyID=KEY, got %q", cred.KeyID)
-		}
-	})
-
-	t.Run("named profile", func(t *testing.T) {
-		cfgPath := filepath.Join(t.TempDir(), "config.json")
-		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-		t.Setenv("ASC_CONFIG_PATH", cfgPath)
-		keyPath := writeTempECDSAKeyFile(t)
-		if err := authsvc.StoreCredentialsConfigAt("target", "KEY_T", "ISS", keyPath, cfgPath); err != nil {
-			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
-		}
-
-		cred, err := resolveTokenCredential("target")
-		if err != nil {
-			t.Fatalf("resolveTokenCredential() error: %v", err)
-		}
-		if cred.KeyID != "KEY_T" {
-			t.Fatalf("expected KeyID=KEY_T, got %q", cred.KeyID)
-		}
-	})
-
-	t.Run("falls back to env vars when no stored credentials", func(t *testing.T) {
-		cfgPath := filepath.Join(t.TempDir(), "config.json")
-		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-		t.Setenv("ASC_CONFIG_PATH", cfgPath)
-		keyPath := writeTempECDSAKeyFile(t)
-		t.Setenv("ASC_KEY_ID", "ENV_KEY")
-		t.Setenv("ASC_ISSUER_ID", "ENV_ISS")
-		t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
-
-		cred, err := resolveTokenCredential("")
-		if err != nil {
-			t.Fatalf("resolveTokenCredential() error: %v", err)
-		}
-		if cred.KeyID != "ENV_KEY" {
-			t.Fatalf("expected KeyID=ENV_KEY, got %q", cred.KeyID)
-		}
-		if cred.IssuerID != "ENV_ISS" {
-			t.Fatalf("expected IssuerID=ENV_ISS, got %q", cred.IssuerID)
-		}
-		if cred.Source != "env" {
-			t.Fatalf("expected Source=env, got %q", cred.Source)
-		}
-	})
-
-	t.Run("respects global profile when name is empty", func(t *testing.T) {
-		cfgPath := filepath.Join(t.TempDir(), "config.json")
-		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-		t.Setenv("ASC_CONFIG_PATH", cfgPath)
-		keyPath := writeTempECDSAKeyFile(t)
-		if err := authsvc.StoreCredentialsConfigAt("default", "KEY_D", "ISS", keyPath, cfgPath); err != nil {
-			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
-		}
-		if err := authsvc.StoreCredentialsConfigAt("global", "KEY_G", "ISS", keyPath, cfgPath); err != nil {
-			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
-		}
-
-		shared.SetSelectedProfile("global")
-		defer shared.SetSelectedProfile("")
-
-		cred, err := resolveTokenCredential("")
-		if err != nil {
-			t.Fatalf("resolveTokenCredential() error: %v", err)
-		}
-		if cred.KeyID != "KEY_G" {
-			t.Fatalf("expected KeyID=KEY_G (from global --profile), got %q", cred.KeyID)
 		}
 	})
 }
@@ -1115,6 +1083,16 @@ func withTempRepo(t *testing.T, fn func(repo string)) {
 	})
 
 	fn(repo)
+}
+
+func clearResolvedAuthEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 }
 
 func captureAuthOutput(t *testing.T, fn func()) (string, string) {

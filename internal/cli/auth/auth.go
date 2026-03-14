@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -896,7 +895,7 @@ func AuthTokenCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth token", flag.ExitOnError)
 
 	name := fs.String("name", "", "Profile name (uses default profile if omitted)")
-	confirm := fs.Bool("confirm", false, "Acknowledge that a sensitive token will be printed")
+	confirm := fs.Bool("confirm", false, "Confirm printing a live JWT to stdout")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "text", "Output format: text (raw token), json", "text", "json")
 
 	return &ffcli.Command{
@@ -905,13 +904,14 @@ func AuthTokenCommand() *ffcli.Command {
 		ShortHelp:  "Print a signed JWT for direct App Store Connect API calls.",
 		LongHelp: `Print a signed JWT for direct App Store Connect API calls.
 
-The --confirm flag is required to acknowledge that a sensitive token will
-be printed. The token is valid for 10 minutes and printed to stdout so it
-can be used in shell pipelines.
+The token is valid for 10 minutes and printed to stdout so it can be used
+in shell pipelines.
+
+Requires --confirm because this prints a live bearer token to stdout.
 
 Examples:
   asc auth token --confirm
-  asc auth token --confirm --name "MyKey"
+  asc auth token --name "MyKey" --confirm
   asc auth token --confirm --output json
   curl -H "Authorization: Bearer $(asc auth token --confirm)" https://api.appstoreconnect.apple.com/v1/apps`,
 		FlagSet:   fs,
@@ -920,15 +920,19 @@ Examples:
 			if len(args) > 0 {
 				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
 			}
-			if !*confirm {
-				return fmt.Errorf("auth token: --confirm is required to print a sensitive JWT; if the token leaks, it grants API access for 10 minutes")
+			trimmedName := strings.TrimSpace(*name)
+			if trimmedName == "" && *name != "" {
+				return shared.UsageError("--name cannot be blank")
 			}
 			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			if !*confirm {
+				return shared.UsageError("--confirm is required")
+			}
 
-			cred, err := resolveTokenCredential(strings.TrimSpace(*name))
+			cred, err := resolveAuthTokenCredentials(trimmedName)
 			if err != nil {
 				return fmt.Errorf("auth token: %w", err)
 			}
@@ -951,7 +955,7 @@ Examples:
 				}{
 					Token:   token,
 					KeyID:   cred.KeyID,
-					Profile: cred.Name,
+					Profile: cred.Profile,
 				}, "json", *output.Pretty)
 			}
 
@@ -961,89 +965,45 @@ Examples:
 	}
 }
 
-func resolveTokenCredential(profile string) (authsvc.Credential, error) {
-	// P2 fix: fall back to the global --profile / ASC_PROFILE when --name is not set.
-	if profile == "" {
-		profile = shared.ResolveProfileName()
+func resolveAuthTokenCredentials(profile string) (shared.ResolvedAuthCredentials, error) {
+	cred, err := shared.ResolveAuthCredentials(profile)
+	if err == nil {
+		return cred, nil
 	}
 
+	if strings.TrimSpace(profile) != "" || strings.TrimSpace(shared.ResolveProfileName()) != "" || !errors.Is(err, shared.ErrMissingAuth) {
+		return shared.ResolvedAuthCredentials{}, err
+	}
+
+	ambiguous, ambiguousErr := tokenCredentialsAreAmbiguous()
+	if ambiguousErr != nil || !ambiguous {
+		return shared.ResolvedAuthCredentials{}, err
+	}
+
+	return shared.ResolvedAuthCredentials{}, fmt.Errorf("multiple credentials stored; use --name or --profile to select one")
+}
+
+func tokenCredentialsAreAmbiguous() (bool, error) {
 	credentials, err := authsvc.ListCredentials()
 	if err != nil {
 		if _, ok := errors.AsType[*authsvc.CredentialsWarning](err); !ok {
-			return authsvc.Credential{}, fmt.Errorf("failed to list credentials: %w", err)
+			return false, err
 		}
 	}
-
-	// P1 fix: when no stored credentials exist, fall back to env vars
-	// so CI/ephemeral environments using ASC_KEY_ID / ASC_ISSUER_ID /
-	// ASC_PRIVATE_KEY* can generate a JWT without writing a profile to disk.
-	if len(credentials) == 0 {
-		return credentialFromEnv()
+	if len(credentials) <= 1 {
+		return false, nil
 	}
-
-	if profile != "" {
-		for _, cred := range credentials {
-			if cred.Name == profile {
-				return cred, nil
-			}
-		}
-		return authsvc.Credential{}, fmt.Errorf("profile %q not found", profile)
-	}
-
-	// Use the default credential, or the only one if there's just one.
 	for _, cred := range credentials {
 		if cred.IsDefault {
-			return cred, nil
+			return false, nil
 		}
 	}
-	if len(credentials) == 1 {
-		return credentials[0], nil
-	}
-
-	return authsvc.Credential{}, fmt.Errorf("multiple credentials stored; use --name to select one")
+	return true, nil
 }
 
-// credentialFromEnv builds a Credential from ASC_KEY_ID, ASC_ISSUER_ID, and
-// ASC_PRIVATE_KEY_PATH / ASC_PRIVATE_KEY / ASC_PRIVATE_KEY_B64 environment
-// variables — the same env vars accepted by every other asc command.
-func credentialFromEnv() (authsvc.Credential, error) {
-	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
-	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
-	keyPath := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH"))
-	keyPEM := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY"))
-	keyB64 := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_B64"))
-
-	if keyID == "" || issuerID == "" {
-		return authsvc.Credential{}, fmt.Errorf("no credentials stored and ASC_KEY_ID/ASC_ISSUER_ID not set; run 'asc auth login' or export env vars")
-	}
-
-	cred := authsvc.Credential{
-		KeyID:    keyID,
-		IssuerID: issuerID,
-		Source:   "env",
-	}
-
-	switch {
-	case keyPath != "":
-		cred.PrivateKeyPath = keyPath
-	case keyPEM != "":
-		cred.PrivateKeyPEM = keyPEM
-	case keyB64 != "":
-		decoded, err := base64.StdEncoding.DecodeString(keyB64)
-		if err != nil {
-			return authsvc.Credential{}, fmt.Errorf("ASC_PRIVATE_KEY_B64: invalid base64: %w", err)
-		}
-		cred.PrivateKeyPEM = string(decoded)
-	default:
-		return authsvc.Credential{}, fmt.Errorf("ASC_KEY_ID/ASC_ISSUER_ID set but no private key; export ASC_PRIVATE_KEY_PATH, ASC_PRIVATE_KEY, or ASC_PRIVATE_KEY_B64")
-	}
-
-	return cred, nil
-}
-
-func loadCredentialKey(cred authsvc.Credential) (*ecdsa.PrivateKey, error) {
-	if pemValue := strings.TrimSpace(cred.PrivateKeyPEM); pemValue != "" {
+func loadCredentialKey(cred shared.ResolvedAuthCredentials) (*ecdsa.PrivateKey, error) {
+	if pemValue := strings.TrimSpace(cred.KeyPEM); pemValue != "" {
 		return authsvc.LoadPrivateKeyFromPEM([]byte(pemValue))
 	}
-	return authsvc.LoadPrivateKey(cred.PrivateKeyPath)
+	return authsvc.LoadPrivateKey(cred.KeyPath)
 }
