@@ -549,6 +549,106 @@ func TestWorkflowsEditSuccess(t *testing.T) {
 	}
 }
 
+func TestWorkflowsEditNullDescriptionNormalizesToEmptyString(t *testing.T) {
+	origResolveSession := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = origResolveSession })
+
+	patchFile, err := os.CreateTemp(t.TempDir(), "workflow-patch-*.json")
+	if err != nil {
+		t.Fatalf("CreateTemp() error = %v", err)
+	}
+	if _, err := patchFile.WriteString(`{"description":null}`); err != nil {
+		t.Fatalf("WriteString() error = %v", err)
+	}
+	if err := patchFile.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	putCalls := 0
+	var putBody []byte
+
+	resolveSessionFn = func(
+		ctx context.Context,
+		appleID, password, twoFactorCode string,
+	) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{
+			PublicProviderID: "team-uuid",
+			Client: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					switch req.Method {
+					case http.MethodGet:
+						body := `{
+							"id":"wf-1",
+							"content":{
+								"name":"Default",
+								"description":"Temporary description",
+								"disabled":false,
+								"locked":false
+							}
+						}`
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+					case http.MethodPut:
+						putCalls++
+						putBody, err = io.ReadAll(req.Body)
+						if err != nil {
+							t.Fatalf("failed reading PUT body: %v", err)
+						}
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(`{}`)),
+							Request:    req,
+						}, nil
+					default:
+						t.Fatalf("unexpected method: %s", req.Method)
+						return nil, nil
+					}
+				}),
+			},
+		}, "cache", nil
+	}
+
+	cmd := webXcodeCloudWorkflowEditCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--apple-id", "user@example.com",
+		"--product-id", "prod-1",
+		"--workflow-id", "wf-1",
+		"--patch-file", patchFile.Name(),
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+	})
+
+	if putCalls != 1 {
+		t.Fatalf("expected 1 PUT call, got %d", putCalls)
+	}
+	if !strings.Contains(string(putBody), `"description":""`) {
+		t.Fatalf("expected empty-string description in PUT body, got %q", string(putBody))
+	}
+
+	var result CIWorkflowEditResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected valid JSON output, got parse error: %v\noutput: %q", err, stdout)
+	}
+	if !result.Changed {
+		t.Fatal("expected changed=true")
+	}
+	if result.Description != "" {
+		t.Fatalf("expected cleared description, got %q", result.Description)
+	}
+}
+
 func TestWorkflowsEditNoChangeSkipsUpdate(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })

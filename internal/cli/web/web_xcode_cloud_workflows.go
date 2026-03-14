@@ -303,7 +303,9 @@ func webXcodeCloudWorkflowEditCommand() *ffcli.Command {
 
 Edit an Xcode Cloud workflow by applying a JSON merge patch to the
 private workflow content returned by the ASC web UI.
-Unspecified fields are preserved. Set a field to null to remove it.
+Unspecified fields are preserved. For string fields such as description,
+prefer explicit empty values when clearing content because Apple's private
+workflow API does not consistently accept null removals.
 
 ` + webWarningText + `
 
@@ -329,6 +331,10 @@ Examples:
 			}
 
 			patchPayload, err := shared.ReadJSONFilePayload(patchFileValue)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud workflows edit: %w", err)
+			}
+			patchPayload, err = normalizeWorkflowPatchForPrivateAPI(patchPayload)
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows edit: %w", err)
 			}
@@ -998,6 +1004,24 @@ func summarizeActionList(raw json.RawMessage) string {
 		names = append(names, name)
 	}
 	return summarizeNameList(names)
+}
+
+func normalizeWorkflowPatchForPrivateAPI(patch json.RawMessage) (json.RawMessage, error) {
+	var objectPatch map[string]json.RawMessage
+	if err := json.Unmarshal(patch, &objectPatch); err != nil {
+		// Preserve existing invalid-patch behavior; ApplyJSONMergePatch will report it.
+		return patch, nil
+	}
+
+	if rawDescription, ok := objectPatch["description"]; ok && bytes.Equal(bytes.TrimSpace(rawDescription), []byte("null")) {
+		objectPatch["description"] = json.RawMessage(`""`)
+	}
+
+	normalized, err := json.Marshal(objectPatch)
+	if err != nil {
+		return nil, fmt.Errorf("normalize workflow patch: %w", err)
+	}
+	return normalized, nil
 }
 
 func summarizeNameList(names []string) string {
