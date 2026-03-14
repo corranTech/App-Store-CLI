@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -956,14 +957,23 @@ Examples:
 }
 
 func resolveTokenCredential(profile string) (authsvc.Credential, error) {
+	// P2 fix: fall back to the global --profile / ASC_PROFILE when --name is not set.
+	if profile == "" {
+		profile = shared.ResolveProfileName()
+	}
+
 	credentials, err := authsvc.ListCredentials()
 	if err != nil {
 		if _, ok := errors.AsType[*authsvc.CredentialsWarning](err); !ok {
 			return authsvc.Credential{}, fmt.Errorf("failed to list credentials: %w", err)
 		}
 	}
+
+	// P1 fix: when no stored credentials exist, fall back to env vars
+	// so CI/ephemeral environments using ASC_KEY_ID / ASC_ISSUER_ID /
+	// ASC_PRIVATE_KEY* can generate a JWT without writing a profile to disk.
 	if len(credentials) == 0 {
-		return authsvc.Credential{}, fmt.Errorf("no credentials stored; run 'asc auth login' first")
+		return credentialFromEnv()
 	}
 
 	if profile != "" {
@@ -986,6 +996,44 @@ func resolveTokenCredential(profile string) (authsvc.Credential, error) {
 	}
 
 	return authsvc.Credential{}, fmt.Errorf("multiple credentials stored; use --name to select one")
+}
+
+// credentialFromEnv builds a Credential from ASC_KEY_ID, ASC_ISSUER_ID, and
+// ASC_PRIVATE_KEY_PATH / ASC_PRIVATE_KEY / ASC_PRIVATE_KEY_B64 environment
+// variables — the same env vars accepted by every other asc command.
+func credentialFromEnv() (authsvc.Credential, error) {
+	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
+	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
+	keyPath := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH"))
+	keyPEM := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY"))
+	keyB64 := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_B64"))
+
+	if keyID == "" || issuerID == "" {
+		return authsvc.Credential{}, fmt.Errorf("no credentials stored and ASC_KEY_ID/ASC_ISSUER_ID not set; run 'asc auth login' or export env vars")
+	}
+
+	cred := authsvc.Credential{
+		KeyID:    keyID,
+		IssuerID: issuerID,
+		Source:   "env",
+	}
+
+	switch {
+	case keyPath != "":
+		cred.PrivateKeyPath = keyPath
+	case keyPEM != "":
+		cred.PrivateKeyPEM = keyPEM
+	case keyB64 != "":
+		decoded, err := base64.StdEncoding.DecodeString(keyB64)
+		if err != nil {
+			return authsvc.Credential{}, fmt.Errorf("ASC_PRIVATE_KEY_B64: invalid base64: %w", err)
+		}
+		cred.PrivateKeyPEM = string(decoded)
+	default:
+		return authsvc.Credential{}, fmt.Errorf("ASC_KEY_ID/ASC_ISSUER_ID set but no private key; export ASC_PRIVATE_KEY_PATH, ASC_PRIVATE_KEY, or ASC_PRIVATE_KEY_B64")
+	}
+
+	return cred, nil
 }
 
 func loadCredentialKey(cred authsvc.Credential) (*ecdsa.PrivateKey, error) {

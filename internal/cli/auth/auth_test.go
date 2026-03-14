@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	authsvc "github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -793,10 +794,15 @@ func TestCredentialStorageLabel(t *testing.T) {
 }
 
 func TestAuthTokenCommand(t *testing.T) {
-	t.Run("no credentials", func(t *testing.T) {
+	t.Run("no credentials and no env", func(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		t.Setenv("ASC_KEY_ID", "")
+		t.Setenv("ASC_ISSUER_ID", "")
+		t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+		t.Setenv("ASC_PRIVATE_KEY", "")
+		t.Setenv("ASC_PRIVATE_KEY_B64", "")
 
 		cmd := AuthTokenCommand()
 		if err := cmd.FlagSet.Parse([]string{}); err != nil {
@@ -1007,6 +1013,54 @@ func TestResolveTokenCredential(t *testing.T) {
 		}
 		if cred.KeyID != "KEY_T" {
 			t.Fatalf("expected KeyID=KEY_T, got %q", cred.KeyID)
+		}
+	})
+
+	t.Run("falls back to env vars when no stored credentials", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		keyPath := writeTempECDSAKeyFile(t)
+		t.Setenv("ASC_KEY_ID", "ENV_KEY")
+		t.Setenv("ASC_ISSUER_ID", "ENV_ISS")
+		t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+
+		cred, err := resolveTokenCredential("")
+		if err != nil {
+			t.Fatalf("resolveTokenCredential() error: %v", err)
+		}
+		if cred.KeyID != "ENV_KEY" {
+			t.Fatalf("expected KeyID=ENV_KEY, got %q", cred.KeyID)
+		}
+		if cred.IssuerID != "ENV_ISS" {
+			t.Fatalf("expected IssuerID=ENV_ISS, got %q", cred.IssuerID)
+		}
+		if cred.Source != "env" {
+			t.Fatalf("expected Source=env, got %q", cred.Source)
+		}
+	})
+
+	t.Run("respects global profile when name is empty", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		keyPath := writeTempECDSAKeyFile(t)
+		if err := authsvc.StoreCredentialsConfigAt("default", "KEY_D", "ISS", keyPath, cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+		if err := authsvc.StoreCredentialsConfigAt("global", "KEY_G", "ISS", keyPath, cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+
+		shared.SetSelectedProfile("global")
+		defer shared.SetSelectedProfile("")
+
+		cred, err := resolveTokenCredential("")
+		if err != nil {
+			t.Fatalf("resolveTokenCredential() error: %v", err)
+		}
+		if cred.KeyID != "KEY_G" {
+			t.Fatalf("expected KeyID=KEY_G (from global --profile), got %q", cred.KeyID)
 		}
 	})
 }
