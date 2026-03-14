@@ -219,6 +219,11 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--source-run-id is mutually exclusive with --workflow and --workflow-id",
 		},
 		{
+			name:    "xcode-cloud issues list conflicting selectors",
+			args:    []string{"xcode-cloud", "issues", "list", "--action-id", "ACT_123", "--run-id", "RUN_123"},
+			wantErr: "--action-id and --run-id are mutually exclusive",
+		},
+		{
 			name:    "publish appstore invalid timeout",
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",
