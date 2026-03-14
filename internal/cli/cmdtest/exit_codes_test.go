@@ -219,6 +219,11 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--source-run-id is mutually exclusive with --workflow and --workflow-id",
 		},
 		{
+			name:    "xcode-cloud build-runs invalid sort",
+			args:    []string{"xcode-cloud", "build-runs", "--workflow-id", "WF_ID", "--sort", "nope"},
+			wantErr: "--sort must be one of",
+		},
+		{
 			name:    "publish appstore invalid timeout",
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",
