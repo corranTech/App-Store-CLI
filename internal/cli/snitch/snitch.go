@@ -45,6 +45,24 @@ var githubHTTPClient = func() *http.Client {
 	return &http.Client{Timeout: asc.ResolveTimeout()}
 }
 
+type stringListFlag []string
+
+func (f *stringListFlag) String() string {
+	if f == nil {
+		return ""
+	}
+	return strings.Join(*f, ",")
+}
+
+func (f *stringListFlag) Set(value string) error {
+	label := strings.TrimSpace(value)
+	if label == "" {
+		return fmt.Errorf("label must not be empty")
+	}
+	*f = append(*f, label)
+	return nil
+}
+
 // SnitchCommand returns the top-level snitch command.
 func SnitchCommand(version string) *ffcli.Command {
 	fs := flag.NewFlagSet("snitch", flag.ExitOnError)
@@ -56,6 +74,8 @@ func SnitchCommand(version string) *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Search for duplicates and preview without filing")
 	local := fs.Bool("local", false, "Log to .asc/snitch.log instead of filing on GitHub")
 	confirm := fs.Bool("confirm", false, "Create the GitHub issue after duplicate search")
+	var labels stringListFlag
+	fs.Var(&labels, "label", "Existing repo label to attach (repeatable)")
 
 	return &ffcli.Command{
 		Name:       "snitch",
@@ -71,6 +91,7 @@ that looks like a flag (for example, "--app"), wrap the full description in quot
 
 Examples:
   asc snitch --repro 'asc crashes --app "com.example"' --expected "Should resolve bundle ID" --actual "Error: AppId is invalid" --confirm "crashes --app doesn't support bundle ID"
+  asc snitch --label enhancement --label p3 "support extra snitch labels"
   asc snitch --dry-run "group name ambiguity"
   asc snitch --local "status command needs bundle ID support"
   asc snitch flush
