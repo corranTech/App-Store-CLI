@@ -333,6 +333,69 @@ func TestWorkflowsCreateMissingFlags(t *testing.T) {
 	}
 }
 
+func TestWorkflowsCreateRejectsExistingWorkflowID(t *testing.T) {
+	origResolveSession := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = origResolveSession })
+
+	payloadFile, err := os.CreateTemp(t.TempDir(), "workflow-create-*.json")
+	if err != nil {
+		t.Fatalf("CreateTemp() error = %v", err)
+	}
+	if _, err := payloadFile.WriteString(`{"name":"Nightly Build"}`); err != nil {
+		t.Fatalf("WriteString() error = %v", err)
+	}
+	if err := payloadFile.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+
+	resolveSessionFn = func(
+		ctx context.Context,
+		appleID, password, twoFactorCode string,
+	) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{
+			PublicProviderID: "team-uuid",
+			Client: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					switch req.Method {
+					case http.MethodGet:
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(`{"id":"wf-existing","content":{"name":"Existing"}}`)),
+							Request:    req,
+						}, nil
+					case http.MethodPut:
+						t.Fatal("did not expect PUT when workflow already exists")
+						return nil, nil
+					default:
+						t.Fatalf("unexpected method: %s", req.Method)
+						return nil, nil
+					}
+				}),
+			},
+		}, "cache", nil
+	}
+
+	cmd := webXcodeCloudWorkflowCreateCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--apple-id", "user@example.com",
+		"--product-id", "prod-1",
+		"--workflow-id", "wf-existing",
+		"--file", payloadFile.Name(),
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err = cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error for existing workflow id")
+	}
+	if !strings.Contains(err.Error(), `workflow "wf-existing" already exists`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestWorkflowsEditSuccess(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })
