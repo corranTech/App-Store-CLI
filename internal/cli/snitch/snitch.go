@@ -133,11 +133,11 @@ Examples:
 			}
 
 			token := resolveGitHubToken()
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
 
 			if len(entry.Labels) > 0 && !(*local && !*dryRun) {
-				validatedLabels, err := validateRequestedLabels(requestCtx, token, entry.Labels)
+				validationCtx, validationCancel := shared.ContextWithTimeout(ctx)
+				validatedLabels, err := validateRequestedLabels(validationCtx, token, entry.Labels)
+				validationCancel()
 				if err != nil {
 					if errors.Is(err, flag.ErrHelp) {
 						return err
@@ -152,6 +152,9 @@ Examples:
 			if *local && !*dryRun {
 				return writeLocalLog(entry)
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			var duplicates []GitHubIssue
 			if token != "" {
