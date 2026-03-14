@@ -15,6 +15,17 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
+func TestBindJSONOnlyOutputFlagsDefaultsToJSON(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := bindJSONOnlyOutputFlags(fs)
+	if output.Output == nil {
+		t.Fatal("expected output flag pointer to be set")
+	}
+	if *output.Output != "json" {
+		t.Fatalf("expected json default, got %q", *output.Output)
+	}
+}
+
 func TestWorkflowsOptionsCommandHierarchy(t *testing.T) {
 	cmd := webXcodeCloudWorkflowsCommand()
 	optionsCmd := findSub(cmd, "options")
