@@ -219,6 +219,16 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--source-run-id is mutually exclusive with --workflow and --workflow-id",
 		},
 		{
+			name:    "xcode-cloud issues list conflicting selectors",
+			args:    []string{"xcode-cloud", "issues", "list", "--action-id", "ACT_123", "--run-id", "RUN_123"},
+			wantErr: "--action-id and --run-id are mutually exclusive",
+		},
+		{
+			name:    "xcode-cloud issues list next with run-id",
+			args:    []string{"xcode-cloud", "issues", "list", "--run-id", "RUN_123", "--next", "https://api.appstoreconnect.apple.com/v1/ciBuildActions/ACT_123/issues?cursor=abc"},
+			wantErr: "--next is not supported with --run-id",
+		},
+		{
 			name:    "xcode-cloud build-runs invalid sort",
 			args:    []string{"xcode-cloud", "build-runs", "--workflow-id", "WF_ID", "--sort", "nope"},
 			wantErr: "--sort must be one of",
