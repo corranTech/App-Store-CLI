@@ -193,3 +193,24 @@ func TestXcodeCloudIssuesListRejectsConflictingSelectors(t *testing.T) {
 		t.Fatalf("expected mutually exclusive error, got %q", stderr)
 	}
 }
+
+func TestXcodeCloudArtifactsListRejectsConflictingSelectors(t *testing.T) {
+	setupAuth(t)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"xcode-cloud", "artifacts", "list", "--action-id", "act-1", "--run-id", "run-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "--action-id and --run-id are mutually exclusive") {
+		t.Fatalf("expected mutually exclusive error, got %q", stderr)
+	}
+}
