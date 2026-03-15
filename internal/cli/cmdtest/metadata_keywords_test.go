@@ -156,6 +156,86 @@ func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsImportTextCanonicalizesLocaleAlias(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	if err := os.WriteFile(inputPath, []byte("habit tracker,\nmood journal"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "en_US",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Results []struct {
+			Locale string `json:"locale"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Locale != "en-US" {
+		t.Fatalf("expected canonical en-US locale, got %+v", payload.Results)
+	}
+}
+
+func TestMetadataKeywordsImportRejectsAmbiguousLocaleAlias(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	if err := os.WriteFile(inputPath, []byte("habit tracker"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "english",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{`ambiguous locale "english"`, "en-AU", "en-CA", "en-GB", "en-US"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+}
+
 func TestMetadataKeywordsImportCSVWritesCanonicalFiles(t *testing.T) {
 	dir := t.TempDir()
 	versionDir := filepath.Join(dir, "version", "1.2.3")
