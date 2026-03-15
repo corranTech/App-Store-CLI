@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"path/filepath"
 	"testing"
 
@@ -148,5 +149,29 @@ func TestWebAuthCapabilitiesRunHonorsRootProfileFlag(t *testing.T) {
 	}
 	if payload.KeyID != "KEY_B" || payload.Profile != "second" || payload.ResolvedFrom != "auth" {
 		t.Fatalf("unexpected payload: %+v", payload)
+	}
+}
+
+func TestWebAuthCapabilitiesRunRejectsInvalidOutput(t *testing.T) {
+	_, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{"web", "auth", "capabilities", "--output", "yaml"}, "1.0.0")
+		if code != cmd.ExitUsage {
+			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+		}
+	})
+	if !strings.Contains(stderr, "unsupported format: yaml") {
+		t.Fatalf("expected unsupported format error, got %q", stderr)
+	}
+}
+
+func TestWebAuthCapabilitiesRunRejectsPrettyForTable(t *testing.T) {
+	_, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{"web", "auth", "capabilities", "--output", "table", "--pretty"}, "1.0.0")
+		if code != cmd.ExitUsage {
+			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+		}
+	})
+	if !strings.Contains(stderr, "--pretty is only valid with JSON output") {
+		t.Fatalf("expected pretty validation error, got %q", stderr)
 	}
 }
