@@ -85,3 +85,73 @@ func TestClientDoOlympusRequestUsesOlympusHeaders(t *testing.T) {
 		t.Fatalf("unexpected accept header %q", gotAccept)
 	}
 }
+
+func TestClientListTeamKeysParsesRolesAndActors(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body: io.NopCloser(strings.NewReader(`{
+					"data":[
+						{
+							"id":"39MX87M9Y4",
+							"attributes":{
+								"lastUsed":"2026-03-15T11:48:57.844-07:00",
+								"roles":["APP_MANAGER"],
+								"nickname":"asc_cli",
+								"isActive":true,
+								"keyType":"PUBLIC_API"
+							},
+							"relationships":{
+								"createdBy":{"data":{"id":"user-1"}},
+								"revokedBy":{"data":null}
+							}
+						},
+						{
+							"id":"8P3JQ8PBFJ",
+							"attributes":{
+								"lastUsed":"",
+								"roles":["APP_MANAGER","FINANCE"],
+								"nickname":"codex-probe-team-1",
+								"isActive":false,
+								"keyType":"PUBLIC_API"
+							},
+							"relationships":{
+								"createdBy":{"data":{"id":"user-1"}},
+								"revokedBy":{"data":{"id":"user-2"}}
+							}
+						}
+					],
+					"included":[
+						{"type":"users","id":"user-1","attributes":{"firstName":"Mithilesh","lastName":"Chellappan"}},
+						{"type":"users","id":"user-2","attributes":{"firstName":"Jane","lastName":"Admin"}}
+					]
+				}`)),
+			}, nil
+		})},
+	}
+
+	keys, err := client.listTeamKeys(context.Background())
+	if err != nil {
+		t.Fatalf("listTeamKeys() error: %v", err)
+	}
+	if len(keys) != 2 {
+		t.Fatalf("expected 2 keys, got %d", len(keys))
+	}
+	if keys[0].KeyID != "39MX87M9Y4" || keys[0].Name != "asc_cli" {
+		t.Fatalf("unexpected first key: %#v", keys[0])
+	}
+	if len(keys[0].Roles) != 1 || keys[0].Roles[0] != "APP_MANAGER" {
+		t.Fatalf("unexpected first key roles: %#v", keys[0].Roles)
+	}
+	if keys[0].GeneratedBy == nil || keys[0].GeneratedBy.Name != "Mithilesh Chellappan" {
+		t.Fatalf("unexpected generatedBy: %#v", keys[0].GeneratedBy)
+	}
+	if keys[1].Active {
+		t.Fatalf("expected revoked key to be inactive: %#v", keys[1])
+	}
+	if keys[1].RevokedBy == nil || keys[1].RevokedBy.Name != "Jane Admin" {
+		t.Fatalf("unexpected revokedBy: %#v", keys[1].RevokedBy)
+	}
+}
