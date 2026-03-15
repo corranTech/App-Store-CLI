@@ -68,6 +68,17 @@ type teamAPIKey struct {
 	RevokedBy   *keyActor
 }
 
+type individualAPIKey struct {
+	KeyID            string
+	Name             string
+	Roles            []string
+	Active           bool
+	KeyType          string
+	LastUsed         string
+	CreatedByActorID string
+	RevokedByActorID string
+}
+
 type APIKeyRoleLookup struct {
 	KeyID       string    `json:"keyId"`
 	Name        string    `json:"name,omitempty"`
@@ -156,6 +167,65 @@ func (c *Client) listTeamKeys(ctx context.Context) ([]teamAPIKey, error) {
 		if item.Relationships.RevokedBy.Data != nil {
 			id := strings.TrimSpace(item.Relationships.RevokedBy.Data.ID)
 			key.RevokedBy = &keyActor{ID: id, Name: strings.TrimSpace(users[id])}
+		}
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
+func (c *Client) listIndividualKeys(ctx context.Context) ([]individualAPIKey, error) {
+	body, err := c.doIrisV2Request(ctx, http.MethodGet, "/apiKeys?include=visibleApps,createdByActor,revokedByActor&limit[visibleApps]=3&limit=2000", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload struct {
+		Data []struct {
+			ID         string `json:"id"`
+			Attributes struct {
+				LastUsed string   `json:"lastUsed"`
+				Roles    []string `json:"roles"`
+				Nickname string   `json:"nickname"`
+				Name     string   `json:"name"`
+				IsActive bool     `json:"isActive"`
+				KeyType  string   `json:"keyType"`
+			} `json:"attributes"`
+			Relationships struct {
+				CreatedByActor struct {
+					Data *struct {
+						ID string `json:"id"`
+					} `json:"data"`
+				} `json:"createdByActor"`
+				RevokedByActor struct {
+					Data *struct {
+						ID string `json:"id"`
+					} `json:"data"`
+				} `json:"revokedByActor"`
+			} `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("failed to parse individual keys response: %w", err)
+	}
+
+	keys := make([]individualAPIKey, 0, len(payload.Data))
+	for _, item := range payload.Data {
+		key := individualAPIKey{
+			KeyID:    strings.TrimSpace(item.ID),
+			Name:     strings.TrimSpace(item.Attributes.Nickname),
+			Roles:    append([]string(nil), item.Attributes.Roles...),
+			Active:   item.Attributes.IsActive,
+			KeyType:  strings.TrimSpace(item.Attributes.KeyType),
+			LastUsed: strings.TrimSpace(item.Attributes.LastUsed),
+		}
+		if key.Name == "" {
+			key.Name = strings.TrimSpace(item.Attributes.Name)
+		}
+		if item.Relationships.CreatedByActor.Data != nil {
+			key.CreatedByActorID = strings.TrimSpace(item.Relationships.CreatedByActor.Data.ID)
+		}
+		if item.Relationships.RevokedByActor.Data != nil {
+			key.RevokedByActorID = strings.TrimSpace(item.Relationships.RevokedByActor.Data.ID)
 		}
 		keys = append(keys, key)
 	}

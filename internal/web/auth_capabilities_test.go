@@ -216,3 +216,46 @@ func TestClientLookupAPIKeyRolesReturnsNotFound(t *testing.T) {
 		t.Fatalf("expected ErrAPIKeyNotFound, got %v", err)
 	}
 }
+
+func TestClientListIndividualKeysParsesActors(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body: io.NopCloser(strings.NewReader(`{
+					"data":[
+						{
+							"id":"ind-1",
+							"attributes":{
+								"lastUsed":"2026-03-16T00:00:00Z",
+								"roles":[],
+								"nickname":"personal-key",
+								"isActive":true,
+								"keyType":"PUBLIC_API"
+							},
+							"relationships":{
+								"createdByActor":{"data":{"id":"actor-1"}},
+								"revokedByActor":{"data":null}
+							}
+						}
+					]
+				}`)),
+			}, nil
+		})},
+	}
+
+	keys, err := client.listIndividualKeys(context.Background())
+	if err != nil {
+		t.Fatalf("listIndividualKeys() error: %v", err)
+	}
+	if len(keys) != 1 {
+		t.Fatalf("expected 1 key, got %d", len(keys))
+	}
+	if keys[0].KeyID != "ind-1" || keys[0].CreatedByActorID != "actor-1" {
+		t.Fatalf("unexpected individual key: %#v", keys[0])
+	}
+	if keys[0].Name != "personal-key" {
+		t.Fatalf("expected nickname to populate name, got %#v", keys[0])
+	}
+}
