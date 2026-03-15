@@ -1471,6 +1471,7 @@ func loadMetadataKeywordLocalState(dir, version string) (map[string]keywordLocal
 	}
 
 	states := make(map[string]keywordLocalState)
+	seenLocales := make(map[string]string)
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
@@ -1482,6 +1483,9 @@ func loadMetadataKeywordLocalState(dir, version string) (map[string]keywordLocal
 		locale, localeErr := validateMetadataKeywordLocale(rawLocale)
 		if localeErr != nil {
 			return nil, shared.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), localeErr)
+		}
+		if err := recordCanonicalLocaleFile(seenLocales, locale, entry.Name()); err != nil {
+			return nil, shared.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), err)
 		}
 
 		path := filepath.Join(versionPath, entry.Name())

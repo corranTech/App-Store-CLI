@@ -597,6 +597,22 @@ func validatePathSegment(label, value string) (string, error) {
 	return trimmed, nil
 }
 
+func recordCanonicalLocaleFile(seen map[string]string, canonicalLocale string, fileName string) error {
+	if seen == nil {
+		return nil
+	}
+	if prior, exists := seen[canonicalLocale]; exists && prior != fileName {
+		return fmt.Errorf(
+			"duplicate canonical locale %q from files %q and %q",
+			canonicalLocale,
+			prior,
+			fileName,
+		)
+	}
+	seen[canonicalLocale] = fileName
+	return nil
+}
+
 func hasAppInfoContent(loc AppInfoLocalization) bool {
 	return loc.Name != "" ||
 		loc.Subtitle != "" ||

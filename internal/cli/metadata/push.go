@@ -183,6 +183,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 		return localMetadataBundle{}, fmt.Errorf("metadata push: failed to read %s: %w", appInfoDir, err)
 	}
 	if err == nil {
+		seenAppInfoLocales := make(map[string]string)
 		for _, entry := range appInfoEntries {
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 				continue
@@ -191,6 +192,9 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 			resolvedLocale, localeErr := validateLocale(locale)
 			if localeErr != nil {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
+			}
+			if err := recordCanonicalLocaleFile(seenAppInfoLocales, resolvedLocale, entry.Name()); err != nil {
+				return localMetadataBundle{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), err)
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
 			patch, readErr := readAppInfoLocalizationPatchFromFile(filePath)
@@ -218,6 +222,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 		return localMetadataBundle{}, fmt.Errorf("metadata push: failed to read %s: %w", versionDir, err)
 	}
 	if err == nil {
+		seenVersionLocales := make(map[string]string)
 		for _, entry := range versionEntries {
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 				continue
@@ -226,6 +231,9 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 			resolvedLocale, localeErr := validateLocale(locale)
 			if localeErr != nil {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid version localization file %q: %v", entry.Name(), localeErr)
+			}
+			if err := recordCanonicalLocaleFile(seenVersionLocales, resolvedLocale, entry.Name()); err != nil {
+				return localMetadataBundle{}, shared.UsageErrorf("invalid version localization file %q: %v", entry.Name(), err)
 			}
 			filePath := filepath.Join(versionDir, entry.Name())
 			patch, readErr := readVersionLocalizationPatchFromFile(filePath)

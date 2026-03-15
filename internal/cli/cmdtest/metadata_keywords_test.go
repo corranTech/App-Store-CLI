@@ -1132,6 +1132,52 @@ func TestMetadataKeywordsPlanIgnoresDefaultLocaleFile(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsPlanRejectsDuplicateCanonicalLocaleFiles(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"keywords":"one,two"}`), 0o644); err != nil {
+		t.Fatalf("write en-US file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en_US.json"), []byte(`{"keywords":"three,four"}`), 0o644); err != nil {
+		t.Fatalf("write en_US file: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "plan",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", dir,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{`duplicate canonical locale "en-US"`, `"en-US.json"`, `"en_US.json"`} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+}
+
 func TestMetadataKeywordsApplyRequiresConfirm(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
