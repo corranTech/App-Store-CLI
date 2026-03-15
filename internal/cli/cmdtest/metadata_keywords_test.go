@@ -403,6 +403,80 @@ func TestMetadataKeywordsPlanBuildsKeywordOnlyRemotePlan(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsPlanIgnoresDefaultLocaleFile(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "default.json"), []byte(`{"keywords":"default,keywords"}`), 0o644); err != nil {
+		t.Fatalf("write default file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"keywords":"one,two"}`), 0o644); err != nil {
+		t.Fatalf("write en-US file: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET only, got %s %s", req.Method, req.URL.Path)
+		}
+		switch req.URL.Path {
+		case "/v1/apps/app-1/appStoreVersions":
+			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
+		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","keywords":"remote,keywords"}}],"links":{"next":""}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "plan",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", dir,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Adds    []struct{} `json:"adds"`
+		Updates []struct {
+			Locale string `json:"locale"`
+			From   string `json:"from"`
+			To     string `json:"to"`
+		} `json:"updates"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Adds) != 0 {
+		t.Fatalf("expected no adds from default locale fallback file, got %+v", payload.Adds)
+	}
+	if len(payload.Updates) != 1 || payload.Updates[0].Locale != "en-US" || payload.Updates[0].From != "remote,keywords" || payload.Updates[0].To != "one,two" {
+		t.Fatalf("expected single en-US update, got %+v", payload.Updates)
+	}
+}
+
 func TestMetadataKeywordsApplyRequiresConfirm(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")

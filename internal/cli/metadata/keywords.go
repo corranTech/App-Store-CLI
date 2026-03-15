@@ -1160,6 +1160,9 @@ func loadMetadataKeywordLocalState(dir, version string) (map[string]keywordLocal
 			continue
 		}
 		rawLocale := strings.TrimSuffix(entry.Name(), ".json")
+		if strings.EqualFold(rawLocale, DefaultLocale) {
+			continue
+		}
 		locale, localeErr := validateMetadataKeywordLocale(rawLocale)
 		if localeErr != nil {
 			return nil, shared.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), localeErr)
