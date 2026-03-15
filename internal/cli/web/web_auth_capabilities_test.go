@@ -126,3 +126,55 @@ func TestWrapWebAuthCapabilitiesErrorFormatsLookupFailures(t *testing.T) {
 		t.Fatalf("unexpected unresolved error: %v", err)
 	}
 }
+
+func TestWebAuthCapabilitiesMissingLocalAuthReturnsUsageError(t *testing.T) {
+	origResolveAuth := resolveWebAuthCredentialsFn
+	t.Cleanup(func() {
+		resolveWebAuthCredentialsFn = origResolveAuth
+	})
+
+	resolveWebAuthCredentialsFn = func(profile string) (shared.ResolvedAuthCredentials, error) {
+		return shared.ResolvedAuthCredentials{}, errors.New("missing authentication")
+	}
+
+	cmd := WebAuthCapabilitiesCommand()
+	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+}
+
+func TestWebAuthCapabilitiesRejectsPrettyForTableOutput(t *testing.T) {
+	cmd := WebAuthCapabilitiesCommand()
+	if err := cmd.FlagSet.Parse([]string{"--output", "table", "--pretty"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+}
+
+func TestWebAuthCapabilitiesRows(t *testing.T) {
+	rows := webAuthCapabilitiesRows(webAuthCapabilitiesResult{
+		KeyID:        "39MX87M9Y4",
+		Kind:         "team",
+		Active:       true,
+		Roles:        []string{"APP_MANAGER", "FINANCE"},
+		Name:         "asc_cli",
+		Lookup:       "team_keys",
+		ResolvedFrom: "auth",
+		Profile:      "client",
+	})
+	if len(rows) != 1 {
+		t.Fatalf("expected one row, got %d", len(rows))
+	}
+	if rows[0][3] != "APP_MANAGER, FINANCE" {
+		t.Fatalf("unexpected role join output: %#v", rows[0])
+	}
+}
