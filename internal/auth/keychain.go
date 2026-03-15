@@ -37,6 +37,7 @@ var (
 const (
 	keyringService    = "asc"
 	keyringItemPrefix = "asc:credential:"
+	keyringMetadataID = "asc:metadata:"
 	legacyKeychain    = "asc"
 	bypassKeychainEnv = "ASC_BYPASS_KEYCHAIN"
 )
@@ -78,6 +79,11 @@ type credentialPayload struct {
 	IssuerID       string `json:"issuer_id"`
 	PrivateKeyPath string `json:"private_key_path"`
 	PrivateKeyPEM  string `json:"private_key_pem,omitempty"`
+}
+
+type credentialMetadata struct {
+	KeyID    string `json:"key_id,omitempty"`
+	IssuerID string `json:"issuer_id,omitempty"`
 }
 
 func keyringConfig(keychainName string) keyring.Config {
@@ -359,7 +365,26 @@ func ListCredentials() ([]Credential, error) {
 		return credentials, nil
 	}
 
-	keychainCreds, keychainErr := listFromKeychain()
+	return listCredentialsFromSources(listFromKeychain)
+}
+
+// ListCredentialSummaries lists stored credentials without reading key material
+// when the active keyring backend exposes non-secret metadata.
+func ListCredentialSummaries() ([]Credential, error) {
+	if shouldBypassKeychain() {
+		credentials, err := listFromConfig()
+		if err != nil {
+			return nil, err
+		}
+		normalizeCredentialDefaults(credentials)
+		return credentials, nil
+	}
+
+	return listCredentialsFromSources(listCredentialSummariesFromKeychain)
+}
+
+func listCredentialsFromSources(keychainList func() ([]Credential, error)) ([]Credential, error) {
+	keychainCreds, keychainErr := keychainList()
 	if keychainErr != nil && !isKeyringUnavailable(keychainErr) {
 		return nil, keychainErr
 	}
@@ -685,20 +710,62 @@ func keyringKey(name string) string {
 	return keyringItemPrefix + name
 }
 
+func keyringLabel(name string) string {
+	return fmt.Sprintf("ASC API Key (%s)", name)
+}
+
+func credentialMetadataDescription(payload credentialPayload) string {
+	data, err := json.Marshal(credentialMetadata{
+		KeyID:    strings.TrimSpace(payload.KeyID),
+		IssuerID: strings.TrimSpace(payload.IssuerID),
+	})
+	if err != nil {
+		return ""
+	}
+	return keyringMetadataID + string(data)
+}
+
+func parseCredentialMetadataDescription(description string) credentialMetadata {
+	description = strings.TrimSpace(description)
+	if description == "" || !strings.HasPrefix(description, keyringMetadataID) {
+		return credentialMetadata{}
+	}
+	raw := strings.TrimPrefix(description, keyringMetadataID)
+	var metadata credentialMetadata
+	if err := json.Unmarshal([]byte(raw), &metadata); err != nil {
+		return credentialMetadata{}
+	}
+	return metadata
+}
+
+func metadataRequiresSecretRead(err error) bool {
+	return errors.Is(err, keyring.ErrMetadataNeedsCredentials) ||
+		errors.Is(err, keyring.ErrMetadataNotSupported)
+}
+
+func keyringItemForCredential(name string, payload credentialPayload) (keyring.Item, error) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return keyring.Item{}, fmt.Errorf("failed to encode credentials: %w", err)
+	}
+	return keyring.Item{
+		Key:         keyringKey(name),
+		Data:        data,
+		Label:       keyringLabel(name),
+		Description: credentialMetadataDescription(payload),
+	}, nil
+}
+
 func storeInKeychain(name string, payload credentialPayload) error {
 	kr, err := keyringOpener()
 	if err != nil {
 		return err
 	}
-	data, err := json.Marshal(payload)
+	item, err := keyringItemForCredential(name, payload)
 	if err != nil {
-		return fmt.Errorf("failed to encode credentials: %w", err)
+		return err
 	}
-	return kr.Set(keyring.Item{
-		Key:   keyringKey(name),
-		Data:  data,
-		Label: fmt.Sprintf("ASC API Key (%s)", name),
-	})
+	return kr.Set(item)
 }
 
 func listFromKeychain() ([]Credential, error) {
@@ -739,12 +806,90 @@ func listFromKeychain() ([]Credential, error) {
 	return credentials, nil
 }
 
+func listCredentialSummariesFromKeychain() ([]Credential, error) {
+	kr, err := keyringOpener()
+	if err != nil {
+		return nil, err
+	}
+	credentials, err := listCredentialSummariesFromKeyring(kr)
+	if err != nil {
+		return nil, err
+	}
+
+	legacy, err := listCredentialSummariesFromLegacyKeychain()
+	if err == nil && len(legacy) > 0 {
+		existing := make(map[string]struct{}, len(credentials))
+		for _, cred := range credentials {
+			existing[cred.Name] = struct{}{}
+		}
+		for _, cred := range legacy {
+			if _, ok := existing[cred.Name]; ok {
+				continue
+			}
+			credentials = append(credentials, cred)
+		}
+	}
+
+	defaultName, _ := defaultName()
+	if strings.TrimSpace(defaultName) == "" && len(credentials) == 1 {
+		credentials[0].IsDefault = true
+	}
+	return credentials, nil
+}
+
 func listFromLegacyKeychain() ([]Credential, error) {
 	kr, err := legacyKeyringOpener()
 	if err != nil {
 		return nil, err
 	}
 	return listFromKeyring(kr)
+}
+
+func listCredentialSummariesFromLegacyKeychain() ([]Credential, error) {
+	kr, err := legacyKeyringOpener()
+	if err != nil {
+		return nil, err
+	}
+	return listCredentialSummariesFromKeyring(kr)
+}
+
+func listCredentialSummariesFromKeyring(kr keyring.Keyring) ([]Credential, error) {
+	keys, err := kr.Keys()
+	if err != nil {
+		return nil, err
+	}
+
+	defaultName, _ := defaultName()
+	credentials := []Credential{}
+	for _, key := range keys {
+		if !strings.HasPrefix(key, keyringItemPrefix) {
+			continue
+		}
+		metadata, err := kr.GetMetadata(key)
+		if err != nil {
+			if errors.Is(err, keyring.ErrKeyNotFound) {
+				continue
+			}
+			if metadataRequiresSecretRead(err) {
+				return listFromKeyring(kr)
+			}
+			return nil, err
+		}
+		if metadata.Item == nil {
+			return listFromKeyring(kr)
+		}
+		name := strings.TrimPrefix(key, keyringItemPrefix)
+		summary := parseCredentialMetadataDescription(metadata.Item.Description)
+		credentials = append(credentials, Credential{
+			Name:      name,
+			KeyID:     summary.KeyID,
+			IssuerID:  summary.IssuerID,
+			IsDefault: name == defaultName,
+			Source:    "keychain",
+		})
+	}
+
+	return credentials, nil
 }
 
 func listFromKeyring(kr keyring.Keyring) ([]Credential, error) {
@@ -770,20 +915,20 @@ func listFromKeyring(kr keyring.Keyring) ([]Credential, error) {
 		if err := json.Unmarshal(item.Data, &payload); err != nil {
 			return nil, fmt.Errorf("invalid keychain entry %q: %w", key, err)
 		}
+		name := strings.TrimPrefix(key, keyringItemPrefix)
+		needsRewrite := strings.TrimSpace(item.Description) != credentialMetadataDescription(payload)
 		if strings.TrimSpace(payload.PrivateKeyPEM) == "" {
 			if privateKeyPEM, err := loadPrivateKeyPEMForStorage(payload.PrivateKeyPath); err == nil && strings.TrimSpace(privateKeyPEM) != "" {
 				payload.PrivateKeyPEM = privateKeyPEM
-				data, marshalErr := json.Marshal(payload)
-				if marshalErr == nil {
-					_ = kr.Set(keyring.Item{
-						Key:   key,
-						Data:  data,
-						Label: fmt.Sprintf("ASC API Key (%s)", strings.TrimPrefix(key, keyringItemPrefix)),
-					})
-				}
+				needsRewrite = true
 			}
 		}
-		name := strings.TrimPrefix(key, keyringItemPrefix)
+		if needsRewrite {
+			updatedItem, marshalErr := keyringItemForCredential(name, payload)
+			if marshalErr == nil {
+				_ = kr.Set(updatedItem)
+			}
+		}
 		credentials = append(credentials, Credential{
 			Name:           name,
 			KeyID:          payload.KeyID,
