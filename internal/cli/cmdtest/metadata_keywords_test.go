@@ -1179,8 +1179,12 @@ func TestMetadataKeywordsPlanRejectsDuplicateCanonicalLocaleFiles(t *testing.T) 
 }
 
 func TestMetadataKeywordsApplyRequiresConfirm(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
@@ -1195,19 +1199,11 @@ func TestMetadataKeywordsApplyRequiresConfirm(t *testing.T) {
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	callCount := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET only before confirm guard, got %s %s", req.Method, req.URL.Path)
-		}
-		switch req.URL.Path {
-		case "/v1/apps/app-1/appStoreVersions":
-			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
-		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return metadataKeywordsJSONResponse(`{"data":[],"links":{"next":""}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, nil
-		}
+		callCount++
+		t.Fatalf("expected apply without --confirm to stop before network/auth, got %s %s", req.Method, req.URL.Path)
+		return nil, nil
 	})
 
 	root := RootCommand("1.2.3")
@@ -1228,11 +1224,92 @@ func TestMetadataKeywordsApplyRequiresConfirm(t *testing.T) {
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
 	}
+	if callCount != 0 {
+		t.Fatalf("expected no network calls before confirm error, got %d", callCount)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 	if !strings.Contains(stderr, "Error: --confirm is required") {
 		t.Fatalf("expected confirm error, got %q", stderr)
+	}
+}
+
+func TestMetadataKeywordsImportJSONLocaleMapUsesStableCanonicalOrder(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords-locale-map.json")
+	reportPath := filepath.Join(t.TempDir(), "side-data-locale-map.json")
+	input := `{
+		"en_US": {
+			"keyword": "second",
+			"notes": "second-note"
+		},
+		"en-US": {
+			"keyword": "first",
+			"notes": "first-note"
+		}
+	}`
+	if err := os.WriteFile(inputPath, []byte(input), 0o644); err != nil {
+		t.Fatalf("write json: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "json",
+			"--side-data-report-file", reportPath,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Results []struct {
+			Locale       string `json:"locale"`
+			KeywordField string `json:"keywordField"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Locale != "en-US" || payload.Results[0].KeywordField != "first,second" {
+		t.Fatalf("expected deterministic canonical keyword order, got %+v", payload.Results)
+	}
+
+	reportData, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read side data report: %v", err)
+	}
+	var reportPayload struct {
+		Records []struct {
+			Locale   string         `json:"locale"`
+			Keywords []string       `json:"keywords"`
+			Fields   map[string]any `json:"fields"`
+		} `json:"records"`
+	}
+	if err := json.Unmarshal(reportData, &reportPayload); err != nil {
+		t.Fatalf("unmarshal side data report: %v", err)
+	}
+	if len(reportPayload.Records) != 2 {
+		t.Fatalf("expected 2 side data records, got %+v", reportPayload.Records)
+	}
+	if reportPayload.Records[0].Locale != "en-US" || len(reportPayload.Records[0].Keywords) != 1 || reportPayload.Records[0].Keywords[0] != "first" {
+		t.Fatalf("expected first record from canonical en-US key, got %+v", reportPayload.Records[0])
+	}
+	if reportPayload.Records[1].Locale != "en-US" || len(reportPayload.Records[1].Keywords) != 1 || reportPayload.Records[1].Keywords[0] != "second" {
+		t.Fatalf("expected second record from en_US alias key, got %+v", reportPayload.Records[1])
 	}
 }
 

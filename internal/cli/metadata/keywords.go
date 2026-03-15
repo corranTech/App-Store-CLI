@@ -836,6 +836,9 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 		}
 		platformValue = normalizedPlatform
 	}
+	if opts.Apply && !opts.Confirm {
+		return MetadataKeywordsPlanResult{}, shared.UsageError("--confirm is required")
+	}
 
 	localState := opts.LocalState
 	if len(localState) == 0 {
@@ -894,9 +897,6 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 
 	if !opts.Apply {
 		return result, nil
-	}
-	if !opts.Confirm {
-		return MetadataKeywordsPlanResult{}, shared.UsageError("--confirm is required")
 	}
 
 	actions, err := applyVersionChanges(requestCtx, client, versionIDValue, versionValue, localPatches, filteredRemoteItems, false)
@@ -1172,7 +1172,13 @@ func collectMetadataKeywordJSON(payload any, defaultLocale string) (metadataKeyw
 
 		result := make(map[string][]string)
 		sideData := make([]MetadataKeywordSideDataRecord, 0)
-		for rawLocale, rawKeywords := range value {
+		rawLocales := make([]string, 0, len(value))
+		for rawLocale := range value {
+			rawLocales = append(rawLocales, rawLocale)
+		}
+		sort.Strings(rawLocales)
+		for _, rawLocale := range rawLocales {
+			rawKeywords := value[rawLocale]
 			if object, ok := rawKeywords.(map[string]any); ok && looksLikeMetadataKeywordLocalizationObject(object) {
 				locale, keywords, fields, err := parseMetadataKeywordJSONObject(object, rawLocale)
 				if err != nil {
@@ -1288,7 +1294,13 @@ func decodeMetadataKeywordValue(raw any) ([]string, error) {
 
 func normalizeImportedMetadataKeywords(raw metadataKeywordImportedData, defaultLocale string) (metadataKeywordImportedData, error) {
 	result := make(map[string][]string, len(raw.locales))
-	for locale, keywords := range raw.locales {
+	locales := make([]string, 0, len(raw.locales))
+	for locale := range raw.locales {
+		locales = append(locales, locale)
+	}
+	sort.Strings(locales)
+	for _, locale := range locales {
+		keywords := raw.locales[locale]
 		resolvedLocale := strings.TrimSpace(locale)
 		if resolvedLocale == "" {
 			resolvedLocale = strings.TrimSpace(defaultLocale)
