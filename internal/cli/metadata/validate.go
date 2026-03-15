@@ -127,7 +127,7 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 				return ValidateResult{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
 			}
 			if err := recordCanonicalLocaleFile(seenAppInfoLocales, resolvedLocale, entry.Name()); err != nil {
-				return ValidateResult{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), err)
+				return ValidateResult{}, shared.UsageError(err.Error())
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
 
@@ -181,7 +181,7 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 					return ValidateResult{}, shared.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), localeErr)
 				}
 				if err := recordCanonicalLocaleFile(seenVersionLocales, resolvedLocale, localeEntry.Name()); err != nil {
-					return ValidateResult{}, shared.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), err)
+					return ValidateResult{}, shared.UsageError(err.Error())
 				}
 				filePath := filepath.Join(versionPath, localeEntry.Name())
 

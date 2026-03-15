@@ -194,7 +194,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
 			}
 			if err := recordCanonicalLocaleFile(seenAppInfoLocales, resolvedLocale, entry.Name()); err != nil {
-				return localMetadataBundle{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), err)
+				return localMetadataBundle{}, shared.UsageError(err.Error())
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
 			patch, readErr := readAppInfoLocalizationPatchFromFile(filePath)
@@ -233,7 +233,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid version localization file %q: %v", entry.Name(), localeErr)
 			}
 			if err := recordCanonicalLocaleFile(seenVersionLocales, resolvedLocale, entry.Name()); err != nil {
-				return localMetadataBundle{}, shared.UsageErrorf("invalid version localization file %q: %v", entry.Name(), err)
+				return localMetadataBundle{}, shared.UsageError(err.Error())
 			}
 			filePath := filepath.Join(versionDir, entry.Name())
 			patch, readErr := readVersionLocalizationPatchFromFile(filePath)

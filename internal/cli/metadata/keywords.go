@@ -871,7 +871,7 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 
 	localPatches := keywordLocalStateToPatches(localState)
 	filteredRemoteItems := filterKeywordRemoteItems(remoteVersionItems, localState)
-	remoteVersion := keywordRemoteToVersionMap(filteredRemoteItems)
+	remoteVersion := remoteVersionItemsToVersionMap(filteredRemoteItems)
 	adds, updates, _, versionCalls := buildScopePlan(
 		versionDirName,
 		versionValue,
@@ -1491,7 +1491,7 @@ func loadMetadataKeywordLocalState(dir, version string) (map[string]keywordLocal
 			return nil, shared.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), localeErr)
 		}
 		if err := recordCanonicalLocaleFile(seenLocales, locale, entry.Name()); err != nil {
-			return nil, shared.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), err)
+			return nil, shared.UsageError(err.Error())
 		}
 
 		path := filepath.Join(versionPath, entry.Name())
@@ -1531,10 +1531,6 @@ func filterKeywordRemoteItems(items []asc.Resource[asc.AppStoreVersionLocalizati
 		filtered = append(filtered, item)
 	}
 	return filtered
-}
-
-func keywordRemoteToVersionMap(items []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) map[string]VersionLocalization {
-	return remoteVersionItemsToVersionMap(items)
 }
 
 func remoteVersionItemsToVersionMap(items []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) map[string]VersionLocalization {
