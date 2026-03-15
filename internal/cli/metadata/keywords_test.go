@@ -21,8 +21,8 @@ func TestSplitMetadataKeywordTokensSupportsMixedSeparators(t *testing.T) {
 	}
 }
 
-func TestNormalizeMetadataKeywordListDeduplicatesCaseAndWhitespace(t *testing.T) {
-	got, err := normalizeMetadataKeywordList([]string{
+func TestNormalizeMetadataKeywordListDetailedDeduplicatesCaseAndWhitespace(t *testing.T) {
+	got, duplicates, err := normalizeMetadataKeywordListDetailed([]string{
 		"  habit   tracker ",
 		"mood journal",
 		"Habit Tracker",
@@ -30,7 +30,7 @@ func TestNormalizeMetadataKeywordListDeduplicatesCaseAndWhitespace(t *testing.T)
 		"  ",
 	})
 	if err != nil {
-		t.Fatalf("normalizeMetadataKeywordList() error: %v", err)
+		t.Fatalf("normalizeMetadataKeywordListDetailed() error: %v", err)
 	}
 	want := []string{"habit tracker", "mood journal"}
 	if len(got) != len(want) {
@@ -40,6 +40,9 @@ func TestNormalizeMetadataKeywordListDeduplicatesCaseAndWhitespace(t *testing.T)
 		if got[i] != want[i] {
 			t.Fatalf("expected keyword %d to be %q, got %q (%v)", i, want[i], got[i], got)
 		}
+	}
+	if len(duplicates) != 2 || duplicates[0] != "Habit Tracker" || duplicates[1] != "mood journal" {
+		t.Fatalf("expected duplicate tracking, got %v", duplicates)
 	}
 }
 

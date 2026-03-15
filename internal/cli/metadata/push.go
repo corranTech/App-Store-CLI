@@ -103,8 +103,9 @@ type appInfoLocalPatch struct {
 }
 
 type versionLocalPatch struct {
-	localization VersionLocalization
-	setFields    map[string]string
+	localization       VersionLocalization
+	createLocalization VersionLocalization
+	setFields          map[string]string
 }
 
 // MetadataPushCommand returns the metadata push subcommand.
@@ -540,8 +541,9 @@ func cloneAppInfoLocalPatch(patch appInfoLocalPatch) appInfoLocalPatch {
 
 func cloneVersionLocalPatch(patch versionLocalPatch) versionLocalPatch {
 	return versionLocalPatch{
-		localization: patch.localization,
-		setFields:    cloneStringMap(patch.setFields),
+		localization:       patch.localization,
+		createLocalization: patch.createLocalization,
+		setFields:          cloneStringMap(patch.setFields),
 	}
 }
 
@@ -760,7 +762,11 @@ func applyVersionChanges(
 
 		switch {
 		case !remoteExists:
-			resp, err := client.CreateAppStoreVersionLocalization(ctx, versionID, versionAttributes(locale, localPatch.localization, true))
+			createLoc := localPatch.localization
+			if hasVersionContent(localPatch.createLocalization) {
+				createLoc = localPatch.createLocalization
+			}
+			resp, err := client.CreateAppStoreVersionLocalization(ctx, versionID, versionAttributes(locale, createLoc, true))
 			if err != nil {
 				return nil, fmt.Errorf("create version localization %s: %w", locale, err)
 			}

@@ -1015,6 +1015,64 @@ func TestMetadataKeywordsLocalizeReusesExistingAliasTargetFile(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsLocalizeReadsExistingAliasSourceFile(t *testing.T) {
+	dir := t.TempDir()
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	sourceAliasPath := filepath.Join(versionDir, "en_US.json")
+	if err := os.WriteFile(sourceAliasPath, []byte(`{"keywords":"habit tracker,mood journal"}`), 0o644); err != nil {
+		t.Fatalf("write source alias file: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "localize",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--from-locale", "en-US",
+			"--to-locales", "fr-FR",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Results []struct {
+			Locale string `json:"locale"`
+			Action string `json:"action"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Locale != "fr-FR" || payload.Results[0].Action != "create" {
+		t.Fatalf("unexpected localize output: %+v", payload.Results)
+	}
+
+	frData, err := os.ReadFile(filepath.Join(versionDir, "fr-FR.json"))
+	if err != nil {
+		t.Fatalf("read fr-FR file: %v", err)
+	}
+	var frPayload map[string]string
+	if err := json.Unmarshal(frData, &frPayload); err != nil {
+		t.Fatalf("unmarshal fr-FR file: %v", err)
+	}
+	if frPayload["keywords"] != "habit tracker,mood journal" {
+		t.Fatalf("expected alias source keywords copied, got %+v", frPayload)
+	}
+}
+
 func TestMetadataKeywordsPlanBuildsKeywordOnlyRemotePlan(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
@@ -1456,7 +1514,7 @@ func TestMetadataKeywordsApplyCreatesLocale(t *testing.T) {
 	if err := os.MkdirAll(versionDir, 0o755); err != nil {
 		t.Fatalf("mkdir version dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(versionDir, "ja.json"), []byte(`{"keywords":"nihongo"}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(versionDir, "ja.json"), []byte(`{"description":"Japanese description","supportUrl":"https://example.com/support","keywords":"nihongo"}`), 0o644); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
@@ -1510,7 +1568,10 @@ func TestMetadataKeywordsApplyCreatesLocale(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(postBody, `"locale":"ja"`) || !strings.Contains(postBody, `"keywords":"nihongo"`) {
+	if !strings.Contains(postBody, `"locale":"ja"`) ||
+		!strings.Contains(postBody, `"keywords":"nihongo"`) ||
+		!strings.Contains(postBody, `"description":"Japanese description"`) ||
+		!strings.Contains(postBody, `"supportUrl":"https://example.com/support"`) {
 		t.Fatalf("expected create body to include locale and keywords, got %s", postBody)
 	}
 
@@ -1534,8 +1595,8 @@ func TestMetadataKeywordsApplyCreatesLocale(t *testing.T) {
 	if len(payload.Actions) != 1 || payload.Actions[0].Action != "create" || payload.Actions[0].Locale != "ja" {
 		t.Fatalf("expected one create action, got %+v", payload.Actions)
 	}
-	if len(payload.Warnings) != 1 || payload.Warnings[0].Action != "create" || payload.Warnings[0].Locale != "ja" {
-		t.Fatalf("expected one warning for ja create, got %+v", payload.Warnings)
+	if len(payload.Warnings) != 0 {
+		t.Fatalf("expected no warnings when create body includes required metadata, got %+v", payload.Warnings)
 	}
 }
 

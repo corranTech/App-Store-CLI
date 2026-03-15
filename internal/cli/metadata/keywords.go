@@ -775,7 +775,7 @@ func executeMetadataKeywordsLocalize(opts metadataKeywordsLocalizeOptions) (Meta
 	}
 	sort.Strings(targets)
 
-	sourcePath, err := VersionLocalizationFilePath(dirValue, versionValue, sourceLocale)
+	sourcePath, err := resolveExistingVersionLocalizationPath(dirValue, versionValue, sourceLocale)
 	if err != nil {
 		return MetadataKeywordsLocalizeResult{}, err
 	}
@@ -1445,8 +1445,9 @@ func buildMetadataKeywordLocalState(locale, path string, localization VersionLoc
 		file:   path,
 		full:   normalized,
 		patch: versionLocalPatch{
-			localization: NormalizeVersionLocalization(VersionLocalization{Keywords: normalized.Keywords}),
-			setFields:    map[string]string{"keywords": normalized.Keywords},
+			localization:       NormalizeVersionLocalization(VersionLocalization{Keywords: normalized.Keywords}),
+			createLocalization: normalized,
+			setFields:          map[string]string{"keywords": normalized.Keywords},
 		},
 	}
 }
@@ -1668,11 +1669,6 @@ func splitMetadataKeywordTokens(value string) []string {
 	return result
 }
 
-func normalizeMetadataKeywordList(keywords []string) ([]string, error) {
-	normalized, _, err := normalizeMetadataKeywordListDetailed(keywords)
-	return normalized, err
-}
-
 func normalizeMetadataKeywordTokensPreserveDuplicates(keywords []string) ([]string, error) {
 	normalized := make([]string, 0, len(keywords))
 	for _, keyword := range keywords {
@@ -1752,7 +1748,7 @@ func buildMetadataKeywordPreview(keywords []string) (string, int, int, []string,
 }
 
 func parseMetadataKeywordField(field string) ([]string, error) {
-	normalized, err := normalizeMetadataKeywordList(splitMetadataKeywordTokens(field))
+	normalized, _, err := normalizeMetadataKeywordListDetailed(splitMetadataKeywordTokens(field))
 	if err != nil {
 		return nil, err
 	}
