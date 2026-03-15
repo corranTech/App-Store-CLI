@@ -283,24 +283,37 @@ func readBuildSettings(ctx context.Context, projectDir string) (map[string]strin
 		if idx := strings.Index(trimmed, " = "); idx > 0 {
 			key := strings.TrimSpace(trimmed[:idx])
 			value := strings.TrimSpace(trimmed[idx+3:])
-			settings[key] = value
+			// Keep the first occurrence only — in multi-target projects,
+			// the first target block is typically the main app target.
+			if _, exists := settings[key]; !exists {
+				settings[key] = value
+			}
 		}
 	}
 	return settings, nil
 }
 
 // findXcodeproj finds the .xcodeproj directory in a project dir.
+// Returns an error if zero or multiple .xcodeproj directories are found.
 func findXcodeproj(projectDir string) (string, error) {
 	entries, err := os.ReadDir(projectDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to read project directory: %w", err)
 	}
+	var matches []string
 	for _, entry := range entries {
 		if entry.IsDir() && strings.HasSuffix(entry.Name(), ".xcodeproj") {
-			return filepath.Join(projectDir, entry.Name()), nil
+			matches = append(matches, entry.Name())
 		}
 	}
-	return "", fmt.Errorf("no .xcodeproj found in %s", projectDir)
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no .xcodeproj found in %s", projectDir)
+	case 1:
+		return filepath.Join(projectDir, matches[0]), nil
+	default:
+		return "", fmt.Errorf("multiple .xcodeproj found in %s (%s); use a more specific --project-dir", projectDir, strings.Join(matches, ", "))
+	}
 }
 
 // findPbxprojPath finds the project.pbxproj inside the .xcodeproj.
