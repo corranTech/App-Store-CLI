@@ -493,6 +493,7 @@ func TestMetadataKeywordsImportCSVNormalizesRowDuplicatesAndChineseCommas(t *tes
 func TestMetadataKeywordsImportJSONIgnoresResearchSideFields(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(t.TempDir(), "keywords.json")
+	reportPath := filepath.Join(t.TempDir(), "side-data.json")
 	input := `{
 		"en-US": {
 			"keywords": ["habit tracker", "mood journal"],
@@ -517,6 +518,7 @@ func TestMetadataKeywordsImportJSONIgnoresResearchSideFields(t *testing.T) {
 			"--version", "1.2.3",
 			"--input", inputPath,
 			"--format", "json",
+			"--side-data-report-file", reportPath,
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -534,12 +536,17 @@ func TestMetadataKeywordsImportJSONIgnoresResearchSideFields(t *testing.T) {
 			KeywordField string `json:"keywordField"`
 			KeywordCount int    `json:"keywordCount"`
 		} `json:"results"`
+		SideDataRecordCount int    `json:"sideDataRecordCount"`
+		SideDataReportPath  string `json:"sideDataReportPath"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
 		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
 	}
 	if len(payload.Results) != 1 || payload.Results[0].Locale != "en-US" || payload.Results[0].KeywordField != "habit tracker,mood journal" || payload.Results[0].KeywordCount != 2 {
 		t.Fatalf("unexpected output payload: %+v", payload.Results)
+	}
+	if payload.SideDataRecordCount != 1 || payload.SideDataReportPath != reportPath {
+		t.Fatalf("expected side data artifact metadata, got %+v", payload)
 	}
 
 	data, err := os.ReadFile(filepath.Join(dir, "version", "1.2.3", "en-US.json"))
@@ -556,11 +563,34 @@ func TestMetadataKeywordsImportJSONIgnoresResearchSideFields(t *testing.T) {
 	if filePayload["keywords"] != "habit tracker,mood journal" {
 		t.Fatalf("expected canonical keywords only, got %+v", filePayload)
 	}
+
+	reportData, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read side data report: %v", err)
+	}
+	var reportPayload struct {
+		Records []struct {
+			Locale string         `json:"locale"`
+			Fields map[string]any `json:"fields"`
+		} `json:"records"`
+	}
+	if err := json.Unmarshal(reportData, &reportPayload); err != nil {
+		t.Fatalf("unmarshal side data report: %v", err)
+	}
+	if len(reportPayload.Records) != 1 || reportPayload.Records[0].Locale != "en-US" {
+		t.Fatalf("unexpected side data report payload: %+v", reportPayload.Records)
+	}
+	for _, key := range []string{"popularity", "difficulty", "notes", "tags", "history"} {
+		if _, ok := reportPayload.Records[0].Fields[key]; !ok {
+			t.Fatalf("expected side data field %q in report, got %+v", key, reportPayload.Records[0].Fields)
+		}
+	}
 }
 
 func TestMetadataKeywordsImportCSVIgnoresResearchColumns(t *testing.T) {
 	dir := t.TempDir()
 	versionDir := filepath.Join(dir, "version", "1.2.3")
+	reportPath := filepath.Join(t.TempDir(), "side-data.csv.json")
 	if err := os.MkdirAll(versionDir, 0o755); err != nil {
 		t.Fatalf("mkdir version dir: %v", err)
 	}
@@ -584,6 +614,7 @@ func TestMetadataKeywordsImportCSVIgnoresResearchColumns(t *testing.T) {
 			"--version", "1.2.3",
 			"--input", inputPath,
 			"--format", "csv",
+			"--side-data-report-file", reportPath,
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -600,12 +631,17 @@ func TestMetadataKeywordsImportCSVIgnoresResearchColumns(t *testing.T) {
 			Locale       string `json:"locale"`
 			KeywordField string `json:"keywordField"`
 		} `json:"results"`
+		SideDataRecordCount int    `json:"sideDataRecordCount"`
+		SideDataReportPath  string `json:"sideDataReportPath"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
 		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
 	}
 	if len(payload.Results) != 1 || payload.Results[0].Locale != "en-US" || payload.Results[0].KeywordField != "habit tracker,mood journal" {
 		t.Fatalf("unexpected output payload: %+v", payload.Results)
+	}
+	if payload.SideDataRecordCount != 2 || payload.SideDataReportPath != reportPath {
+		t.Fatalf("expected side data artifact metadata, got %+v", payload)
 	}
 
 	data, err := os.ReadFile(filepath.Join(versionDir, "en-US.json"))
@@ -621,6 +657,28 @@ func TestMetadataKeywordsImportCSVIgnoresResearchColumns(t *testing.T) {
 	}
 	if filePayload["description"] != "Existing description" || filePayload["keywords"] != "habit tracker,mood journal" {
 		t.Fatalf("unexpected canonical metadata contents: %+v", filePayload)
+	}
+
+	reportData, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read side data report: %v", err)
+	}
+	var reportPayload struct {
+		Records []struct {
+			Locale string         `json:"locale"`
+			Fields map[string]any `json:"fields"`
+		} `json:"records"`
+	}
+	if err := json.Unmarshal(reportData, &reportPayload); err != nil {
+		t.Fatalf("unmarshal side data report: %v", err)
+	}
+	if len(reportPayload.Records) != 2 {
+		t.Fatalf("expected 2 side data records, got %+v", reportPayload.Records)
+	}
+	for _, key := range []string{"popularity", "difficulty", "notes", "tags", "rank"} {
+		if _, ok := reportPayload.Records[0].Fields[key]; !ok {
+			t.Fatalf("expected side data field %q in report, got %+v", key, reportPayload.Records[0].Fields)
+		}
 	}
 }
 

@@ -99,14 +99,17 @@ func TestParseMetadataKeywordJSONAcceptsLocaleMapObjectsWithSideData(t *testing.
 		t.Fatalf("parseMetadataKeywordJSON() error: %v", err)
 	}
 
-	if len(got) != 2 {
-		t.Fatalf("expected 2 locales, got %d: %v", len(got), got)
+	if len(got.locales) != 2 {
+		t.Fatalf("expected 2 locales, got %d: %v", len(got.locales), got.locales)
 	}
-	if len(got["en-US"]) != 2 || got["en-US"][0] != "habit tracker" || got["en-US"][1] != "mood journal" {
-		t.Fatalf("unexpected en-US keywords: %v", got["en-US"])
+	if len(got.locales["en-US"]) != 2 || got.locales["en-US"][0] != "habit tracker" || got.locales["en-US"][1] != "mood journal" {
+		t.Fatalf("unexpected en-US keywords: %v", got.locales["en-US"])
 	}
-	if len(got["fr-FR"]) != 1 || got["fr-FR"][0] != "journal humeur" {
-		t.Fatalf("unexpected fr-FR keywords: %v", got["fr-FR"])
+	if len(got.locales["fr-FR"]) != 1 || got.locales["fr-FR"][0] != "journal humeur" {
+		t.Fatalf("unexpected fr-FR keywords: %v", got.locales["fr-FR"])
+	}
+	if len(got.sideData) != 2 {
+		t.Fatalf("expected side data records, got %d: %+v", len(got.sideData), got.sideData)
 	}
 }
 
@@ -126,10 +129,13 @@ func TestParseMetadataKeywordAstroCSVUsesKeywordColumn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseMetadataKeywordAstroCSV() error: %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("expected 1 locale, got %d: %v", len(got), got)
+	if len(got.locales) != 1 {
+		t.Fatalf("expected 1 locale, got %d: %v", len(got.locales), got.locales)
 	}
-	if len(got["en-US"]) != 2 || got["en-US"][0] != "habit tracker" || got["en-US"][1] != "mood journal" {
-		t.Fatalf("unexpected astro keywords: %v", got["en-US"])
+	if len(got.locales["en-US"]) != 2 || got.locales["en-US"][0] != "habit tracker" || got.locales["en-US"][1] != "mood journal" {
+		t.Fatalf("unexpected astro keywords: %v", got.locales["en-US"])
+	}
+	if len(got.sideData) != 2 {
+		t.Fatalf("expected side data rows from astro csv, got %d: %+v", len(got.sideData), got.sideData)
 	}
 }
