@@ -301,6 +301,9 @@ func syncPullCommand() *ffcli.Command {
 				}
 
 				destPath := filepath.Join(outDir, relPath)
+				if err := signingpkg.EnsureInsideDir(outDir, destPath); err != nil {
+					return fmt.Errorf("signing sync pull: path escape in %s: %w", relPath, err)
+				}
 				if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 					return fmt.Errorf("signing sync pull: create dir: %w", err)
 				}

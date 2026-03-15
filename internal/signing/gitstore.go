@@ -33,7 +33,7 @@ func (g *GitStore) Clone(ctx context.Context, allowCreate bool) error {
 	}
 
 	if !allowCreate {
-		return fmt.Errorf("git clone: branch %q not found in %s", branch, g.RepoURL)
+		return fmt.Errorf("git clone: branch %q not found in %s: %w", branch, g.RepoURL, err)
 	}
 
 	// Push mode: may be empty repo — clone without branch and init.
@@ -68,7 +68,7 @@ func (g *GitStore) WriteEncryptedFile(relPath string, plaintext []byte, password
 	}
 
 	fullPath := filepath.Join(g.LocalDir, relPath+".enc")
-	if err := ensureInsideDir(g.LocalDir, fullPath); err != nil {
+	if err := EnsureInsideDir(g.LocalDir, fullPath); err != nil {
 		return err
 	}
 
@@ -83,7 +83,7 @@ func (g *GitStore) WriteEncryptedFile(relPath string, plaintext []byte, password
 // Rejects symlinks to prevent reading outside the clone directory.
 func (g *GitStore) ReadEncryptedFile(relPath string, password string) ([]byte, error) {
 	fullPath := filepath.Join(g.LocalDir, relPath+".enc")
-	if err := ensureInsideDir(g.LocalDir, fullPath); err != nil {
+	if err := EnsureInsideDir(g.LocalDir, fullPath); err != nil {
 		return nil, err
 	}
 	if err := rejectSymlink(fullPath); err != nil {
@@ -160,9 +160,9 @@ func (g *GitStore) Cleanup() error {
 	return os.RemoveAll(g.LocalDir)
 }
 
-// ensureInsideDir checks that target resolves to a path inside baseDir,
+// EnsureInsideDir checks that target resolves to a path inside baseDir,
 // preventing symlink escape attacks from repo content.
-func ensureInsideDir(baseDir, target string) error {
+func EnsureInsideDir(baseDir, target string) error {
 	absBase, err := filepath.Abs(baseDir)
 	if err != nil {
 		return fmt.Errorf("resolve base dir: %w", err)
