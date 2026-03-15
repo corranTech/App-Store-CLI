@@ -32,31 +32,50 @@ var keywordPlanFields = []string{"keywords"}
 
 // MetadataKeywordFileResult describes one local keyword file change.
 type MetadataKeywordFileResult struct {
-	Locale       string `json:"locale"`
-	File         string `json:"file"`
-	Action       string `json:"action"`
-	Reason       string `json:"reason,omitempty"`
+	Locale            string   `json:"locale"`
+	File              string   `json:"file"`
+	Action            string   `json:"action"`
+	Reason            string   `json:"reason,omitempty"`
+	KeywordField      string   `json:"keywordField,omitempty"`
+	KeywordCount      int      `json:"keywordCount,omitempty"`
+	DuplicateCount    int      `json:"duplicateCount,omitempty"`
+	SkippedDuplicates []string `json:"skippedDuplicates,omitempty"`
+}
+
+// MetadataKeywordIssue describes one preview-time validation issue.
+type MetadataKeywordIssue struct {
+	Locale       string `json:"locale,omitempty"`
+	File         string `json:"file,omitempty"`
+	Severity     string `json:"severity"`
+	Message      string `json:"message"`
 	KeywordField string `json:"keywordField,omitempty"`
-	KeywordCount int    `json:"keywordCount,omitempty"`
+	Length       int    `json:"length,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
 }
 
 // MetadataKeywordsImportResult describes one import run.
 type MetadataKeywordsImportResult struct {
-	Dir     string                      `json:"dir"`
-	Version string                      `json:"version"`
-	Input   string                      `json:"input"`
-	Format  string                      `json:"format"`
-	DryRun  bool                        `json:"dryRun"`
-	Results []MetadataKeywordFileResult `json:"results"`
+	Dir             string                      `json:"dir"`
+	Version         string                      `json:"version"`
+	Input           string                      `json:"input"`
+	Format          string                      `json:"format"`
+	DryRun          bool                        `json:"dryRun"`
+	Valid           bool                        `json:"valid"`
+	DetectedLocales []string                    `json:"detectedLocales"`
+	Results         []MetadataKeywordFileResult `json:"results"`
+	Issues          []MetadataKeywordIssue      `json:"issues,omitempty"`
 }
 
 // MetadataKeywordsLocalizeResult describes one localization-copy run.
 type MetadataKeywordsLocalizeResult struct {
-	Dir        string                      `json:"dir"`
-	Version    string                      `json:"version"`
-	FromLocale string                      `json:"fromLocale"`
-	DryRun     bool                        `json:"dryRun"`
-	Results    []MetadataKeywordFileResult `json:"results"`
+	Dir             string                      `json:"dir"`
+	Version         string                      `json:"version"`
+	FromLocale      string                      `json:"fromLocale"`
+	DryRun          bool                        `json:"dryRun"`
+	Valid           bool                        `json:"valid"`
+	DetectedLocales []string                    `json:"detectedLocales"`
+	Results         []MetadataKeywordFileResult `json:"results"`
+	Issues          []MetadataKeywordIssue      `json:"issues,omitempty"`
 }
 
 // MetadataKeywordsWarning highlights submit-readiness risk during keyword creates.
@@ -84,7 +103,7 @@ type MetadataKeywordsPlanResult struct {
 // MetadataKeywordsSyncResult combines import and remote planning/apply.
 type MetadataKeywordsSyncResult struct {
 	Import MetadataKeywordsImportResult `json:"import"`
-	Plan   MetadataKeywordsPlanResult   `json:"plan"`
+	Plan   *MetadataKeywordsPlanResult  `json:"plan,omitempty"`
 }
 
 type metadataKeywordsImportOptions struct {
@@ -127,6 +146,13 @@ type keywordLocalState struct {
 type keywordImportPayload struct {
 	states map[string]keywordLocalState
 	result MetadataKeywordsImportResult
+}
+
+type metadataKeywordFieldDetails struct {
+	field      string
+	count      int
+	length     int
+	duplicates []string
 }
 
 // MetadataKeywordsCommand returns the canonical metadata keywords subtree.
@@ -217,17 +243,23 @@ Examples:
 				}
 				return fmt.Errorf("metadata keywords import: %w", err)
 			}
-			return shared.PrintOutputWithRenderers(
+			if err := shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					return printMetadataKeywordFileResultTable("Keyword Import", result.Results, result.Dir, result.Version, result.DryRun)
+					return printMetadataKeywordFileResultTable("Keyword Import", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun)
 				},
 				func() error {
-					return printMetadataKeywordFileResultMarkdown("Keyword Import", result.Results, result.Dir, result.Version, result.DryRun)
+					return printMetadataKeywordFileResultMarkdown("Keyword Import", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun)
 				},
-			)
+			); err != nil {
+				return err
+			}
+			if !result.Valid {
+				return shared.NewReportedError(fmt.Errorf("metadata keywords import: found %d issue(s)", len(result.Issues)))
+			}
+			return nil
 		},
 	}
 }
@@ -382,17 +414,23 @@ Examples:
 				}
 				return fmt.Errorf("metadata keywords localize: %w", err)
 			}
-			return shared.PrintOutputWithRenderers(
+			if err := shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					return printMetadataKeywordFileResultTable("Keyword Localize", result.Results, result.Dir, result.Version, result.DryRun)
+					return printMetadataKeywordFileResultTable("Keyword Localize", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun)
 				},
 				func() error {
-					return printMetadataKeywordFileResultMarkdown("Keyword Localize", result.Results, result.Dir, result.Version, result.DryRun)
+					return printMetadataKeywordFileResultMarkdown("Keyword Localize", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun)
 				},
-			)
+			); err != nil {
+				return err
+			}
+			if !result.Valid {
+				return shared.NewReportedError(fmt.Errorf("metadata keywords localize: found %d issue(s)", len(result.Issues)))
+			}
+			return nil
 		},
 	}
 }
@@ -506,6 +544,19 @@ Examples:
 				}
 				return fmt.Errorf("metadata keywords sync: %w", err)
 			}
+			if !importPayload.result.Valid {
+				result := MetadataKeywordsSyncResult{Import: importPayload.result}
+				if err := shared.PrintOutputWithRenderers(
+					result,
+					*output.Output,
+					*output.Pretty,
+					func() error { return printMetadataKeywordsSyncTable(result) },
+					func() error { return printMetadataKeywordsSyncMarkdown(result) },
+				); err != nil {
+					return err
+				}
+				return shared.NewReportedError(fmt.Errorf("metadata keywords sync: found %d import issue(s)", len(importPayload.result.Issues)))
+			}
 
 			planResult, err := executeMetadataKeywordsPlan(ctx, metadataKeywordsPlanOptions{
 				AppID:      *appID,
@@ -526,15 +577,21 @@ Examples:
 
 			result := MetadataKeywordsSyncResult{
 				Import: importPayload.result,
-				Plan:   planResult,
+				Plan:   &planResult,
 			}
-			return shared.PrintOutputWithRenderers(
+			if err := shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error { return printMetadataKeywordsSyncTable(result) },
 				func() error { return printMetadataKeywordsSyncMarkdown(result) },
-			)
+			); err != nil {
+				return err
+			}
+			if !result.Import.Valid {
+				return shared.NewReportedError(fmt.Errorf("metadata keywords sync: found %d import issue(s)", len(result.Import.Issues)))
+			}
+			return nil
 		},
 	}
 }
@@ -566,25 +623,29 @@ func executeMetadataKeywordsImportWithState(opts metadataKeywordsImportOptions) 
 		return keywordImportPayload{}, err
 	}
 
-	states, results, plans, err := buildMetadataKeywordWriteResults(dirValue, versionValue, imported, opts.Overwrite)
+	states, results, plans, issues, err := buildMetadataKeywordWriteResults(dirValue, versionValue, imported, opts.Overwrite)
 	if err != nil {
 		return keywordImportPayload{}, err
 	}
-	if !opts.DryRun {
+	if !opts.DryRun && len(issues) == 0 {
 		if err := ApplyWritePlans(plans); err != nil {
 			return keywordImportPayload{}, err
 		}
 	}
+	detectedLocales := sortedKeys(imported)
 
 	return keywordImportPayload{
 		states: states,
 		result: MetadataKeywordsImportResult{
-			Dir:     dirValue,
-			Version: versionValue,
-			Input:   inputValue,
-			Format:  formatValue,
-			DryRun:  opts.DryRun,
-			Results: results,
+			Dir:             dirValue,
+			Version:         versionValue,
+			Input:           inputValue,
+			Format:          formatValue,
+			DryRun:          opts.DryRun,
+			Valid:           len(issues) == 0,
+			DetectedLocales: detectedLocales,
+			Results:         results,
+			Issues:          issues,
 		},
 	}, nil
 }
@@ -636,22 +697,25 @@ func executeMetadataKeywordsLocalize(opts metadataKeywordsLocalizeOptions) (Meta
 		valuesByLocale[locale] = append([]string(nil), sourceKeywords...)
 	}
 
-	_, results, plans, err := buildMetadataKeywordWriteResults(dirValue, versionValue, valuesByLocale, opts.Overwrite)
+	_, results, plans, issues, err := buildMetadataKeywordWriteResults(dirValue, versionValue, valuesByLocale, opts.Overwrite)
 	if err != nil {
 		return MetadataKeywordsLocalizeResult{}, err
 	}
-	if !opts.DryRun {
+	if !opts.DryRun && len(issues) == 0 {
 		if err := ApplyWritePlans(plans); err != nil {
 			return MetadataKeywordsLocalizeResult{}, err
 		}
 	}
 
 	return MetadataKeywordsLocalizeResult{
-		Dir:        dirValue,
-		Version:    versionValue,
-		FromLocale: sourceLocale,
-		DryRun:     opts.DryRun,
-		Results:    results,
+		Dir:             dirValue,
+		Version:         versionValue,
+		FromLocale:      sourceLocale,
+		DryRun:          opts.DryRun,
+		Valid:           len(issues) == 0,
+		DetectedLocales: targets,
+		Results:         results,
+		Issues:          issues,
 	}, nil
 }
 
@@ -1042,7 +1106,7 @@ func normalizeImportedMetadataKeywords(raw map[string][]string, defaultLocale st
 			return nil, shared.UsageError(err.Error())
 		}
 
-		normalizedKeywords, err := normalizeMetadataKeywordList(keywords)
+		normalizedKeywords, err := normalizeMetadataKeywordTokensPreserveDuplicates(keywords)
 		if err != nil {
 			return nil, shared.UsageErrorf("locale %q: %v", canonicalLocale, err)
 		}
@@ -1050,7 +1114,7 @@ func normalizeImportedMetadataKeywords(raw map[string][]string, defaultLocale st
 	}
 
 	for locale, keywords := range result {
-		normalizedKeywords, err := normalizeMetadataKeywordList(keywords)
+		normalizedKeywords, err := normalizeMetadataKeywordTokensPreserveDuplicates(keywords)
 		if err != nil {
 			return nil, shared.UsageErrorf("locale %q: %v", locale, err)
 		}
@@ -1062,7 +1126,7 @@ func normalizeImportedMetadataKeywords(raw map[string][]string, defaultLocale st
 	return result, nil
 }
 
-func buildMetadataKeywordWriteResults(dir, version string, valuesByLocale map[string][]string, overwrite bool) (map[string]keywordLocalState, []MetadataKeywordFileResult, []WritePlan, error) {
+func buildMetadataKeywordWriteResults(dir, version string, valuesByLocale map[string][]string, overwrite bool) (map[string]keywordLocalState, []MetadataKeywordFileResult, []WritePlan, []MetadataKeywordIssue, error) {
 	locales := make([]string, 0, len(valuesByLocale))
 	for locale := range valuesByLocale {
 		locales = append(locales, locale)
@@ -1072,27 +1136,44 @@ func buildMetadataKeywordWriteResults(dir, version string, valuesByLocale map[st
 	states := make(map[string]keywordLocalState, len(locales))
 	results := make([]MetadataKeywordFileResult, 0, len(locales))
 	plans := make([]WritePlan, 0, len(locales))
+	issues := make([]MetadataKeywordIssue, 0)
 
 	for _, locale := range locales {
 		path, err := VersionLocalizationFilePath(dir, version, locale)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
-		keywordField, keywordCount, err := buildMetadataKeywordField(valuesByLocale[locale])
+		keywordField, keywordCount, duplicateCount, skippedDuplicates, keywordIssues, err := buildMetadataKeywordPreview(valuesByLocale[locale])
 		if err != nil {
-			return nil, nil, nil, shared.UsageErrorf("locale %q: %v", locale, err)
+			return nil, nil, nil, nil, shared.UsageErrorf("locale %q: %v", locale, err)
 		}
 
 		existing, exists, err := readExistingVersionLocalization(path)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		result := MetadataKeywordFileResult{
-			Locale:       locale,
-			File:         path,
-			KeywordField: keywordField,
-			KeywordCount: keywordCount,
+			Locale:            locale,
+			File:              path,
+			KeywordField:      keywordField,
+			KeywordCount:      keywordCount,
+			DuplicateCount:    duplicateCount,
+			SkippedDuplicates: skippedDuplicates,
+		}
+		for _, issue := range keywordIssues {
+			issue.Locale = locale
+			issue.File = path
+			if issue.KeywordField == "" {
+				issue.KeywordField = keywordField
+			}
+			issues = append(issues, issue)
+		}
+		if len(keywordIssues) > 0 {
+			result.Action = "invalid"
+			result.Reason = keywordIssues[0].Message
+			results = append(results, result)
+			continue
 		}
 
 		switch {
@@ -1115,13 +1196,13 @@ func buildMetadataKeywordWriteResults(dir, version string, valuesByLocale map[st
 			states[locale] = buildMetadataKeywordLocalState(locale, path, next)
 			data, err := EncodeVersionLocalization(next)
 			if err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 			plans = append(plans, WritePlan{Path: path, Contents: data})
 		}
 		results = append(results, result)
 	}
-	return states, results, plans, nil
+	return states, results, plans, issues, nil
 }
 
 func buildMetadataKeywordLocalState(locale, path string, localization VersionLocalization) keywordLocalState {
@@ -1302,18 +1383,17 @@ func splitMetadataKeywordTokens(value string) []string {
 }
 
 func normalizeMetadataKeywordList(keywords []string) ([]string, error) {
+	normalized, _, err := normalizeMetadataKeywordListDetailed(keywords)
+	return normalized, err
+}
+
+func normalizeMetadataKeywordTokensPreserveDuplicates(keywords []string) ([]string, error) {
 	normalized := make([]string, 0, len(keywords))
-	seen := make(map[string]struct{}, len(keywords))
 	for _, keyword := range keywords {
 		trimmed := strings.Join(strings.Fields(strings.TrimSpace(keyword)), " ")
 		if trimmed == "" {
 			continue
 		}
-		folded := strings.ToLower(trimmed)
-		if _, ok := seen[folded]; ok {
-			continue
-		}
-		seen[folded] = struct{}{}
 		normalized = append(normalized, trimmed)
 	}
 	if len(normalized) == 0 {
@@ -1322,16 +1402,67 @@ func normalizeMetadataKeywordList(keywords []string) ([]string, error) {
 	return normalized, nil
 }
 
+func normalizeMetadataKeywordListDetailed(keywords []string) ([]string, []string, error) {
+	normalizedInputs, err := normalizeMetadataKeywordTokensPreserveDuplicates(keywords)
+	if err != nil {
+		return nil, nil, err
+	}
+	normalized := make([]string, 0, len(normalizedInputs))
+	duplicates := make([]string, 0)
+	seen := make(map[string]struct{}, len(normalizedInputs))
+	for _, trimmed := range normalizedInputs {
+		folded := strings.ToLower(trimmed)
+		if _, ok := seen[folded]; ok {
+			duplicates = append(duplicates, trimmed)
+			continue
+		}
+		seen[folded] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+	return normalized, duplicates, nil
+}
+
 func buildMetadataKeywordField(keywords []string) (string, int, error) {
-	normalized, err := normalizeMetadataKeywordList(keywords)
+	details, err := buildMetadataKeywordFieldDetails(keywords)
 	if err != nil {
 		return "", 0, err
 	}
-	field := strings.Join(normalized, ",")
-	if utf8.RuneCountInString(field) > validation.LimitKeywords {
+	if details.length > validation.LimitKeywords {
 		return "", 0, fmt.Errorf("keywords exceed %d characters", validation.LimitKeywords)
 	}
-	return field, len(normalized), nil
+	return details.field, details.count, nil
+}
+
+func buildMetadataKeywordFieldDetails(keywords []string) (metadataKeywordFieldDetails, error) {
+	normalized, duplicates, err := normalizeMetadataKeywordListDetailed(keywords)
+	if err != nil {
+		return metadataKeywordFieldDetails{}, err
+	}
+	field := strings.Join(normalized, ",")
+	return metadataKeywordFieldDetails{
+		field:      field,
+		count:      len(normalized),
+		length:     utf8.RuneCountInString(field),
+		duplicates: duplicates,
+	}, nil
+}
+
+func buildMetadataKeywordPreview(keywords []string) (string, int, int, []string, []MetadataKeywordIssue, error) {
+	details, err := buildMetadataKeywordFieldDetails(keywords)
+	if err != nil {
+		return "", 0, 0, nil, nil, err
+	}
+	issues := make([]MetadataKeywordIssue, 0, 1)
+	if details.length > validation.LimitKeywords {
+		issues = append(issues, MetadataKeywordIssue{
+			Severity:     "error",
+			Message:      fmt.Sprintf("keywords exceed %d characters", validation.LimitKeywords),
+			KeywordField: details.field,
+			Length:       details.length,
+			Limit:        validation.LimitKeywords,
+		})
+	}
+	return details.field, details.count, len(details.duplicates), details.duplicates, issues, nil
 }
 
 func parseMetadataKeywordField(field string) ([]string, error) {
@@ -1346,11 +1477,14 @@ func parseMetadataKeywordField(field string) ([]string, error) {
 	return normalized, nil
 }
 
-func printMetadataKeywordFileResultTable(title string, results []MetadataKeywordFileResult, dir string, version string, dryRun bool) error {
+func printMetadataKeywordFileResultTable(title string, results []MetadataKeywordFileResult, detectedLocales []string, issues []MetadataKeywordIssue, dir string, version string, dryRun bool) error {
 	fmt.Printf("%s\n", title)
 	fmt.Printf("Dir: %s\n", dir)
 	fmt.Printf("Version: %s\n", version)
 	fmt.Printf("Dry Run: %t\n\n", dryRun)
+	if len(detectedLocales) > 0 {
+		fmt.Printf("Detected Locales: %s\n\n", strings.Join(detectedLocales, ","))
+	}
 
 	rows := make([][]string, 0, len(results))
 	for _, result := range results {
@@ -1359,22 +1493,31 @@ func printMetadataKeywordFileResultTable(title string, results []MetadataKeyword
 			result.Action,
 			result.Reason,
 			fmt.Sprintf("%d", result.KeywordCount),
+			fmt.Sprintf("%d", result.DuplicateCount),
+			strings.Join(result.SkippedDuplicates, ","),
 			sanitizePlanCell(result.KeywordField),
 			result.File,
 		})
 	}
 	if len(rows) == 0 {
-		rows = append(rows, []string{"", "none", "no changes", "0", "", ""})
+		rows = append(rows, []string{"", "none", "no changes", "0", "0", "", "", ""})
 	}
-	asc.RenderTable([]string{"locale", "action", "reason", "count", "keywords", "file"}, rows)
+	asc.RenderTable([]string{"locale", "action", "reason", "count", "duplicates", "skipped", "keywords", "file"}, rows)
+	if len(issues) > 0 {
+		fmt.Println()
+		asc.RenderTable([]string{"locale", "severity", "message", "keywords", "length", "limit"}, buildMetadataKeywordIssueRows(issues))
+	}
 	return nil
 }
 
-func printMetadataKeywordFileResultMarkdown(title string, results []MetadataKeywordFileResult, dir string, version string, dryRun bool) error {
+func printMetadataKeywordFileResultMarkdown(title string, results []MetadataKeywordFileResult, detectedLocales []string, issues []MetadataKeywordIssue, dir string, version string, dryRun bool) error {
 	fmt.Printf("## %s\n\n", title)
 	fmt.Printf("**Dir:** %s\n\n", dir)
 	fmt.Printf("**Version:** %s\n\n", version)
 	fmt.Printf("**Dry Run:** %t\n\n", dryRun)
+	if len(detectedLocales) > 0 {
+		fmt.Printf("**Detected Locales:** %s\n\n", strings.Join(detectedLocales, ","))
+	}
 
 	rows := make([][]string, 0, len(results))
 	for _, result := range results {
@@ -1383,14 +1526,20 @@ func printMetadataKeywordFileResultMarkdown(title string, results []MetadataKeyw
 			result.Action,
 			result.Reason,
 			fmt.Sprintf("%d", result.KeywordCount),
+			fmt.Sprintf("%d", result.DuplicateCount),
+			strings.Join(result.SkippedDuplicates, ","),
 			sanitizePlanCell(result.KeywordField),
 			result.File,
 		})
 	}
 	if len(rows) == 0 {
-		rows = append(rows, []string{"", "none", "no changes", "0", "", ""})
+		rows = append(rows, []string{"", "none", "no changes", "0", "0", "", "", ""})
 	}
-	asc.RenderMarkdown([]string{"locale", "action", "reason", "count", "keywords", "file"}, rows)
+	asc.RenderMarkdown([]string{"locale", "action", "reason", "count", "duplicates", "skipped", "keywords", "file"}, rows)
+	if len(issues) > 0 {
+		fmt.Println()
+		asc.RenderMarkdown([]string{"locale", "severity", "message", "keywords", "length", "limit"}, buildMetadataKeywordIssueRows(issues))
+	}
 	return nil
 }
 
@@ -1478,18 +1627,47 @@ func buildMetadataKeywordWarningRows(warnings []MetadataKeywordsWarning) [][]str
 	return rows
 }
 
+func buildMetadataKeywordIssueRows(issues []MetadataKeywordIssue) [][]string {
+	rows := make([][]string, 0, len(issues))
+	for _, issue := range issues {
+		length := "-"
+		limit := "-"
+		if issue.Length > 0 {
+			length = fmt.Sprintf("%d", issue.Length)
+		}
+		if issue.Limit > 0 {
+			limit = fmt.Sprintf("%d", issue.Limit)
+		}
+		rows = append(rows, []string{
+			issue.Locale,
+			issue.Severity,
+			issue.Message,
+			sanitizePlanCell(issue.KeywordField),
+			length,
+			limit,
+		})
+	}
+	return rows
+}
+
 func printMetadataKeywordsSyncTable(result MetadataKeywordsSyncResult) error {
-	if err := printMetadataKeywordFileResultTable("Keyword Import", result.Import.Results, result.Import.Dir, result.Import.Version, result.Import.DryRun); err != nil {
+	if err := printMetadataKeywordFileResultTable("Keyword Import", result.Import.Results, result.Import.DetectedLocales, result.Import.Issues, result.Import.Dir, result.Import.Version, result.Import.DryRun); err != nil {
 		return err
 	}
+	if result.Plan == nil {
+		return nil
+	}
 	fmt.Println()
-	return printMetadataKeywordsPlanTable(result.Plan)
+	return printMetadataKeywordsPlanTable(*result.Plan)
 }
 
 func printMetadataKeywordsSyncMarkdown(result MetadataKeywordsSyncResult) error {
-	if err := printMetadataKeywordFileResultMarkdown("Keyword Import", result.Import.Results, result.Import.Dir, result.Import.Version, result.Import.DryRun); err != nil {
+	if err := printMetadataKeywordFileResultMarkdown("Keyword Import", result.Import.Results, result.Import.DetectedLocales, result.Import.Issues, result.Import.Dir, result.Import.Version, result.Import.DryRun); err != nil {
 		return err
 	}
+	if result.Plan == nil {
+		return nil
+	}
 	fmt.Println()
-	return printMetadataKeywordsPlanMarkdown(result.Plan)
+	return printMetadataKeywordsPlanMarkdown(*result.Plan)
 }

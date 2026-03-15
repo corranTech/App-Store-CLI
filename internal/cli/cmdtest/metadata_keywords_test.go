@@ -123,12 +123,15 @@ func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 	}
 
 	var payload struct {
-		DryRun  bool `json:"dryRun"`
-		Results []struct {
-			Locale       string `json:"locale"`
-			Action       string `json:"action"`
-			KeywordField string `json:"keywordField"`
-			KeywordCount int    `json:"keywordCount"`
+		DryRun          bool     `json:"dryRun"`
+		DetectedLocales []string `json:"detectedLocales"`
+		Results         []struct {
+			Locale            string   `json:"locale"`
+			Action            string   `json:"action"`
+			KeywordField      string   `json:"keywordField"`
+			KeywordCount      int      `json:"keywordCount"`
+			DuplicateCount    int      `json:"duplicateCount"`
+			SkippedDuplicates []string `json:"skippedDuplicates"`
 		} `json:"results"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
@@ -137,10 +140,13 @@ func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 	if !payload.DryRun {
 		t.Fatal("expected dryRun true")
 	}
+	if len(payload.DetectedLocales) != 2 || payload.DetectedLocales[0] != "en-US" || payload.DetectedLocales[1] != "fr-FR" {
+		t.Fatalf("expected detected locales [en-US fr-FR], got %+v", payload.DetectedLocales)
+	}
 	if len(payload.Results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(payload.Results))
 	}
-	if payload.Results[0].Locale != "en-US" || payload.Results[0].Action != "create" || payload.Results[0].KeywordField != "habit tracker,mood journal" || payload.Results[0].KeywordCount != 2 {
+	if payload.Results[0].Locale != "en-US" || payload.Results[0].Action != "create" || payload.Results[0].KeywordField != "habit tracker,mood journal" || payload.Results[0].KeywordCount != 2 || payload.Results[0].DuplicateCount != 1 || len(payload.Results[0].SkippedDuplicates) != 1 || payload.Results[0].SkippedDuplicates[0] != "habit tracker" {
 		t.Fatalf("unexpected en-US result: %+v", payload.Results[0])
 	}
 	if payload.Results[1].Locale != "fr-FR" || payload.Results[1].KeywordField != "journal d'humeur,habitudes" {
@@ -153,6 +159,68 @@ func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected dry-run to avoid writing %s, got err=%v", path, err)
+	}
+}
+
+func TestMetadataKeywordsImportDryRunReportsOverLimitIssue(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	// 101 runes, above the App Store keyword limit.
+	if err := os.WriteFile(inputPath, []byte(strings.Repeat("k", 101)), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "en-US",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr == nil {
+		t.Fatal("expected non-nil run error for invalid preview")
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Valid  bool `json:"valid"`
+		Issues []struct {
+			Locale       string `json:"locale"`
+			Message      string `json:"message"`
+			KeywordField string `json:"keywordField"`
+			Length       int    `json:"length"`
+			Limit        int    `json:"limit"`
+		} `json:"issues"`
+		Results []struct {
+			Locale string `json:"locale"`
+			Action string `json:"action"`
+			Reason string `json:"reason"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if payload.Valid {
+		t.Fatalf("expected invalid preview payload, got %+v", payload)
+	}
+	if len(payload.Issues) != 1 || payload.Issues[0].Locale != "en-US" || payload.Issues[0].Message != "keywords exceed 100 characters" || payload.Issues[0].Length != 101 || payload.Issues[0].Limit != 100 {
+		t.Fatalf("unexpected issues payload: %+v", payload.Issues)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Action != "invalid" || payload.Results[0].Reason != "keywords exceed 100 characters" {
+		t.Fatalf("unexpected result payload: %+v", payload.Results)
 	}
 }
 
@@ -1034,6 +1102,72 @@ func TestMetadataKeywordsSyncDryRunUsesImportedStateWithoutWriting(t *testing.T)
 
 	if _, err := os.Stat(filepath.Join(dir, "version", "1.2.3", "en-US.json")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected dry-run sync to avoid writing canonical file, got err=%v", err)
+	}
+}
+
+func TestMetadataKeywordsSyncStopsWhenImportPreviewHasIssues(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	if err := os.WriteFile(inputPath, []byte(strings.Repeat("k", 101)), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	callCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		t.Fatalf("expected sync to stop before remote planning, got %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "sync",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", dir,
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "en-US",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr == nil {
+		t.Fatal("expected non-nil run error for invalid sync preview")
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if callCount != 0 {
+		t.Fatalf("expected no remote planning requests, got %d", callCount)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if _, ok := payload["plan"]; ok {
+		t.Fatalf("expected sync output to omit plan when import preview fails, got %+v", payload)
+	}
+	importPayload, ok := payload["import"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected import object, got %+v", payload["import"])
+	}
+	if valid, _ := importPayload["valid"].(bool); valid {
+		t.Fatalf("expected invalid import payload, got %+v", importPayload)
 	}
 }
 
