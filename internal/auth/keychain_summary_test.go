@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/99designs/keyring"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
 const testCredentialMetadataDescription = `asc:metadata:{"key_id":"KEY123","issuer_id":"ISS456"}`
@@ -209,5 +212,47 @@ func TestListCredentials_DoesNotRewriteMetadataOnlyMismatchOnFullRead(t *testing
 
 	if kr.setCalls != 0 {
 		t.Fatalf("expected metadata-only mismatch to avoid keychain writes, got %d Set() calls", kr.setCalls)
+	}
+}
+
+func TestListCredentialSummaries_IgnoresStaleStoredMetadata(t *testing.T) {
+	modifiedAt := time.Date(2026, 3, 15, 4, 45, 0, 0, time.UTC)
+	kr := &metadataKeyring{
+		metadata: map[string]keyring.Metadata{
+			keyringKey("legacy"): {
+				Item: &keyring.Item{
+					Key:   keyringKey("legacy"),
+					Label: "ASC API Key (legacy)",
+				},
+				ModificationTime: modifiedAt,
+			},
+		},
+	}
+	withMetadataKeyring(t, kr)
+
+	path, err := config.Path()
+	if err != nil {
+		t.Fatalf("config.Path() error: %v", err)
+	}
+	if err := config.SaveAt(path, &config.Config{
+		KeychainMetadata: []config.KeychainMetadata{{
+			Name:       "legacy",
+			KeyID:      "OLDKEY",
+			IssuerID:   "OLDISS",
+			ModifiedAt: metadataModifiedAtString(modifiedAt.Add(-time.Minute)),
+		}},
+	}); err != nil {
+		t.Fatalf("config.SaveAt() error: %v", err)
+	}
+
+	creds, err := ListCredentialSummaries()
+	if err != nil {
+		t.Fatalf("ListCredentialSummaries() error: %v", err)
+	}
+	if len(creds) != 1 {
+		t.Fatalf("expected one credential, got %d", len(creds))
+	}
+	if creds[0].KeyID != "" || creds[0].IssuerID != "" {
+		t.Fatalf("expected stale stored metadata to be ignored, got %#v", creds[0])
 	}
 }

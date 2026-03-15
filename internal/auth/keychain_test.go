@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/99designs/keyring"
 
@@ -944,7 +945,20 @@ func TestGetCredentialsWithSource_BackfillsLegacyKeychainPayload(t *testing.T) {
 }
 
 func TestGetCredentialsWithSource_BackfillsMetadataForExistingPEM(t *testing.T) {
-	newKr, _ := withSeparateKeyrings(t)
+	modifiedAt := time.Date(2026, 3, 15, 4, 30, 0, 0, time.UTC)
+	kr := &metadataKeyring{
+		metadata: map[string]keyring.Metadata{
+			keyringKey("legacy"): {
+				Item: &keyring.Item{
+					Key:   keyringKey("legacy"),
+					Label: "ASC API Key (legacy)",
+				},
+				ModificationTime: modifiedAt,
+			},
+		},
+		items: map[string]keyring.Item{},
+	}
+	withMetadataKeyring(t, kr)
 
 	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
 	writeECDSAPEM(t, keyPath, 0o600, true)
@@ -963,12 +977,10 @@ func TestGetCredentialsWithSource_BackfillsMetadataForExistingPEM(t *testing.T) 
 	if err != nil {
 		t.Fatalf("json.Marshal() error: %v", err)
 	}
-	if err := newKr.Set(keyring.Item{
+	kr.items[keyringKey("legacy")] = keyring.Item{
 		Key:   keyringKey("legacy"),
 		Data:  data,
 		Label: "ASC API Key (legacy)",
-	}); err != nil {
-		t.Fatalf("Set(keyring item) error: %v", err)
 	}
 
 	creds, source, err := GetCredentialsWithSource("legacy")
@@ -1000,11 +1012,11 @@ func TestGetCredentialsWithSource_BackfillsMetadataForExistingPEM(t *testing.T) 
 	if len(cfg.KeychainMetadata) != 1 {
 		t.Fatalf("expected one keychain metadata record, got %#v", cfg.KeychainMetadata)
 	}
-	if cfg.KeychainMetadata[0].Name != "legacy" || cfg.KeychainMetadata[0].KeyID != "KEY123" || cfg.KeychainMetadata[0].IssuerID != "ISS456" {
+	if cfg.KeychainMetadata[0].Name != "legacy" || cfg.KeychainMetadata[0].KeyID != "KEY123" || cfg.KeychainMetadata[0].IssuerID != "ISS456" || cfg.KeychainMetadata[0].ModifiedAt != metadataModifiedAtString(modifiedAt) {
 		t.Fatalf("unexpected keychain metadata record: %#v", cfg.KeychainMetadata[0])
 	}
 
-	item, err := newKr.Get(keyringKey("legacy"))
+	item, err := kr.Get(keyringKey("legacy"))
 	if err != nil {
 		t.Fatalf("Get(keyring item) error: %v", err)
 	}

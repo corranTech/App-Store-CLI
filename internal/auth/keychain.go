@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/99designs/keyring"
 
@@ -44,15 +45,16 @@ const (
 
 // Credential represents stored API credentials
 type Credential struct {
-	Name                  string `json:"name"`
-	KeyID                 string `json:"key_id"`
-	IssuerID              string `json:"issuer_id"`
-	PrivateKeyPath        string `json:"private_key_path"`
-	PrivateKeyPEM         string `json:"-"`
-	IsDefault             bool   `json:"is_default"`
-	Source                string `json:"source,omitempty"`
-	SourcePath            string `json:"source_path,omitempty"`
-	MetadataNeedsBackfill bool   `json:"-"`
+	Name                  string    `json:"name"`
+	KeyID                 string    `json:"key_id"`
+	IssuerID              string    `json:"issuer_id"`
+	PrivateKeyPath        string    `json:"private_key_path"`
+	PrivateKeyPEM         string    `json:"-"`
+	IsDefault             bool      `json:"is_default"`
+	Source                string    `json:"source,omitempty"`
+	SourcePath            string    `json:"source_path,omitempty"`
+	MetadataNeedsBackfill bool      `json:"-"`
+	MetadataModifiedAt    time.Time `json:"-"`
 }
 
 // CredentialsWarning indicates that some credential sources could not be read.
@@ -765,30 +767,52 @@ func hasCredentialMetadata(metadata credentialMetadata) bool {
 	return strings.TrimSpace(metadata.KeyID) != "" || strings.TrimSpace(metadata.IssuerID) != ""
 }
 
+func metadataModifiedAtString(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
 func credentialMetadataMatchesPayload(metadata credentialMetadata, payload credentialPayload) bool {
 	return strings.TrimSpace(metadata.KeyID) == strings.TrimSpace(payload.KeyID) &&
 		strings.TrimSpace(metadata.IssuerID) == strings.TrimSpace(payload.IssuerID)
 }
 
-func loadStoredKeychainMetadata() map[string]credentialMetadata {
+func storedKeychainMetadataSummary(entry config.KeychainMetadata) credentialMetadata {
+	return credentialMetadata{
+		KeyID:    strings.TrimSpace(entry.KeyID),
+		IssuerID: strings.TrimSpace(entry.IssuerID),
+	}
+}
+
+func storedKeychainMetadataMatches(entry config.KeychainMetadata, modifiedAt time.Time) bool {
+	if strings.TrimSpace(entry.ModifiedAt) == "" || modifiedAt.IsZero() {
+		return false
+	}
+	return strings.TrimSpace(entry.ModifiedAt) == metadataModifiedAtString(modifiedAt)
+}
+
+func loadStoredKeychainMetadata() map[string]config.KeychainMetadata {
 	path, err := config.Path()
 	if err != nil {
-		return map[string]credentialMetadata{}
+		return map[string]config.KeychainMetadata{}
 	}
 	cfg, err := config.LoadAt(path)
 	if err != nil {
-		return map[string]credentialMetadata{}
+		return map[string]config.KeychainMetadata{}
 	}
-	stored := make(map[string]credentialMetadata, len(cfg.KeychainMetadata))
+	stored := make(map[string]config.KeychainMetadata, len(cfg.KeychainMetadata))
 	for _, entry := range cfg.KeychainMetadata {
 		name := strings.TrimSpace(entry.Name)
 		if name == "" {
 			continue
 		}
-		stored[name] = credentialMetadata{
-			KeyID:    strings.TrimSpace(entry.KeyID),
-			IssuerID: strings.TrimSpace(entry.IssuerID),
-		}
+		entry.Name = name
+		entry.KeyID = strings.TrimSpace(entry.KeyID)
+		entry.IssuerID = strings.TrimSpace(entry.IssuerID)
+		entry.ModifiedAt = strings.TrimSpace(entry.ModifiedAt)
+		stored[name] = entry
 	}
 	return stored
 }
@@ -810,11 +834,12 @@ func persistKeychainMetadata(cred Credential) {
 		cfg = &config.Config{}
 	}
 	metadata := config.KeychainMetadata{
-		Name:     name,
-		KeyID:    strings.TrimSpace(cred.KeyID),
-		IssuerID: strings.TrimSpace(cred.IssuerID),
+		Name:       name,
+		KeyID:      strings.TrimSpace(cred.KeyID),
+		IssuerID:   strings.TrimSpace(cred.IssuerID),
+		ModifiedAt: metadataModifiedAtString(cred.MetadataModifiedAt),
 	}
-	if metadata.KeyID == "" && metadata.IssuerID == "" {
+	if metadata.KeyID == "" && metadata.IssuerID == "" || metadata.ModifiedAt == "" {
 		return
 	}
 	updated := false
@@ -975,8 +1000,8 @@ func listCredentialSummariesFromKeyring(kr keyring.Keyring) ([]Credential, error
 		name := strings.TrimPrefix(key, keyringItemPrefix)
 		summary := parseCredentialMetadataDescription(metadata.Item.Description)
 		if !hasCredentialMetadata(summary) {
-			if stored, ok := storedMetadata[name]; ok {
-				summary = stored
+			if stored, ok := storedMetadata[name]; ok && storedKeychainMetadataMatches(stored, metadata.ModificationTime) {
+				summary = storedKeychainMetadataSummary(stored)
 			}
 		}
 		credentials = append(credentials, Credential{
@@ -1018,8 +1043,14 @@ func listFromKeyring(kr keyring.Keyring) ([]Credential, error) {
 		name := strings.TrimPrefix(key, keyringItemPrefix)
 		descriptionMetadata := parseCredentialMetadataDescription(item.Description)
 		metadataNeedsBackfill := !hasCredentialMetadata(descriptionMetadata)
+		metadataModifiedAt := time.Time{}
+		if metadataInfo, metadataErr := kr.GetMetadata(key); metadataErr == nil {
+			metadataModifiedAt = metadataInfo.ModificationTime
+		}
 		if metadataNeedsBackfill {
-			if stored, ok := storedMetadata[name]; ok && credentialMetadataMatchesPayload(stored, payload) {
+			if stored, ok := storedMetadata[name]; ok &&
+				storedKeychainMetadataMatches(stored, metadataModifiedAt) &&
+				credentialMetadataMatchesPayload(storedKeychainMetadataSummary(stored), payload) {
 				metadataNeedsBackfill = false
 			}
 		}
@@ -1046,6 +1077,7 @@ func listFromKeyring(kr keyring.Keyring) ([]Credential, error) {
 			IsDefault:             name == defaultName,
 			Source:                "keychain",
 			MetadataNeedsBackfill: metadataNeedsBackfill,
+			MetadataModifiedAt:    metadataModifiedAt,
 		})
 	}
 

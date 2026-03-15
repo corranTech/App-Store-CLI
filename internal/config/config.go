@@ -119,9 +119,10 @@ type Credential struct {
 
 // KeychainMetadata stores non-secret metadata for keychain-backed credentials.
 type KeychainMetadata struct {
-	Name     string `json:"name"`
-	KeyID    string `json:"key_id"`
-	IssuerID string `json:"issuer_id"`
+	Name       string `json:"name"`
+	KeyID      string `json:"key_id"`
+	IssuerID   string `json:"issuer_id"`
+	ModifiedAt string `json:"modified_at,omitempty"`
 }
 
 // Config holds the application configuration
