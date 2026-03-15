@@ -319,3 +319,45 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 		t.Fatalf("unexpected progress labels: %#v", *labels)
 	}
 }
+
+func TestWebAuthCapabilitiesUnauthorizedLookupGetsWebHint(t *testing.T) {
+	labels := stubWebProgressLabels(t)
+
+	origResolveSession := resolveSessionFn
+	origNewClient := newWebAuthClientFn
+	origLookup := lookupWebAuthKeyFn
+	t.Cleanup(func() {
+		resolveSessionFn = origResolveSession
+		newWebAuthClientFn = origNewClient
+		lookupWebAuthKeyFn = origLookup
+	})
+
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebAuthClientFn = func(session *webcore.AuthSession) *webcore.Client {
+		return &webcore.Client{}
+	}
+	lookupWebAuthKeyFn = func(ctx context.Context, client *webcore.Client, keyID string) (*webcore.APIKeyRoleLookup, error) {
+		return nil, &webcore.APIError{Status: 401}
+	}
+
+	cmd := WebAuthCapabilitiesCommand()
+	if err := cmd.FlagSet.Parse([]string{"--key-id", "39MX87M9Y4", "--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "web session is unauthorized or expired") {
+		t.Fatalf("expected web auth hint, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "asc web auth login") {
+		t.Fatalf("expected login guidance, got %v", err)
+	}
+	if len(*labels) != 1 || (*labels)[0] != "Loading exact API key roles" {
+		t.Fatalf("unexpected progress labels: %#v", *labels)
+	}
+}
