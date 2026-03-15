@@ -564,6 +564,10 @@ Examples:
 			if len(args) > 0 {
 				return shared.UsageError("metadata keywords sync does not accept positional arguments")
 			}
+			resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(*appID, *version, *dir, *platform)
+			if err != nil {
+				return fmt.Errorf("metadata keywords sync: %w", err)
+			}
 			importPayload, err := executeMetadataKeywordsImportWithState(metadataKeywordsImportOptions{
 				Dir:                *dir,
 				Version:            *version,
@@ -595,10 +599,10 @@ Examples:
 			}
 
 			planResult, err := executeMetadataKeywordsPlan(ctx, metadataKeywordsPlanOptions{
-				AppID:      *appID,
-				Version:    *version,
-				Platform:   *platform,
-				Dir:        *dir,
+				AppID:      resolvedAppID,
+				Version:    versionValue,
+				Platform:   platformValue,
+				Dir:        dirValue,
 				DryRun:     *dryRun || !*confirm,
 				Apply:      !*dryRun && *confirm,
 				Confirm:    *confirm,
@@ -627,6 +631,29 @@ Examples:
 			return nil
 		},
 	}
+}
+
+func validateMetadataKeywordsRemoteInputs(appID string, version string, dir string, platform string) (string, string, string, string, error) {
+	resolvedAppID := shared.ResolveAppID(appID)
+	if resolvedAppID == "" {
+		return "", "", "", "", shared.UsageError("--app is required (or set ASC_APP_ID)")
+	}
+
+	dirValue, versionValue, err := validateMetadataKeywordDirVersion(dir, version)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	platformValue := strings.TrimSpace(platform)
+	if platformValue != "" {
+		normalizedPlatform, platformErr := shared.NormalizeAppStoreVersionPlatform(platformValue)
+		if platformErr != nil {
+			return "", "", "", "", shared.UsageError(platformErr.Error())
+		}
+		platformValue = normalizedPlatform
+	}
+
+	return resolvedAppID, versionValue, dirValue, platformValue, nil
 }
 
 func executeMetadataKeywordsImport(opts metadataKeywordsImportOptions) (MetadataKeywordsImportResult, error) {
@@ -819,22 +846,9 @@ func executeMetadataKeywordsLocalize(opts metadataKeywordsLocalizeOptions) (Meta
 }
 
 func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanOptions) (MetadataKeywordsPlanResult, error) {
-	resolvedAppID := shared.ResolveAppID(opts.AppID)
-	if resolvedAppID == "" {
-		return MetadataKeywordsPlanResult{}, shared.UsageError("--app is required (or set ASC_APP_ID)")
-	}
-
-	dirValue, versionValue, err := validateMetadataKeywordDirVersion(opts.Dir, opts.Version)
+	resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(opts.AppID, opts.Version, opts.Dir, opts.Platform)
 	if err != nil {
 		return MetadataKeywordsPlanResult{}, err
-	}
-	platformValue := strings.TrimSpace(opts.Platform)
-	if platformValue != "" {
-		normalizedPlatform, platformErr := shared.NormalizeAppStoreVersionPlatform(platformValue)
-		if platformErr != nil {
-			return MetadataKeywordsPlanResult{}, shared.UsageError(platformErr.Error())
-		}
-		platformValue = normalizedPlatform
 	}
 	if opts.Apply && !opts.Confirm {
 		return MetadataKeywordsPlanResult{}, shared.UsageError("--confirm is required")

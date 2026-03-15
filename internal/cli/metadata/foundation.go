@@ -134,7 +134,6 @@ var metadataLocaleAliases = func() map[string]string {
 	add("ar", "ar-SA")
 	add("arabic-ar", "ar-SA")
 	add("catalan-ca", "ca")
-	add("croation-hr", "hr")
 	add("croatian-hr", "hr")
 	add("czech-cs", "cs")
 	add("danish-da", "da")

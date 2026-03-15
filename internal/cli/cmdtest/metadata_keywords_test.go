@@ -1756,6 +1756,86 @@ func TestMetadataKeywordsSyncStopsWhenImportPreviewHasIssues(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsSyncMissingAppDoesNotWriteImportOutput(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	if err := os.WriteFile(inputPath, []byte("habit tracker,mood journal"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "sync",
+			"--version", "1.2.3",
+			"--dir", dir,
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "en-US",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --app is required") {
+		t.Fatalf("expected missing app error, got %q", stderr)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "version", "1.2.3", "en-US.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected sync preflight failure to avoid writing metadata file, got err=%v", err)
+	}
+}
+
+func TestMetadataKeywordsSyncInvalidPlatformDoesNotWriteImportOutput(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	if err := os.WriteFile(inputPath, []byte("habit tracker,mood journal"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "sync",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--platform", "watchos",
+			"--dir", dir,
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "en-US",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--platform must be one of") {
+		t.Fatalf("expected platform validation error, got %q", stderr)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "version", "1.2.3", "en-US.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected invalid platform to avoid writing metadata file, got err=%v", err)
+	}
+}
+
 func metadataKeywordsJSONResponse(body string) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
