@@ -52,7 +52,7 @@ func (c *Client) doOlympusRequest(ctx context.Context, method, path string, body
 	return c.doRequestBase(ctx, olympusBaseURL, method, path, body, olympusHeaders(integrationsIndividualKeysRefererURL))
 }
 
-type keyActor struct {
+type KeyActor struct {
 	ID   string `json:"id"`
 	Name string `json:"name,omitempty"`
 }
@@ -64,8 +64,8 @@ type teamAPIKey struct {
 	Active      bool
 	KeyType     string
 	LastUsed    string
-	GeneratedBy *keyActor
-	RevokedBy   *keyActor
+	GeneratedBy *KeyActor
+	RevokedBy   *KeyActor
 }
 
 type individualAPIKey struct {
@@ -95,8 +95,8 @@ type APIKeyRoleLookup struct {
 	KeyType     string    `json:"keyType,omitempty"`
 	LastUsed    string    `json:"lastUsed,omitempty"`
 	Lookup      string    `json:"lookup"`
-	GeneratedBy *keyActor `json:"generatedBy,omitempty"`
-	RevokedBy   *keyActor `json:"revokedBy,omitempty"`
+	GeneratedBy *KeyActor `json:"generatedBy,omitempty"`
+	RevokedBy   *KeyActor `json:"revokedBy,omitempty"`
 }
 
 func fullName(first, last string) string {
@@ -168,11 +168,11 @@ func (c *Client) listTeamKeys(ctx context.Context) ([]teamAPIKey, error) {
 		}
 		if item.Relationships.CreatedBy.Data != nil {
 			id := strings.TrimSpace(item.Relationships.CreatedBy.Data.ID)
-			key.GeneratedBy = &keyActor{ID: id, Name: strings.TrimSpace(users[id])}
+			key.GeneratedBy = &KeyActor{ID: id, Name: strings.TrimSpace(users[id])}
 		}
 		if item.Relationships.RevokedBy.Data != nil {
 			id := strings.TrimSpace(item.Relationships.RevokedBy.Data.ID)
-			key.RevokedBy = &keyActor{ID: id, Name: strings.TrimSpace(users[id])}
+			key.RevokedBy = &KeyActor{ID: id, Name: strings.TrimSpace(users[id])}
 		}
 		keys = append(keys, key)
 	}
@@ -423,10 +423,10 @@ func (c *Client) LookupAPIKeyRoles(ctx context.Context, keyID string) (*APIKeyRo
 			RoleSource: "key",
 		}
 		if item.CreatedByActorID != "" {
-			result.GeneratedBy = &keyActor{ID: item.CreatedByActorID}
+			result.GeneratedBy = &KeyActor{ID: item.CreatedByActorID}
 		}
 		if item.RevokedByActorID != "" {
-			result.RevokedBy = &keyActor{ID: item.RevokedByActorID}
+			result.RevokedBy = &KeyActor{ID: item.RevokedByActorID}
 		}
 		if len(result.Roles) > 0 {
 			return result, nil
@@ -441,7 +441,7 @@ func (c *Client) LookupAPIKeyRoles(ctx context.Context, keyID string) (*APIKeyRo
 		}
 		result.Roles = append([]string(nil), actor.Roles...)
 		result.RoleSource = "actor"
-		result.GeneratedBy = &keyActor{ID: actor.ID, Name: actor.Name}
+		result.GeneratedBy = &KeyActor{ID: actor.ID, Name: actor.Name}
 		if result.RevokedBy != nil {
 			if revoked, ok := actors[result.RevokedBy.ID]; ok {
 				result.RevokedBy.Name = revoked.Name
