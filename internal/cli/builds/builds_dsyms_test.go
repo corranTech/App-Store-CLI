@@ -13,7 +13,7 @@ func TestDsymsCommandShape(t *testing.T) {
 		t.Errorf("expected name dsyms, got %s", cmd.Name)
 	}
 
-	flagNames := []string{"build", "output-dir", "output"}
+	flagNames := []string{"build", "app", "version", "build-number", "platform", "latest", "output-dir", "output"}
 	for _, name := range flagNames {
 		if cmd.FlagSet.Lookup(name) == nil {
 			t.Errorf("expected flag --%s to be registered", name)
@@ -21,15 +21,16 @@ func TestDsymsCommandShape(t *testing.T) {
 	}
 }
 
-func TestDsymsRequiresBuild(t *testing.T) {
+func TestDsymsRequiresBuildOrApp(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
 	cmd := BuildsDsymsCommand()
 	err := cmd.Exec(t.Context(), nil)
 	if err == nil {
-		t.Fatal("expected error for missing --build")
+		t.Fatal("expected error for missing --build/--app")
 	}
 }
 
-func TestExtractDSYMURLs(t *testing.T) {
+func TestFilterBundlesWithDSYM(t *testing.T) {
 	s := func(v string) *string { return &v }
 
 	tests := []struct {
@@ -86,20 +87,55 @@ func TestExtractDSYMURLs(t *testing.T) {
 
 func TestDsymFileName(t *testing.T) {
 	tests := []struct {
-		bundleID string
-		buildID  string
-		index    int
-		want     string
+		name        string
+		bundleID    string
+		appVersion  string
+		buildVersion string
+		buildID     string
+		index       int
+		want        string
 	}{
-		{"com.example.app", "build-1", 0, "com.example.app.dsym.zip"},
-		{"", "build-1", 0, "build-1_0.dsym.zip"},
-		{"", "build-1", 2, "build-1_2.dsym.zip"},
+		{
+			name:        "full info",
+			bundleID:    "com.example.app",
+			appVersion:  "1.2.3",
+			buildVersion: "42",
+			buildID:     "build-1",
+			want:        "com.example.app-1.2.3-42.dSYM.zip",
+		},
+		{
+			name:     "bundle id only",
+			bundleID: "com.example.app",
+			buildID:  "build-1",
+			want:     "com.example.app.dSYM.zip",
+		},
+		{
+			name:    "fallback to build id",
+			buildID: "build-1",
+			index:   0,
+			want:    "build-1_0.dSYM.zip",
+		},
+		{
+			name:    "fallback with index",
+			buildID: "build-1",
+			index:   2,
+			want:    "build-1_2.dSYM.zip",
+		},
 	}
 
 	for _, tt := range tests {
-		got := dsymFileName(tt.bundleID, tt.buildID, tt.index)
-		if got != tt.want {
-			t.Errorf("dsymFileName(%q, %q, %d) = %q, want %q", tt.bundleID, tt.buildID, tt.index, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			got := dsymFileName(tt.bundleID, tt.appVersion, tt.buildVersion, tt.buildID, tt.index)
+			if got != tt.want {
+				t.Errorf("dsymFileName() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveBuildOptions_RequiresInput(t *testing.T) {
+	_, err := ResolveBuild(t.Context(), nil, ResolveBuildOptions{})
+	if err == nil {
+		t.Fatal("expected error for empty options")
 	}
 }

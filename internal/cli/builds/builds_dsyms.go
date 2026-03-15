@@ -12,20 +12,23 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // dsymHTTPClient is the HTTP client used for dSYM downloads.
-// Tests can replace this.
+// Tests can replace this via SetDSYMHTTPClient.
 var dsymHTTPClient = &http.Client{
 	Timeout: 5 * time.Minute,
 }
 
 // DSYMDownloadResult is the structured output for dSYM downloads.
 type DSYMDownloadResult struct {
-	BuildID string             `json:"buildId"`
-	Dir     string             `json:"dir"`
-	Files   []DSYMDownloadFile `json:"files"`
+	BuildID     string             `json:"buildId"`
+	Version     string             `json:"version,omitempty"`
+	BuildNumber string             `json:"buildNumber,omitempty"`
+	Dir         string             `json:"dir"`
+	Files       []DSYMDownloadFile `json:"files"`
 }
 
 // DSYMDownloadFile describes one downloaded dSYM file.
@@ -45,13 +48,18 @@ type dsymBundleInfo struct {
 func BuildsDsymsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("dsyms", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID (required)")
+	buildID := fs.String("build", "", "Build ID")
+	appID := fs.String("app", "", "App ID, bundle ID, or app name (or ASC_APP_ID)")
+	version := fs.String("version", "", "App version string (e.g., 1.2.3)")
+	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion)")
+	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
+	latest := fs.Bool("latest", false, "Download dSYMs for the latest build")
 	outputDir := fs.String("output-dir", ".", "Output directory for dSYM files")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "dsyms",
-		ShortUsage: "asc builds dsyms --build \"BUILD_ID\" [--output-dir \"./dsyms\"]",
+		ShortUsage: "asc builds dsyms [--build BUILD_ID | --app APP --latest | --app APP --build-number NUM] [flags]",
 		ShortHelp:  "Download dSYM files for a build.",
 		LongHelp: `Download dSYM debug symbol files for a build.
 
@@ -59,16 +67,30 @@ dSYM files are used for crash symbolication with tools like Crashlytics
 and Sentry. Each build bundle that includes symbols will have a dSYM
 download URL.
 
+Build selection (one of):
+  --build BUILD_ID                    Direct build ID
+  --app APP --latest                  Most recently uploaded build
+  --app APP --build-number NUM        Specific build number
+  --app APP --version VER --latest    Latest build for a version
+
 Examples:
   asc builds dsyms --build "BUILD_ID"
-  asc builds dsyms --build "BUILD_ID" --output-dir "./dsyms"
-  asc builds dsyms --build "BUILD_ID" --output json`,
+  asc builds dsyms --app "com.example.app" --latest
+  asc builds dsyms --app "com.example.app" --latest --platform IOS
+  asc builds dsyms --app "com.example.app" --version "1.2.3" --latest
+  asc builds dsyms --app "com.example.app" --build-number "42"
+  asc builds dsyms --app "com.example.app" --build-number "42" --output-dir "./dsyms"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
+			resolvedAppID := ""
 			if trimmedBuildID == "" {
-				return shared.UsageError("--build is required")
+				resolvedAppID = shared.ResolveAppID(*appID)
+			}
+
+			if trimmedBuildID == "" && resolvedAppID == "" {
+				return shared.UsageError("--build or --app is required (or set ASC_APP_ID)")
 			}
 
 			dirValue := strings.TrimSpace(*outputDir)
@@ -84,7 +106,31 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			bundlesResp, err := client.GetBuildBundlesForBuild(requestCtx, trimmedBuildID)
+			buildResp, err := ResolveBuild(requestCtx, client, ResolveBuildOptions{
+				BuildID:     trimmedBuildID,
+				AppID:       resolvedAppID,
+				Version:     strings.TrimSpace(*version),
+				BuildNumber: strings.TrimSpace(*buildNumber),
+				Platform:    strings.TrimSpace(*platform),
+				Latest:      *latest,
+			})
+			if err != nil {
+				return fmt.Errorf("builds dsyms: %w", err)
+			}
+
+			resolvedBuildID := buildResp.Data.ID
+			buildVersion := buildResp.Data.Attributes.Version
+			// App version (CFBundleShortVersionString) requires the preReleaseVersion
+			// relationship. Use the user-supplied --version when available.
+			appVersion := strings.TrimSpace(*version)
+
+			fmt.Fprintf(os.Stderr, "Resolved build %s", resolvedBuildID)
+			if buildVersion != "" {
+				fmt.Fprintf(os.Stderr, " (build %s)", buildVersion)
+			}
+			fmt.Fprintln(os.Stderr)
+
+			bundlesResp, err := client.GetBuildBundlesForBuild(requestCtx, resolvedBuildID)
 			if err != nil {
 				return fmt.Errorf("builds dsyms: %w", err)
 			}
@@ -105,11 +151,19 @@ Examples:
 			if len(downloadable) == 0 {
 				fmt.Fprintln(os.Stderr, "No dSYM files available for this build")
 				result := DSYMDownloadResult{
-					BuildID: trimmedBuildID,
-					Dir:     dirValue,
-					Files:   []DSYMDownloadFile{},
+					BuildID:     resolvedBuildID,
+					Version:     appVersion,
+					BuildNumber: buildVersion,
+					Dir:         dirValue,
+					Files:       []DSYMDownloadFile{},
 				}
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return shared.PrintOutputWithRenderers(
+					result,
+					*output.Output,
+					*output.Pretty,
+					func() error { return printDSYMResultTable(result) },
+					func() error { return printDSYMResultMarkdown(result) },
+				)
 			}
 
 			if err := os.MkdirAll(dirValue, 0o755); err != nil {
@@ -118,7 +172,7 @@ Examples:
 
 			files := make([]DSYMDownloadFile, 0, len(downloadable))
 			for i, bundle := range downloadable {
-				fileName := dsymFileName(bundle.BundleID, trimmedBuildID, i)
+				fileName := dsymFileName(bundle.BundleID, appVersion, buildVersion, resolvedBuildID, i)
 				filePath := filepath.Join(dirValue, fileName)
 
 				fmt.Fprintf(os.Stderr, "Downloading dSYM for %s...\n", displayBundleID(bundle.BundleID, i))
@@ -139,12 +193,20 @@ Examples:
 			}
 
 			result := DSYMDownloadResult{
-				BuildID: trimmedBuildID,
-				Dir:     dirValue,
-				Files:   files,
+				BuildID:     resolvedBuildID,
+				Version:     appVersion,
+				BuildNumber: buildVersion,
+				Dir:         dirValue,
+				Files:       files,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return shared.PrintOutputWithRenderers(
+				result,
+				*output.Output,
+				*output.Pretty,
+				func() error { return printDSYMResultTable(result) },
+				func() error { return printDSYMResultMarkdown(result) },
+			)
 		},
 	}
 }
@@ -159,11 +221,16 @@ func filterBundlesWithDSYM(bundles []dsymBundleInfo) []dsymBundleInfo {
 	return result
 }
 
-func dsymFileName(bundleID, buildID string, index int) string {
-	if bundleID != "" {
-		return bundleID + ".dsym.zip"
+// dsymFileName builds a descriptive file name. Prefers bundleId-version-buildNumber
+// format (matching fastlane convention). Falls back to buildID-based names.
+func dsymFileName(bundleID, appVersion, buildVersion, buildID string, index int) string {
+	if bundleID != "" && appVersion != "" && buildVersion != "" {
+		return fmt.Sprintf("%s-%s-%s.dSYM.zip", bundleID, appVersion, buildVersion)
 	}
-	return fmt.Sprintf("%s_%d.dsym.zip", buildID, index)
+	if bundleID != "" {
+		return bundleID + ".dSYM.zip"
+	}
+	return fmt.Sprintf("%s_%d.dSYM.zip", buildID, index)
 }
 
 func displayBundleID(bundleID string, index int) string {
@@ -194,22 +261,44 @@ func SetDSYMHTTPClient(c *http.Client) func() {
 	return func() { dsymHTTPClient = prev }
 }
 
-// dsymTableRows returns table headers and rows for DSYMDownloadResult.
-func dsymTableRows(result DSYMDownloadResult) ([]string, [][]string) {
-	headers := []string{"bundleId", "fileName", "filePath", "fileSize"}
+func printDSYMResultTable(result DSYMDownloadResult) error {
+	fmt.Printf("Build ID: %s\n", result.BuildID)
+	if result.Version != "" {
+		fmt.Printf("Version: %s (%s)\n", result.Version, result.BuildNumber)
+	}
+	fmt.Printf("Dir: %s\n", result.Dir)
+	fmt.Printf("Files: %d\n\n", len(result.Files))
+
+	if len(result.Files) == 0 {
+		asc.RenderTable([]string{"status"}, [][]string{{"no dSYM files available"}})
+		return nil
+	}
+
 	rows := make([][]string, 0, len(result.Files))
 	for _, f := range result.Files {
-		rows = append(rows, []string{
-			f.BundleID,
-			f.FileName,
-			f.FilePath,
-			fmt.Sprintf("%d", f.FileSize),
-		})
+		rows = append(rows, []string{f.BundleID, f.FileName, fmt.Sprintf("%d", f.FileSize)})
 	}
-	return headers, rows
+	asc.RenderTable([]string{"bundleId", "fileName", "fileSize"}, rows)
+	return nil
 }
 
-func init() {
-	// Register table/markdown renderers if needed in the future.
-	_ = dsymTableRows
+func printDSYMResultMarkdown(result DSYMDownloadResult) error {
+	fmt.Printf("**Build ID:** %s\n\n", result.BuildID)
+	if result.Version != "" {
+		fmt.Printf("**Version:** %s (%s)\n\n", result.Version, result.BuildNumber)
+	}
+	fmt.Printf("**Dir:** %s\n\n", result.Dir)
+	fmt.Printf("**Files:** %d\n\n", len(result.Files))
+
+	if len(result.Files) == 0 {
+		asc.RenderMarkdown([]string{"status"}, [][]string{{"no dSYM files available"}})
+		return nil
+	}
+
+	rows := make([][]string, 0, len(result.Files))
+	for _, f := range result.Files {
+		rows = append(rows, []string{f.BundleID, f.FileName, fmt.Sprintf("%d", f.FileSize)})
+	}
+	asc.RenderMarkdown([]string{"bundleId", "fileName", "fileSize"}, rows)
+	return nil
 }
