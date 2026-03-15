@@ -1280,7 +1280,7 @@ func metadataKeywordCSVRowEmpty(row []string) bool {
 
 func splitMetadataKeywordTokens(value string) []string {
 	parts := strings.FieldsFunc(value, func(r rune) bool {
-		return r == ',' || r == '\n' || r == '\r' || r == ';'
+		return r == ',' || r == '，' || r == '、' || r == ';' || r == '；' || r == '\n' || r == '\r'
 	})
 	result := make([]string, 0, len(parts))
 	for _, part := range parts {

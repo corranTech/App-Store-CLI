@@ -199,6 +199,57 @@ func TestMetadataKeywordsImportTextCanonicalizesLocaleAlias(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsImportTextNormalizesMixedSeparatorsAndDuplicates(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	input := "habit tracker，mood journal\nHabit Tracker； sleep log"
+	if err := os.WriteFile(inputPath, []byte(input), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "en-US",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Results []struct {
+			KeywordField string `json:"keywordField"`
+			KeywordCount int    `json:"keywordCount"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("expected 1 result, got %+v", payload.Results)
+	}
+	if payload.Results[0].KeywordField != "habit tracker,mood journal,sleep log" {
+		t.Fatalf("expected normalized keyword field, got %+v", payload.Results[0])
+	}
+	if payload.Results[0].KeywordCount != 3 {
+		t.Fatalf("expected keyword count 3, got %+v", payload.Results[0])
+	}
+}
+
 func TestMetadataKeywordsImportRejectsAmbiguousLocaleAlias(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
@@ -314,6 +365,60 @@ func TestMetadataKeywordsImportCSVWritesCanonicalFiles(t *testing.T) {
 	}
 	if frPayload["keywords"] != "journal humeur" {
 		t.Fatalf("expected fr-FR keywords file, got %+v", frPayload)
+	}
+}
+
+func TestMetadataKeywordsImportCSVNormalizesRowDuplicatesAndChineseCommas(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.csv")
+	input := "locale,keyword\nen-US,\" habit tracker， mood journal \"\nen-US,\"Habit Tracker\"\nen-US,\"sleep log\"\n"
+	if err := os.WriteFile(inputPath, []byte(input), 0o644); err != nil {
+		t.Fatalf("write csv: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "csv",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Results []struct {
+			Locale       string `json:"locale"`
+			KeywordField string `json:"keywordField"`
+			KeywordCount int    `json:"keywordCount"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Results) != 1 {
+		t.Fatalf("expected 1 result, got %+v", payload.Results)
+	}
+	if payload.Results[0].Locale != "en-US" {
+		t.Fatalf("expected en-US locale, got %+v", payload.Results[0])
+	}
+	if payload.Results[0].KeywordField != "habit tracker,mood journal,sleep log" {
+		t.Fatalf("expected normalized keyword field, got %+v", payload.Results[0])
+	}
+	if payload.Results[0].KeywordCount != 3 {
+		t.Fatalf("expected keyword count 3, got %+v", payload.Results[0])
 	}
 }
 
