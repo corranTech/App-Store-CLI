@@ -142,6 +142,10 @@ func SetVersion(ctx context.Context, opts SetVersionOptions) (*SetVersionResult,
 	}
 	modern := current.Modern
 
+	if modern && strings.TrimSpace(opts.Target) != "" {
+		fmt.Fprintf(os.Stderr, "Note: --target scopes reads; writes update all targets in project.pbxproj\n")
+	}
+
 	if v := strings.TrimSpace(opts.Version); v != "" {
 		if modern {
 			if err := updatePbxprojSetting(opts.ProjectDir, "MARKETING_VERSION", v); err != nil {
@@ -348,6 +352,8 @@ func findPbxprojPath(projectDir string) (string, error) {
 
 // updatePbxprojSetting replaces all occurrences of a build setting in project.pbxproj.
 // Matches lines like: MARKETING_VERSION = 1.2.3;
+// Note: this updates all targets/configs, matching agvtool's behavior. The --target
+// flag scopes reads (xcodebuild -showBuildSettings) but writes are project-wide.
 func updatePbxprojSetting(projectDir, setting, newValue string) error {
 	pbxprojPath, err := findPbxprojPath(projectDir)
 	if err != nil {
