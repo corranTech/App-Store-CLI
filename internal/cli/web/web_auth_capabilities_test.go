@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -359,5 +360,37 @@ func TestWebAuthCapabilitiesUnauthorizedLookupGetsWebHint(t *testing.T) {
 	}
 	if len(*labels) != 1 || (*labels)[0] != "Loading exact API key roles" {
 		t.Fatalf("unexpected progress labels: %#v", *labels)
+	}
+}
+
+func TestWebAuthCapabilitiesAuthResolutionFailureIsUsageError(t *testing.T) {
+	origResolveAuth := resolveWebAuthCredentialsFn
+	t.Cleanup(func() {
+		resolveWebAuthCredentialsFn = origResolveAuth
+	})
+
+	resolveWebAuthCredentialsFn = func(profile string) (shared.ResolvedAuthCredentials, error) {
+		return shared.ResolvedAuthCredentials{}, fmt.Errorf("mixed authentication sources detected")
+	}
+
+	cmd := WebAuthCapabilitiesCommand()
+	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		err := cmd.Exec(context.Background(), nil)
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected usage error, got %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "unable to resolve current API key ID") {
+		t.Fatalf("expected auth resolution prefix, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "mixed authentication sources detected") {
+		t.Fatalf("expected wrapped auth resolution cause, got %q", stderr)
 	}
 }
