@@ -46,8 +46,7 @@ Examples:
   asc signing sync push --bundle-id com.example.app --profile-type IOS_APP_STORE \
     --repo git@github.com:team/certs.git --password "$MATCH_PASSWORD"
 
-  asc signing sync pull --bundle-id com.example.app --profile-type IOS_APP_STORE \
-    --repo git@github.com:team/certs.git --password "$MATCH_PASSWORD" \
+  asc signing sync pull --repo git@github.com:team/certs.git --password "$MATCH_PASSWORD" \
     --output-dir ./signing`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
