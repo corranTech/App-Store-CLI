@@ -169,7 +169,7 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 
 		code := strings.TrimSpace(twoFactorCode)
 		if code == "" {
-			if challenge != nil && challenge.Method == "phone" {
+			if challenge.IsPhoneMethod() {
 				challenge, prepErr = ensureTwoFactorCodeRequestedFn(ctx, session)
 				if prepErr != nil {
 					return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
