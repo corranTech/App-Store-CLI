@@ -40,19 +40,19 @@ type webAuthStatus struct {
 	ProviderID    int64  `json:"providerId,omitempty"`
 }
 
-func readPasswordFromInput() (string, error) {
+func readPasswordFromInput(ctx context.Context) (string, error) {
 	password := strings.TrimSpace(os.Getenv(webPasswordEnv))
 	if password != "" {
 		return password, nil
 	}
-	password, err := promptPasswordFn()
+	password, err := promptPasswordFn(ctx)
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(password), nil
 }
 
-func readPasswordFromTerminalFD(fd int, writer io.Writer) (string, error) {
+func readPasswordFromTerminalFD(ctx context.Context, fd int, writer io.Writer) (string, error) {
 	if writer == nil {
 		return "", fmt.Errorf("password prompt unavailable")
 	}
@@ -62,18 +62,38 @@ func readPasswordFromTerminalFD(fd int, writer io.Writer) (string, error) {
 	passwordBytes, err := termReadPasswordFn(fd)
 	_, _ = fmt.Fprintln(writer)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", fmt.Errorf("password prompt interrupted: %w", ctxErr)
+		}
 		return "", fmt.Errorf("failed to read password")
 	}
 	return strings.TrimSpace(string(passwordBytes)), nil
 }
 
-func promptPasswordInteractive() (string, error) {
+func readPasswordFromTerminal(ctx context.Context, terminal *os.File, writer io.Writer) (string, error) {
+	if terminal == nil {
+		return "", fmt.Errorf("password prompt unavailable")
+	}
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = terminal.Close()
+		case <-done:
+		}
+	}()
+	defer close(done)
+	defer func() { _ = terminal.Close() }()
+
+	return readPasswordFromTerminalFD(ctx, int(terminal.Fd()), writer)
+}
+
+func promptPasswordInteractive(ctx context.Context) (string, error) {
 	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
-		defer func() { _ = tty.Close() }()
-		return readPasswordFromTerminalFD(int(tty.Fd()), tty)
+		return readPasswordFromTerminal(ctx, tty, tty)
 	}
 	if termIsTerminalFn(int(os.Stdin.Fd())) {
-		return readPasswordFromTerminalFD(int(os.Stdin.Fd()), os.Stderr)
+		return readPasswordFromTerminal(ctx, os.Stdin, os.Stderr)
 	}
 	return "", nil
 }
@@ -221,7 +241,7 @@ func resolveSession(ctx context.Context, appleID, password, twoFactorCode string
 	password = strings.TrimSpace(password)
 	if password == "" {
 		var err error
-		password, err = readPasswordFromInput()
+		password, err = readPasswordFromInput(ctx)
 		if err != nil {
 			return nil, "", err
 		}
