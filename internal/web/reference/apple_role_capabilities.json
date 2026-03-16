@@ -1,6 +1,10 @@
 {
   "last_verified": "2026-03-16",
   "purpose": "Reference snapshot of Apple-documented App Store Connect role capabilities and API-key constraints. This file is for agent/runtime reference, not authorization logic.",
+  "limitations": [
+    "Exact role lookup comes from the live App Store Connect web session, but the expanded capabilities below come from this bundled Apple documentation snapshot.",
+    "Apple documents some permissions as conditional, separately granted, or account-state dependent, so role mapping is not endpoint-by-endpoint proof of access."
+  ],
   "sources": [
     {
       "title": "Apple Developer Program Roles",

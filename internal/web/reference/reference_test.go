@@ -16,10 +16,13 @@ func TestLoad(t *testing.T) {
 	if len(v.Groups) == 0 {
 		t.Fatal("expected capability groups")
 	}
+	if len(v.Limitations) == 0 {
+		t.Fatal("expected limitations")
+	}
 }
 
-func TestResolve(t *testing.T) {
-	view, err := Resolve([]string{"APP_MANAGER", "FINANCE"})
+func TestResolveTeam(t *testing.T) {
+	view, err := Resolve("team", []string{"APP_MANAGER", "FINANCE"})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
@@ -32,10 +35,41 @@ func TestResolve(t *testing.T) {
 	if view.Capabilities[0].ID != "all_apps_access" && view.Capabilities[0].ID != "app_pricing_and_store_info" {
 		t.Fatalf("unexpected first capability: %#v", view.Capabilities[0])
 	}
+	if view.Scope == nil || !view.Scope.AppliesToAllApps {
+		t.Fatalf("expected team scope, got %#v", view.Scope)
+	}
+	if view.KeyNotes == nil || view.KeyNotes.Kind != "team" {
+		t.Fatalf("expected team key notes, got %#v", view.KeyNotes)
+	}
+	if len(view.DocumentedAccess) == 0 {
+		t.Fatal("expected documented access")
+	}
+	if len(view.Sources) == 0 {
+		t.Fatal("expected sources")
+	}
+	if len(view.Limitations) == 0 {
+		t.Fatal("expected limitations")
+	}
+}
+
+func TestResolveIndividual(t *testing.T) {
+	view, err := Resolve("individual", []string{"APP_MANAGER"})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if view.Scope != nil {
+		t.Fatalf("expected no explicit individual scope, got %#v", view.Scope)
+	}
+	if view.KeyNotes == nil || view.KeyNotes.Kind != "individual" {
+		t.Fatalf("expected individual key notes, got %#v", view.KeyNotes)
+	}
+	if view.KeyNotes.OneActiveKeyPerUser == nil || !*view.KeyNotes.OneActiveKeyPerUser {
+		t.Fatalf("expected one-active-key note, got %#v", view.KeyNotes)
+	}
 }
 
 func TestResolveUnknownRole(t *testing.T) {
-	view, err := Resolve([]string{"NOPE", "APP_MANAGER"})
+	view, err := Resolve("team", []string{"NOPE", "APP_MANAGER"})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}

@@ -19,6 +19,7 @@ var (
 type Snapshot struct {
 	LastVerified string            `json:"last_verified"`
 	Purpose      string            `json:"purpose"`
+	Limitations  []string          `json:"limitations,omitempty"`
 	Sources      []Source          `json:"sources"`
 	APIKeyNotes  APIKeyNotes       `json:"api_key_notes"`
 	Groups       []CapabilityGroup `json:"capability_groups"`
@@ -69,10 +70,40 @@ type Role struct {
 }
 
 type View struct {
-	LastVerified string            `json:"lastVerified"`
-	RoleDetails  []Role            `json:"roleDetails,omitempty"`
-	Capabilities []CapabilityGroup `json:"capabilities,omitempty"`
-	UnknownRoles []string          `json:"unknownRoles,omitempty"`
+	LastVerified     string             `json:"lastVerified"`
+	Purpose          string             `json:"purpose,omitempty"`
+	Sources          []Source           `json:"sources,omitempty"`
+	Scope            *Scope             `json:"scope,omitempty"`
+	KeyNotes         *KeyNotes          `json:"keyNotes,omitempty"`
+	RoleDetails      []Role             `json:"roleDetails,omitempty"`
+	Capabilities     []CapabilityGroup  `json:"capabilities,omitempty"`
+	DocumentedAccess []DocumentedAccess `json:"documentedAccess,omitempty"`
+	UnknownRoles     []string           `json:"unknownRoles,omitempty"`
+	Limitations      []string           `json:"limitations,omitempty"`
+}
+
+type Scope struct {
+	AppliesToAllApps bool   `json:"appliesToAllApps,omitempty"`
+	Summary          string `json:"summary,omitempty"`
+}
+
+type KeyNotes struct {
+	Kind                        string   `json:"kind"`
+	RequiredCreatorRoles        []string `json:"requiredCreatorRoles,omitempty"`
+	SelectableRoles             []string `json:"selectableRoles,omitempty"`
+	EditableAfterCreation       *bool    `json:"editableAfterCreation,omitempty"`
+	EligibleUserRoles           []string `json:"eligibleUserRoles,omitempty"`
+	OneActiveKeyPerUser         *bool    `json:"oneActiveKeyPerUser,omitempty"`
+	DefaultGenerationPermission string   `json:"defaultGenerationPermission,omitempty"`
+	ManageableBy                []string `json:"manageableBy,omitempty"`
+}
+
+type DocumentedAccess struct {
+	ID         string   `json:"id"`
+	Label      string   `json:"label"`
+	Summary    string   `json:"summary,omitempty"`
+	Roles      []string `json:"roles,omitempty"`
+	RoleLabels []string `json:"roleLabels,omitempty"`
 }
 
 func Load() (*Snapshot, error) {
@@ -87,7 +118,7 @@ func Load() (*Snapshot, error) {
 	return snap, err
 }
 
-func Resolve(codes []string) (*View, error) {
+func Resolve(kind string, codes []string) (*View, error) {
 	v, err := Load()
 	if err != nil {
 		return nil, err
@@ -105,7 +136,38 @@ func Resolve(codes []string) (*View, error) {
 
 	seen := make(map[string]struct{}, len(codes))
 	groups := make(map[string]struct{})
-	view := &View{LastVerified: v.LastVerified}
+	view := &View{
+		LastVerified: v.LastVerified,
+		Purpose:      v.Purpose,
+		Sources:      append([]Source(nil), v.Sources...),
+		Limitations:  append([]string(nil), v.Limitations...),
+	}
+	switch strings.TrimSpace(kind) {
+	case "team":
+		editable := v.APIKeyNotes.Team.EditableAfterCreate
+		view.Scope = &Scope{
+			AppliesToAllApps: true,
+			Summary:          v.APIKeyNotes.Team.TeamScope,
+		}
+		view.KeyNotes = &KeyNotes{
+			Kind:                  "team",
+			RequiredCreatorRoles:  append([]string(nil), v.APIKeyNotes.Team.RequiredCreatorRoles...),
+			SelectableRoles:       append([]string(nil), v.APIKeyNotes.Team.SelectableRoles...),
+			EditableAfterCreation: &editable,
+		}
+	case "individual":
+		one := v.APIKeyNotes.Individual.OneActiveKeyPerUser
+		view.KeyNotes = &KeyNotes{
+			Kind:                        "individual",
+			EligibleUserRoles:           append([]string(nil), v.APIKeyNotes.Individual.EligibleUserRoles...),
+			OneActiveKeyPerUser:         &one,
+			DefaultGenerationPermission: v.APIKeyNotes.Individual.DefaultGenerationPermission,
+			ManageableBy:                append([]string(nil), v.APIKeyNotes.Individual.ManageableBy...),
+		}
+	}
+
+	groupRoles := make(map[string][]string)
+	groupRoleLabels := make(map[string][]string)
 
 	for _, rawCode := range codes {
 		code := strings.TrimSpace(rawCode)
@@ -125,12 +187,21 @@ func Resolve(codes []string) (*View, error) {
 		view.RoleDetails = append(view.RoleDetails, role)
 		for _, id := range role.Capabilities {
 			groups[id] = struct{}{}
+			groupRoles[id] = append(groupRoles[id], role.Code)
+			groupRoleLabels[id] = append(groupRoleLabels[id], role.Label)
 		}
 	}
 
 	for _, group := range v.Groups {
 		if _, ok := groups[group.ID]; ok {
 			view.Capabilities = append(view.Capabilities, group)
+			view.DocumentedAccess = append(view.DocumentedAccess, DocumentedAccess{
+				ID:         group.ID,
+				Label:      group.Label,
+				Summary:    group.Summary,
+				Roles:      append([]string(nil), groupRoles[group.ID]...),
+				RoleLabels: append([]string(nil), groupRoleLabels[group.ID]...),
+			})
 		}
 	}
 
@@ -138,9 +209,16 @@ func Resolve(codes []string) (*View, error) {
 		if _, ok := groupByID[id]; ok {
 			continue
 		}
-		view.Capabilities = append(view.Capabilities, CapabilityGroup{
+		group := CapabilityGroup{
 			ID:    id,
 			Label: id,
+		}
+		view.Capabilities = append(view.Capabilities, group)
+		view.DocumentedAccess = append(view.DocumentedAccess, DocumentedAccess{
+			ID:         group.ID,
+			Label:      group.Label,
+			Roles:      append([]string(nil), groupRoles[group.ID]...),
+			RoleLabels: append([]string(nil), groupRoleLabels[group.ID]...),
 		})
 	}
 
