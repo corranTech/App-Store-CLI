@@ -933,7 +933,7 @@ func deleteAllFromFile() error {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if strings.HasPrefix(name, "session-") && strings.HasSuffix(name, ".json") || name == "last.json" {
+		if (strings.HasPrefix(name, "session-") && strings.HasSuffix(name, ".json")) || name == "last.json" {
 			if err := os.Remove(filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
 				return err
 			}
