@@ -1120,7 +1120,7 @@ func DeleteSession(username string) error {
 		if deleteErr := deleteSessionFromFile(key); deleteErr != nil {
 			err = deleteErr
 		} else {
-			err = clearLastKeyInFile()
+			err = clearLastKeyInFileIfMatches(key)
 		}
 		if selection.fallbackKeychain {
 			err = joinDeleteErrors(err, ignoreUnavailableKeyringError(deleteSessionFromKeychain(key)))
