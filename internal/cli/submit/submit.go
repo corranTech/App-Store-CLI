@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -471,27 +472,103 @@ func findReviewSubmissionForVersion(ctx context.Context, client *asc.Client, app
 		return nil, err
 	}
 
+	var candidates []asc.ReviewSubmissionResource
 	for {
 		for i := range resp.Data {
 			submission := resp.Data[i]
 			submissionVersionID, err := resolveReviewSubmissionVersionID(ctx, client, &submission)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			if submissionVersionID == versionID {
-				return &submission, nil
+				candidates = append(candidates, submission)
 			}
 		}
 
 		nextURL := strings.TrimSpace(resp.Links.Next)
 		if nextURL == "" {
-			return nil, nil
+			break
 		}
 		resp, err = client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return reviewSubmissionSortKey(candidates[i]).less(reviewSubmissionSortKey(candidates[j]))
+	})
+	best := candidates[0]
+	return &best, nil
+}
+
+type reviewSubmissionCandidateKey struct {
+	statePriority int
+	submittedAt   time.Time
+	hasSubmitted  bool
+	id            string
+}
+
+func reviewSubmissionSortKey(submission asc.ReviewSubmissionResource) reviewSubmissionCandidateKey {
+	submittedAt, hasSubmitted := parseReviewSubmissionSubmittedDate(submission.Attributes.SubmittedDate)
+	return reviewSubmissionCandidateKey{
+		statePriority: reviewSubmissionStatePriority(submission.Attributes.SubmissionState),
+		submittedAt:   submittedAt,
+		hasSubmitted:  hasSubmitted,
+		id:            strings.TrimSpace(submission.ID),
+	}
+}
+
+func (k reviewSubmissionCandidateKey) less(other reviewSubmissionCandidateKey) bool {
+	if k.statePriority != other.statePriority {
+		return k.statePriority > other.statePriority
+	}
+	if k.hasSubmitted != other.hasSubmitted {
+		return k.hasSubmitted
+	}
+	if !k.submittedAt.Equal(other.submittedAt) {
+		return k.submittedAt.After(other.submittedAt)
+	}
+	return k.id > other.id
+}
+
+func reviewSubmissionStatePriority(state asc.ReviewSubmissionState) int {
+	switch state {
+	case asc.ReviewSubmissionStateInReview:
+		return 70
+	case asc.ReviewSubmissionStateWaitingForReview:
+		return 60
+	case asc.ReviewSubmissionStateUnresolvedIssues:
+		return 50
+	case asc.ReviewSubmissionStateReadyForReview:
+		return 40
+	case asc.ReviewSubmissionStateCompleting:
+		return 30
+	case asc.ReviewSubmissionStateCanceling:
+		return 20
+	case asc.ReviewSubmissionStateComplete:
+		return 10
+	default:
+		return 0
+	}
+}
+
+func parseReviewSubmissionSubmittedDate(value string) (time.Time, bool) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+		parsed, err := time.Parse(layout, trimmed)
+		if err == nil {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
 }
 
 func SubmitCancelCommand() *ffcli.Command {

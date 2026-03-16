@@ -817,6 +817,121 @@ func TestFindReviewSubmissionForVersion_FallsBackToSubmissionItems(t *testing.T)
 	}
 }
 
+func TestFindReviewSubmissionForVersion_ContinuesAfterPerSubmissionLookupErrors(t *testing.T) {
+	requests := make([]string, 0, 3)
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "reviewSubmissions",
+						"id": "broken-submission",
+						"attributes": {
+							"state": "COMPLETE"
+						}
+					},
+					{
+						"type": "reviewSubmissions",
+						"id": "current-submission",
+						"attributes": {
+							"state": "WAITING_FOR_REVIEW"
+						},
+						"relationships": {
+							"appStoreVersionForReview": {
+								"data": {
+									"type": "appStoreVersions",
+									"id": "version-123"
+								}
+							}
+						}
+					}
+				]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/broken-submission/items":
+			return submitJSONResponse(http.StatusForbidden, `{
+				"errors": [{
+					"status": "403",
+					"code": "FORBIDDEN",
+					"title": "Forbidden"
+				}]
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	submission, err := findReviewSubmissionForVersion(context.Background(), client, "app-123", "version-123")
+	if err != nil {
+		t.Fatalf("findReviewSubmissionForVersion() error: %v", err)
+	}
+	if submission == nil {
+		t.Fatal("expected review submission match, got nil")
+	}
+	if submission.ID != "current-submission" {
+		t.Fatalf("expected current-submission, got %q", submission.ID)
+	}
+}
+
+func TestFindReviewSubmissionForVersion_PrefersCurrentSubmissionOverHistoricalMatch(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "reviewSubmissions",
+						"id": "historical-submission",
+						"attributes": {
+							"state": "COMPLETE",
+							"submittedDate": "2026-03-15T11:00:00Z"
+						},
+						"relationships": {
+							"appStoreVersionForReview": {
+								"data": {
+									"type": "appStoreVersions",
+									"id": "version-123"
+								}
+							}
+						}
+					},
+					{
+						"type": "reviewSubmissions",
+						"id": "current-submission",
+						"attributes": {
+							"state": "IN_REVIEW",
+							"submittedDate": "2026-03-16T11:00:00Z"
+						},
+						"relationships": {
+							"appStoreVersionForReview": {
+								"data": {
+									"type": "appStoreVersions",
+									"id": "version-123"
+								}
+							}
+						}
+					}
+				]
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	submission, err := findReviewSubmissionForVersion(context.Background(), client, "app-123", "version-123")
+	if err != nil {
+		t.Fatalf("findReviewSubmissionForVersion() error: %v", err)
+	}
+	if submission == nil {
+		t.Fatal("expected review submission match, got nil")
+	}
+	if submission.ID != "current-submission" {
+		t.Fatalf("expected current-submission, got %q", submission.ID)
+	}
+}
+
 func TestExtractExistingSubmissionID(t *testing.T) {
 	t.Run("returns submission ID from associated error", func(t *testing.T) {
 		err := &asc.APIError{
