@@ -312,9 +312,10 @@ Examples:
 				if appID, appErr := resolveAppIDFromVersionResponse(versionResp); appErr == nil {
 					reviewSubmission, reviewErr := findReviewSubmissionForVersion(requestCtx, client, appID, resolvedVersionID)
 					if reviewErr != nil {
-						return fmt.Errorf("submit status: %w", reviewErr)
-					}
-					if reviewSubmission != nil {
+						if !shouldIgnoreReviewSubmissionVersionLookupError(reviewErr) {
+							return fmt.Errorf("submit status: %w", reviewErr)
+						}
+					} else if reviewSubmission != nil {
 						applyReviewSubmissionStatus(result, reviewSubmission)
 						return shared.PrintOutput(result, *output.Output, *output.Pretty)
 					}

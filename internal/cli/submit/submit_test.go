@@ -499,6 +499,104 @@ func TestSubmitStatusCommand_ByVersionIDFallsBackToLegacyRelationshipAndVersionS
 	}
 }
 
+func TestSubmitStatusCommand_ByVersionIDFallsBackWhenReviewSubmissionListingIsForbidden(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 3)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {
+						"versionString": "1.2.3",
+						"platform": "IOS",
+						"appStoreState": "WAITING_FOR_REVIEW"
+					},
+					"relationships": {
+						"app": {
+							"data": {
+								"type": "apps",
+								"id": "app-123"
+							}
+						}
+					}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			return submitJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersionSubmissions",
+					"id": "legacy-submission-123",
+					"attributes": {
+						"createdDate": "2026-03-16T09:00:00Z"
+					},
+					"relationships": {
+						"appStoreVersion": {
+							"data": {
+								"type": "appStoreVersions",
+								"id": "version-123"
+							}
+						}
+					}
+				}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	})
+
+	cmd := SubmitStatusCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+
+	var result asc.AppStoreVersionSubmissionStatusResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if result.ID != "legacy-submission-123" {
+		t.Fatalf("expected legacy submission ID fallback, got %q", result.ID)
+	}
+	if result.State != "WAITING_FOR_REVIEW" {
+		t.Fatalf("expected version state fallback WAITING_FOR_REVIEW, got %q", result.State)
+	}
+	if result.CreatedDate == nil || *result.CreatedDate != "2026-03-16T09:00:00Z" {
+		t.Fatalf("expected legacy created date, got %+v", result.CreatedDate)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-123?include=app",
+		"GET /v1/apps/app-123/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+		"GET /v1/appStoreVersions/version-123/appStoreVersionSubmission",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
 func TestSubmitStatusCommand_ByIDNotFoundSuggestsVersionIDFallback(t *testing.T) {
 	setupSubmitAuth(t)
 
