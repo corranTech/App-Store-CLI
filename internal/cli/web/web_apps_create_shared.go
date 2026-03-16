@@ -52,6 +52,10 @@ func appCreateCanPromptInteractively() bool {
 	return termIsTerminalFn(int(os.Stdin.Fd()))
 }
 
+func appCreatePasswordProvided(password string) bool {
+	return strings.TrimSpace(password) != ""
+}
+
 func trimAppsCreateRunOptions(opts AppsCreateRunOptions) AppsCreateRunOptions {
 	opts.Name = strings.TrimSpace(opts.Name)
 	opts.BundleID = strings.TrimSpace(opts.BundleID)
@@ -220,9 +224,9 @@ func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCo
 		}
 	}
 
-	if password == "" {
+	if !appCreatePasswordProvided(password) {
 		password = os.Getenv(webPasswordEnv)
-		if password == "" {
+		if !appCreatePasswordProvided(password) {
 			if !appCreateCanPromptInteractivelyFn() {
 				return nil, "", shared.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
 			}

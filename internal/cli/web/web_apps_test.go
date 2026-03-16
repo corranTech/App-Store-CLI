@@ -146,6 +146,39 @@ func TestResolveAppCreateSessionUsesPasswordEnvWithoutTrimming(t *testing.T) {
 	}
 }
 
+func TestResolveAppCreateSessionWhitespaceOnlyPasswordFallsBackToEnv(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origWebLogin := webLoginFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		webLoginFn = origWebLogin
+	})
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+
+	var received webcore.LoginCredentials
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		received = creds
+		return &webcore.AuthSession{UserEmail: creds.Username}, nil
+	}
+
+	t.Setenv(webPasswordEnv, "env-password")
+
+	if _, _, err := resolveAppCreateSession(context.Background(), "user@example.com", "   ", ""); err != nil {
+		t.Fatalf("resolveAppCreateSession returned error: %v", err)
+	}
+	if received.Password != "env-password" {
+		t.Fatalf("expected env password fallback %q, got %q", "env-password", received.Password)
+	}
+}
+
 func TestPromptAppsCreatePasswordPreservesWhitespace(t *testing.T) {
 	origAskOne := appCreateAskOneFn
 	t.Cleanup(func() {
