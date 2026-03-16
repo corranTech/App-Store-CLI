@@ -484,7 +484,7 @@ func shouldFallbackToActorList(err error) bool {
 		return false
 	}
 	switch apiErr.Status {
-	case http.StatusBadRequest, http.StatusNotFound, http.StatusMethodNotAllowed:
+	case http.StatusBadRequest, http.StatusForbidden, http.StatusNotFound, http.StatusMethodNotAllowed:
 		return true
 	default:
 		return false
