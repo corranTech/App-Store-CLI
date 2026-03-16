@@ -231,53 +231,89 @@ func tryResumeLastWebSession(ctx context.Context) (*webcore.AuthSession, bool, e
 	return session, ok, err
 }
 
-func resolveSession(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+type webSessionResolveOptions struct {
+	promptAppleID   func(*string) error
+	resolvePassword func(string) (string, error)
+	persistFresh    func(*webcore.AuthSession) error
+}
+
+func tryResumeKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool, error) {
+	if appleID != "" {
+		resumed, ok, err := tryResumeWebSession(ctx, appleID)
+		return resumed, ok, errors.Is(err, webcore.ErrCachedSessionExpired), err
+	}
+	resumed, ok, err := tryResumeLastWebSession(ctx)
+	return resumed, ok, errors.Is(err, webcore.ErrCachedSessionExpired), err
+}
+
+func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
 	shared.ApplyRootLoggingOverrides()
 
 	appleID = strings.TrimSpace(appleID)
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
-	cacheExpired := false
 
-	if appleID != "" {
-		if resumed, ok, err := tryResumeWebSession(ctx, appleID); err == nil && ok {
-			return resumed, "cache", nil
-		} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
-			cacheExpired = true
-		}
-	} else {
-		if resumed, ok, err := tryResumeLastWebSession(ctx); err == nil && ok {
-			return resumed, "cache", nil
-		} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
-			cacheExpired = true
-		}
-	}
-	if cacheExpired {
+	if resumed, ok, cacheExpired, err := tryResumeKnownWebSession(ctx, appleID); err == nil && ok {
+		return resumed, "cache", nil
+	} else if cacheExpired {
 		printExpiredSessionNotice(sessionExpiredWriter)
 	}
 
 	if appleID == "" {
-		return nil, "", shared.UsageError("--apple-id is required when no cached web session is available")
-	}
-
-	if !webPasswordProvided(password) {
-		var err error
-		password, err = readPasswordFromInput()
-		if err != nil {
+		if opts.promptAppleID == nil {
+			return nil, "", shared.UsageError("--apple-id is required when no cached web session is available")
+		}
+		if err := opts.promptAppleID(&appleID); err != nil {
 			return nil, "", err
 		}
+		if resumed, ok, cacheExpired, err := tryResumeKnownWebSession(ctx, appleID); err == nil && ok {
+			return resumed, "cache", nil
+		} else if cacheExpired {
+			printExpiredSessionNotice(sessionExpiredWriter)
+		}
 	}
-	if !webPasswordProvided(password) {
+
+	if opts.resolvePassword == nil {
+		return nil, "", fmt.Errorf("password resolver is required")
+	}
+	resolvedPassword, err := opts.resolvePassword(password)
+	if err != nil {
+		return nil, "", err
+	}
+	if !webPasswordProvided(resolvedPassword) {
 		return nil, "", shared.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
 	}
 
-	session, err := loginWithOptionalTwoFactor(ctx, appleID, password, twoFactorCode)
+	session, err := loginWithOptionalTwoFactor(ctx, appleID, resolvedPassword, twoFactorCode)
 	if err != nil {
 		return nil, "", fmt.Errorf("web auth login failed: %w", err)
 	}
-	if err := webcore.PersistSession(session); err != nil {
-		return nil, "", fmt.Errorf("web auth login succeeded but failed to cache session: %w", err)
+	if opts.persistFresh != nil {
+		if err := opts.persistFresh(session); err != nil {
+			return nil, "", err
+		}
 	}
 	return session, "fresh", nil
+}
+
+func resolveSessionPassword(password string) (string, error) {
+	if webPasswordProvided(password) {
+		return password, nil
+	}
+	return readPasswordFromInput()
+}
+
+func persistFreshResolvedSession(session *webcore.AuthSession) error {
+	if err := webcore.PersistSession(session); err != nil {
+		return fmt.Errorf("web auth login succeeded but failed to cache session: %w", err)
+	}
+	return nil
+}
+
+func resolveSession(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+	return resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
+		resolvePassword: resolveSessionPassword,
+		persistFresh:    persistFreshResolvedSession,
+	})
 }
 
 // WebAuthCommand returns the detached web auth command group.

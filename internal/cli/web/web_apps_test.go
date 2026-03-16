@@ -150,6 +150,63 @@ func TestResolveAppCreateSessionUsesPasswordEnvWithoutTrimming(t *testing.T) {
 	}
 }
 
+func TestResolveAppCreateSessionPromptedAppleIDReusesCachedSession(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origWebLogin := webLoginFn
+	origAskOne := appCreateAskOneFn
+	origCanPrompt := appCreateCanPromptInteractivelyFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		webLoginFn = origWebLogin
+		appCreateAskOneFn = origAskOne
+		appCreateCanPromptInteractivelyFn = origCanPrompt
+	})
+
+	expected := &webcore.AuthSession{UserEmail: "prompted@example.com"}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		if username != "prompted@example.com" {
+			t.Fatalf("expected prompted cache lookup for %q, got %q", "prompted@example.com", username)
+		}
+		return expected, true, nil
+	}
+	appCreateCanPromptInteractivelyFn = func() bool { return true }
+	appCreateAskOneFn = func(p survey.Prompt, response interface{}, _ ...survey.AskOpt) error {
+		prompt, ok := p.(*survey.Input)
+		if !ok {
+			t.Fatalf("expected apple-id input prompt, got %T", p)
+		}
+		if prompt.Message != "Apple ID (email):" {
+			t.Fatalf("unexpected prompt message %q", prompt.Message)
+		}
+		target, ok := response.(*string)
+		if !ok {
+			t.Fatalf("expected *string response, got %T", response)
+		}
+		*target = "prompted@example.com"
+		return nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect fresh login when prompted apple-id cache hit succeeds")
+		return nil, nil
+	}
+
+	session, source, err := resolveAppCreateSession(context.Background(), "", "", "")
+	if err != nil {
+		t.Fatalf("resolveAppCreateSession returned error: %v", err)
+	}
+	if source != "cache" {
+		t.Fatalf("expected source %q, got %q", "cache", source)
+	}
+	if session != expected {
+		t.Fatal("expected prompted cached session pointer to be returned")
+	}
+}
+
 func TestResolveAppCreateSessionWhitespaceOnlyPasswordFallsBackToEnv(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn

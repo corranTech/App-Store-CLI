@@ -187,60 +187,51 @@ func promptAppsCreatePassword(password *string) error {
 	return nil
 }
 
+func promptAppsCreateSessionAppleID(appleID *string) error {
+	if !appCreateCanPromptInteractivelyFn() {
+		return shared.UsageError("--apple-id is required when no cached web session is available")
+	}
+	return promptAppsCreateAppleID(appleID)
+}
+
+func resolveAppCreatePassword(password string) (string, error) {
+	if webPasswordProvided(password) {
+		return password, nil
+	}
+	password = os.Getenv(webPasswordEnv)
+	if webPasswordProvided(password) {
+		return password, nil
+	}
+	if !appCreateCanPromptInteractivelyFn() {
+		return "", nil
+	}
+	if err := promptAppsCreatePassword(&password); err != nil {
+		return "", err
+	}
+	if !webPasswordProvided(password) {
+		return "", nil
+	}
+	return password, nil
+}
+
+func persistAppCreateSession(_ *webcore.AuthSession) error {
+	// App creation can proceed with the in-memory session even if cache persistence fails.
+	return nil
+}
+
 func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
-	shared.ApplyRootLoggingOverrides()
-
-	appleID = strings.TrimSpace(appleID)
-	twoFactorCode = strings.TrimSpace(twoFactorCode)
-
-	cacheExpired := false
-	if appleID != "" {
-		if resumed, ok, err := tryResumeSessionFn(ctx, appleID); err == nil && ok {
-			return resumed, "cache", nil
-		} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
-			cacheExpired = true
-		}
-	} else {
-		if resumed, ok, err := tryResumeLastFn(ctx); err == nil && ok {
-			return resumed, "cache", nil
-		} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
-			cacheExpired = true
-		}
-	}
-	if cacheExpired {
-		printExpiredSessionNotice(sessionExpiredWriter)
-	}
-
-	if appleID == "" {
-		if !appCreateCanPromptInteractivelyFn() {
-			return nil, "", shared.UsageError("--apple-id is required when no cached web session is available")
-		}
-		if err := promptAppsCreateAppleID(&appleID); err != nil {
-			return nil, "", err
-		}
-	}
-
-	if !webPasswordProvided(password) {
-		password = os.Getenv(webPasswordEnv)
-		if !webPasswordProvided(password) {
-			if !appCreateCanPromptInteractivelyFn() {
-				return nil, "", shared.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
-			}
-			if err := promptAppsCreatePassword(&password); err != nil {
-				return nil, "", err
-			}
-		}
-	}
-	if !webPasswordProvided(password) {
-		return nil, "", shared.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
-	}
-
-	session, err := loginWithOptionalTwoFactor(ctx, appleID, password, twoFactorCode)
+	session, source, err := resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
+		promptAppleID:   promptAppsCreateSessionAppleID,
+		resolvePassword: resolveAppCreatePassword,
+		persistFresh:    persistAppCreateSession,
+	})
 	if err != nil {
-		return nil, "", fmt.Errorf("web auth login failed: %w", err)
+		return nil, "", err
 	}
-	_ = webcore.PersistSession(session)
-	return session, "fresh", nil
+	if source == "fresh" {
+		_ = webcore.PersistSession(session)
+	}
+	return session, source, nil
 }
 
 // RunAppsCreate executes the canonical web-backed app-create flow.
