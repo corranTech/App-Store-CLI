@@ -478,6 +478,9 @@ func findReviewSubmissionForVersion(ctx context.Context, client *asc.Client, app
 			submission := resp.Data[i]
 			submissionVersionID, err := resolveReviewSubmissionVersionID(ctx, client, &submission)
 			if err != nil {
+				if !shouldIgnoreReviewSubmissionVersionLookupError(err) {
+					return nil, err
+				}
 				continue
 			}
 			if submissionVersionID == versionID {
@@ -504,6 +507,10 @@ func findReviewSubmissionForVersion(ctx context.Context, client *asc.Client, app
 	})
 	best := candidates[0]
 	return &best, nil
+}
+
+func shouldIgnoreReviewSubmissionVersionLookupError(err error) bool {
+	return asc.IsNotFound(err) || errors.Is(err, asc.ErrForbidden)
 }
 
 type reviewSubmissionCandidateKey struct {

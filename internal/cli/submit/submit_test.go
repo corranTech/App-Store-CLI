@@ -932,6 +932,46 @@ func TestFindReviewSubmissionForVersion_PrefersCurrentSubmissionOverHistoricalMa
 	}
 }
 
+func TestFindReviewSubmissionForVersion_PropagatesUnexpectedLookupErrors(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "reviewSubmissions",
+						"id": "broken-submission",
+						"attributes": {
+							"state": "WAITING_FOR_REVIEW"
+						}
+					}
+				]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/broken-submission/items":
+			return submitJSONResponse(http.StatusInternalServerError, `{
+				"errors": [{
+					"status": "500",
+					"code": "INTERNAL_ERROR",
+					"title": "Server Error"
+				}]
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	submission, err := findReviewSubmissionForVersion(context.Background(), client, "app-123", "version-123")
+	if err == nil {
+		t.Fatal("expected lookup error, got nil")
+	}
+	if submission != nil {
+		t.Fatalf("expected nil submission on unexpected lookup error, got %#v", submission)
+	}
+	if !strings.Contains(err.Error(), "Server Error") {
+		t.Fatalf("expected server error to propagate, got %v", err)
+	}
+}
+
 func TestExtractExistingSubmissionID(t *testing.T) {
 	t.Run("returns submission ID from associated error", func(t *testing.T) {
 		err := &asc.APIError{
