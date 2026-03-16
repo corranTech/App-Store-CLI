@@ -63,9 +63,10 @@ func TestWebAuthCapabilitiesKeyIDBypassesLocalAuthResolution(t *testing.T) {
 			Lookup:     "team_keys",
 		}, nil
 	}
-	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+	resolveWebAuthRefFn = func(kind string, codes []string) (*webref.View, error) {
 		return &webref.View{
 			LastVerified: "2026-03-16",
+			Purpose:      "Reference snapshot",
 			RoleDetails: []webref.Role{{
 				Code:         "APP_MANAGER",
 				Label:        "App Manager",
@@ -126,9 +127,10 @@ func TestWebAuthCapabilitiesResolvesCurrentAuthKeyID(t *testing.T) {
 			Lookup:     "team_keys",
 		}, nil
 	}
-	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+	resolveWebAuthRefFn = func(kind string, codes []string) (*webref.View, error) {
 		return &webref.View{
 			LastVerified: "2026-03-16",
+			Purpose:      "Reference snapshot",
 			RoleDetails: []webref.Role{{
 				Code:  "APP_MANAGER",
 				Label: "App Manager",
@@ -272,9 +274,22 @@ func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
 			},
 		}, nil
 	}
-	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+	resolveWebAuthRefFn = func(kind string, codes []string) (*webref.View, error) {
 		return &webref.View{
 			LastVerified: "2026-03-16",
+			Purpose:      "Reference snapshot of Apple-documented App Store Connect role capabilities.",
+			Sources: []webref.Source{
+				{Title: "Apple Developer Program Roles", URL: "https://developer.apple.com/help/account/access/roles/"},
+			},
+			Scope: &webref.Scope{
+				AppliesToAllApps: true,
+				Summary:          "Team API keys apply across all apps.",
+			},
+			KeyNotes: &webref.KeyNotes{
+				Kind:                  "team",
+				SelectableRoles:       []string{"ADMIN", "APP_MANAGER"},
+				EditableAfterCreation: boolPtr(false),
+			},
 			RoleDetails: []webref.Role{
 				{
 					Code:         "APP_MANAGER",
@@ -291,6 +306,23 @@ func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
 				{ID: "app_pricing_and_store_info", Label: "Manage app pricing and App Store information"},
 				{ID: "app_development_and_delivery", Label: "Manage app development and delivery"},
 				{ID: "payments_financial_reports_and_tax", Label: "Payments, financial reports, and tax forms"},
+			},
+			DocumentedAccess: []webref.DocumentedAccess{
+				{
+					ID:         "app_pricing_and_store_info",
+					Label:      "Manage app pricing and App Store information",
+					Roles:      []string{"APP_MANAGER"},
+					RoleLabels: []string{"App Manager"},
+				},
+				{
+					ID:         "payments_financial_reports_and_tax",
+					Label:      "Payments, financial reports, and tax forms",
+					Roles:      []string{"FINANCE"},
+					RoleLabels: []string{"Finance"},
+				},
+			},
+			Limitations: []string{
+				"Exact role lookup comes from the live App Store Connect web session, but the expanded capabilities below come from this bundled Apple documentation snapshot.",
 			},
 		}, nil
 	}
@@ -325,8 +357,23 @@ func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
 	if len(got.Capabilities) != 3 || got.Capabilities[2].ID != "payments_financial_reports_and_tax" {
 		t.Fatalf("unexpected capabilities: %#v", got.Capabilities)
 	}
-	if got.LastVerified != "2026-03-16" {
-		t.Fatalf("unexpected referenceLastVerified: %+v", got)
+	if len(got.DocumentedAccess) != 2 || got.DocumentedAccess[1].Roles[0] != "FINANCE" {
+		t.Fatalf("unexpected documentedAccess: %#v", got.DocumentedAccess)
+	}
+	if len(got.Sources) != 1 || got.Sources[0].Title != "Apple Developer Program Roles" {
+		t.Fatalf("unexpected sources: %#v", got.Sources)
+	}
+	if got.Scope == nil || !got.Scope.AppliesToAllApps {
+		t.Fatalf("unexpected scope: %#v", got.Scope)
+	}
+	if got.KeyNotes == nil || got.KeyNotes.Kind != "team" || got.KeyNotes.EditableAfterCreation == nil || *got.KeyNotes.EditableAfterCreation {
+		t.Fatalf("unexpected keyNotes: %#v", got.KeyNotes)
+	}
+	if got.ReferencePurpose == "" || got.ReferenceLastVerified != "2026-03-16" {
+		t.Fatalf("unexpected reference metadata: %+v", got)
+	}
+	if len(got.Limitations) != 1 {
+		t.Fatalf("unexpected limitations: %#v", got.Limitations)
 	}
 	if got.GeneratedBy == nil || got.GeneratedBy.Name != "Jane Admin" {
 		t.Fatalf("unexpected generatedBy: %#v", got.GeneratedBy)
@@ -374,9 +421,10 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 			Lookup:     "team_keys",
 		}, nil
 	}
-	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+	resolveWebAuthRefFn = func(kind string, codes []string) (*webref.View, error) {
 		return &webref.View{
 			LastVerified: "2026-03-16",
+			Purpose:      "Reference snapshot",
 			RoleDetails: []webref.Role{{
 				Code:  "APP_MANAGER",
 				Label: "App Manager",
@@ -385,6 +433,10 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 				ID:    "app_development_and_delivery",
 				Label: "Manage app development and delivery",
 			}},
+			KeyNotes: &webref.KeyNotes{
+				Kind:                "individual",
+				OneActiveKeyPerUser: boolPtr(true),
+			},
 		}, nil
 	}
 
@@ -418,6 +470,9 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 	if len(got.Capabilities) != 1 || got.Capabilities[0].Label != "Manage app development and delivery" {
 		t.Fatalf("unexpected capabilities: %#v", got.Capabilities)
 	}
+	if got.KeyNotes == nil || got.KeyNotes.Kind != "individual" || got.KeyNotes.OneActiveKeyPerUser == nil || !*got.KeyNotes.OneActiveKeyPerUser {
+		t.Fatalf("unexpected keyNotes: %#v", got.KeyNotes)
+	}
 	if len(*labels) != 1 || (*labels)[0] != "Loading exact API key roles" {
 		t.Fatalf("unexpected progress labels: %#v", *labels)
 	}
@@ -446,7 +501,7 @@ func TestWebAuthCapabilitiesUnauthorizedLookupGetsWebHint(t *testing.T) {
 	lookupWebAuthKeyFn = func(ctx context.Context, client *webcore.Client, keyID string) (*webcore.APIKeyRoleLookup, error) {
 		return nil, &webcore.APIError{Status: 401}
 	}
-	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+	resolveWebAuthRefFn = func(kind string, codes []string) (*webref.View, error) {
 		t.Fatal("did not expect reference resolution on failed lookup")
 		return nil, nil
 	}
@@ -516,4 +571,8 @@ func TestWebAuthCapabilitiesHelpContrastsPublicCapabilities(t *testing.T) {
 	if !strings.Contains(usage, "documented role capabilities") {
 		t.Fatalf("expected usage to mention documented capabilities, got %q", usage)
 	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
