@@ -132,13 +132,25 @@
       "label": "Account Holder",
       "team_key_selectable": false,
       "individual_key_eligible": true,
-      "summary": "Completes program enrollment and is responsible for legal agreements with Apple.",
+      "summary": "Primary team contact with access to all aspects of App Store Connect, including legal agreements with Apple.",
       "capabilities": [
         "request_api_access",
         "generate_team_keys",
         "manage_all_team_and_individual_keys",
         "generate_individual_keys",
+        "all_apps_access",
+        "app_pricing_and_store_info",
+        "app_development_and_delivery",
+        "marketing_and_promotional_artwork",
+        "customer_reviews",
+        "app_analytics",
+        "sales_and_trends",
+        "payments_financial_reports_and_tax",
+        "certificates_identifiers_profiles_default",
         "legal_membership_sensitive_account_holder_only"
+      ],
+      "notes": [
+        "Apple's current roles documentation says the Account Holder can access all aspects of App Store Connect."
       ],
       "notable_exclusive_actions": [
         "Sign legal agreements",
