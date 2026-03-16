@@ -1,11 +1,13 @@
 package submit
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -84,6 +86,358 @@ func TestSubmitStatusCommandValidation(t *testing.T) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
 		}
 	})
+}
+
+func TestSubmitStatusCommand_ByIDUsesReviewSubmissionEndpoint(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 2)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "reviewSubmissions",
+					"id": "review-submission-123",
+					"attributes": {
+						"state": "IN_REVIEW",
+						"submittedDate": "2026-03-16T10:00:00Z"
+					},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {
+								"type": "appStoreVersions",
+								"id": "version-123"
+							}
+						}
+					}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {
+						"versionString": "1.2.3",
+						"platform": "IOS",
+						"appStoreState": "WAITING_FOR_REVIEW"
+					}
+				}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	})
+
+	cmd := SubmitStatusCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--id", "review-submission-123", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+
+	var result asc.AppStoreVersionSubmissionStatusResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if result.ID != "review-submission-123" {
+		t.Fatalf("expected review submission ID, got %q", result.ID)
+	}
+	if result.VersionID != "version-123" {
+		t.Fatalf("expected version ID version-123, got %q", result.VersionID)
+	}
+	if result.VersionString != "1.2.3" {
+		t.Fatalf("expected version string 1.2.3, got %q", result.VersionString)
+	}
+	if result.Platform != "IOS" {
+		t.Fatalf("expected platform IOS, got %q", result.Platform)
+	}
+	if result.State != "IN_REVIEW" {
+		t.Fatalf("expected review submission state IN_REVIEW, got %q", result.State)
+	}
+	if result.CreatedDate == nil || *result.CreatedDate != "2026-03-16T10:00:00Z" {
+		t.Fatalf("expected submittedDate to be surfaced as createdDate, got %+v", result.CreatedDate)
+	}
+
+	wantRequests := []string{
+		"GET /v1/reviewSubmissions/review-submission-123",
+		"GET /v1/appStoreVersions/version-123",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitStatusCommand_ByVersionIDUsesReviewSubmissionsForCurrentSubmission(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 2)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {
+						"versionString": "1.2.3",
+						"platform": "IOS",
+						"appStoreState": "WAITING_FOR_REVIEW"
+					},
+					"relationships": {
+						"app": {
+							"data": {
+								"type": "apps",
+								"id": "app-123"
+							}
+						}
+					}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			if got := req.URL.Query().Get("include"); got != "appStoreVersionForReview" {
+				return nil, fmt.Errorf("expected include=appStoreVersionForReview, got %q", got)
+			}
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				return nil, fmt.Errorf("expected limit=200, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "reviewSubmissions",
+						"id": "review-submission-other",
+						"attributes": {
+							"state": "READY_FOR_REVIEW"
+						},
+						"relationships": {
+							"appStoreVersionForReview": {
+								"data": {
+									"type": "appStoreVersions",
+									"id": "version-other"
+								}
+							}
+						}
+					},
+					{
+						"type": "reviewSubmissions",
+						"id": "review-submission-123",
+						"attributes": {
+							"state": "IN_REVIEW",
+							"submittedDate": "2026-03-16T11:00:00Z"
+						},
+						"relationships": {
+							"appStoreVersionForReview": {
+								"data": {
+									"type": "appStoreVersions",
+									"id": "version-123"
+								}
+							}
+						}
+					}
+				]
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	})
+
+	cmd := SubmitStatusCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+
+	var result asc.AppStoreVersionSubmissionStatusResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if result.ID != "review-submission-123" {
+		t.Fatalf("expected review submission ID review-submission-123, got %q", result.ID)
+	}
+	if result.VersionID != "version-123" {
+		t.Fatalf("expected version ID version-123, got %q", result.VersionID)
+	}
+	if result.State != "IN_REVIEW" {
+		t.Fatalf("expected review submission state IN_REVIEW, got %q", result.State)
+	}
+	if result.VersionString != "1.2.3" || result.Platform != "IOS" {
+		t.Fatalf("unexpected version details: %+v", result)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-123?include=app",
+		"GET /v1/apps/app-123/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitStatusCommand_ByVersionIDFallsBackToLegacyRelationshipAndVersionState(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 3)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {
+						"versionString": "1.2.3",
+						"platform": "IOS",
+						"appStoreState": "WAITING_FOR_REVIEW"
+					},
+					"relationships": {
+						"app": {
+							"data": {
+								"type": "apps",
+								"id": "app-123"
+							}
+						}
+					}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersionSubmissions",
+					"id": "legacy-submission-123",
+					"attributes": {
+						"createdDate": "2026-03-16T09:00:00Z"
+					},
+					"relationships": {
+						"appStoreVersion": {
+							"data": {
+								"type": "appStoreVersions",
+								"id": "version-123"
+							}
+						}
+					}
+				}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	})
+
+	cmd := SubmitStatusCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+
+	var result asc.AppStoreVersionSubmissionStatusResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if result.ID != "legacy-submission-123" {
+		t.Fatalf("expected legacy submission ID fallback, got %q", result.ID)
+	}
+	if result.State != "WAITING_FOR_REVIEW" {
+		t.Fatalf("expected version state fallback WAITING_FOR_REVIEW, got %q", result.State)
+	}
+	if result.CreatedDate == nil || *result.CreatedDate != "2026-03-16T09:00:00Z" {
+		t.Fatalf("expected legacy created date, got %+v", result.CreatedDate)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-123?include=app",
+		"GET /v1/apps/app-123/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+		"GET /v1/appStoreVersions/version-123/appStoreVersionSubmission",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitStatusCommand_ByIDNotFoundSuggestsVersionIDFallback(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/missing-submission" {
+			return submitJSONResponse(http.StatusNotFound, `{
+				"errors": [{
+					"status": "404",
+					"code": "NOT_FOUND",
+					"title": "Not Found"
+				}]
+			}`)
+		}
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitStatusCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--id", "missing-submission"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	_, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), `retry with --version-id to inspect the App Store version state`) {
+		t.Fatalf("expected fallback hint in error, got %v", err)
+	}
 }
 
 func TestSubmitCancelCommandValidation(t *testing.T) {
@@ -397,6 +751,72 @@ func TestIsAppUpdate_PropagatesClientErrors(t *testing.T) {
 	}
 }
 
+func TestFindReviewSubmissionForVersion_FallsBackToSubmissionItems(t *testing.T) {
+	requests := make([]string, 0, 2)
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "reviewSubmissions",
+						"id": "review-submission-123",
+						"attributes": {
+							"state": "READY_FOR_REVIEW"
+						}
+					}
+				]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-submission-123/items":
+			if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != "appStoreVersion" {
+				return nil, fmt.Errorf("expected review submission items fields query, got %q", got)
+			}
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				return nil, fmt.Errorf("expected limit=200, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "reviewSubmissionItems",
+						"id": "item-1",
+						"relationships": {
+							"appStoreVersion": {
+								"data": {
+									"type": "appStoreVersions",
+									"id": "version-123"
+								}
+							}
+						}
+					}
+				]
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	submission, err := findReviewSubmissionForVersion(context.Background(), client, "app-123", "version-123")
+	if err != nil {
+		t.Fatalf("findReviewSubmissionForVersion() error: %v", err)
+	}
+	if submission == nil {
+		t.Fatal("expected review submission match, got nil")
+	}
+	if submission.ID != "review-submission-123" {
+		t.Fatalf("expected review submission ID review-submission-123, got %q", submission.ID)
+	}
+
+	wantRequests := []string{
+		"GET /v1/apps/app-123/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+		"GET /v1/reviewSubmissions/review-submission-123/items?fields%5BreviewSubmissionItems%5D=appStoreVersion&limit=200",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
 func TestExtractExistingSubmissionID(t *testing.T) {
 	t.Run("returns submission ID from associated error", func(t *testing.T) {
 		err := &asc.APIError{
@@ -627,4 +1047,48 @@ func submitAlreadyAddedConflictBody(existingSubmissionID string) string {
 			}
 		}]
 	}`, existingSubmissionID)
+}
+
+func captureSubmitCommandOutput(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+
+	rOut, wOut, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create stdout pipe: %v", err)
+	}
+	rErr, wErr, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create stderr pipe: %v", err)
+	}
+
+	os.Stdout = wOut
+	os.Stderr = wErr
+
+	outC := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, rOut)
+		_ = rOut.Close()
+		outC <- buf.String()
+	}()
+
+	go func() {
+		_, _ = io.Copy(io.Discard, rErr)
+		_ = rErr.Close()
+	}()
+
+	runErr := fn()
+
+	_ = wOut.Close()
+	_ = wErr.Close()
+
+	stdout := <-outC
+
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+
+	return stdout, runErr
 }
