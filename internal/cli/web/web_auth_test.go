@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -181,11 +182,13 @@ func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
 	origPrompt := promptTwoFactorCodeFn
 	origLogin := webLoginFn
 	origPrepare := prepareTwoFactorChallengeFn
+	origEnsure := ensureTwoFactorCodeRequestedFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
 		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
 		prepareTwoFactorChallengeFn = origPrepare
+		ensureTwoFactorCodeRequestedFn = origEnsure
 		submitTwoFactorCodeFn = origSubmit
 	})
 
@@ -199,6 +202,10 @@ func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
 	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
 		prepared = true
 		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
+	}
+	ensureTwoFactorCodeRequestedFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		t.Fatal("did not expect phone-code request for trusted-device challenge")
+		return nil, nil
 	}
 	promptTwoFactorCodeFn = func() (string, error) {
 		if !prepared {
@@ -234,11 +241,13 @@ func TestLoginWithOptionalTwoFactorReturnsPromptError(t *testing.T) {
 	origPrompt := promptTwoFactorCodeFn
 	origLogin := webLoginFn
 	origPrepare := prepareTwoFactorChallengeFn
+	origEnsure := ensureTwoFactorCodeRequestedFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
 		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
 		prepareTwoFactorChallengeFn = origPrepare
+		ensureTwoFactorCodeRequestedFn = origEnsure
 		submitTwoFactorCodeFn = origSubmit
 	})
 
@@ -247,6 +256,10 @@ func TestLoginWithOptionalTwoFactorReturnsPromptError(t *testing.T) {
 	}
 	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
 		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
+	}
+	ensureTwoFactorCodeRequestedFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		t.Fatal("did not expect phone-code request for trusted-device challenge")
+		return nil, nil
 	}
 	promptTwoFactorCodeFn = func() (string, error) {
 		return "", errors.New("2fa required: re-run with --two-factor-code")
@@ -262,6 +275,119 @@ func TestLoginWithOptionalTwoFactorReturnsPromptError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "re-run with --two-factor-code") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoginWithOptionalTwoFactorRequestsPhoneCodeBeforePrompt(t *testing.T) {
+	origPrompt := promptTwoFactorCodeFn
+	origLogin := webLoginFn
+	origPrepare := prepareTwoFactorChallengeFn
+	origEnsure := ensureTwoFactorCodeRequestedFn
+	origSubmit := submitTwoFactorCodeFn
+	origStatusWriter := twoFactorStatusWriter
+	t.Cleanup(func() {
+		promptTwoFactorCodeFn = origPrompt
+		webLoginFn = origLogin
+		prepareTwoFactorChallengeFn = origPrepare
+		ensureTwoFactorCodeRequestedFn = origEnsure
+		submitTwoFactorCodeFn = origSubmit
+		twoFactorStatusWriter = origStatusWriter
+	})
+
+	var (
+		order        []string
+		statusOutput bytes.Buffer
+	)
+
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		order = append(order, "prepare")
+		return &webcore.TwoFactorChallenge{Method: "phone", Destination: "+1 (•••) •••-••66"}, nil
+	}
+	ensureTwoFactorCodeRequestedFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		order = append(order, "ensure")
+		return &webcore.TwoFactorChallenge{
+			Method:      "phone",
+			Destination: "+1 (•••) •••-••66",
+			Requested:   true,
+		}, nil
+	}
+	promptTwoFactorCodeFn = func() (string, error) {
+		if got, want := order, []string{"prepare", "ensure"}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("expected prepare then ensure before prompting, got %v", got)
+		}
+		order = append(order, "prompt")
+		return "654321", nil
+	}
+	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
+		order = append(order, "submit")
+		if code != "654321" {
+			t.Fatalf("expected code 654321, got %q", code)
+		}
+		return nil
+	}
+	twoFactorStatusWriter = &statusOutput
+
+	if _, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", ""); err != nil {
+		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
+	}
+
+	if got, want := order, []string{"prepare", "ensure", "prompt", "submit"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected order %v, got %v", want, got)
+	}
+	if output := statusOutput.String(); !strings.Contains(output, "Verification code sent to +1 (•••) •••-••66.") {
+		t.Fatalf("expected delivery notice, got %q", output)
+	}
+}
+
+func TestLoginWithOptionalTwoFactorSkipsPhoneRequestWhenCodeProvided(t *testing.T) {
+	origPrompt := promptTwoFactorCodeFn
+	origLogin := webLoginFn
+	origPrepare := prepareTwoFactorChallengeFn
+	origEnsure := ensureTwoFactorCodeRequestedFn
+	origSubmit := submitTwoFactorCodeFn
+	origStatusWriter := twoFactorStatusWriter
+	t.Cleanup(func() {
+		promptTwoFactorCodeFn = origPrompt
+		webLoginFn = origLogin
+		prepareTwoFactorChallengeFn = origPrepare
+		ensureTwoFactorCodeRequestedFn = origEnsure
+		submitTwoFactorCodeFn = origSubmit
+		twoFactorStatusWriter = origStatusWriter
+	})
+
+	var statusOutput bytes.Buffer
+
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		return &webcore.TwoFactorChallenge{Method: "phone", Destination: "+1 (•••) •••-••66"}, nil
+	}
+	ensureTwoFactorCodeRequestedFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		t.Fatal("did not expect phone-code request when 2fa code is already provided")
+		return nil, nil
+	}
+	promptTwoFactorCodeFn = func() (string, error) {
+		t.Fatal("did not expect interactive prompt when 2fa code is already provided")
+		return "", nil
+	}
+	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
+		if code != "123456" {
+			t.Fatalf("expected code 123456, got %q", code)
+		}
+		return nil
+	}
+	twoFactorStatusWriter = &statusOutput
+
+	if _, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "123456"); err != nil {
+		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
+	}
+
+	if output := statusOutput.String(); output != "" {
+		t.Fatalf("expected no delivery notice when no request was made, got %q", output)
 	}
 }
 

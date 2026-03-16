@@ -235,7 +235,7 @@ func TestGetHashcashAllowsMissingChallengeHeaders(t *testing.T) {
 	}
 }
 
-func TestPrepareTwoFactorChallengeRequestsPhoneCodeWhenNoTrustedDevicesHasMultipleNumbers(t *testing.T) {
+func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeWhenNoTrustedDevicesHasMultipleNumbers(t *testing.T) {
 	session := &AuthSession{
 		Client: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -284,9 +284,9 @@ func TestPrepareTwoFactorChallengeRequestsPhoneCodeWhenNoTrustedDevicesHasMultip
 		SCNT:             "scnt-token",
 	}
 
-	challenge, err := PrepareTwoFactorChallenge(context.Background(), session)
+	challenge, err := EnsureTwoFactorCodeRequested(context.Background(), session)
 	if err != nil {
-		t.Fatalf("PrepareTwoFactorChallenge returned error: %v", err)
+		t.Fatalf("EnsureTwoFactorCodeRequested returned error: %v", err)
 	}
 	if challenge.Method != twoFactorMethodPhone {
 		t.Fatalf("expected phone method, got %q", challenge.Method)
@@ -299,6 +299,51 @@ func TestPrepareTwoFactorChallengeRequestsPhoneCodeWhenNoTrustedDevicesHasMultip
 	}
 	if session.twoFactorPhoneID != 7 {
 		t.Fatalf("expected stored phone id 7, got %d", session.twoFactorPhoneID)
+	}
+}
+
+func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeForSingleTrustedPhone(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"noTrustedDevices": true,
+							"trustedPhoneNumbers": [
+								{"id": 7, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••66"}
+							]
+						}`)),
+					}, nil
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	challenge, err := EnsureTwoFactorCodeRequested(context.Background(), session)
+	if err != nil {
+		t.Fatalf("EnsureTwoFactorCodeRequested returned error: %v", err)
+	}
+	if challenge.Method != twoFactorMethodPhone {
+		t.Fatalf("expected phone method, got %q", challenge.Method)
+	}
+	if !challenge.Requested {
+		t.Fatal("expected single trusted phone to trigger a code request before prompting")
 	}
 }
 
@@ -478,6 +523,80 @@ func TestSubmitTwoFactorCodeFallsBackToPhoneAfterTrustedDeviceFailure(t *testing
 		twoFactorMethod:    twoFactorMethodTrustedDevice,
 		twoFactorPhoneID:   7,
 		twoFactorPhoneMode: "sms",
+	}
+
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
+		t.Fatalf("SubmitTwoFactorCode returned error: %v", err)
+	}
+}
+
+func TestSubmitTwoFactorCodeDoesNotForcePhoneRequestBeforeVerification(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"noTrustedDevices": true,
+							"trustedPhoneNumbers": [
+								{"id": 7, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••66"},
+								{"id": 9, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••88"}
+							]
+						}`)),
+					}, nil
+				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/phone/securitycode":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+						SecurityCode struct {
+							Code string `json:"code"`
+						} `json:"securityCode"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone verification payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					if payload.SecurityCode.Code != "123456" {
+						t.Fatalf("expected 2fa code 123456, got %q", payload.SecurityCode.Code)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL+"/2sv/trust":
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == olympusSessionURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"provider": {"providerId": 123, "publicProviderId": "public-123"},
+							"user": {"emailAddress": "user@example.com"}
+						}`)),
+					}, nil
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					t.Fatal("did not expect phone delivery request when verifying an already provided code")
+					return nil, nil
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
 	}
 
 	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {

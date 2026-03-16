@@ -353,24 +353,29 @@ Examples:
 							return fmt.Errorf("apps create: failed to prepare 2FA challenge: %w", prepErr)
 						}
 
-						twoFactorHelp := "Enter the verification code from your trusted device or SMS"
-						if challenge != nil {
-							switch challenge.Method {
-							case "phone":
-								if challenge.Destination != "" {
-									twoFactorHelp = fmt.Sprintf("Enter the verification code sent to %s", challenge.Destination)
-								} else {
-									twoFactorHelp = "Enter the verification code sent to your trusted phone"
-								}
-							case "trusted-device":
-								if !challenge.PhoneFallbackAvailable {
-									twoFactorHelp = "Enter the verification code from your trusted device"
-								}
-							}
-						}
-
 						codeValue := strings.TrimSpace(*twoFactorCode)
 						if codeValue == "" {
+							if challenge != nil && challenge.Method == "phone" {
+								challenge, prepErr = iris.EnsureTwoFactorCodeRequested(session)
+								if prepErr != nil {
+									return fmt.Errorf("apps create: failed to request 2FA code: %w", prepErr)
+								}
+							}
+							twoFactorHelp := "Enter the verification code from your trusted device or SMS"
+							if challenge != nil {
+								switch challenge.Method {
+								case "phone":
+									if challenge.Destination != "" {
+										twoFactorHelp = fmt.Sprintf("Enter the verification code sent to %s", challenge.Destination)
+									} else {
+										twoFactorHelp = "Enter the verification code sent to your trusted phone"
+									}
+								case "trusted-device":
+									if !challenge.PhoneFallbackAvailable {
+										twoFactorHelp = "Enter the verification code from your trusted device"
+									}
+								}
+							}
 							if err := survey.AskOne(&survey.Input{
 								Message: "2FA code:",
 								Help:    twoFactorHelp,

@@ -1100,13 +1100,6 @@ func PrepareTwoFactorChallenge(ctx context.Context, session *AuthSession) (*TwoF
 		session.twoFactorMethod = twoFactorMethodPhone
 		session.twoFactorCodeRequested = false
 
-		if len(opts.TrustedPhoneNumbers) > 1 {
-			if err := requestPhoneCode(ctx, session, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
-				return nil, err
-			}
-			session.twoFactorCodeRequested = true
-		}
-
 		return &TwoFactorChallenge{
 			Method:                 session.twoFactorMethod,
 			Destination:            session.twoFactorDestination,
@@ -1121,6 +1114,29 @@ func PrepareTwoFactorChallenge(ctx context.Context, session *AuthSession) (*TwoF
 		Method:                 session.twoFactorMethod,
 		PhoneFallbackAvailable: session.twoFactorPhoneID != 0,
 	}, nil
+}
+
+func EnsureTwoFactorCodeRequested(ctx context.Context, session *AuthSession) (*TwoFactorChallenge, error) {
+	challenge, err := PrepareTwoFactorChallenge(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	if challenge.Method != twoFactorMethodPhone {
+		return challenge, nil
+	}
+	if session.twoFactorCodeRequested {
+		challenge.Requested = true
+		return challenge, nil
+	}
+	if session.twoFactorPhoneID == 0 {
+		return nil, fmt.Errorf("2fa failed: no trusted phone numbers available")
+	}
+	if err := requestPhoneCode(ctx, session, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
+		return nil, err
+	}
+	session.twoFactorCodeRequested = true
+	challenge.Requested = true
+	return challenge, nil
 }
 
 func submitTrustedDeviceCode(ctx context.Context, session *AuthSession, code string) error {

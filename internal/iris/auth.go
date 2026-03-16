@@ -902,13 +902,6 @@ func PrepareTwoFactorChallenge(session *AuthSession) (*TwoFactorChallenge, error
 		session.twoFactorMethod = twoFactorMethodPhone
 		session.twoFactorCodeRequested = false
 
-		if len(opts.TrustedPhoneNumbers) > 1 {
-			if err := requestPhoneCode(session, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
-				return nil, err
-			}
-			session.twoFactorCodeRequested = true
-		}
-
 		return &TwoFactorChallenge{
 			Method:                 session.twoFactorMethod,
 			Destination:            session.twoFactorDestination,
@@ -923,6 +916,29 @@ func PrepareTwoFactorChallenge(session *AuthSession) (*TwoFactorChallenge, error
 		Method:                 session.twoFactorMethod,
 		PhoneFallbackAvailable: session.twoFactorPhoneID != 0,
 	}, nil
+}
+
+func EnsureTwoFactorCodeRequested(session *AuthSession) (*TwoFactorChallenge, error) {
+	challenge, err := PrepareTwoFactorChallenge(session)
+	if err != nil {
+		return nil, err
+	}
+	if challenge.Method != twoFactorMethodPhone {
+		return challenge, nil
+	}
+	if session.twoFactorCodeRequested {
+		challenge.Requested = true
+		return challenge, nil
+	}
+	if session.twoFactorPhoneID == 0 {
+		return nil, fmt.Errorf("2FA failed: no trusted phone numbers available")
+	}
+	if err := requestPhoneCode(session, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
+		return nil, err
+	}
+	session.twoFactorCodeRequested = true
+	challenge.Requested = true
+	return challenge, nil
 }
 
 // SubmitTwoFactorCode completes Apple 2FA for an existing SRP session.

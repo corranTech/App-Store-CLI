@@ -20,17 +20,19 @@ import (
 const webPasswordEnv = "ASC_WEB_PASSWORD"
 
 var (
-	promptTwoFactorCodeFn                 = promptTwoFactorCodeInteractive
-	promptPasswordFn                      = promptPasswordInteractive
-	webLoginFn                            = webcore.Login
-	prepareTwoFactorChallengeFn           = webcore.PrepareTwoFactorChallenge
-	submitTwoFactorCodeFn                 = webcore.SubmitTwoFactorCode
-	termReadPasswordFn                    = term.ReadPassword
-	termIsTerminalFn                      = term.IsTerminal
-	tryResumeSessionFn                    = webcore.TryResumeSession
-	tryResumeLastFn                       = webcore.TryResumeLastSession
-	resolveSessionFn                      = resolveSession
-	sessionExpiredWriter        io.Writer = os.Stderr
+	promptTwoFactorCodeFn                    = promptTwoFactorCodeInteractive
+	promptPasswordFn                         = promptPasswordInteractive
+	webLoginFn                               = webcore.Login
+	prepareTwoFactorChallengeFn              = webcore.PrepareTwoFactorChallenge
+	ensureTwoFactorCodeRequestedFn           = webcore.EnsureTwoFactorCodeRequested
+	submitTwoFactorCodeFn                    = webcore.SubmitTwoFactorCode
+	termReadPasswordFn                       = term.ReadPassword
+	termIsTerminalFn                         = term.IsTerminal
+	tryResumeSessionFn                       = webcore.TryResumeSession
+	tryResumeLastFn                          = webcore.TryResumeLastSession
+	resolveSessionFn                         = resolveSession
+	twoFactorStatusWriter          io.Writer = os.Stderr
+	sessionExpiredWriter           io.Writer = os.Stderr
 )
 
 type webAuthStatus struct {
@@ -151,12 +153,18 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 		if prepErr != nil {
 			return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
 		}
-		if challenge != nil && challenge.Method == "phone" && challenge.Destination != "" {
-			_, _ = fmt.Fprintf(os.Stderr, "Verification code sent to %s.\n", challenge.Destination)
-		}
 
 		code := strings.TrimSpace(twoFactorCode)
 		if code == "" {
+			if challenge != nil && challenge.Method == "phone" {
+				challenge, prepErr = ensureTwoFactorCodeRequestedFn(ctx, session)
+				if prepErr != nil {
+					return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
+				}
+				if challenge != nil && challenge.Requested && challenge.Destination != "" && twoFactorStatusWriter != nil {
+					_, _ = fmt.Fprintf(twoFactorStatusWriter, "Verification code sent to %s.\n", challenge.Destination)
+				}
+			}
 			var promptErr error
 			code, promptErr = promptTwoFactorCodeFn()
 			if promptErr != nil {
