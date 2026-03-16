@@ -355,19 +355,17 @@ func findRecentBuildUploadID(ctx context.Context, client *asc.Client, appID, ver
 
 	for {
 		for _, upload := range resp.Data {
-			observedAt, hasObservedAt := buildUploadObservedAt(upload.Attributes)
-			if !hasObservedAt {
+			associationAt, hasAssociationAt := buildUploadAssociationTime(upload.Attributes)
+			if !hasAssociationAt {
 				if !exportStartedAt.IsZero() {
 					continue
 				}
 				return strings.TrimSpace(upload.ID), true, nil
 			}
-			if !exportCompletedAt.IsZero() && observedAt.After(exportCompletedAt) {
+			if !exportCompletedAt.IsZero() && associationAt.After(exportCompletedAt) {
 				continue
 			}
-			if !exportStartedAt.IsZero() && observedAt.Before(exportStartedAt) {
-				// We may be looking at createdDate when uploadedDate is absent, so an older
-				// uploaded page cannot safely stop pagination for later createdDate-only rows.
+			if !exportStartedAt.IsZero() && associationAt.Before(exportStartedAt) {
 				continue
 			}
 			return strings.TrimSpace(upload.ID), true, nil
@@ -384,34 +382,31 @@ func findRecentBuildUploadID(ctx context.Context, client *asc.Client, appID, ver
 	}
 }
 
-func buildUploadObservedAt(attr asc.BuildUploadAttributes) (time.Time, bool) {
-	candidates := []string{}
-	if attr.UploadedDate != nil {
-		candidates = append(candidates, strings.TrimSpace(*attr.UploadedDate))
+func buildUploadAssociationTime(attr asc.BuildUploadAttributes) (time.Time, bool) {
+	for _, candidate := range []*string{attr.CreatedDate, attr.UploadedDate} {
+		parsed, ok := parseBuildUploadTime(candidate)
+		if ok {
+			return parsed, true
+		}
 	}
-	if attr.CreatedDate != nil {
-		candidates = append(candidates, strings.TrimSpace(*attr.CreatedDate))
-	}
+	return time.Time{}, false
+}
 
-	var latest time.Time
-	found := false
-	for _, candidate := range candidates {
-		if candidate == "" {
-			continue
-		}
-		for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
-			parsed, err := time.Parse(layout, candidate)
-			if err != nil {
-				continue
-			}
-			if !found || parsed.After(latest) {
-				latest = parsed
-				found = true
-			}
-			break
+func parseBuildUploadTime(value *string) (time.Time, bool) {
+	if value == nil {
+		return time.Time{}, false
+	}
+	candidate := strings.TrimSpace(*value)
+	if candidate == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+		parsed, err := time.Parse(layout, candidate)
+		if err == nil {
+			return parsed, true
 		}
 	}
-	return latest, found
+	return time.Time{}, false
 }
 
 func archiveResultRows(result *localxcode.ArchiveResult) [][]string {

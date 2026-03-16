@@ -491,6 +491,66 @@ func TestFindRecentBuildUploadIDPrefersLatestUploadWithinCompletedExportWindow(t
 	}
 }
 
+func TestFindRecentBuildUploadIDUsesCreatedDateForCompletedExportCutoff(t *testing.T) {
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = xcodeCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-123/buildUploads" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "200" {
+			return nil, fmt.Errorf("unexpected limit: %q", req.URL.Query().Get("limit"))
+		}
+		return xcodeCommandJSONResponse(`{
+			"data": [
+				{
+					"type": "buildUploads",
+					"id": "later-retry",
+					"attributes": {
+						"cfBundleShortVersionString": "1.2.3",
+						"cfBundleVersion": "42",
+						"platform": "IOS",
+						"createdDate": "2026-03-16T12:00:40Z",
+						"uploadedDate": "2026-03-16T12:00:45Z"
+					}
+				},
+				{
+					"type": "buildUploads",
+					"id": "current-export",
+					"attributes": {
+						"cfBundleShortVersionString": "1.2.3",
+						"cfBundleVersion": "42",
+						"platform": "IOS",
+						"createdDate": "2026-03-16T12:00:28Z",
+						"uploadedDate": "2026-03-16T12:00:35Z"
+					}
+				}
+			],
+			"links": {}
+		}`)
+	})
+
+	client := newXcodeCommandTestClient(t)
+	exportStartedAt := time.Date(2026, time.March, 16, 12, 0, 10, 0, time.UTC)
+	exportCompletedAt := time.Date(2026, time.March, 16, 12, 0, 30, 0, time.UTC)
+	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt, exportCompletedAt)
+	if err != nil {
+		t.Fatalf("findRecentBuildUploadID() error: %v", err)
+	}
+	if !found {
+		t.Fatal("expected createdDate within the export window to keep the current upload eligible")
+	}
+	if uploadID != "current-export" {
+		t.Fatalf("expected current export upload selected via createdDate, got %q", uploadID)
+	}
+}
+
 func TestFindRecentBuildUploadIDPaginatesUntilUploadWithinCompletedExportWindow(t *testing.T) {
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
