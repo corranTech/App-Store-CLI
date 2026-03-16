@@ -414,23 +414,6 @@ func buildUploadObservedAt(attr asc.BuildUploadAttributes) (time.Time, bool) {
 	return latest, found
 }
 
-func isMoreRecentBuildUploadCandidate(candidate time.Time, candidateHasTime bool, current time.Time, currentHasTime bool) bool {
-	switch {
-	case candidateHasTime && !currentHasTime:
-		return true
-	case !candidateHasTime && currentHasTime:
-		return false
-	case candidateHasTime && currentHasTime:
-		if candidate.After(current) {
-			return true
-		}
-		if candidate.Before(current) {
-			return false
-		}
-	}
-	return false
-}
-
 func archiveResultRows(result *localxcode.ArchiveResult) [][]string {
 	rows := [][]string{
 		{"archive_path", result.ArchivePath},
