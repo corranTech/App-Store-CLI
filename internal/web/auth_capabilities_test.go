@@ -200,6 +200,68 @@ func TestClientLookupAPIKeyRolesReturnsTeamMatch(t *testing.T) {
 	}
 }
 
+func TestClientLookupAPIKeyRolesReturnsTeamMatchFromLaterPage(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch r.URL.Path {
+			case "/iris/v1/apiKeys":
+				if r.URL.Query().Get("cursor") == "page-2" {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+						Body: io.NopCloser(strings.NewReader(`{
+							"data":[
+								{
+									"id":"39MX87M9Y4",
+									"attributes":{
+										"roles":["APP_MANAGER"],
+										"nickname":"late-team-key",
+										"isActive":true,
+										"keyType":"PUBLIC_API"
+									},
+									"relationships":{
+										"createdBy":{"data":{"id":"user-2"}},
+										"revokedBy":{"data":null}
+									}
+								}
+							],
+							"included":[
+								{"type":"users","id":"user-2","attributes":{"firstName":"Jane","lastName":"Admin"}}
+							]
+						}`)),
+					}, nil
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body: io.NopCloser(strings.NewReader(`{
+						"data":[],
+						"included":[],
+						"links":{"next":"https://appstoreconnect.apple.com/iris/v1/apiKeys?cursor=page-2"}
+					}`)),
+				}, nil
+			case "/iris/v2/apiKeys":
+				t.Fatalf("did not expect individual key lookup when team pagination should find the key")
+				return nil, nil
+			default:
+				t.Fatalf("unexpected request path %q", r.URL.String())
+				return nil, nil
+			}
+		})},
+	}
+
+	got, err := client.LookupAPIKeyRoles(context.Background(), "39MX87M9Y4")
+	if err != nil {
+		t.Fatalf("LookupAPIKeyRoles() error: %v", err)
+	}
+	if got.Kind != "team" || got.Lookup != "team_keys" {
+		t.Fatalf("unexpected lookup metadata: %#v", got)
+	}
+	if got.GeneratedBy == nil || got.GeneratedBy.Name != "Jane Admin" {
+		t.Fatalf("unexpected generatedBy: %#v", got.GeneratedBy)
+	}
+}
+
 func TestClientLookupAPIKeyRolesReturnsNotFound(t *testing.T) {
 	client := &Client{
 		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -513,6 +575,67 @@ func TestClientLookupAPIKeyRolesReturnsIndividualMatchFromKey(t *testing.T) {
 	}
 }
 
+func TestClientLookupAPIKeyRolesReturnsIndividualMatchFromLaterPage(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch r.URL.Path {
+			case "/iris/v1/apiKeys":
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"data":[],"included":[]}`)),
+				}, nil
+			case "/iris/v2/apiKeys":
+				if r.URL.Query().Get("cursor") == "page-2" {
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     http.Header{"Content-Type": []string{"application/json"}},
+						Body: io.NopCloser(strings.NewReader(`{
+							"data":[
+								{
+									"id":"ind-late",
+									"attributes":{
+										"roles":["ADMIN"],
+										"nickname":"late-individual-key",
+										"isActive":true,
+										"keyType":"PUBLIC_API"
+									},
+									"relationships":{
+										"createdByActor":{"data":{"id":"actor-1"}},
+										"revokedByActor":{"data":null}
+									}
+								}
+							]
+						}`)),
+					}, nil
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body: io.NopCloser(strings.NewReader(`{
+						"data":[],
+						"links":{"next":"https://appstoreconnect.apple.com/iris/v2/apiKeys?cursor=page-2"}
+					}`)),
+				}, nil
+			default:
+				t.Fatalf("unexpected request URL %q", r.URL.String())
+				return nil, nil
+			}
+		})},
+	}
+
+	got, err := client.LookupAPIKeyRoles(context.Background(), "ind-late")
+	if err != nil {
+		t.Fatalf("LookupAPIKeyRoles() error: %v", err)
+	}
+	if got.Kind != "individual" || got.Lookup != "individual_keys" || got.RoleSource != "key" {
+		t.Fatalf("unexpected lookup metadata: %#v", got)
+	}
+	if got.Name != "late-individual-key" {
+		t.Fatalf("unexpected key payload: %#v", got)
+	}
+}
+
 func TestClientLookupAPIKeyRolesFallsBackToActorRoles(t *testing.T) {
 	client := &Client{
 		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
@@ -647,6 +770,83 @@ func TestClientLookupAPIKeyRolesFallsBackToActorList(t *testing.T) {
 	}
 	if got.RoleSource != "actor" || len(got.Roles) != 2 || got.Roles[0] != "LEGAL" {
 		t.Fatalf("unexpected fallback result: %#v", got)
+	}
+}
+
+func TestClientLookupAPIKeyRolesFallsBackToPaginatedActorList(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case strings.Contains(r.URL.Path, "/iris/v1/apiKeys"):
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"data":[],"included":[]}`)),
+				}, nil
+			case strings.Contains(r.URL.Path, "/iris/v2/apiKeys"):
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body: io.NopCloser(strings.NewReader(`{
+						"data":[
+							{
+								"id":"ind-paginated-actor",
+								"attributes":{"roles":[],"nickname":"individual-key","isActive":true,"keyType":"PUBLIC_API"},
+								"relationships":{"createdByActor":{"data":{"id":"actor-9"}},"revokedByActor":{"data":null}}
+							}
+						]
+					}`)),
+				}, nil
+			case strings.Contains(r.URL.Path, "/olympus/v1/actors/actor-9"):
+				return &http.Response{
+					StatusCode: http.StatusNotFound,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"errors":[]}`)),
+				}, nil
+			case strings.Contains(r.URL.Path, "/olympus/v1/actors") && r.URL.Query().Get("cursor") == "page-2":
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body: io.NopCloser(strings.NewReader(`{
+						"data":[
+							{
+								"id":"actor-9",
+								"attributes":{"roles":["ADMIN","LEGAL"]},
+								"relationships":{"provider":{"data":{"id":"prov-1"}},"person":{"data":{"id":"person-9"}}}
+							}
+						],
+						"included":[
+							{"type":"people","id":"person-9","attributes":{"firstName":"Late","lastName":"Actor"}},
+							{"type":"providers","id":"prov-1","attributes":{"name":"Ignored Provider"}}
+						]
+					}`)),
+				}, nil
+			case strings.Contains(r.URL.Path, "/olympus/v1/actors"):
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body: io.NopCloser(strings.NewReader(`{
+						"data":[],
+						"included":[],
+						"links":{"next":"https://appstoreconnect.apple.com/olympus/v1/actors?cursor=page-2"}
+					}`)),
+				}, nil
+			default:
+				t.Fatalf("unexpected request URL %q", r.URL.String())
+				return nil, nil
+			}
+		})},
+	}
+
+	got, err := client.LookupAPIKeyRoles(context.Background(), "ind-paginated-actor")
+	if err != nil {
+		t.Fatalf("LookupAPIKeyRoles() error: %v", err)
+	}
+	if got.RoleSource != "actor" || len(got.Roles) != 2 || got.Roles[0] != "ADMIN" {
+		t.Fatalf("unexpected fallback result: %#v", got)
+	}
+	if got.GeneratedBy == nil || got.GeneratedBy.Name != "Late Actor" {
+		t.Fatalf("unexpected generatedBy: %#v", got.GeneratedBy)
 	}
 }
 
