@@ -704,6 +704,8 @@ func mapXcodePlatformToAppStorePlatform(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "iphoneos", "iphonesimulator":
 		return "IOS"
+	case "watchos", "watchsimulator":
+		return "IOS"
 	case "appletvos", "appletvsimulator":
 		return "TV_OS"
 	case "xros", "xrsimulator":

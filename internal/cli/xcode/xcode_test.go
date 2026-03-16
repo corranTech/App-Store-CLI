@@ -350,6 +350,23 @@ func TestXcodeExportWaitRejectsMissingBuildUploadID(t *testing.T) {
 	}
 }
 
+func TestIsMoreRecentBuildUploadCandidateKeepsCurrentOnOpaqueTies(t *testing.T) {
+	base := time.Date(2026, time.March, 16, 12, 0, 0, 0, time.UTC)
+
+	if !isMoreRecentBuildUploadCandidate(base.Add(time.Second), true, base, true) {
+		t.Fatal("expected newer observed timestamp to win")
+	}
+	if !isMoreRecentBuildUploadCandidate(base, true, time.Time{}, false) {
+		t.Fatal("expected timestamped candidate to beat an undated current upload")
+	}
+	if isMoreRecentBuildUploadCandidate(base, true, base, true) {
+		t.Fatal("expected identical timestamps to keep the current upload")
+	}
+	if isMoreRecentBuildUploadCandidate(time.Time{}, false, time.Time{}, false) {
+		t.Fatal("expected undated uploads to preserve API order instead of comparing opaque IDs")
+	}
+}
+
 func overrideXcodeCommandTestHooks(t *testing.T) func() {
 	t.Helper()
 

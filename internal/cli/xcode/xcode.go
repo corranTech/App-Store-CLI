@@ -348,7 +348,7 @@ func findRecentBuildUploadID(ctx context.Context, client *asc.Client, appID, ver
 		if hasObservedAt && !exportStartedAt.IsZero() && observedAt.Before(exportStartedAt) {
 			continue
 		}
-		if bestID == "" || isMoreRecentBuildUploadCandidate(observedAt, hasObservedAt, bestObservedAt, bestHasObservedAt, upload.ID, bestID) {
+		if bestID == "" || isMoreRecentBuildUploadCandidate(observedAt, hasObservedAt, bestObservedAt, bestHasObservedAt) {
 			bestID = strings.TrimSpace(upload.ID)
 			bestObservedAt = observedAt
 			bestHasObservedAt = hasObservedAt
@@ -390,7 +390,7 @@ func buildUploadObservedAt(attr asc.BuildUploadAttributes) (time.Time, bool) {
 	return latest, found
 }
 
-func isMoreRecentBuildUploadCandidate(candidate time.Time, candidateHasTime bool, current time.Time, currentHasTime bool, candidateID, currentID string) bool {
+func isMoreRecentBuildUploadCandidate(candidate time.Time, candidateHasTime bool, current time.Time, currentHasTime bool) bool {
 	switch {
 	case candidateHasTime && !currentHasTime:
 		return true
@@ -404,7 +404,7 @@ func isMoreRecentBuildUploadCandidate(candidate time.Time, candidateHasTime bool
 			return false
 		}
 	}
-	return strings.TrimSpace(candidateID) > strings.TrimSpace(currentID)
+	return false
 }
 
 func archiveResultRows(result *localxcode.ArchiveResult) [][]string {
