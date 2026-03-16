@@ -749,7 +749,7 @@ func printSubmissionErrorHints(err error, appID string) {
 }
 
 func isExpectedNonCancellableReviewSubmissionError(err error) bool {
-	return errors.Is(err, asc.ErrConflict) || isResourceStateInvalid(err)
+	return isResourceStateInvalid(err)
 }
 
 // isResourceStateInvalid returns true if the error message indicates the

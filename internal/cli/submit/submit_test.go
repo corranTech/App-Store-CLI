@@ -640,6 +640,71 @@ func TestCleanupEmptyReviewSubmissionIgnoresExpectedNonCancellableState(t *testi
 	}
 }
 
+func TestCleanupEmptyReviewSubmissionWarnsOnGenericConflict(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPatch || req.URL.Path != "/v1/reviewSubmissions/empty-sub-1" {
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		return submitJSONResponse(http.StatusConflict, `{
+			"errors": [{
+				"status": "409",
+				"code": "CONFLICT",
+				"title": "Conflict",
+				"detail": "Another operation is already in progress"
+			}]
+		}`)
+	}))
+
+	stderr := captureSubmitStderr(t, func() {
+		cleanupEmptyReviewSubmission(context.Background(), client, "empty-sub-1")
+	})
+	if !strings.Contains(stderr, "Warning: failed to cancel empty submission empty-sub-1:") {
+		t.Fatalf("expected cleanup warning for generic conflict, got %q", stderr)
+	}
+}
+
+func TestCancelStaleReviewSubmissionsWarnsOnGenericConflict(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "stale-sub-1",
+					"attributes": {
+						"state": "READY_FOR_REVIEW",
+						"platform": "IOS"
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/stale-sub-1":
+			return submitJSONResponse(http.StatusConflict, `{
+				"errors": [{
+					"status": "409",
+					"code": "CONFLICT",
+					"title": "Conflict",
+					"detail": "Another operation is already in progress"
+				}]
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	}))
+
+	stderr := captureSubmitStderr(t, func() {
+		got := cancelStaleReviewSubmissions(context.Background(), client, "app-1", "IOS")
+		if got != nil {
+			t.Fatalf("expected no canceled submissions, got %#v", got)
+		}
+	})
+	if !strings.Contains(stderr, "Warning: failed to cancel stale submission stale-sub-1:") {
+		t.Fatalf("expected stale submission warning for generic conflict, got %q", stderr)
+	}
+	if strings.Contains(stderr, "Skipped stale submission stale-sub-1") {
+		t.Fatalf("did not expect stale submission skip message, got %q", stderr)
+	}
+}
+
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	stderr := captureSubmitStderr(t, func() {
 		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration appDataUsage primaryCategory"), "app-1")
