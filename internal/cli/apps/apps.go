@@ -172,6 +172,8 @@ func AppsCreateCommand() *ffcli.Command {
 	sku := fs.String("sku", "", "Unique SKU for the app")
 	primaryLocale := fs.String("primary-locale", "", "Primary locale (e.g., en-US)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, UNIVERSAL")
+	version := fs.String("version", "1.0", "Initial version string")
+	companyName := fs.String("company-name", "", "Company name (optional)")
 	appleID := fs.String("apple-id", "", "Apple ID (email) for authentication")
 	password := fs.String("password", "", "Apple ID password (will prompt if not provided)")
 	twoFactorCode := fs.String("two-factor-code", "", "2FA verification code (if prompted)")
@@ -213,6 +215,8 @@ Examples:
 				SKU:           *sku,
 				PrimaryLocale: *primaryLocale,
 				Platform:      *platform,
+				Version:       *version,
+				CompanyName:   *companyName,
 				AppleID:       *appleID,
 				Password:      *password,
 				TwoFactorCode: *twoFactorCode,

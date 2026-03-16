@@ -80,11 +80,11 @@ func TestAppsCreateCommandPreservesLegacyFlagSurface(t *testing.T) {
 	if cmd.FlagSet.Lookup("password") == nil {
 		t.Fatal("expected legacy password flag to remain on deprecated shim")
 	}
-	if cmd.FlagSet.Lookup("version") != nil {
-		t.Fatal("did not expect web-only --version flag on deprecated shim")
+	if cmd.FlagSet.Lookup("version") == nil {
+		t.Fatal("expected deprecated shim to accept --version")
 	}
-	if cmd.FlagSet.Lookup("company-name") != nil {
-		t.Fatal("did not expect web-only --company-name flag on deprecated shim")
+	if cmd.FlagSet.Lookup("company-name") == nil {
+		t.Fatal("expected deprecated shim to accept --company-name")
 	}
 }
 
@@ -109,6 +109,8 @@ func TestAppsCreateCommandPrintsWarningAndForwardsToWebRunner(t *testing.T) {
 		"--sku", "SKU123",
 		"--primary-locale", "en-GB",
 		"--platform", "IOS",
+		"--version", "2.3.4",
+		"--company-name", "Example Co",
 		"--apple-id", "user@example.com",
 		passwordFlag, "fixture-password",
 		"--two-factor-code", "123456",
@@ -145,6 +147,12 @@ func TestAppsCreateCommandPrintsWarningAndForwardsToWebRunner(t *testing.T) {
 	}
 	if received.Platform != "IOS" {
 		t.Fatalf("expected forwarded platform, got %q", received.Platform)
+	}
+	if received.Version != "2.3.4" {
+		t.Fatalf("expected forwarded version, got %q", received.Version)
+	}
+	if received.CompanyName != "Example Co" {
+		t.Fatalf("expected forwarded company name, got %q", received.CompanyName)
 	}
 	if received.AppleID != "user@example.com" {
 		t.Fatalf("expected forwarded apple id, got %q", received.AppleID)
