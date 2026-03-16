@@ -25,8 +25,8 @@ var (
 		return shared.ResolveAppIDWithExactLookup(ctx, client, appID)
 	}
 	waitForBuildByNumberOrUploadFailureFn = shared.WaitForBuildByNumberOrUploadFailure
-	resolveBuildUploadIDFn                = func(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt time.Time, pollInterval time.Duration) (string, error) {
-		return waitForBuildUploadID(ctx, client, appID, version, buildNumber, platform, exportStartedAt, pollInterval)
+	resolveBuildUploadIDFn                = func(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time, pollInterval time.Duration) (string, error) {
+		return waitForBuildUploadID(ctx, client, appID, version, buildNumber, platform, exportStartedAt, exportCompletedAt, pollInterval)
 	}
 	waitForBuildProcessingFn = func(ctx context.Context, client *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 		return client.WaitForBuildProcessing(ctx, buildID, pollInterval)
@@ -36,7 +36,10 @@ var (
 	}
 )
 
-const xcodeExportWaitDefaultTimeout = 15 * time.Minute
+const (
+	xcodeExportWaitDefaultTimeout     = 15 * time.Minute
+	xcodeExportBuildUploadLookupLimit = 200
+)
 
 type multiStringFlag []string
 
@@ -245,6 +248,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("xcode export: %w", err)
 			}
+			exportCompletedAt := time.Now()
+			if exportCompletedAt.Before(exportStartedAt) {
+				exportCompletedAt = exportStartedAt
+			}
 			commandResult := xcodeExportCommandResult{
 				ArchivePath: result.ArchivePath,
 				IPAPath:     result.IPAPath,
@@ -273,7 +280,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("xcode export: infer archive platform for --wait: %w", err)
 				}
-				uploadID, err := resolveBuildUploadIDFn(waitCtx, client, appID, result.Version, result.BuildNumber, platform, exportStartedAt, *pollInterval)
+				uploadID, err := resolveBuildUploadIDFn(waitCtx, client, appID, result.Version, result.BuildNumber, platform, exportStartedAt, exportCompletedAt, *pollInterval)
 				if err != nil {
 					return fmt.Errorf("xcode export: resolve build upload for --wait: %w", err)
 				}
@@ -318,7 +325,7 @@ Examples:
 	}
 }
 
-func waitForBuildUploadID(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt time.Time, pollInterval time.Duration) (string, error) {
+func waitForBuildUploadID(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time, pollInterval time.Duration) (string, error) {
 	if client == nil {
 		return "", fmt.Errorf("client is required")
 	}
@@ -327,72 +334,54 @@ func waitForBuildUploadID(ctx context.Context, client *asc.Client, appID, versio
 	}
 
 	return asc.PollUntil(ctx, pollInterval, func(ctx context.Context) (string, bool, error) {
-		return findRecentBuildUploadID(ctx, client, appID, version, buildNumber, platform, exportStartedAt)
+		return findRecentBuildUploadID(ctx, client, appID, version, buildNumber, platform, exportStartedAt, exportCompletedAt)
 	})
 }
 
-func findRecentBuildUploadID(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt time.Time) (string, bool, error) {
+func findRecentBuildUploadID(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time) (string, bool, error) {
+	if !exportStartedAt.IsZero() && !exportCompletedAt.IsZero() && exportCompletedAt.Before(exportStartedAt) {
+		exportCompletedAt = exportStartedAt
+	}
 	resp, err := client.GetBuildUploads(ctx, appID,
 		asc.WithBuildUploadsCFBundleShortVersionStrings([]string{version}),
 		asc.WithBuildUploadsCFBundleVersions([]string{buildNumber}),
 		asc.WithBuildUploadsPlatforms([]string{platform}),
 		asc.WithBuildUploadsSort("-uploadedDate"),
-		asc.WithBuildUploadsLimit(10),
+		asc.WithBuildUploadsLimit(xcodeExportBuildUploadLookupLimit),
 	)
 	if err != nil {
 		return "", false, err
 	}
 
-	bestID := ""
-	bestObservedAt := time.Time{}
-	bestHasObservedAt := false
-	consumePage := func(page asc.PaginatedResponse) error {
-		buildUploadsPage, ok := page.(*asc.BuildUploadsResponse)
-		if !ok {
-			return fmt.Errorf("unexpected build uploads page type %T", page)
-		}
-		for _, upload := range buildUploadsPage.Data {
+	for {
+		for _, upload := range resp.Data {
 			observedAt, hasObservedAt := buildUploadObservedAt(upload.Attributes)
-			if !hasObservedAt && !exportStartedAt.IsZero() {
-				continue
-			}
-			if hasObservedAt && !exportStartedAt.IsZero() && observedAt.Before(exportStartedAt) {
-				continue
-			}
-			if bestID == "" {
-				bestID = strings.TrimSpace(upload.ID)
-				bestObservedAt = observedAt
-				bestHasObservedAt = hasObservedAt
-				continue
-			}
-			if !exportStartedAt.IsZero() {
-				// Once the export start time is known, bind to the first matching upload
-				// observed in this export window rather than a later retry with the same
-				// build metadata.
-				if observedAt.Before(bestObservedAt) {
-					bestID = strings.TrimSpace(upload.ID)
-					bestObservedAt = observedAt
-					bestHasObservedAt = hasObservedAt
+			if !hasObservedAt {
+				if !exportStartedAt.IsZero() {
+					continue
 				}
+				return strings.TrimSpace(upload.ID), true, nil
+			}
+			if !exportCompletedAt.IsZero() && observedAt.After(exportCompletedAt) {
 				continue
 			}
-			if isMoreRecentBuildUploadCandidate(observedAt, hasObservedAt, bestObservedAt, bestHasObservedAt) {
-				bestID = strings.TrimSpace(upload.ID)
-				bestObservedAt = observedAt
-				bestHasObservedAt = hasObservedAt
+			if !exportStartedAt.IsZero() && observedAt.Before(exportStartedAt) {
+				// Results are sorted by uploadedDate descending, so once we fall below
+				// the export start no later page can re-enter the current export window.
+				return "", false, nil
 			}
+			return strings.TrimSpace(upload.ID), true, nil
 		}
-		return nil
+
+		nextURL := strings.TrimSpace(resp.Links.Next)
+		if nextURL == "" {
+			return "", false, nil
+		}
+		resp, err = client.GetBuildUploads(ctx, appID, asc.WithBuildUploadsNextURL(nextURL))
+		if err != nil {
+			return "", false, err
+		}
 	}
-	if err := asc.PaginateEach(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBuildUploads(ctx, appID, asc.WithBuildUploadsNextURL(nextURL))
-	}, consumePage); err != nil {
-		return "", false, err
-	}
-	if strings.TrimSpace(bestID) == "" {
-		return "", false, nil
-	}
-	return bestID, true, nil
 }
 
 func buildUploadObservedAt(attr asc.BuildUploadAttributes) (time.Time, bool) {

@@ -148,7 +148,7 @@ func TestXcodeExportWaitPollsForUploadedBuild(t *testing.T) {
 		}
 		return "123456789", nil
 	}
-	resolveBuildUploadIDFn = func(_ context.Context, _ *asc.Client, appID, version, buildNumber, platform string, exportStartedAt time.Time, pollInterval time.Duration) (string, error) {
+	resolveBuildUploadIDFn = func(_ context.Context, _ *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time, pollInterval time.Duration) (string, error) {
 		if appID != "123456789" {
 			t.Fatalf("expected resolved app ID for upload lookup, got %q", appID)
 		}
@@ -160,6 +160,12 @@ func TestXcodeExportWaitPollsForUploadedBuild(t *testing.T) {
 		}
 		if exportStartedAt.IsZero() {
 			t.Fatal("expected export start time for upload lookup")
+		}
+		if exportCompletedAt.IsZero() {
+			t.Fatal("expected export completion time for upload lookup")
+		}
+		if exportCompletedAt.Before(exportStartedAt) {
+			t.Fatalf("expected export completion time after start, got start=%s end=%s", exportStartedAt, exportCompletedAt)
 		}
 		return "upload-123", nil
 	}
@@ -273,7 +279,7 @@ func TestXcodeExportWaitRejectsNilProcessedBuildResponse(t *testing.T) {
 	resolveAppIDWithExactLookupFn = func(context.Context, *asc.Client, string) (string, error) {
 		return "123456789", nil
 	}
-	resolveBuildUploadIDFn = func(context.Context, *asc.Client, string, string, string, string, time.Time, time.Duration) (string, error) {
+	resolveBuildUploadIDFn = func(context.Context, *asc.Client, string, string, string, string, time.Time, time.Time, time.Duration) (string, error) {
 		return "upload-123", nil
 	}
 	waitForBuildByNumberOrUploadFailureFn = func(context.Context, *asc.Client, string, string, string, string, string, time.Duration) (*asc.BuildResponse, error) {
@@ -329,7 +335,7 @@ func TestXcodeExportWaitRejectsMissingBuildUploadID(t *testing.T) {
 	resolveAppIDWithExactLookupFn = func(context.Context, *asc.Client, string) (string, error) {
 		return "123456789", nil
 	}
-	resolveBuildUploadIDFn = func(context.Context, *asc.Client, string, string, string, string, time.Time, time.Duration) (string, error) {
+	resolveBuildUploadIDFn = func(context.Context, *asc.Client, string, string, string, string, time.Time, time.Time, time.Duration) (string, error) {
 		return "", nil
 	}
 
@@ -400,7 +406,7 @@ func TestFindRecentBuildUploadIDIgnoresUndatedUploadsAfterExportStarts(t *testin
 		if values.Get("sort") != "-uploadedDate" {
 			return nil, fmt.Errorf("unexpected sort: %q", values.Get("sort"))
 		}
-		if values.Get("limit") != "10" {
+		if values.Get("limit") != "200" {
 			return nil, fmt.Errorf("unexpected limit: %q", values.Get("limit"))
 		}
 		return xcodeCommandJSONResponse(`{
@@ -421,7 +427,8 @@ func TestFindRecentBuildUploadIDIgnoresUndatedUploadsAfterExportStarts(t *testin
 
 	client := newXcodeCommandTestClient(t)
 	exportStartedAt := time.Date(2026, time.March, 16, 12, 0, 0, 0, time.UTC)
-	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt)
+	exportCompletedAt := exportStartedAt.Add(30 * time.Second)
+	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt, exportCompletedAt)
 	if err != nil {
 		t.Fatalf("findRecentBuildUploadID() error: %v", err)
 	}
@@ -433,7 +440,7 @@ func TestFindRecentBuildUploadIDIgnoresUndatedUploadsAfterExportStarts(t *testin
 	}
 }
 
-func TestFindRecentBuildUploadIDPrefersEarliestUploadInCurrentExportWindow(t *testing.T) {
+func TestFindRecentBuildUploadIDPrefersLatestUploadWithinCompletedExportWindow(t *testing.T) {
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		http.DefaultTransport = originalTransport
@@ -446,6 +453,9 @@ func TestFindRecentBuildUploadIDPrefersEarliestUploadInCurrentExportWindow(t *te
 		if req.URL.Path != "/v1/apps/app-123/buildUploads" {
 			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
 		}
+		if req.URL.Query().Get("limit") != "200" {
+			return nil, fmt.Errorf("unexpected limit: %q", req.URL.Query().Get("limit"))
+		}
 		return xcodeCommandJSONResponse(`{
 			"data": [
 				{
@@ -455,7 +465,7 @@ func TestFindRecentBuildUploadIDPrefersEarliestUploadInCurrentExportWindow(t *te
 						"cfBundleShortVersionString": "1.2.3",
 						"cfBundleVersion": "42",
 						"platform": "IOS",
-						"uploadedDate": "2026-03-16T12:00:30Z"
+						"uploadedDate": "2026-03-16T12:00:35Z"
 					}
 				},
 				{
@@ -465,7 +475,7 @@ func TestFindRecentBuildUploadIDPrefersEarliestUploadInCurrentExportWindow(t *te
 						"cfBundleShortVersionString": "1.2.3",
 						"cfBundleVersion": "42",
 						"platform": "IOS",
-						"uploadedDate": "2026-03-16T12:00:05Z"
+						"uploadedDate": "2026-03-16T12:00:25Z"
 					}
 				},
 				{
@@ -475,7 +485,7 @@ func TestFindRecentBuildUploadIDPrefersEarliestUploadInCurrentExportWindow(t *te
 						"cfBundleShortVersionString": "1.2.3",
 						"cfBundleVersion": "42",
 						"platform": "IOS",
-						"uploadedDate": "2026-03-16T11:59:40Z"
+						"uploadedDate": "2026-03-16T12:00:05Z"
 					}
 				}
 			],
@@ -484,20 +494,21 @@ func TestFindRecentBuildUploadIDPrefersEarliestUploadInCurrentExportWindow(t *te
 	})
 
 	client := newXcodeCommandTestClient(t)
-	exportStartedAt := time.Date(2026, time.March, 16, 12, 0, 0, 0, time.UTC)
-	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt)
+	exportStartedAt := time.Date(2026, time.March, 16, 12, 0, 10, 0, time.UTC)
+	exportCompletedAt := time.Date(2026, time.March, 16, 12, 0, 30, 0, time.UTC)
+	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt, exportCompletedAt)
 	if err != nil {
 		t.Fatalf("findRecentBuildUploadID() error: %v", err)
 	}
 	if !found {
-		t.Fatal("expected to find a matching upload in the current export window")
+		t.Fatal("expected to find a matching upload in the completed export window")
 	}
 	if uploadID != "current-export" {
-		t.Fatalf("expected earliest upload in current export window, got %q", uploadID)
+		t.Fatalf("expected latest upload within completed export window, got %q", uploadID)
 	}
 }
 
-func TestFindRecentBuildUploadIDPaginatesAcrossCurrentExportWindow(t *testing.T) {
+func TestFindRecentBuildUploadIDPaginatesUntilUploadWithinCompletedExportWindow(t *testing.T) {
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		http.DefaultTransport = originalTransport
@@ -515,6 +526,9 @@ func TestFindRecentBuildUploadIDPaginatesAcrossCurrentExportWindow(t *testing.T)
 		requests++
 		switch req.URL.Query().Get("cursor") {
 		case "":
+			if req.URL.Query().Get("limit") != "200" {
+				return nil, fmt.Errorf("unexpected limit: %q", req.URL.Query().Get("limit"))
+			}
 			return xcodeCommandJSONResponse(`{
 				"data": [
 					{
@@ -534,7 +548,7 @@ func TestFindRecentBuildUploadIDPaginatesAcrossCurrentExportWindow(t *testing.T)
 							"cfBundleShortVersionString": "1.2.3",
 							"cfBundleVersion": "42",
 							"platform": "IOS",
-							"uploadedDate": "2026-03-16T12:00:20Z"
+							"uploadedDate": "2026-03-16T12:00:40Z"
 						}
 					}
 				],
@@ -552,20 +566,26 @@ func TestFindRecentBuildUploadIDPaginatesAcrossCurrentExportWindow(t *testing.T)
 							"cfBundleShortVersionString": "1.2.3",
 							"cfBundleVersion": "42",
 							"platform": "IOS",
-							"uploadedDate": "2026-03-16T12:00:05Z"
+							"uploadedDate": "2026-03-16T12:00:25Z"
 						}
 					}
 				],
-				"links": {}
+				"links": {
+					"next": "https://api.appstoreconnect.apple.com/v1/apps/app-123/buildUploads?cursor=page-3"
+				}
 			}`)
+		case "page-3":
+			t.Fatal("did not expect third page fetch after finding current export upload")
+			return nil, nil
 		default:
 			return nil, fmt.Errorf("unexpected cursor: %q", req.URL.Query().Get("cursor"))
 		}
 	})
 
 	client := newXcodeCommandTestClient(t)
-	exportStartedAt := time.Date(2026, time.March, 16, 12, 0, 0, 0, time.UTC)
-	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt)
+	exportStartedAt := time.Date(2026, time.March, 16, 12, 0, 10, 0, time.UTC)
+	exportCompletedAt := time.Date(2026, time.March, 16, 12, 0, 30, 0, time.UTC)
+	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt, exportCompletedAt)
 	if err != nil {
 		t.Fatalf("findRecentBuildUploadID() error: %v", err)
 	}
@@ -573,10 +593,92 @@ func TestFindRecentBuildUploadIDPaginatesAcrossCurrentExportWindow(t *testing.T)
 		t.Fatal("expected to find a matching upload across paginated results")
 	}
 	if uploadID != "current-export" {
-		t.Fatalf("expected earliest upload across pages, got %q", uploadID)
+		t.Fatalf("expected current export upload across pages, got %q", uploadID)
 	}
 	if requests != 2 {
 		t.Fatalf("expected 2 paginated build upload requests, got %d", requests)
+	}
+}
+
+func TestFindRecentBuildUploadIDStopsPagingAfterCrossingExportStart(t *testing.T) {
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := 0
+	http.DefaultTransport = xcodeCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-123/buildUploads" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+
+		requests++
+		switch req.URL.Query().Get("cursor") {
+		case "":
+			if req.URL.Query().Get("limit") != "200" {
+				return nil, fmt.Errorf("unexpected limit: %q", req.URL.Query().Get("limit"))
+			}
+			return xcodeCommandJSONResponse(`{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "later-retry",
+						"attributes": {
+							"cfBundleShortVersionString": "1.2.3",
+							"cfBundleVersion": "42",
+							"platform": "IOS",
+							"uploadedDate": "2026-03-16T12:00:45Z"
+						}
+					}
+				],
+				"links": {
+					"next": "https://api.appstoreconnect.apple.com/v1/apps/app-123/buildUploads?cursor=page-2"
+				}
+			}`)
+		case "page-2":
+			return xcodeCommandJSONResponse(`{
+				"data": [
+					{
+						"type": "buildUploads",
+						"id": "too-old",
+						"attributes": {
+							"cfBundleShortVersionString": "1.2.3",
+							"cfBundleVersion": "42",
+							"platform": "IOS",
+							"uploadedDate": "2026-03-16T12:00:05Z"
+						}
+					}
+				],
+				"links": {
+					"next": "https://api.appstoreconnect.apple.com/v1/apps/app-123/buildUploads?cursor=page-3"
+				}
+			}`)
+		case "page-3":
+			t.Fatal("did not expect third page fetch once uploads were older than export start")
+			return nil, nil
+		default:
+			return nil, fmt.Errorf("unexpected cursor: %q", req.URL.Query().Get("cursor"))
+		}
+	})
+
+	client := newXcodeCommandTestClient(t)
+	exportStartedAt := time.Date(2026, time.March, 16, 12, 0, 10, 0, time.UTC)
+	exportCompletedAt := time.Date(2026, time.March, 16, 12, 0, 30, 0, time.UTC)
+	uploadID, found, err := findRecentBuildUploadID(context.Background(), client, "app-123", "1.2.3", "42", "IOS", exportStartedAt, exportCompletedAt)
+	if err != nil {
+		t.Fatalf("findRecentBuildUploadID() error: %v", err)
+	}
+	if found {
+		t.Fatalf("expected no upload after paging past the export window, got %q", uploadID)
+	}
+	if uploadID != "" {
+		t.Fatalf("expected empty upload ID after paging past the export window, got %q", uploadID)
+	}
+	if requests != 2 {
+		t.Fatalf("expected 2 paginated build upload requests before stopping, got %d", requests)
 	}
 }
 
