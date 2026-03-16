@@ -1237,6 +1237,86 @@ func TestResolveCredentials_KeychainGenericErrorStopsEnvFallback(t *testing.T) {
 	}
 }
 
+func TestResolveAuthCredentialsMetadata_UsesKeychainMetadataDefault(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() { selectedProfile = previousProfile })
+
+	if err := config.SaveAt(configPath, &config.Config{
+		DefaultKeyName: "client",
+		KeychainMetadata: []config.KeychainMetadata{{
+			Name:     "client",
+			KeyID:    "METAKEY",
+			IssuerID: "METAISS",
+		}},
+	}); err != nil {
+		t.Fatalf("config.SaveAt() error: %v", err)
+	}
+
+	resolved, err := ResolveAuthCredentialsMetadata("")
+	if err != nil {
+		t.Fatalf("ResolveAuthCredentialsMetadata() error: %v", err)
+	}
+	if resolved.KeyID != "METAKEY" || resolved.IssuerID != "METAISS" || resolved.Profile != "client" {
+		t.Fatalf("unexpected resolved metadata: %+v", resolved)
+	}
+}
+
+func TestResolveAuthCredentialsMetadata_UsesSelectedProfileMetadata(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = "team"
+	t.Cleanup(func() { selectedProfile = previousProfile })
+
+	if err := config.SaveAt(configPath, &config.Config{
+		DefaultKeyName: "client",
+		KeychainMetadata: []config.KeychainMetadata{
+			{Name: "client", KeyID: "CLIENTKEY", IssuerID: "CLIENTISS"},
+			{Name: "team", KeyID: "TEAMKEY", IssuerID: "TEAMISS"},
+		},
+	}); err != nil {
+		t.Fatalf("config.SaveAt() error: %v", err)
+	}
+
+	resolved, err := ResolveAuthCredentialsMetadata("")
+	if err != nil {
+		t.Fatalf("ResolveAuthCredentialsMetadata() error: %v", err)
+	}
+	if resolved.KeyID != "TEAMKEY" || resolved.IssuerID != "TEAMISS" || resolved.Profile != "team" {
+		t.Fatalf("unexpected selected-profile metadata: %+v", resolved)
+	}
+}
+
+func TestResolveAuthCredentialsMetadata_FallsBackToEnvKeyID(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing-config.json"))
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "ENVKEY")
+	t.Setenv("ASC_ISSUER_ID", "ENVISS")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() { selectedProfile = previousProfile })
+
+	resolved, err := ResolveAuthCredentialsMetadata("")
+	if err != nil {
+		t.Fatalf("ResolveAuthCredentialsMetadata() error: %v", err)
+	}
+	if resolved.KeyID != "ENVKEY" || resolved.IssuerID != "ENVISS" || resolved.Profile != "" {
+		t.Fatalf("unexpected env metadata: %+v", resolved)
+	}
+}
+
 func resetPrivateKeyTemp(t *testing.T) {
 	t.Helper()
 	CleanupTempPrivateKeys()
