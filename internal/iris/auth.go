@@ -914,6 +914,7 @@ func PrepareTwoFactorChallenge(session *AuthSession) (*TwoFactorChallenge, error
 	session.twoFactorCodeRequested = false
 	return &TwoFactorChallenge{
 		Method:                 session.twoFactorMethod,
+		Destination:            session.twoFactorDestination,
 		PhoneFallbackAvailable: session.twoFactorPhoneID != 0,
 	}, nil
 }

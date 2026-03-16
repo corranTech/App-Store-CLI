@@ -384,6 +384,17 @@ func TestPrepareTwoFactorChallengeKeepsPhoneFallbackForTrustedDeviceFlow(t *test
 	if session.twoFactorPhoneID != 7 {
 		t.Fatalf("expected stored fallback phone id 7, got %d", session.twoFactorPhoneID)
 	}
+	if challenge.Destination != "+1 (•••) •••-••66" {
+		t.Fatalf("expected fallback destination on initial trusted-device challenge, got %q", challenge.Destination)
+	}
+
+	cachedChallenge, err := PrepareTwoFactorChallenge(context.Background(), session)
+	if err != nil {
+		t.Fatalf("PrepareTwoFactorChallenge (cached) returned error: %v", err)
+	}
+	if cachedChallenge.Destination != challenge.Destination {
+		t.Fatalf("expected cached challenge destination %q, got %q", challenge.Destination, cachedChallenge.Destination)
+	}
 }
 
 func TestSubmitTwoFactorCodeUsesPreparedPhoneFlow(t *testing.T) {
