@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"net/http"
+	"net/http/cookiejar"
+	"os"
 	"strings"
 	"testing"
 
@@ -258,6 +261,61 @@ func TestResolveAppCreateSessionPromptedWhitespacePasswordReturnsUsageError(t *t
 	}
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp usage error, got %v", err)
+	}
+}
+
+func TestResolveAppCreateSessionKeepsFreshSessionWhenCachePersistFails(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origWebLogin := webLoginFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		webLoginFn = origWebLogin
+	})
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+
+	cacheDir := t.TempDir()
+	t.Setenv("ASC_WEB_SESSION_CACHE", "1")
+	t.Setenv("ASC_WEB_SESSION_CACHE_BACKEND", "file")
+	t.Setenv("ASC_WEB_SESSION_CACHE_DIR", cacheDir)
+	if err := os.Chmod(cacheDir, 0o500); err != nil {
+		t.Fatalf("chmod cache dir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(cacheDir, 0o700)
+	})
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New error: %v", err)
+	}
+	expected := &webcore.AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return expected, nil
+	}
+
+	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "secret", "")
+	if err != nil {
+		t.Fatalf("resolveAppCreateSession returned error: %v", err)
+	}
+	if source != "fresh" {
+		t.Fatalf("expected source %q, got %q", "fresh", source)
+	}
+	if session != expected {
+		t.Fatal("expected fresh login session to be returned")
+	}
+	if err := os.Chmod(cacheDir, 0o700); err != nil {
+		t.Fatalf("restore cache dir perms: %v", err)
 	}
 }
 

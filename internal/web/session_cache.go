@@ -687,7 +687,8 @@ func deleteLegacyIrisSessionArtifacts(key string) error {
 	}
 	lastKey, ok, err := readLegacyIrisLastKeyFromFile()
 	if err != nil {
-		return err
+		_ = deleteLegacyIrisLastKeyFromFile()
+		return nil
 	}
 	if ok && lastKey == key {
 		return deleteLegacyIrisLastKeyFromFile()

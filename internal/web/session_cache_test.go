@@ -1469,6 +1469,35 @@ func TestDeleteSessionRemovesLegacyIrisCache(t *testing.T) {
 	}
 }
 
+func TestDeleteSessionIgnoresMalformedLegacyLastMarker(t *testing.T) {
+	legacyDir := filepath.Join(t.TempDir(), "iris-cache")
+	t.Setenv(webSessionBackendEnv, "off")
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "1")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyDir)
+
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatalf("mkdir legacy dir: %v", err)
+	}
+
+	key := webSessionCacheKey("user@example.com")
+	if err := os.WriteFile(filepath.Join(legacyDir, "session-"+key+".json"), []byte(`{"version":1,"updated_at":"2026-03-16T00:00:00Z","cookies":{}}`), 0o600); err != nil {
+		t.Fatalf("write legacy iris session: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, "last.json"), []byte("{"), 0o600); err != nil {
+		t.Fatalf("write malformed legacy iris last marker: %v", err)
+	}
+
+	if err := DeleteSession("user@example.com"); err != nil {
+		t.Fatalf("DeleteSession error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(legacyDir, "session-"+key+".json")); !os.IsNotExist(err) {
+		t.Fatalf("expected legacy iris session file removed, stat err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(legacyDir, "last.json")); !os.IsNotExist(err) {
+		t.Fatalf("expected malformed legacy iris last marker removed, stat err=%v", err)
+	}
+}
+
 func TestDeleteAllSessionsRemovesLegacyIrisCache(t *testing.T) {
 	legacyDir := filepath.Join(t.TempDir(), "iris-cache")
 	t.Setenv(webSessionBackendEnv, "file")

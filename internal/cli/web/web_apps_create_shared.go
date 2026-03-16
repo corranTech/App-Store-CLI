@@ -239,9 +239,7 @@ func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCo
 	if err != nil {
 		return nil, "", fmt.Errorf("web auth login failed: %w", err)
 	}
-	if err := webcore.PersistSession(session); err != nil {
-		return nil, "", fmt.Errorf("web auth login succeeded but failed to cache session: %w", err)
-	}
+	_ = webcore.PersistSession(session)
 	return session, "fresh", nil
 }
 
