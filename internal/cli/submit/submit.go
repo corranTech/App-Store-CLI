@@ -28,6 +28,7 @@ func SubmitCommand() *ffcli.Command {
 			SubmitCreateCommand(),
 			SubmitStatusCommand(),
 			SubmitCancelCommand(),
+			SubmitPreflightCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
