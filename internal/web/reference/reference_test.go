@@ -68,6 +68,29 @@ func TestResolveIndividual(t *testing.T) {
 	}
 }
 
+func TestResolveAccountHolderIncludesBroadAccess(t *testing.T) {
+	view, err := Resolve("individual", []string{"ACCOUNT_HOLDER"})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+
+	ids := make(map[string]struct{}, len(view.Capabilities))
+	for _, item := range view.Capabilities {
+		ids[item.ID] = struct{}{}
+	}
+	for _, want := range []string{
+		"all_apps_access",
+		"app_pricing_and_store_info",
+		"app_development_and_delivery",
+		"payments_financial_reports_and_tax",
+		"customer_reviews",
+	} {
+		if _, ok := ids[want]; !ok {
+			t.Fatalf("expected account holder capabilities to include %q, got %#v", want, view.Capabilities)
+		}
+	}
+}
+
 func TestResolveUnknownRole(t *testing.T) {
 	view, err := Resolve("team", []string{"NOPE", "APP_MANAGER"})
 	if err != nil {
