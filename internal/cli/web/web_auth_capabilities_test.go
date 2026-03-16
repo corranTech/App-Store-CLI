@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
+	webref "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web/reference"
 )
 
 func TestWebAuthCapabilitiesRejectsPositionalArgs(t *testing.T) {
@@ -30,11 +31,13 @@ func TestWebAuthCapabilitiesKeyIDBypassesLocalAuthResolution(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
 	origLookup := lookupWebAuthKeyFn
+	origResolveRef := resolveWebAuthRefFn
 	t.Cleanup(func() {
 		resolveWebAuthCredentialsFn = origResolveAuth
 		resolveSessionFn = origResolveSession
 		newWebAuthClientFn = origNewClient
 		lookupWebAuthKeyFn = origLookup
+		resolveWebAuthRefFn = origResolveRef
 	})
 
 	resolveWebAuthCredentialsFn = func(profile string) (shared.ResolvedAuthCredentials, error) {
@@ -60,6 +63,20 @@ func TestWebAuthCapabilitiesKeyIDBypassesLocalAuthResolution(t *testing.T) {
 			Lookup:     "team_keys",
 		}, nil
 	}
+	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+		return &webref.View{
+			LastVerified: "2026-03-16",
+			RoleDetails: []webref.Role{{
+				Code:         "APP_MANAGER",
+				Label:        "App Manager",
+				Capabilities: []string{"app_pricing_and_store_info"},
+			}},
+			Capabilities: []webref.CapabilityGroup{{
+				ID:    "app_pricing_and_store_info",
+				Label: "Manage app pricing and App Store information",
+			}},
+		}, nil
+	}
 
 	cmd := WebAuthCapabilitiesCommand()
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "39MX87M9Y4", "--output", "json"}); err != nil {
@@ -75,11 +92,13 @@ func TestWebAuthCapabilitiesResolvesCurrentAuthKeyID(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
 	origLookup := lookupWebAuthKeyFn
+	origResolveRef := resolveWebAuthRefFn
 	t.Cleanup(func() {
 		resolveWebAuthCredentialsFn = origResolveAuth
 		resolveSessionFn = origResolveSession
 		newWebAuthClientFn = origNewClient
 		lookupWebAuthKeyFn = origLookup
+		resolveWebAuthRefFn = origResolveRef
 	})
 
 	resolveWebAuthCredentialsFn = func(profile string) (shared.ResolvedAuthCredentials, error) {
@@ -105,6 +124,19 @@ func TestWebAuthCapabilitiesResolvesCurrentAuthKeyID(t *testing.T) {
 			RoleSource: "key",
 			Active:     true,
 			Lookup:     "team_keys",
+		}, nil
+	}
+	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+		return &webref.View{
+			LastVerified: "2026-03-16",
+			RoleDetails: []webref.Role{{
+				Code:  "APP_MANAGER",
+				Label: "App Manager",
+			}},
+			Capabilities: []webref.CapabilityGroup{{
+				ID:    "app_development_and_delivery",
+				Label: "Manage app development and delivery",
+			}},
 		}, nil
 	}
 
@@ -177,12 +209,23 @@ func TestWebAuthCapabilitiesRows(t *testing.T) {
 		Lookup:       "team_keys",
 		ResolvedFrom: "auth",
 		Profile:      "client",
+		RoleDetails: []webAuthRoleDetailResult{
+			{Code: "APP_MANAGER", Label: "App Manager"},
+			{Code: "FINANCE", Label: "Finance"},
+		},
+		Capabilities: []webAuthCapabilityResult{
+			{ID: "app_pricing_and_store_info", Label: "Manage app pricing and App Store information"},
+			{ID: "payments_financial_reports_and_tax", Label: "Payments, financial reports, and tax forms"},
+		},
 	})
 	if len(rows) != 1 {
 		t.Fatalf("expected one row, got %d", len(rows))
 	}
-	if rows[0][3] != "APP_MANAGER, FINANCE" {
+	if rows[0][3] != "App Manager, Finance" {
 		t.Fatalf("unexpected role join output: %#v", rows[0])
+	}
+	if rows[0][4] != "Manage app pricing and App Store information, Payments, financial reports, and tax forms" {
+		t.Fatalf("unexpected capability join output: %#v", rows[0])
 	}
 }
 
@@ -193,11 +236,13 @@ func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
 	origLookup := lookupWebAuthKeyFn
+	origResolveRef := resolveWebAuthRefFn
 	t.Cleanup(func() {
 		resolveWebAuthCredentialsFn = origResolveAuth
 		resolveSessionFn = origResolveSession
 		newWebAuthClientFn = origNewClient
 		lookupWebAuthKeyFn = origLookup
+		resolveWebAuthRefFn = origResolveRef
 	})
 
 	resolveWebAuthCredentialsFn = func(profile string) (shared.ResolvedAuthCredentials, error) {
@@ -227,6 +272,28 @@ func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
 			},
 		}, nil
 	}
+	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+		return &webref.View{
+			LastVerified: "2026-03-16",
+			RoleDetails: []webref.Role{
+				{
+					Code:         "APP_MANAGER",
+					Label:        "App Manager",
+					Capabilities: []string{"app_pricing_and_store_info", "app_development_and_delivery"},
+				},
+				{
+					Code:         "FINANCE",
+					Label:        "Finance",
+					Capabilities: []string{"payments_financial_reports_and_tax"},
+				},
+			},
+			Capabilities: []webref.CapabilityGroup{
+				{ID: "app_pricing_and_store_info", Label: "Manage app pricing and App Store information"},
+				{ID: "app_development_and_delivery", Label: "Manage app development and delivery"},
+				{ID: "payments_financial_reports_and_tax", Label: "Payments, financial reports, and tax forms"},
+			},
+		}, nil
+	}
 
 	cmd := WebAuthCapabilitiesCommand()
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "39MX87M9Y4", "--output", "json"}); err != nil {
@@ -252,6 +319,15 @@ func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
 	if len(got.Roles) != 2 || got.Roles[1] != "FINANCE" {
 		t.Fatalf("unexpected roles: %#v", got.Roles)
 	}
+	if len(got.RoleDetails) != 2 || got.RoleDetails[0].Label != "App Manager" {
+		t.Fatalf("unexpected roleDetails: %#v", got.RoleDetails)
+	}
+	if len(got.Capabilities) != 3 || got.Capabilities[2].ID != "payments_financial_reports_and_tax" {
+		t.Fatalf("unexpected capabilities: %#v", got.Capabilities)
+	}
+	if got.LastVerified != "2026-03-16" {
+		t.Fatalf("unexpected referenceLastVerified: %+v", got)
+	}
 	if got.GeneratedBy == nil || got.GeneratedBy.Name != "Jane Admin" {
 		t.Fatalf("unexpected generatedBy: %#v", got.GeneratedBy)
 	}
@@ -267,11 +343,13 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
 	origLookup := lookupWebAuthKeyFn
+	origResolveRef := resolveWebAuthRefFn
 	t.Cleanup(func() {
 		resolveWebAuthCredentialsFn = origResolveAuth
 		resolveSessionFn = origResolveSession
 		newWebAuthClientFn = origNewClient
 		lookupWebAuthKeyFn = origLookup
+		resolveWebAuthRefFn = origResolveRef
 	})
 
 	resolveWebAuthCredentialsFn = func(profile string) (shared.ResolvedAuthCredentials, error) {
@@ -294,6 +372,19 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 			RoleSource: "key",
 			Active:     true,
 			Lookup:     "team_keys",
+		}, nil
+	}
+	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+		return &webref.View{
+			LastVerified: "2026-03-16",
+			RoleDetails: []webref.Role{{
+				Code:  "APP_MANAGER",
+				Label: "App Manager",
+			}},
+			Capabilities: []webref.CapabilityGroup{{
+				ID:    "app_development_and_delivery",
+				Label: "Manage app development and delivery",
+			}},
 		}, nil
 	}
 
@@ -321,6 +412,12 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 	if len(got.Roles) != 1 || got.Roles[0] != "APP_MANAGER" {
 		t.Fatalf("unexpected roles: %#v", got.Roles)
 	}
+	if len(got.RoleDetails) != 1 || got.RoleDetails[0].Label != "App Manager" {
+		t.Fatalf("unexpected roleDetails: %#v", got.RoleDetails)
+	}
+	if len(got.Capabilities) != 1 || got.Capabilities[0].Label != "Manage app development and delivery" {
+		t.Fatalf("unexpected capabilities: %#v", got.Capabilities)
+	}
 	if len(*labels) != 1 || (*labels)[0] != "Loading exact API key roles" {
 		t.Fatalf("unexpected progress labels: %#v", *labels)
 	}
@@ -332,10 +429,12 @@ func TestWebAuthCapabilitiesUnauthorizedLookupGetsWebHint(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
 	origLookup := lookupWebAuthKeyFn
+	origResolveRef := resolveWebAuthRefFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
 		newWebAuthClientFn = origNewClient
 		lookupWebAuthKeyFn = origLookup
+		resolveWebAuthRefFn = origResolveRef
 	})
 
 	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
@@ -346,6 +445,10 @@ func TestWebAuthCapabilitiesUnauthorizedLookupGetsWebHint(t *testing.T) {
 	}
 	lookupWebAuthKeyFn = func(ctx context.Context, client *webcore.Client, keyID string) (*webcore.APIKeyRoleLookup, error) {
 		return nil, &webcore.APIError{Status: 401}
+	}
+	resolveWebAuthRefFn = func(codes []string) (*webref.View, error) {
+		t.Fatal("did not expect reference resolution on failed lookup")
+		return nil, nil
 	}
 
 	cmd := WebAuthCapabilitiesCommand()
@@ -409,5 +512,8 @@ func TestWebAuthCapabilitiesHelpContrastsPublicCapabilities(t *testing.T) {
 	}
 	if !strings.Contains(usage, "--key-id") {
 		t.Fatalf("expected usage to describe --key-id, got %q", usage)
+	}
+	if !strings.Contains(usage, "documented role capabilities") {
+		t.Fatalf("expected usage to mention documented capabilities, got %q", usage)
 	}
 }
