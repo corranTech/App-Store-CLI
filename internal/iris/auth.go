@@ -2,6 +2,7 @@ package iris
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -794,8 +795,11 @@ func appleSessionHeaders(session *AuthSession) http.Header {
 	return header
 }
 
-func getAuthOptions(session *AuthSession) (*authOptionsResponse, error) {
-	req, err := http.NewRequest("GET", authServiceURL, nil)
+func getAuthOptions(ctx context.Context, session *AuthSession) (*authOptionsResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", authServiceURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -826,14 +830,17 @@ func getAuthOptions(session *AuthSession) (*authOptionsResponse, error) {
 	return &result, nil
 }
 
-func requestPhoneCode(session *AuthSession, phoneID int, mode string) error {
+func requestPhoneCode(ctx context.Context, session *AuthSession, phoneID int, mode string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	payload := map[string]interface{}{
 		"phoneNumber": map[string]int{"id": phoneID},
 		"mode":        mode,
 	}
 	body, _ := json.Marshal(payload)
 
-	req, err := http.NewRequest("PUT", authServiceURL+"/verify/phone", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "PUT", authServiceURL+"/verify/phone", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -859,7 +866,10 @@ func requestPhoneCode(session *AuthSession, phoneID int, mode string) error {
 	return &twoFAVerificationFailedError{Kind: "phone-request", Status: resp.StatusCode, Body: respBody}
 }
 
-func PrepareTwoFactorChallenge(session *AuthSession) (*TwoFactorChallenge, error) {
+func PrepareTwoFactorChallenge(ctx context.Context, session *AuthSession) (*TwoFactorChallenge, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if session == nil || session.Client == nil {
 		return nil, fmt.Errorf("session is required")
 	}
@@ -875,7 +885,7 @@ func PrepareTwoFactorChallenge(session *AuthSession) (*TwoFactorChallenge, error
 		}, nil
 	}
 
-	opts, err := getAuthOptions(session)
+	opts, err := getAuthOptions(ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -919,8 +929,8 @@ func PrepareTwoFactorChallenge(session *AuthSession) (*TwoFactorChallenge, error
 	}, nil
 }
 
-func EnsureTwoFactorCodeRequested(session *AuthSession) (*TwoFactorChallenge, error) {
-	challenge, err := PrepareTwoFactorChallenge(session)
+func EnsureTwoFactorCodeRequested(ctx context.Context, session *AuthSession) (*TwoFactorChallenge, error) {
+	challenge, err := PrepareTwoFactorChallenge(ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -934,7 +944,7 @@ func EnsureTwoFactorCodeRequested(session *AuthSession) (*TwoFactorChallenge, er
 	if session.twoFactorPhoneID == 0 {
 		return nil, fmt.Errorf("2FA failed: no trusted phone numbers available")
 	}
-	if err := requestPhoneCode(session, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
+	if err := requestPhoneCode(ctx, session, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
 		return nil, err
 	}
 	session.twoFactorCodeRequested = true
@@ -957,7 +967,7 @@ func SubmitTwoFactorCode(session *AuthSession, code string) error {
 		return fmt.Errorf("session is missing 2FA continuation state")
 	}
 
-	challenge, err := PrepareTwoFactorChallenge(session)
+	challenge, err := PrepareTwoFactorChallenge(context.Background(), session)
 	if err != nil {
 		return err
 	}

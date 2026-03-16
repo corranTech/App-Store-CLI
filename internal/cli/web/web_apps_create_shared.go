@@ -196,19 +196,17 @@ func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCo
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
 
 	cacheExpired := false
-	if password == "" {
-		if appleID != "" {
-			if resumed, ok, err := tryResumeWebSession(ctx, appleID); err == nil && ok {
-				return resumed, "cache", nil
-			} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
-				cacheExpired = true
-			}
-		} else {
-			if resumed, ok, err := tryResumeLastWebSession(ctx); err == nil && ok {
-				return resumed, "cache", nil
-			} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
-				cacheExpired = true
-			}
+	if appleID != "" {
+		if resumed, ok, err := tryResumeSessionFn(ctx, appleID); err == nil && ok {
+			return resumed, "cache", nil
+		} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
+			cacheExpired = true
+		}
+	} else {
+		if resumed, ok, err := tryResumeLastFn(ctx); err == nil && ok {
+			return resumed, "cache", nil
+		} else if errors.Is(err, webcore.ErrCachedSessionExpired) {
+			cacheExpired = true
 		}
 	}
 	if cacheExpired {

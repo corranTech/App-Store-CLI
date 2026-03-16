@@ -68,6 +68,44 @@ func TestWebAppsCreatePassesPasswordCompatibilityFlagToSessionResolver(t *testin
 	}
 }
 
+func TestResolveAppCreateSessionUsesCacheEvenWhenPasswordProvided(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origWebLogin := webLoginFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		webLoginFn = origWebLogin
+	})
+
+	expected := &webcore.AuthSession{UserEmail: "cached@example.com"}
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		if username != "user@example.com" {
+			t.Fatalf("expected cache lookup for %q, got %q", "user@example.com", username)
+		}
+		return expected, true, nil
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect fresh login when cache hit succeeds")
+		return nil, nil
+	}
+
+	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "fixture-password", "")
+	if err != nil {
+		t.Fatalf("resolveAppCreateSession returned error: %v", err)
+	}
+	if source != "cache" {
+		t.Fatalf("expected source %q, got %q", "cache", source)
+	}
+	if session != expected {
+		t.Fatal("expected cached session pointer to be returned")
+	}
+}
+
 func TestWebAppsCreateResolvesSessionBeforeTimeoutContext(t *testing.T) {
 	origResolveAppCreateSession := resolveAppCreateSessionFn
 	t.Cleanup(func() {

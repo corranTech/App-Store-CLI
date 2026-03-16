@@ -1096,10 +1096,7 @@ func DeleteSession(username string) error {
 	default:
 		err = nil
 	}
-	if legacyErr := deleteLegacyIrisSessionArtifacts(key); err == nil {
-		err = legacyErr
-	}
-	return err
+	return joinDeleteErrors(err, deleteLegacyIrisSessionArtifacts(key))
 }
 
 // DeleteAllSessions removes all cached web sessions.
@@ -1130,10 +1127,17 @@ func DeleteAllSessions() error {
 	default:
 		err = nil
 	}
-	if legacyErr := deleteAllLegacyIrisFromFile(); err == nil {
-		err = legacyErr
+	return joinDeleteErrors(err, deleteAllLegacyIrisFromFile())
+}
+
+func joinDeleteErrors(primaryErr, legacyErr error) error {
+	if primaryErr == nil {
+		return legacyErr
 	}
-	return err
+	if legacyErr == nil {
+		return primaryErr
+	}
+	return errors.Join(primaryErr, legacyErr)
 }
 
 // clearLastSessionMarker clears the "last used session" pointer.

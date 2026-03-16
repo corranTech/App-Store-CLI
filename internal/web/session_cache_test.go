@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -758,6 +759,62 @@ func TestDeleteAllSessionsRemovesLegacyIrisCache(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(legacyDir, "last.json")); !os.IsNotExist(err) {
 		t.Fatalf("expected legacy iris last marker removed, stat err=%v", err)
+	}
+}
+
+func TestDeleteSessionJoinsLegacyCleanupError(t *testing.T) {
+	webCachePath := filepath.Join(t.TempDir(), "web-cache-file")
+	if err := os.WriteFile(webCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write web cache file: %v", err)
+	}
+	legacyCachePath := filepath.Join(t.TempDir(), "legacy-cache-file")
+	if err := os.WriteFile(legacyCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write legacy cache file: %v", err)
+	}
+
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, webCachePath)
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "1")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyCachePath)
+
+	err := DeleteSession("user@example.com")
+	if err == nil {
+		t.Fatal("expected delete session error")
+	}
+	if !strings.Contains(err.Error(), webCachePath) {
+		t.Fatalf("expected primary error to mention %q, got %v", webCachePath, err)
+	}
+	if !strings.Contains(err.Error(), legacyCachePath) {
+		t.Fatalf("expected joined legacy cleanup error to mention %q, got %v", legacyCachePath, err)
+	}
+}
+
+func TestDeleteAllSessionsJoinsLegacyCleanupError(t *testing.T) {
+	webCachePath := filepath.Join(t.TempDir(), "web-cache-file")
+	if err := os.WriteFile(webCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write web cache file: %v", err)
+	}
+	legacyCachePath := filepath.Join(t.TempDir(), "legacy-cache-file")
+	if err := os.WriteFile(legacyCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write legacy cache file: %v", err)
+	}
+
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, webCachePath)
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "1")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyCachePath)
+
+	err := DeleteAllSessions()
+	if err == nil {
+		t.Fatal("expected delete-all sessions error")
+	}
+	if !strings.Contains(err.Error(), webCachePath) {
+		t.Fatalf("expected primary error to mention %q, got %v", webCachePath, err)
+	}
+	if !strings.Contains(err.Error(), legacyCachePath) {
+		t.Fatalf("expected joined legacy cleanup error to mention %q, got %v", legacyCachePath, err)
 	}
 }
 

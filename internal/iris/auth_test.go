@@ -2,6 +2,7 @@ package iris
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
@@ -72,7 +73,7 @@ func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeWhenNoTrustedDevicesHasMul
 		SCNT:             "scnt-token",
 	}
 
-	challenge, err := EnsureTwoFactorCodeRequested(session)
+	challenge, err := EnsureTwoFactorCodeRequested(context.Background(), session)
 	if err != nil {
 		t.Fatalf("EnsureTwoFactorCodeRequested returned error: %v", err)
 	}
@@ -123,7 +124,7 @@ func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeForSingleTrustedPhone(t *t
 		SCNT:             "scnt-token",
 	}
 
-	challenge, err := EnsureTwoFactorCodeRequested(session)
+	challenge, err := EnsureTwoFactorCodeRequested(context.Background(), session)
 	if err != nil {
 		t.Fatalf("EnsureTwoFactorCodeRequested returned error: %v", err)
 	}
@@ -132,6 +133,29 @@ func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeForSingleTrustedPhone(t *t
 	}
 	if !challenge.Requested {
 		t.Fatal("expected single trusted phone to trigger a code request before prompting")
+	}
+}
+
+func TestEnsureTwoFactorCodeRequestedHonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if got := req.Context().Err(); !errors.Is(got, context.Canceled) {
+					t.Fatalf("expected canceled request context, got %v", got)
+				}
+				return nil, req.Context().Err()
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	if _, err := EnsureTwoFactorCodeRequested(ctx, session); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
 	}
 }
 
@@ -159,7 +183,7 @@ func TestPrepareTwoFactorChallengeKeepsPhoneFallbackForTrustedDeviceFlow(t *test
 		SCNT:             "scnt-token",
 	}
 
-	challenge, err := PrepareTwoFactorChallenge(session)
+	challenge, err := PrepareTwoFactorChallenge(context.Background(), session)
 	if err != nil {
 		t.Fatalf("PrepareTwoFactorChallenge returned error: %v", err)
 	}
@@ -176,7 +200,7 @@ func TestPrepareTwoFactorChallengeKeepsPhoneFallbackForTrustedDeviceFlow(t *test
 		t.Fatalf("expected fallback destination on initial trusted-device challenge, got %q", challenge.Destination)
 	}
 
-	cachedChallenge, err := PrepareTwoFactorChallenge(session)
+	cachedChallenge, err := PrepareTwoFactorChallenge(context.Background(), session)
 	if err != nil {
 		t.Fatalf("PrepareTwoFactorChallenge (cached) returned error: %v", err)
 	}
