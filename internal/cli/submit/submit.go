@@ -659,9 +659,9 @@ func cleanupEmptyReviewSubmission(ctx context.Context, client *asc.Client, submi
 	if strings.TrimSpace(submissionID) == "" {
 		return
 	}
-	// Failures here are expected when the submission is already in a
-	// non-cancellable state; silently ignore them.
-	_, _ = client.CancelReviewSubmission(ctx, submissionID)
+	if _, cancelErr := client.CancelReviewSubmission(ctx, submissionID); cancelErr != nil && !isExpectedNonCancellableReviewSubmissionError(cancelErr) {
+		fmt.Fprintf(os.Stderr, "Warning: failed to cancel empty submission %s: %v\n", submissionID, cancelErr)
+	}
 }
 
 // cancelStaleReviewSubmissions cancels any READY_FOR_REVIEW submissions for the
@@ -692,7 +692,9 @@ func cancelStaleReviewSubmissions(ctx context.Context, client *asc.Client, appID
 		}
 
 		if _, cancelErr := client.CancelReviewSubmission(ctx, sub.ID); cancelErr != nil {
-			if !errors.Is(cancelErr, asc.ErrConflict) && !isResourceStateInvalid(cancelErr) {
+			if isExpectedNonCancellableReviewSubmissionError(cancelErr) {
+				fmt.Fprintf(os.Stderr, "Skipped stale submission %s: already transitioned to a non-cancellable state\n", sub.ID)
+			} else {
 				fmt.Fprintf(os.Stderr, "Warning: failed to cancel stale submission %s: %v\n", sub.ID, cancelErr)
 			}
 			continue
@@ -717,10 +719,16 @@ func printSubmissionErrorHints(err error, appID string) {
 
 	var hints []string
 	if strings.Contains(errMsg, "ageRatingDeclaration") {
-		hints = append(hints, fmt.Sprintf("Fix age rating: asc age-rating set --app %s (see asc age-rating set --help for flags)", appID))
+		hints = append(hints,
+			fmt.Sprintf("Review current age rating: asc age-rating view --app %s", appID),
+			"Review age-rating update flags: asc age-rating set --help",
+		)
 	}
 	if strings.Contains(errMsg, "contentRightsDeclaration") {
-		hints = append(hints, fmt.Sprintf("asc apps content-rights set --app %s --uses-third-party-content=false", appID))
+		hints = append(hints,
+			fmt.Sprintf("If your app does not use third-party content: asc apps update --id %s --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT", appID),
+			fmt.Sprintf("If your app uses third-party content: asc apps update --id %s --content-rights USES_THIRD_PARTY_CONTENT", appID),
+		)
 	}
 	if strings.Contains(errMsg, "appDataUsage") {
 		hints = append(hints, fmt.Sprintf("Complete App Privacy at: https://appstoreconnect.apple.com/apps/%s/appPrivacy", appID))
@@ -735,6 +743,10 @@ func printSubmissionErrorHints(err error, appID string) {
 			fmt.Fprintf(os.Stderr, "Hint: %s\n", hint)
 		}
 	}
+}
+
+func isExpectedNonCancellableReviewSubmissionError(err error) bool {
+	return errors.Is(err, asc.ErrConflict) || isResourceStateInvalid(err)
 }
 
 // isResourceStateInvalid returns true if the error message indicates the

@@ -595,6 +595,82 @@ func TestAddVersionToSubmissionOrRecover_ReturnsContextErrorWhileWaitingForDetac
 	}
 }
 
+func TestCleanupEmptyReviewSubmissionWarnsOnUnexpectedCancelError(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPatch || req.URL.Path != "/v1/reviewSubmissions/empty-sub-1" {
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		return submitJSONResponse(http.StatusInternalServerError, `{
+			"errors": [{
+				"status": "500",
+				"code": "INTERNAL_ERROR",
+				"title": "Internal Server Error"
+			}]
+		}`)
+	}))
+
+	stderr := captureSubmitStderr(t, func() {
+		cleanupEmptyReviewSubmission(context.Background(), client, "empty-sub-1")
+	})
+	if !strings.Contains(stderr, "Warning: failed to cancel empty submission empty-sub-1:") {
+		t.Fatalf("expected cleanup warning, got %q", stderr)
+	}
+}
+
+func TestCleanupEmptyReviewSubmissionIgnoresExpectedNonCancellableState(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPatch || req.URL.Path != "/v1/reviewSubmissions/empty-sub-1" {
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		return submitJSONResponse(http.StatusConflict, `{
+			"errors": [{
+				"status": "409",
+				"code": "CONFLICT",
+				"title": "Resource state is invalid.",
+				"detail": "Resource is not in cancellable state"
+			}]
+		}`)
+	}))
+
+	stderr := captureSubmitStderr(t, func() {
+		cleanupEmptyReviewSubmission(context.Background(), client, "empty-sub-1")
+	})
+	if stderr != "" {
+		t.Fatalf("expected no cleanup warning for expected non-cancellable state, got %q", stderr)
+	}
+}
+
+func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
+	stderr := captureSubmitStderr(t, func() {
+		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration appDataUsage primaryCategory"), "app-1")
+	})
+
+	for _, want := range []string{
+		"Hint: Review current age rating: asc age-rating view --app app-1",
+		"Hint: Review age-rating update flags: asc age-rating set --help",
+		"Hint: If your app does not use third-party content: asc apps update --id app-1 --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT",
+		"Hint: If your app uses third-party content: asc apps update --id app-1 --content-rights USES_THIRD_PARTY_CONTENT",
+		"Hint: Complete App Privacy at: https://appstoreconnect.apple.com/apps/app-1/appPrivacy",
+		"Hint: Set category: asc app-setup categories set --app app-1 --primary SPORTS",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected hint %q in stderr, got %q", want, stderr)
+		}
+	}
+
+	for _, unwanted := range []string{
+		"--all-none",
+		"content-rights set",
+		"--uses-third-party-content",
+		"...",
+		"|",
+	} {
+		if strings.Contains(stderr, unwanted) {
+			t.Fatalf("did not expect %q in stderr, got %q", unwanted, stderr)
+		}
+	}
+}
+
 func newSubmitTestClient(t *testing.T, transport http.RoundTripper) *asc.Client {
 	t.Helper()
 
@@ -608,6 +684,35 @@ func newSubmitTestClient(t *testing.T, transport http.RoundTripper) *asc.Client 
 		t.Fatalf("NewClientWithHTTPClient() error: %v", err)
 	}
 	return client
+}
+
+func captureSubmitStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStderr := os.Stderr
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stderr pipe error: %v", err)
+	}
+
+	os.Stderr = stderrW
+	defer func() {
+		os.Stderr = oldStderr
+	}()
+
+	fn()
+
+	if err := stderrW.Close(); err != nil {
+		t.Fatalf("close stderr writer: %v", err)
+	}
+	data, err := io.ReadAll(stderrR)
+	if err != nil {
+		t.Fatalf("read stderr: %v", err)
+	}
+	if err := stderrR.Close(); err != nil {
+		t.Fatalf("close stderr reader: %v", err)
+	}
+	return string(data)
 }
 
 func submitAlreadyAddedConflictBody(existingSubmissionID string) string {
