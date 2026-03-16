@@ -650,6 +650,71 @@ func TestClientLookupAPIKeyRolesFallsBackToActorList(t *testing.T) {
 	}
 }
 
+func TestClientLookupAPIKeyRolesFallsBackToActorListWhenActorGetForbidden(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			switch {
+			case strings.Contains(r.URL.Path, "/iris/v1/apiKeys"):
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"data":[],"included":[]}`)),
+				}, nil
+			case strings.Contains(r.URL.Path, "/iris/v2/apiKeys"):
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body: io.NopCloser(strings.NewReader(`{
+						"data":[
+							{
+								"id":"ind-5",
+								"attributes":{"roles":[],"nickname":"individual-key","isActive":true,"keyType":"PUBLIC_API"},
+								"relationships":{"createdByActor":{"data":{"id":"actor-1"}},"revokedByActor":{"data":null}}
+							}
+						]
+					}`)),
+				}, nil
+			case strings.Contains(r.URL.Path, "/olympus/v1/actors/actor-1"):
+				return &http.Response{
+					StatusCode: http.StatusForbidden,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"errors":[]}`)),
+					Request:    r,
+				}, nil
+			case strings.Contains(r.URL.Path, "/olympus/v1/actors"):
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body: io.NopCloser(strings.NewReader(`{
+						"data":[
+							{
+								"id":"actor-1",
+								"attributes":{"roles":["ADMIN","CIPS"]},
+								"relationships":{"provider":{"data":{"id":"prov-1"}},"person":{"data":{"id":"person-1"}}}
+							}
+						],
+						"included":[
+							{"type":"people","id":"person-1","attributes":{"firstName":"Mithilesh","lastName":"Chellappan"}},
+							{"type":"providers","id":"prov-1","attributes":{"name":"Ignored Provider"}}
+						]
+					}`)),
+				}, nil
+			default:
+				t.Fatalf("unexpected request URL %q", r.URL.String())
+				return nil, nil
+			}
+		})},
+	}
+
+	got, err := client.LookupAPIKeyRoles(context.Background(), "ind-5")
+	if err != nil {
+		t.Fatalf("LookupAPIKeyRoles() error: %v", err)
+	}
+	if got.RoleSource != "actor" || len(got.Roles) != 2 || got.Roles[0] != "ADMIN" {
+		t.Fatalf("unexpected fallback result: %#v", got)
+	}
+}
+
 func TestClientLookupAPIKeyRolesFailsWhenIndividualRolesCannotBeResolved(t *testing.T) {
 	client := &Client{
 		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
