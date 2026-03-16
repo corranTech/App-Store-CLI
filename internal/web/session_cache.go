@@ -740,12 +740,9 @@ func migrateLegacyIrisSessionByKey(ctx context.Context, selection backendSelecti
 	if !ok || resumed == nil {
 		return nil, false, nil
 	}
-	if err := PersistSession(resumed); err != nil {
-		return nil, false, err
-	}
-	if err := deleteLegacyIrisSessionArtifacts(key); err != nil {
-		return nil, false, err
-	}
+	// Migration bookkeeping is best-effort after the resumed session is already valid.
+	_ = PersistSession(resumed)
+	_ = deleteLegacyIrisSessionArtifacts(key)
 	return resumed, true, nil
 }
 
@@ -1253,8 +1250,14 @@ func clearLastSessionMarker() error {
 
 func clearLastKeyInFileIfMatches(key string) error {
 	lastKey, ok, err := readLastKeyFromFile()
-	if err != nil || !ok || lastKey != key {
-		return err
+	if err != nil {
+		// Session deletion already succeeded. If the marker is malformed/unreadable,
+		// clear it best-effort instead of turning logout into a false-negative.
+		_ = clearLastKeyInFile()
+		return nil
+	}
+	if !ok || lastKey != key {
+		return nil
 	}
 	return clearLastKeyInFile()
 }
