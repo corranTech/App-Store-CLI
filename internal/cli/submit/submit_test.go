@@ -651,7 +651,8 @@ func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 		"Hint: If your app does not use third-party content: asc apps update --id app-1 --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT",
 		"Hint: If your app uses third-party content: asc apps update --id app-1 --content-rights USES_THIRD_PARTY_CONTENT",
 		"Hint: Complete App Privacy at: https://appstoreconnect.apple.com/apps/app-1/appPrivacy",
-		"Hint: Set category: asc app-setup categories set --app app-1 --primary SPORTS",
+		"Hint: List available categories: asc categories list",
+		"Hint: Review category update flags: asc app-setup categories set --help",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected hint %q in stderr, got %q", want, stderr)
@@ -662,6 +663,7 @@ func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 		"--all-none",
 		"content-rights set",
 		"--uses-third-party-content",
+		"--primary SPORTS",
 		"...",
 		"|",
 	} {

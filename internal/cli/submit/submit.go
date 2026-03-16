@@ -734,7 +734,10 @@ func printSubmissionErrorHints(err error, appID string) {
 		hints = append(hints, fmt.Sprintf("Complete App Privacy at: https://appstoreconnect.apple.com/apps/%s/appPrivacy", appID))
 	}
 	if strings.Contains(errMsg, "primaryCategory") {
-		hints = append(hints, fmt.Sprintf("Set category: asc app-setup categories set --app %s --primary SPORTS", appID))
+		hints = append(hints,
+			"List available categories: asc categories list",
+			"Review category update flags: asc app-setup categories set --help",
+		)
 	}
 
 	if len(hints) > 0 {
