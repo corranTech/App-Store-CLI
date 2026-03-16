@@ -91,6 +91,20 @@ func TestReadPasswordFromTerminalFD(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+
+	t.Run("preserves prompt cancellation", func(t *testing.T) {
+		termReadPasswordFn = func(fd int) ([]byte, error) {
+			return nil, context.Canceled
+		}
+
+		_, err := readPasswordFromTerminalFD(0, &bytes.Buffer{})
+		if err == nil {
+			t.Fatal("expected cancellation error")
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context cancellation, got %v", err)
+		}
+	})
 }
 
 func TestReadTwoFactorCodeFrom(t *testing.T) {
@@ -357,6 +371,49 @@ func TestResolveSessionPrintsExpiredNoticeBeforePrompt(t *testing.T) {
 	}
 	if got := notice.String(); got != "Session expired.\n" {
 		t.Fatalf("expected expired notice output, got %q", got)
+	}
+}
+
+func TestResolveSessionReturnsPromptCancellationWithoutUsageFallback(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origPromptPassword := promptPasswordFn
+	origReadPassword := termReadPasswordFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		promptPasswordFn = origPromptPassword
+		termReadPasswordFn = origReadPassword
+	})
+
+	t.Setenv(webPasswordEnv, "")
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	termReadPasswordFn = func(fd int) ([]byte, error) {
+		return nil, context.Canceled
+	}
+	promptPasswordFn = func() (string, error) {
+		return readPasswordFromTerminalFD(0, &bytes.Buffer{})
+	}
+
+	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err == nil {
+		t.Fatal("expected prompt cancellation error")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("did not expect usage error for prompt cancellation: %v", err)
+	}
+	if strings.Contains(err.Error(), "password is required") {
+		t.Fatalf("did not expect password-required fallback, got %v", err)
 	}
 }
 
