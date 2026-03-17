@@ -20,17 +20,17 @@ import (
 const webPasswordEnv = "ASC_WEB_PASSWORD"
 
 var (
-	promptTwoFactorCodeFn           = promptTwoFactorCodeInteractive
-	promptPasswordFn                = promptPasswordInteractive
-	webLoginFn                      = webcore.Login
-	submitTwoFactorCodeFn           = webcore.SubmitTwoFactorCode
-	signalProcessInterruptFn        = signalProcessInterrupt
-	termReadPasswordFn              = term.ReadPassword
-	termIsTerminalFn                = term.IsTerminal
-	tryResumeSessionFn              = webcore.TryResumeSession
-	tryResumeLastFn                 = webcore.TryResumeLastSession
-	resolveSessionFn                = resolveSession
-	sessionExpiredWriter  io.Writer = os.Stderr
+	promptTwoFactorCodeFn              = promptTwoFactorCodeInteractive
+	promptPasswordFn                   = promptPasswordInteractive
+	webLoginFn                         = webcore.Login
+	submitTwoFactorCodeFn              = webcore.SubmitTwoFactorCode
+	signalProcessInterruptFn           = signalProcessInterrupt
+	termReadPasswordFn                 = term.ReadPassword
+	termIsTerminalFn                   = term.IsTerminal
+	tryResumeSessionFn                 = webcore.TryResumeSession
+	tryResumeLastFn                    = webcore.TryResumeLastSession
+	resolveSessionFn                   = resolveSession
+	sessionExpiredWriter     io.Writer = os.Stderr
 )
 
 type webAuthStatus struct {
