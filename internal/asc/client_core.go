@@ -38,7 +38,7 @@ const (
 
 	defaultMaxIdleConns         = 128
 	defaultMaxIdleConnsPerHost  = 32
-	defaultMutatingRequestLimit = 4
+	defaultMutatingRequestLimit = 8
 )
 
 var retryLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
