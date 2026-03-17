@@ -66,7 +66,7 @@ func TestReadPasswordFromTerminalFD(t *testing.T) {
 		}
 		var prompt bytes.Buffer
 
-		password, err := readPasswordFromTerminalFD(context.Background(), 0, &prompt)
+		password, err := readPasswordFromTerminalFD(context.Background(), &prompt)
 		if err != nil {
 			t.Fatalf("readPasswordFromTerminalFD returned error: %v", err)
 		}
@@ -83,7 +83,7 @@ func TestReadPasswordFromTerminalFD(t *testing.T) {
 			return nil, errors.New("terminal read failed")
 		}
 
-		_, err := readPasswordFromTerminalFD(context.Background(), 0, &bytes.Buffer{})
+		_, err := readPasswordFromTerminalFD(context.Background(), &bytes.Buffer{})
 		if err == nil {
 			t.Fatal("expected read failure")
 		}
@@ -99,7 +99,7 @@ func TestReadPasswordFromTerminalFD(t *testing.T) {
 			return nil, errors.New("read aborted")
 		}
 
-		_, err := readPasswordFromTerminalFD(ctx, 0, &bytes.Buffer{})
+		_, err := readPasswordFromTerminalFD(ctx, &bytes.Buffer{})
 		if err == nil {
 			t.Fatal("expected cancellation error")
 		}
@@ -401,7 +401,7 @@ func TestResolveSessionReturnsPromptCancellationWithoutUsageFallback(t *testing.
 		return nil, errors.New("tty closed")
 	}
 	promptPasswordFn = func(ctx context.Context) (string, error) {
-		return readPasswordFromTerminalFD(ctx, 0, &bytes.Buffer{})
+		return readPasswordFromTerminalFD(ctx, &bytes.Buffer{})
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

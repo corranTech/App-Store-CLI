@@ -52,14 +52,14 @@ func readPasswordFromInput(ctx context.Context) (string, error) {
 	return strings.TrimSpace(password), nil
 }
 
-func readPasswordFromTerminalFD(ctx context.Context, fd int, writer io.Writer) (string, error) {
+func readPasswordFromTerminalFD(ctx context.Context, writer io.Writer) (string, error) {
 	if writer == nil {
 		return "", fmt.Errorf("password prompt unavailable")
 	}
 	if _, err := fmt.Fprint(writer, "Apple Account password: "); err != nil {
 		return "", fmt.Errorf("password prompt unavailable")
 	}
-	passwordBytes, err := termReadPasswordFn(fd)
+	passwordBytes, err := termReadPasswordFn(0)
 	_, _ = fmt.Fprintln(writer)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
