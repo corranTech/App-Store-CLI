@@ -29,6 +29,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Self-test badge formatter
+        run: python3 scripts/test_download_stats_total.py
+
       - name: Regenerate badge JSON
         run: python3 scripts/download_stats_total.py --write-badge docs/badges/installs-total.json
 
@@ -41,6 +44,17 @@ jobs:
             echo "Badge JSON unchanged."
           else
             git commit -m "chore: refresh estimated downloads badge"
-            git pull --rebase origin main
-            git push origin HEAD:main
+            ok=0
+            for attempt in 1 2 3; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                ok=1
+                break
+              fi
+              echo "push attempt ${attempt} failed, retrying in 15s..."
+              sleep 15
+            done
+            if [ "$ok" != 1 ]; then
+              echo "::error::could not push badge update to main"
+              exit 1
+            fi
           fi

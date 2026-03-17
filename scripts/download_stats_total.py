@@ -18,6 +18,7 @@ import argparse
 import json
 import sys
 import urllib.request
+from pathlib import Path
 
 REPO = "rudrankriyam/App-Store-Connect-CLI"
 FORMULA = "asc"
@@ -85,7 +86,9 @@ def write_shields_endpoint_badge(path: str) -> int:
         "message": _format_badge_total(total),
         "color": "brightgreen",
     }
-    with open(path, "w", encoding="utf-8") as f:
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
         f.write("\n")
     print(f"Wrote {path}: GitHub {gh:,} + Homebrew 365d {brew365:,} → {payload['message']}", file=sys.stderr)

@@ -4,4 +4,6 @@
 
 `python3 scripts/download_stats_total.py --write-badge docs/badges/installs-total.json`
 
+Formatter regression check (no network): `python3 scripts/test_download_stats_total.py`
+
 **Meaning:** GitHub release-asset downloads (all-time) + Homebrew install-on-request (365 days). Overlaps are not deduplicated; see [write-up](https://til.bhupesh.me/shell/get-download-stats-github-brew).
