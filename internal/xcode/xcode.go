@@ -212,7 +212,7 @@ func Validate(ctx context.Context, opts ValidateOptions) (*ValidateResult, error
 	if err := validateExistingFile(opts.IPAPath, "--ipa"); err != nil {
 		return nil, err
 	}
-	if err := runAltoolValidate(ctx, buildValidateCommand(opts), opts.LogWriter); err != nil {
+	if err := runAltoolValidate(ctx, buildValidateCommand(opts, inferValidatePlatform(opts.IPAPath)), opts.LogWriter); err != nil {
 		return nil, err
 	}
 	return &ValidateResult{
@@ -302,6 +302,9 @@ func validateValidateOptions(opts ValidateOptions) error {
 	}
 	if !strings.EqualFold(filepath.Ext(opts.IPAPath), ".ipa") {
 		return fmt.Errorf("--ipa must end with .ipa")
+	}
+	if (opts.APIKey == "") != (opts.APIIssuer == "") {
+		return fmt.Errorf("--api-key and --api-issuer must be provided together")
 	}
 	return nil
 }
@@ -490,12 +493,26 @@ func buildExportCommand(opts ExportOptions, exportDir string) []string {
 	return args
 }
 
-func buildValidateCommand(opts ValidateOptions) []string {
+func inferValidatePlatform(ipaPath string) string {
+	info, err := readIPABundleInfo(ipaPath)
+	if err != nil {
+		return "ios"
+	}
+	if platform := mapAppStorePlatformToAltoolType(info.Platform); platform != "" {
+		return platform
+	}
+	return "ios"
+}
+
+func buildValidateCommand(opts ValidateOptions, platform string) []string {
+	if strings.TrimSpace(platform) == "" {
+		platform = "ios"
+	}
 	args := []string{
 		"altool",
 		"--validate-app",
 		"--file", opts.IPAPath,
-		"--type", "ios",
+		"--type", platform,
 	}
 	if opts.APIKey != "" {
 		args = append(args, "--apiKey", opts.APIKey)
@@ -504,6 +521,21 @@ func buildValidateCommand(opts ValidateOptions) []string {
 		args = append(args, "--apiIssuer", opts.APIIssuer)
 	}
 	return args
+}
+
+func mapAppStorePlatformToAltoolType(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "IOS":
+		return "ios"
+	case "TV_OS":
+		return "appletvos"
+	case "VISION_OS":
+		return "visionos"
+	case "MAC_OS":
+		return "macos"
+	default:
+		return ""
+	}
 }
 
 func cloneStrings(values []string) []string {

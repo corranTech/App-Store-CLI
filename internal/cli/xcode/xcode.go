@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -351,19 +352,29 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			trimmedIPAPath := strings.TrimSpace(*ipaPath)
+			trimmedAPIKey := strings.TrimSpace(*apiKey)
+			trimmedAPIIssuer := strings.TrimSpace(*apiIssuer)
+
 			if len(args) > 0 {
 				fmt.Fprintln(os.Stderr, "Error: xcode validate does not accept positional arguments")
 				return flag.ErrHelp
 			}
-			if strings.TrimSpace(*ipaPath) == "" {
+			if trimmedIPAPath == "" {
 				fmt.Fprintln(os.Stderr, "Error: --ipa is required")
 				return flag.ErrHelp
 			}
+			if !strings.EqualFold(filepath.Ext(trimmedIPAPath), ".ipa") {
+				return shared.UsageError("--ipa must end with .ipa")
+			}
+			if (trimmedAPIKey == "") != (trimmedAPIIssuer == "") {
+				return shared.UsageError("--api-key and --api-issuer must be provided together")
+			}
 
 			result, err := runValidate(ctx, localxcode.ValidateOptions{
-				IPAPath:   strings.TrimSpace(*ipaPath),
-				APIKey:    strings.TrimSpace(*apiKey),
-				APIIssuer: strings.TrimSpace(*apiIssuer),
+				IPAPath:   trimmedIPAPath,
+				APIKey:    trimmedAPIKey,
+				APIIssuer: trimmedAPIIssuer,
 				LogWriter: os.Stderr,
 			})
 			if err != nil {

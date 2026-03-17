@@ -110,6 +110,70 @@ func TestXcodeValidatePassesIPAAndAuthFlags(t *testing.T) {
 	}
 }
 
+func TestXcodeValidateRejectsNonIPAPath(t *testing.T) {
+	restore := overrideXcodeCommandTestHooks(t)
+	defer restore()
+
+	cmd := XcodeValidateCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--ipa", "Demo.txt"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	var runErr error
+	_, stderr := captureCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatal("expected flag.ErrHelp for non-.ipa path")
+	}
+	if !strings.Contains(stderr, "Error: --ipa must end with .ipa") {
+		t.Fatalf("expected ipa extension usage error, got %q", stderr)
+	}
+}
+
+func TestXcodeValidateRequiresAPIKeyAndIssuerTogether(t *testing.T) {
+	restore := overrideXcodeCommandTestHooks(t)
+	defer restore()
+
+	testCases := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "api key only",
+			args: []string{"--ipa", "Demo.ipa", "--api-key", "KEY123ABC"},
+		},
+		{
+			name: "api issuer only",
+			args: []string{"--ipa", "Demo.ipa", "--api-issuer", "issuer-123"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := XcodeValidateCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse(tc.args); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
+
+			var runErr error
+			_, stderr := captureCommandOutput(t, func() error {
+				runErr = cmd.Exec(context.Background(), nil)
+				return runErr
+			})
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatal("expected flag.ErrHelp for partial JWT auth flags")
+			}
+			if !strings.Contains(stderr, "Error: --api-key and --api-issuer must be provided together") {
+				t.Fatalf("expected auth pairing usage error, got %q", stderr)
+			}
+		})
+	}
+}
+
 func TestXcodeExportWaitRequiresPositivePollInterval(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()
