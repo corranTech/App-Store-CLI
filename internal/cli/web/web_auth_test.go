@@ -538,6 +538,88 @@ func TestResolveSessionPrintsExpiredNoticeBeforePrompt(t *testing.T) {
 	}
 }
 
+func TestResolveSessionReturnsCacheLookupErrorBeforePrompt(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origPromptPassword := promptPasswordFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		promptPasswordFn = origPromptPassword
+	})
+
+	cacheErr := errors.New("cache permission denied")
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		if username != "user@example.com" {
+			t.Fatalf("expected username user@example.com, got %q", username)
+		}
+		return nil, false, cacheErr
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	promptPasswordFn = func() (string, error) {
+		t.Fatal("did not expect password prompt when cache lookup fails")
+		return "", nil
+	}
+
+	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err == nil {
+		t.Fatal("expected cache lookup error")
+	}
+	if !errors.Is(err, cacheErr) {
+		t.Fatalf("expected cache lookup error %v, got %v", cacheErr, err)
+	}
+	if !strings.Contains(err.Error(), "checking cached web session failed") {
+		t.Fatalf("expected wrapped cache lookup error, got %q", err.Error())
+	}
+}
+
+func TestResolveWebSessionReturnsPromptedAppleIDCacheLookupError(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+	})
+
+	cacheErr := errors.New("cache metadata unreadable")
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		if username != "user@example.com" {
+			t.Fatalf("expected prompted username user@example.com, got %q", username)
+		}
+		return nil, false, cacheErr
+	}
+
+	passwordResolved := false
+	_, _, err := resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
+		promptAppleID: func(appleID *string) error {
+			*appleID = "user@example.com"
+			return nil
+		},
+		resolvePassword: func(password string) (string, error) {
+			passwordResolved = true
+			return "secret", nil
+		},
+	})
+	if err == nil {
+		t.Fatal("expected prompted cache lookup error")
+	}
+	if !errors.Is(err, cacheErr) {
+		t.Fatalf("expected prompted cache lookup error %v, got %v", cacheErr, err)
+	}
+	if passwordResolved {
+		t.Fatal("did not expect password resolution after cache lookup failure")
+	}
+	if !strings.Contains(err.Error(), "checking cached web session failed") {
+		t.Fatalf("expected wrapped cache lookup error, got %q", err.Error())
+	}
+}
+
 func TestResolveSessionWhitespaceOnlyPasswordFallsBackToEnv(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn

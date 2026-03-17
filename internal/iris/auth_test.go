@@ -543,6 +543,42 @@ func TestSubmitTwoFactorCodeHonorsContextCancellation(t *testing.T) {
 	}
 }
 
+func TestSubmitTwoFactorCodeHonorsContextCancellationDuringFinalize(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/trusteddevice/securitycode":
+					cancel()
+					return &http.Response{
+						StatusCode: http.StatusNoContent,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader("")),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL+"/2sv/trust":
+					if got := req.Context().Err(); !errors.Is(got, context.Canceled) {
+						t.Fatalf("expected canceled finalize request context, got %v", got)
+					}
+					return nil, req.Context().Err()
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+		twoFactorMethod:  twoFactorMethodTrustedDevice,
+	}
+
+	if err := SubmitTwoFactorCode(ctx, session, "123456"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected finalize cancellation, got %v", err)
+	}
+}
+
 func TestSigninCompleteReturnsAppleAccountActionRequiredForPreconditionFailed(t *testing.T) {
 	client := &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
