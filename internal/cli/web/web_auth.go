@@ -70,30 +70,74 @@ func readPasswordFromTerminalFD(ctx context.Context, fd int, writer io.Writer) (
 	return strings.TrimSpace(string(passwordBytes)), nil
 }
 
-func readPasswordFromTerminal(ctx context.Context, terminal *os.File, writer io.Writer) (string, error) {
+func readPasswordFromTerminal(ctx context.Context, terminal *os.File, writer io.Writer, closeTerminal bool) (string, error) {
 	if terminal == nil {
 		return "", fmt.Errorf("password prompt unavailable")
 	}
-	done := make(chan struct{})
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = terminal.Close()
-		case <-done:
-		}
-	}()
-	defer close(done)
-	defer func() { _ = terminal.Close() }()
+	if closeTerminal {
+		defer func() { _ = terminal.Close() }()
+	}
+	if writer == nil {
+		return "", fmt.Errorf("password prompt unavailable")
+	}
+	if _, err := fmt.Fprint(writer, "Apple Account password: "); err != nil {
+		return "", fmt.Errorf("password prompt unavailable")
+	}
 
-	return readPasswordFromTerminalFD(ctx, int(terminal.Fd()), writer)
+	oldState, err := term.MakeRaw(int(terminal.Fd()))
+	if err != nil {
+		_, _ = fmt.Fprintln(writer)
+		return "", fmt.Errorf("failed to read password")
+	}
+	defer func() {
+		_ = term.Restore(int(terminal.Fd()), oldState)
+		_, _ = fmt.Fprintln(writer)
+	}()
+
+	passwordBytes := make([]byte, 0, 64)
+	readBuf := make([]byte, 1)
+	for {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", fmt.Errorf("password prompt interrupted: %w", ctxErr)
+		}
+
+		n, err := terminal.Read(readBuf)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", fmt.Errorf("password prompt interrupted: %w", ctxErr)
+			}
+			return "", fmt.Errorf("failed to read password")
+		}
+		if n == 0 {
+			continue
+		}
+
+		switch readBuf[0] {
+		case '\r', '\n':
+			return strings.TrimSpace(string(passwordBytes)), nil
+		case 3:
+			return "", fmt.Errorf("password prompt interrupted: %w", context.Canceled)
+		case 4:
+			if len(passwordBytes) == 0 {
+				return "", fmt.Errorf("password prompt interrupted: %w", context.Canceled)
+			}
+			return strings.TrimSpace(string(passwordBytes)), nil
+		case 8, 127:
+			if len(passwordBytes) > 0 {
+				passwordBytes = passwordBytes[:len(passwordBytes)-1]
+			}
+		default:
+			passwordBytes = append(passwordBytes, readBuf[0])
+		}
+	}
 }
 
 func promptPasswordInteractive(ctx context.Context) (string, error) {
 	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
-		return readPasswordFromTerminal(ctx, tty, tty)
+		return readPasswordFromTerminal(ctx, tty, tty, true)
 	}
 	if termIsTerminalFn(int(os.Stdin.Fd())) {
-		return readPasswordFromTerminal(ctx, os.Stdin, os.Stderr)
+		return readPasswordFromTerminal(ctx, os.Stdin, os.Stderr, false)
 	}
 	return "", nil
 }
