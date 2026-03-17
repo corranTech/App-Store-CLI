@@ -7,7 +7,9 @@ import (
 	"flag"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/creack/pty"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -107,6 +109,85 @@ func TestReadPasswordFromTerminalFD(t *testing.T) {
 			t.Fatalf("expected context cancellation, got %v", err)
 		}
 	})
+}
+
+func TestReadPasswordFromTerminalPropagatesCtrlCAsInterrupt(t *testing.T) {
+	origSignalProcessInterrupt := signalProcessInterruptFn
+	t.Cleanup(func() {
+		signalProcessInterruptFn = origSignalProcessInterrupt
+	})
+
+	ptmx, tty, err := pty.Open()
+	if err != nil {
+		t.Fatalf("pty.Open() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = ptmx.Close()
+		_ = tty.Close()
+	})
+
+	interrupts := make(chan struct{}, 1)
+	signalProcessInterruptFn = func() error {
+		select {
+		case interrupts <- struct{}{}:
+		default:
+		}
+		return nil
+	}
+
+	promptSeen := make(chan struct{})
+	readPromptDone := make(chan error, 1)
+	go func() {
+		buf := make([]byte, 128)
+		for {
+			n, err := ptmx.Read(buf)
+			if n > 0 && strings.Contains(string(buf[:n]), "Apple Account password:") {
+				close(promptSeen)
+				readPromptDone <- nil
+				return
+			}
+			if err != nil {
+				readPromptDone <- err
+				return
+			}
+		}
+	}()
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := readPasswordFromTerminal(context.Background(), tty, tty, false)
+		errCh <- err
+	}()
+
+	select {
+	case <-promptSeen:
+	case err := <-readPromptDone:
+		t.Fatalf("failed waiting for password prompt: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for password prompt")
+	}
+
+	if _, err := ptmx.Write([]byte{3}); err != nil {
+		t.Fatalf("ptmx.Write() error: %v", err)
+	}
+
+	select {
+	case <-interrupts:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected Ctrl+C to be re-emitted as a process interrupt")
+	}
+
+	select {
+	case err := <-errCh:
+		if err == nil {
+			t.Fatal("expected cancellation error")
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context cancellation, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for password prompt to return")
+	}
 }
 
 func TestReadTwoFactorCodeFrom(t *testing.T) {
