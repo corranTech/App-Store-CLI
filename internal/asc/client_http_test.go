@@ -1870,6 +1870,64 @@ func TestExpireBuild_SendsPatch(t *testing.T) {
 	}
 }
 
+func TestUpdateBuild_SendsPatch(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"version":"2.0","uploadedDate":"2026-03-18T00:00:00Z","usesNonExemptEncryption":false}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/build-99" {
+			t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload struct {
+			Data struct {
+				Type       string `json:"type"`
+				ID         string `json:"id"`
+				Attributes struct {
+					UsesNonExemptEncryption *bool `json:"usesNonExemptEncryption"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != "builds" {
+			t.Fatalf("expected type builds, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "build-99" {
+			t.Fatalf("expected id build-99, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes.UsesNonExemptEncryption == nil || *payload.Data.Attributes.UsesNonExemptEncryption != false {
+			t.Fatalf("expected usesNonExemptEncryption=false")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	enc := false
+	resp, err := client.UpdateBuild(context.Background(), "build-99", BuildUpdateAttributes{UsesNonExemptEncryption: &enc})
+	if err != nil {
+		t.Fatalf("UpdateBuild() error: %v", err)
+	}
+	if resp.Data.ID != "build-99" {
+		t.Fatalf("expected build-99, got %q", resp.Data.ID)
+	}
+}
+
+func TestUpdateBuild_EmptyBuildIDReturnsError(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatal("should not make HTTP request for empty buildID")
+	}, jsonResponse(http.StatusOK, `{}`))
+
+	_, err := client.UpdateBuild(context.Background(), "", BuildUpdateAttributes{})
+	if err == nil {
+		t.Fatal("expected error for empty buildID")
+	}
+}
+
 func TestCreateBetaGroup_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg1","attributes":{"name":"Beta"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
