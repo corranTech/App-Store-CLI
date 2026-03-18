@@ -383,6 +383,7 @@ func BuildsCommand() *ffcli.Command {
 
 Examples:
   asc builds list --app "123456789"
+  asc builds count --app "123456789"
   asc builds latest --app "123456789"
   asc builds find --app "123456789" --build-number "42"
   asc builds wait --build "BUILD_ID"
@@ -409,6 +410,7 @@ Examples:
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			listCmd,
+			BuildsCountCommand(),
 			BuildsLatestCommand(),
 			BuildsFindCommand(),
 			BuildsWaitCommand(),
