@@ -812,6 +812,76 @@ func TestSubmitCancelCommand_ByVersionIDAttemptsReviewCancelThenFallsBackToLegac
 	}
 }
 
+func TestSubmitCancelCommand_ByVersionIDIgnoresStaleEnvAppIDForModernLookup(t *testing.T) {
+	setupSubmitAuth(t)
+	t.Setenv("ASC_APP_ID", "wrong-app")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 3)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {"platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "review-submission-123",
+					"attributes": {"state": "READY_FOR_REVIEW"},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-123"}
+						}
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-123"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/wrong-app/reviewSubmissions":
+			t.Fatalf("modern lookup should not use stale ASC_APP_ID; request: %s", req.URL.RequestURI())
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
+			t.Fatalf("legacy lookup should not be used when modern lookup succeeds")
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-123?include=app",
+		"GET /v1/apps/app-1/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+		"PATCH /v1/reviewSubmissions/review-submission-123",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
 func TestSubmitCancelCommand_ByIDNotFoundReportsReviewSubmissionError(t *testing.T) {
 	setupSubmitAuth(t)
 

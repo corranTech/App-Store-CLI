@@ -644,21 +644,24 @@ Examples:
 			} else {
 				resolvedVersionID := strings.TrimSpace(*versionID)
 
-				// Try the modern reviewSubmissions API first when app ID is available.
-				resolvedAppID := shared.ResolveAppID(*appID)
-				if resolvedAppID == "" {
-					// Attempt to resolve app ID from the version resource.
-					versionResp, vErr := client.GetAppStoreVersion(requestCtx, resolvedVersionID, asc.WithAppStoreVersionInclude([]string{"app"}))
-					if vErr == nil {
-						if aid, aidErr := resolveAppIDFromVersionResponse(versionResp); aidErr == nil {
-							resolvedAppID = aid
-						}
+				// Prefer the app relationship on the version itself so a stale
+				// ASC_APP_ID/config value does not misdirect the modern lookup.
+				resolvedAppID := ""
+				versionResp, vErr := client.GetAppStoreVersion(requestCtx, resolvedVersionID, asc.WithAppStoreVersionInclude([]string{"app"}))
+				if vErr == nil {
+					if aid, aidErr := resolveAppIDFromVersionResponse(versionResp); aidErr == nil {
+						resolvedAppID = aid
 					}
+				}
+				if resolvedAppID == "" {
+					resolvedAppID = shared.ResolveAppID(*appID)
 				}
 
 				if resolvedAppID != "" {
 					submission, findErr := findReviewSubmissionForVersion(requestCtx, client, resolvedAppID, resolvedVersionID)
-					if findErr == nil && submission != nil {
+					if findErr != nil {
+						fmt.Fprintf(os.Stderr, "Warning: modern review submission lookup failed: %v (falling back to legacy)\n", findErr)
+					} else if submission != nil {
 						_, cancelErr := client.CancelReviewSubmission(requestCtx, submission.ID)
 						if cancelErr != nil {
 							return fmt.Errorf("submit cancel: failed to cancel submission %s: %w", submission.ID, cancelErr)
