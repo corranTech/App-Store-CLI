@@ -36,9 +36,11 @@ func TestLocalizationsCommandConstructors(t *testing.T) {
 
 func TestLocalizationsCreateCommand_MissingFlags(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name     string
+		args     []string
+		execArgs []string
 	}{
+		{name: "unexpected args", args: []string{"--version", "VERSION_ID", "--locale", "ja", "unexpected"}, execArgs: []string{"unexpected"}},
 		{name: "missing version", args: []string{"--locale", "ja"}},
 		{name: "missing locale", args: []string{"--version", "VERSION_ID"}},
 	}
@@ -50,7 +52,7 @@ func TestLocalizationsCreateCommand_MissingFlags(t *testing.T) {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
+			if err := cmd.Exec(context.Background(), test.execArgs); !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected flag.ErrHelp, got %v", err)
 			}
 		})

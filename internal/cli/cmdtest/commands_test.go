@@ -2676,6 +2676,12 @@ func TestEncryptionValidationErrors(t *testing.T) {
 			wantHelp: true,
 		},
 		{
+			name:     "encryption declarations exempt-declare unexpected args",
+			args:     []string{"encryption", "declarations", "exempt-declare", "unexpected"},
+			wantErr:  "does not accept positional arguments",
+			wantHelp: true,
+		},
+		{
 			name:     "encryption declarations assign-builds missing id",
 			args:     []string{"encryption", "declarations", "assign-builds", "--build", "BUILD_ID"},
 			wantErr:  "--id is required",
@@ -3222,6 +3228,11 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 			name:    "localizations create missing version",
 			args:    []string{"localizations", "create", "--locale", "ja"},
 			wantErr: "--version is required",
+		},
+		{
+			name:    "localizations create unexpected args",
+			args:    []string{"localizations", "create", "--version", "VERSION_ID", "--locale", "ja", "unexpected"},
+			wantErr: "does not accept positional arguments",
 		},
 		{
 			name:    "localizations create missing locale",
