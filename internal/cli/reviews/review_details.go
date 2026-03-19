@@ -13,6 +13,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+const (
+	reviewDetailDemoAccountNameUsage     = "Demo account name when demo credentials are required"
+	reviewDetailDemoAccountPasswordUsage = "Demo account password when demo credentials are required"
+	reviewDetailDemoAccountRequiredUsage = "Set true only when App Review needs demo credentials; leave false when reviewer guidance in --notes is enough"
+	reviewDetailNotesUsage               = "Review notes for reviewer instructions or context; supplemental when demo credentials are required"
+)
+
 // ReviewDetailsGetCommand returns the review details get subcommand.
 func ReviewDetailsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("details-get", flag.ExitOnError)
@@ -106,10 +113,10 @@ func ReviewDetailsCreateCommand() *ffcli.Command {
 	contactLastName := fs.String("contact-last-name", "", "Contact last name")
 	contactEmail := fs.String("contact-email", "", "Contact email")
 	contactPhone := fs.String("contact-phone", "", "Contact phone")
-	demoAccountName := fs.String("demo-account-name", "", "Demo account name")
-	demoAccountPassword := fs.String("demo-account-password", "", "Demo account password")
-	demoAccountRequired := fs.Bool("demo-account-required", false, "Demo account required")
-	notes := fs.String("notes", "", "Review notes")
+	demoAccountName := fs.String("demo-account-name", "", reviewDetailDemoAccountNameUsage)
+	demoAccountPassword := fs.String("demo-account-password", "", reviewDetailDemoAccountPasswordUsage)
+	demoAccountRequired := fs.Bool("demo-account-required", false, reviewDetailDemoAccountRequiredUsage)
+	notes := fs.String("notes", "", reviewDetailNotesUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -118,9 +125,13 @@ func ReviewDetailsCreateCommand() *ffcli.Command {
 		ShortHelp:  "Create App Store review details for a version.",
 		LongHelp: `Create App Store review details for a version.
 
+Leave ` + "`--demo-account-required`" + ` false when ` + "`--notes`" + ` are enough for reviewer instructions.
+Use ` + "`--demo-account-required=true`" + ` only when App Review needs demo credentials.
+Do not use placeholder demo credentials just to satisfy the field shape.
+
 Examples:
-  asc review details-create --version-id "VERSION_ID" --contact-email "dev@example.com"
-  asc review details-create --version-id "VERSION_ID" --notes "Review notes"`,
+  asc review details-create --version-id "VERSION_ID" --contact-email "dev@example.com" --notes "Reviewer can use the guest flow from the welcome screen."
+  asc review details-create --version-id "VERSION_ID" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "app-specific-password" --notes "2FA is disabled for this review account."`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -200,10 +211,10 @@ func ReviewDetailsUpdateCommand() *ffcli.Command {
 	contactLastName := fs.String("contact-last-name", "", "Contact last name")
 	contactEmail := fs.String("contact-email", "", "Contact email")
 	contactPhone := fs.String("contact-phone", "", "Contact phone")
-	demoAccountName := fs.String("demo-account-name", "", "Demo account name")
-	demoAccountPassword := fs.String("demo-account-password", "", "Demo account password")
-	demoAccountRequired := fs.Bool("demo-account-required", false, "Demo account required")
-	notes := fs.String("notes", "", "Review notes")
+	demoAccountName := fs.String("demo-account-name", "", reviewDetailDemoAccountNameUsage)
+	demoAccountPassword := fs.String("demo-account-password", "", reviewDetailDemoAccountPasswordUsage)
+	demoAccountRequired := fs.Bool("demo-account-required", false, reviewDetailDemoAccountRequiredUsage)
+	notes := fs.String("notes", "", reviewDetailNotesUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -212,9 +223,13 @@ func ReviewDetailsUpdateCommand() *ffcli.Command {
 		ShortHelp:  "Update App Store review details.",
 		LongHelp: `Update App Store review details.
 
+Leave ` + "`--demo-account-required`" + ` false when ` + "`--notes`" + ` are enough for reviewer instructions.
+Use ` + "`--demo-account-required=true`" + ` only when App Review needs demo credentials.
+Do not use placeholder demo credentials just to satisfy the field shape.
+
 Examples:
-  asc review details-update --id "DETAIL_ID" --contact-email "dev@example.com"
-  asc review details-update --id "DETAIL_ID" --notes "Updated review notes"`,
+  asc review details-update --id "DETAIL_ID" --notes "Reviewer can use the guest flow from the welcome screen."
+  asc review details-update --id "DETAIL_ID" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "rotated-password" --notes "This account has full reviewer access."`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
