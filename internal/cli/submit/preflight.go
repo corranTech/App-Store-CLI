@@ -151,7 +151,7 @@ func runPreflight(ctx context.Context, client *asc.Client, appID, version, platf
 
 	// 6 & 7. Localizations + screenshots
 	if versionID != "" {
-		locChecks := checkLocalizations(ctx, client, versionID, appID, platform)
+		locChecks := checkLocalizations(ctx, client, versionID, appID, version, platform)
 		result.Checks = append(result.Checks, locChecks...)
 	}
 
@@ -502,7 +502,7 @@ func checkPrimaryCategory(ctx context.Context, client *asc.Client, appInfoID, ap
 	}
 }
 
-func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appID, platform string) []checkResult {
+func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appID, version, platform string) []checkResult {
 	locCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
@@ -528,7 +528,7 @@ func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appI
 				Name:    "Localization metadata",
 				Passed:  false,
 				Message: "No localizations found for this version",
-				Hint:    "asc metadata push --version-id " + versionID,
+				Hint:    metadataPushHint(appID, version, platform),
 			},
 			{
 				Name:    "Screenshots",
@@ -550,7 +550,7 @@ func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appI
 	if err != nil {
 		metadataCheck.Message = fmt.Sprintf("Failed to determine whether whatsNew is required: %v", err)
 	} else {
-		metadataCheck = checkLocalizationMetadata(localizations.Data, versionID, shared.SubmitReadinessOptions{
+		metadataCheck = checkLocalizationMetadata(localizations.Data, appID, version, platform, shared.SubmitReadinessOptions{
 			RequireWhatsNew: requireWhatsNew,
 		})
 	}
@@ -559,7 +559,7 @@ func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appI
 	return []checkResult{metadataCheck, screenshotCheck}
 }
 
-func checkLocalizationMetadata(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], versionID string, opts shared.SubmitReadinessOptions) checkResult {
+func checkLocalizationMetadata(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], appID, version, platform string, opts shared.SubmitReadinessOptions) checkResult {
 	issues := shared.SubmitReadinessIssuesByLocaleWithOptions(localizations, opts)
 	if len(issues) == 0 {
 		return checkResult{
@@ -573,8 +573,16 @@ func checkLocalizationMetadata(localizations []asc.Resource[asc.AppStoreVersionL
 		Name:    "Localization metadata",
 		Passed:  false,
 		Message: "Missing submission metadata: " + formatSubmitReadinessIssues(issues),
-		Hint:    "asc metadata push --version-id " + versionID,
+		Hint:    metadataPushHint(appID, version, platform),
 	}
+}
+
+func metadataPushHint(appID, version, platform string) string {
+	hint := fmt.Sprintf("asc metadata push --app %s --version %s", appID, version)
+	if strings.TrimSpace(platform) != "" {
+		hint += " --platform " + platform
+	}
+	return hint + " --dir ./metadata"
 }
 
 func formatSubmitReadinessIssues(issues []shared.SubmitReadinessIssue) string {

@@ -424,7 +424,7 @@ func TestCheckLocalizationMetadata_UsesSubmitReadinessRulesPerLocale(t *testing.
 				Keywords:    "un,deux",
 			},
 		},
-	}, "version-1", shared.SubmitReadinessOptions{})
+	}, "app-123", "1.0", "IOS", shared.SubmitReadinessOptions{})
 
 	if check.Passed {
 		t.Fatal("expected localization metadata check to fail")
@@ -432,7 +432,7 @@ func TestCheckLocalizationMetadata_UsesSubmitReadinessRulesPerLocale(t *testing.
 	if !strings.Contains(check.Message, "fr-FR (supportUrl)") {
 		t.Fatalf("expected missing supportUrl to be reported, got %q", check.Message)
 	}
-	if check.Hint != "asc metadata push --version-id version-1" {
+	if check.Hint != "asc metadata push --app app-123 --version 1.0 --platform IOS --dir ./metadata" {
 		t.Fatalf("expected metadata push hint, got %q", check.Hint)
 	}
 }
