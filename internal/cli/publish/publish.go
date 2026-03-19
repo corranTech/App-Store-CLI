@@ -231,17 +231,13 @@ Examples:
 			}
 
 			addResult, err := shared.AddBuildBetaGroups(requestCtx, client, buildResp.Data.ID, resolvedGroups, shared.AddBuildBetaGroupsOptions{
-				SkipInternalWithAllBuilds: true,
+				// Apple requires Xcode Cloud builds to be added to internal groups manually,
+				// so only skip redundant internal-group adds for builds uploaded by this command.
+				SkipInternalWithAllBuilds: uploadMode,
 				Notify:                    *notify,
 			})
 			if err != nil {
 				return fmt.Errorf("publish testflight: failed to add groups: %w", err)
-			}
-
-			if buildIDValue != "" && len(addResult.AddedGroupIDs) == 0 && len(addResult.SkippedInternalAllBuildsGroups) > 0 {
-				if err := validatePublishBuildMatchesApp(requestCtx, client, buildResp.Data.ID, resolvedAppID); err != nil {
-					return fmt.Errorf("publish testflight: %w", err)
-				}
 			}
 
 			for _, group := range addResult.SkippedInternalAllBuildsGroups {
@@ -479,23 +475,6 @@ func findPublishBuildByNumber(ctx context.Context, client *asc.Client, appID, bu
 	}
 
 	return &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}, nil
-}
-
-func validatePublishBuildMatchesApp(ctx context.Context, client *asc.Client, buildID, expectedAppID string) error {
-	buildAppResp, err := client.GetBuildApp(ctx, buildID)
-	if err != nil {
-		return fmt.Errorf("failed to resolve app for build %q: %w", buildID, err)
-	}
-
-	buildAppID := strings.TrimSpace(buildAppResp.Data.ID)
-	if buildAppID == "" {
-		return fmt.Errorf("build %q is missing related app ID", buildID)
-	}
-	if strings.EqualFold(buildAppID, expectedAppID) {
-		return nil
-	}
-
-	return fmt.Errorf("build %q belongs to app %q (expected %q)", buildID, buildAppID, expectedAppID)
 }
 
 func resolvePublishTimeout(timeout time.Duration) time.Duration {

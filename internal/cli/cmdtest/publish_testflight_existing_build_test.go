@@ -174,7 +174,7 @@ func TestPublishTestflightExistingBuildIDAllowsInternalGroup(t *testing.T) {
 	}
 }
 
-func TestPublishTestflightExistingBuildIDSkipsInternalGroupWithAccessToAllBuilds(t *testing.T) {
+func TestPublishTestflightExistingBuildIDAddsInternalGroupWithAccessToAllBuilds(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -209,13 +209,19 @@ func TestPublishTestflightExistingBuildIDSkipsInternalGroupWithAccessToAllBuilds
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/app" {
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
-			body := `{"data":{"type":"apps","id":"app-1"}}`
+			payload, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("failed to read group assignment payload: %v", err)
+			}
+			if !strings.Contains(string(payload), `"id":"group-internal"`) {
+				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
+			}
 			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
+				StatusCode: http.StatusNoContent,
+				Body:       io.NopCloser(strings.NewReader("")),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		default:
@@ -242,23 +248,23 @@ func TestPublishTestflightExistingBuildIDSkipsInternalGroupWithAccessToAllBuilds
 	})
 
 	if requestCount != 3 {
-		t.Fatalf("expected group lookup, build fetch, and build app validation; got %d requests", requestCount)
+		t.Fatalf("expected group lookup, build fetch, and group assignment; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"buildId":"build-1"`) {
 		t.Fatalf("expected build ID in output, got %q", stdout)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
-		t.Fatalf("expected internal auto-distributed group in output, got %q", stdout)
+		t.Fatalf("expected internal group in output, got %q", stdout)
 	}
 	if !strings.Contains(stdout, `"uploaded":false`) {
 		t.Fatalf("expected uploaded=false in output, got %q", stdout)
 	}
-	if !strings.Contains(stderr, `already receives all builds`) {
-		t.Fatalf("expected informational skip message, got %q", stderr)
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 
-func TestPublishTestflightExistingBuildIDSkipsInternalGroupWithAccessToAllBuildsDoesNotReportNotified(t *testing.T) {
+func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -293,13 +299,22 @@ func TestPublishTestflightExistingBuildIDSkipsInternalGroupWithAccessToAllBuilds
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/app" {
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
-			body := `{"data":{"type":"apps","id":"app-1"}}`
+			if req.URL.RawQuery != "notify=true" {
+				t.Fatalf("expected notify query, got %q", req.URL.RawQuery)
+			}
+			payload, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("failed to read group assignment payload: %v", err)
+			}
+			if !strings.Contains(string(payload), `"id":"group-internal"`) {
+				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
+			}
 			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
+				StatusCode: http.StatusNoContent,
+				Body:       io.NopCloser(strings.NewReader("")),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		default:
@@ -327,100 +342,20 @@ func TestPublishTestflightExistingBuildIDSkipsInternalGroupWithAccessToAllBuilds
 	})
 
 	if requestCount != 3 {
-		t.Fatalf("expected group lookup, build fetch, and build app validation; got %d requests", requestCount)
+		t.Fatalf("expected group lookup, build fetch, and notify assignment; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
-		t.Fatalf("expected internal auto-distributed group in output, got %q", stdout)
+		t.Fatalf("expected internal group in output, got %q", stdout)
 	}
-	if strings.Contains(stdout, `"notified":true`) {
-		t.Fatalf("did not expect notified=true when no notify request ran, got %q", stdout)
-	}
-	if !strings.Contains(stderr, `already receives all builds`) {
-		t.Fatalf("expected informational skip message, got %q", stderr)
-	}
-}
-
-func TestPublishTestflightExistingBuildIDSkipsInternalGroupWithAccessToAllBuildsRejectsMismatchedApp(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/app" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"apps","id":"app-2"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "app-1",
-			"--build", "build-1",
-			"--group", "group-internal",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if runErr == nil {
-		t.Fatal("expected non-nil run error")
-	}
-	if !strings.Contains(runErr.Error(), `build "build-1" belongs to app "app-2" (expected "app-1")`) {
-		t.Fatalf("expected app mismatch error, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout on mismatch, got %q", stdout)
+	if !strings.Contains(stdout, `"notified":true`) {
+		t.Fatalf("expected notified=true in output, got %q", stdout)
 	}
 	if stderr != "" {
-		t.Fatalf("expected empty stderr on mismatch, got %q", stderr)
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 
-func TestPublishTestflightExistingBuildIDSkipsAutoInternalAndAddsExternalGroup(t *testing.T) {
+func TestPublishTestflightExistingBuildIDAddsInternalAndExternalGroupsWhenInternalHasAllBuilds(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -466,8 +401,8 @@ func TestPublishTestflightExistingBuildIDSkipsAutoInternalAndAddsExternalGroup(t
 			if !strings.Contains(bodyText, `"id":"group-external"`) {
 				t.Fatalf("expected payload to include external group, got %s", bodyText)
 			}
-			if strings.Contains(bodyText, `"id":"group-internal"`) {
-				t.Fatalf("expected payload to omit internal auto-all-builds group, got %s", bodyText)
+			if !strings.Contains(bodyText, `"id":"group-internal"`) {
+				t.Fatalf("expected payload to include internal group, got %s", bodyText)
 			}
 			return &http.Response{
 				StatusCode: http.StatusNoContent,
@@ -500,8 +435,8 @@ func TestPublishTestflightExistingBuildIDSkipsAutoInternalAndAddsExternalGroup(t
 	if !strings.Contains(stdout, `"groupIds":["group-internal","group-external"]`) {
 		t.Fatalf("expected internal and external groups in output, got %q", stdout)
 	}
-	if !strings.Contains(stderr, `already receives all builds`) {
-		t.Fatalf("expected informational skip message, got %q", stderr)
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 
