@@ -1957,7 +1957,7 @@ func TestUpdateBuild_EmptyBuildIDReturnsError(t *testing.T) {
 	}
 }
 
-func TestUpdateBuild_NoOpConflictReturnsCurrentBuild(t *testing.T) {
+func TestUpdateBuild_RefetchesCurrentStateAfterPatchError(t *testing.T) {
 	requestCount := 0
 	client := newTestClientWithResponses(t, func(req *http.Request) {
 		requestCount++
@@ -1982,7 +1982,7 @@ func TestUpdateBuild_NoOpConflictReturnsCurrentBuild(t *testing.T) {
 			t.Fatalf("unexpected request count %d", requestCount)
 		}
 	},
-		jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"The provided entity includes an attribute with an invalid value","detail":"You cannot update when the value is already set."}]}`),
+		jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Build update conflict","detail":"The request could not be completed."}]}`),
 		jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"version":"2.0","uploadedDate":"2026-03-18T00:00:00Z","usesNonExemptEncryption":false}}}`),
 	)
 
@@ -1996,6 +1996,51 @@ func TestUpdateBuild_NoOpConflictReturnsCurrentBuild(t *testing.T) {
 	}
 	if resp.Data.Attributes.UsesNonExemptEncryption == nil || *resp.Data.Attributes.UsesNonExemptEncryption != false {
 		t.Fatalf("expected usesNonExemptEncryption=false, got %+v", resp.Data.Attributes.UsesNonExemptEncryption)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected PATCH then GET, got %d requests", requestCount)
+	}
+}
+
+func TestUpdateBuild_ReturnsOriginalErrorWhenCurrentStateDoesNotMatch(t *testing.T) {
+	requestCount := 0
+	client := newTestClientWithResponses(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+		}
+	},
+		jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Build update conflict","detail":"The request could not be completed."}]}`),
+		jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"version":"2.0","uploadedDate":"2026-03-18T00:00:00Z","usesNonExemptEncryption":true}}}`),
+	)
+
+	enc := false
+	resp, err := client.UpdateBuild(context.Background(), "build-99", BuildUpdateAttributes{UsesNonExemptEncryption: &enc})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if resp != nil {
+		t.Fatalf("expected nil response, got %+v", resp)
+	}
+	if !strings.Contains(err.Error(), "Build update conflict") {
+		t.Fatalf("expected original PATCH error, got %v", err)
 	}
 	if requestCount != 2 {
 		t.Fatalf("expected PATCH then GET, got %d requests", requestCount)

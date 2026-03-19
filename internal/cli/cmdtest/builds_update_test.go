@@ -125,7 +125,7 @@ func TestBuildsUpdateTreatsAlreadySetValueAsNoOp(t *testing.T) {
 			if req.URL.Path != "/v1/builds/build-99" {
 				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
 			}
-			body := `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"The provided entity includes an attribute with an invalid value","detail":"You cannot update when the value is already set."}]}`
+			body := `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Build update conflict","detail":"The request could not be completed."}]}`
 			return &http.Response{
 				StatusCode: http.StatusConflict,
 				Body:       io.NopCloser(strings.NewReader(body)),
