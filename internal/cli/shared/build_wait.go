@@ -226,11 +226,6 @@ func diagnoseBuildUploadFailure(ctx context.Context, appID string, upload *asc.B
 }
 
 func buildStatusPrivateKeyPath(creds ResolvedAuthCredentials) (string, error) {
-	if path := strings.TrimSpace(creds.KeyPath); path != "" {
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path, nil
-		}
-	}
 	if pem := strings.TrimSpace(creds.KeyPEM); pem != "" {
 		normalized := normalizePrivateKeyValue(pem)
 		cacheKey := tempPrivateKeyCacheKey("raw", normalized)
@@ -238,6 +233,11 @@ func buildStatusPrivateKeyPath(creds ResolvedAuthCredentials) (string, error) {
 			return path, nil
 		}
 		return writeTempPrivateKey([]byte(normalized), cacheKey)
+	}
+	if path := strings.TrimSpace(creds.KeyPath); path != "" {
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path, nil
+		}
 	}
 	return "", nil
 }

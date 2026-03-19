@@ -257,3 +257,36 @@ func TestBuildStatusPrivateKeyPathFallsBackToStoredPEMWhenPathMissing(t *testing
 		t.Fatalf("expected fallback private key path to be usable, got %v", err)
 	}
 }
+
+func TestBuildStatusPrivateKeyPathPrefersStoredPEMOverExistingKeyPath(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey-stale.p8")
+	if err := os.WriteFile(keyPath, []byte("stale-key"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	validKeyPath := filepath.Join(tempDir, "AuthKey-valid.p8")
+	writeECDSAPEM(t, validKeyPath)
+
+	keyData, err := os.ReadFile(validKeyPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	CleanupTempPrivateKeys()
+	t.Cleanup(CleanupTempPrivateKeys)
+
+	resolvedPath, err := buildStatusPrivateKeyPath(ResolvedAuthCredentials{
+		KeyPath: keyPath,
+		KeyPEM:  string(keyData),
+	})
+	if err != nil {
+		t.Fatalf("buildStatusPrivateKeyPath() error: %v", err)
+	}
+	if resolvedPath == keyPath {
+		t.Fatalf("expected PEM-backed temp path instead of configured key path %q", resolvedPath)
+	}
+	if _, err := asc.NewClient("KEY123", "ISS456", resolvedPath); err != nil {
+		t.Fatalf("expected PEM-backed fallback path to be usable, got %v", err)
+	}
+}
