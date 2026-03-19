@@ -127,18 +127,30 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	}
 
 	priceScheduleID := ""
+	pricingFetchSkipReason := ""
 	priceScheduleResp, err := client.GetAppPriceSchedule(requestCtx, opts.AppID)
 	if err != nil {
-		if !asc.IsNotFound(err) {
+		if asc.IsNotFound(err) {
+			// Leave priceScheduleID empty so validation reports a missing schedule.
+		} else if reason, ok := readinessPricingSkipReason(err); ok {
+			pricingFetchSkipReason = reason
+		} else {
 			return validation.Report{}, fmt.Errorf("failed to fetch app price schedule: %w", err)
 		}
 	} else {
 		priceScheduleID = priceScheduleResp.Data.ID
 	}
 
-	availabilityID, availableTerritories, err := fetchAvailableTerritories(requestCtx, client, opts.AppID)
+	availabilityID := ""
+	availableTerritories := 0
+	availabilityFetchSkipReason := ""
+	availabilityID, availableTerritories, err = fetchAvailableTerritories(requestCtx, client, opts.AppID)
 	if err != nil {
-		return validation.Report{}, err
+		if reason, ok := readinessAvailabilitySkipReason(err); ok {
+			availabilityFetchSkipReason = reason
+		} else {
+			return validation.Report{}, err
+		}
 	}
 
 	versionLocalizations := make([]validation.VersionLocalization, 0, len(versionLocsResp.Data))
@@ -225,8 +237,10 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		PrimaryCategoryID:           primaryCategoryID,
 		Build:                       attachedBuild,
 		PriceScheduleID:             priceScheduleID,
+		PricingFetchSkipReason:      pricingFetchSkipReason,
 		AvailabilityID:              availabilityID,
 		AvailableTerritories:        availableTerritories,
+		AvailabilityFetchSkipReason: availabilityFetchSkipReason,
 		ScreenshotSets:              screenshotSets,
 		Subscriptions:               subscriptions,
 		SubscriptionFetchSkipReason: subscriptionFetchSkipReason,
@@ -239,4 +253,18 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	}, opts.Strict)
 
 	return report, nil
+}
+
+func readinessPricingSkipReason(err error) (string, bool) {
+	if errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err) {
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because this account cannot read Pricing and Availability", true
+	}
+	return "", false
+}
+
+func readinessAvailabilitySkipReason(err error) (string, bool) {
+	if errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err) {
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because this account cannot read Pricing and Availability", true
+	}
+	return "", false
 }

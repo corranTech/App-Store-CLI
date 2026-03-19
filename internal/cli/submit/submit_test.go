@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 func TestSubmitCommandShape(t *testing.T) {
@@ -62,6 +64,142 @@ func TestSubmitCreateCommand_MutuallyExclusiveVersionFlags(t *testing.T) {
 	err := cmd.Exec(context.Background(), nil)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp for mutually exclusive flags, got %v", err)
+	}
+}
+
+func TestRunSubmitCreateReadinessPreflight_PrintsNonBlockingPricingAndAvailabilityWarnings(t *testing.T) {
+	tests := []struct {
+		name   string
+		checks []validation.CheckResult
+	}{
+		{
+			name: "pricing unverified",
+			checks: []validation.CheckResult{{
+				ID:       "pricing.schedule.unverified",
+				Severity: validation.SeverityWarning,
+				Message:  "could not verify app price schedule",
+			}},
+		},
+		{
+			name: "availability unverified",
+			checks: []validation.CheckResult{{
+				ID:       "availability.unverified",
+				Severity: validation.SeverityWarning,
+				Message:  "could not verify app availability",
+			}},
+		},
+		{
+			name: "both warnings",
+			checks: []validation.CheckResult{
+				{
+					ID:       "pricing.schedule.unverified",
+					Severity: validation.SeverityWarning,
+					Message:  "could not verify app price schedule",
+				},
+				{
+					ID:       "availability.unverified",
+					Severity: validation.SeverityWarning,
+					Message:  "could not verify app availability",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalBuilder := submitReadinessReportBuilder
+			t.Cleanup(func() {
+				submitReadinessReportBuilder = originalBuilder
+			})
+
+			var gotOpts validatecli.ReadinessOptions
+			submitReadinessReportBuilder = func(ctx context.Context, opts validatecli.ReadinessOptions) (validation.Report, error) {
+				gotOpts = opts
+				return validation.Report{
+					Summary: validation.Summary{Warnings: len(tt.checks)},
+					Checks:  tt.checks,
+				}, nil
+			}
+
+			var err error
+			stderr := captureSubmitStderr(t, func() {
+				err = runSubmitCreateReadinessPreflight(context.Background(), "app-123", "version-123", "IOS")
+			})
+			if err != nil {
+				t.Fatalf("expected warning-only readiness report to pass, got %v", err)
+			}
+			if gotOpts.AppID != "app-123" || gotOpts.VersionID != "version-123" || gotOpts.Platform != "IOS" {
+				t.Fatalf("unexpected readiness options: %+v", gotOpts)
+			}
+			for _, check := range tt.checks {
+				want := fmt.Sprintf("Warning: %s: %s", submitCreateReadinessCheckLabel(check), check.Message)
+				if !strings.Contains(stderr, want) {
+					t.Fatalf("expected warning %q, got %q", want, stderr)
+				}
+			}
+		})
+	}
+}
+
+func TestRunSubmitCreateReadinessPreflight_DoesNotSkipOtherBlockingChecks(t *testing.T) {
+	originalBuilder := submitReadinessReportBuilder
+	t.Cleanup(func() {
+		submitReadinessReportBuilder = originalBuilder
+	})
+
+	submitReadinessReportBuilder = func(ctx context.Context, opts validatecli.ReadinessOptions) (validation.Report, error) {
+		return validation.Report{
+			Summary: validation.Summary{Errors: 1, Warnings: 1, Blocking: 1},
+			Checks: []validation.CheckResult{
+				{
+					ID:       "pricing.schedule.unverified",
+					Severity: validation.SeverityWarning,
+					Message:  "could not verify app price schedule",
+				},
+				{
+					ID:       "screenshots.required.any",
+					Severity: validation.SeverityError,
+					Message:  "at least one required screenshot set is missing",
+				},
+			},
+		}, nil
+	}
+
+	var err error
+	stderr := captureSubmitStderr(t, func() {
+		err = runSubmitCreateReadinessPreflight(context.Background(), "app-123", "version-123", "IOS")
+	})
+	if err == nil {
+		t.Fatal("expected blocking readiness issues to fail submit preflight")
+	}
+	if !strings.Contains(err.Error(), "submit preflight failed") {
+		t.Fatalf("expected submit preflight failure, got %v", err)
+	}
+	if !strings.Contains(stderr, "Screenshots: at least one required screenshot set is missing") {
+		t.Fatalf("expected blocking screenshot issue in stderr, got %q", stderr)
+	}
+}
+
+func TestRunSubmitCreateReadinessPreflight_PropagatesUnexpectedFetchErrors(t *testing.T) {
+	originalBuilder := submitReadinessReportBuilder
+	t.Cleanup(func() {
+		submitReadinessReportBuilder = originalBuilder
+	})
+
+	submitReadinessReportBuilder = func(ctx context.Context, opts validatecli.ReadinessOptions) (validation.Report, error) {
+		return validation.Report{}, fmt.Errorf("failed to fetch app price schedule: %w", &asc.APIError{
+			Code:       "INTERNAL_ERROR",
+			Title:      "Server Error",
+			StatusCode: http.StatusInternalServerError,
+		})
+	}
+
+	err := runSubmitCreateReadinessPreflight(context.Background(), "app-123", "version-123", "IOS")
+	if err == nil {
+		t.Fatal("expected unexpected readiness fetch error to propagate")
+	}
+	if !strings.Contains(err.Error(), "failed to run readiness preflight") {
+		t.Fatalf("expected wrapped readiness preflight error, got %v", err)
 	}
 }
 
@@ -681,6 +819,7 @@ func setupSubmitAuth(t *testing.T) {
 	t.Setenv("ASC_KEY_ID", "TEST_KEY")
 	t.Setenv("ASC_ISSUER_ID", "TEST_ISSUER")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+	t.Setenv("ASC_APP_ID", "")
 }
 
 func writeSubmitECDSAPEM(t *testing.T, path string) {
@@ -876,6 +1015,450 @@ func TestSubmitCancelCommand_ByVersionIDIgnoresStaleEnvAppIDForModernLookup(t *t
 		"GET /v1/appStoreVersions/version-123?include=app",
 		"GET /v1/apps/app-1/reviewSubmissions?include=appStoreVersionForReview&limit=200",
 		"PATCH /v1/reviewSubmissions/review-submission-123",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitCancelCommand_ByVersionIDVersionLookupErrorFallsBackToLegacy(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 4)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusInternalServerError, `{
+				"errors": [{
+					"status": "500",
+					"code": "INTERNAL_ERROR",
+					"title": "Server Error"
+				}]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/legacy-submission-123":
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appStoreVersionSubmissions/legacy-submission-123":
+			return submitJSONResponse(http.StatusNoContent, "")
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-lookup-error", "--confirm", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err == nil {
+		var result asc.AppStoreVersionSubmissionCancelResult
+		if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+			t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+		}
+		if result.ID != "legacy-submission-123" || !result.Cancelled {
+			t.Fatalf("unexpected result: %+v", result)
+		}
+	} else {
+		t.Fatalf("expected legacy fallback success, got %v", err)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-lookup-error?include=app",
+		"GET /v1/appStoreVersions/version-lookup-error/appStoreVersionSubmission",
+		"PATCH /v1/reviewSubmissions/legacy-submission-123",
+		"DELETE /v1/appStoreVersionSubmissions/legacy-submission-123",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitCancelCommand_ByVersionIDVersionLookupErrorFallsBackToExplicitApp(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 3)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusInternalServerError, `{
+				"errors": [{
+					"status": "500",
+					"code": "INTERNAL_ERROR",
+					"title": "Server Error"
+				}]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "review-submission-123",
+					"attributes": {"state": "READY_FOR_REVIEW"},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-lookup-error"}
+						}
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-123"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error/appStoreVersionSubmission":
+			t.Fatalf("did not expect legacy fallback when explicit --app modern lookup succeeds")
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-lookup-error", "--app", "app-123", "--confirm"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-lookup-error?include=app",
+		"GET /v1/apps/app-123/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+		"PATCH /v1/reviewSubmissions/review-submission-123",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitCancelCommand_ByVersionIDModernLookupErrorFallsBackToLegacy(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 5)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {"platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusInternalServerError, `{
+				"errors": [{
+					"status": "500",
+					"code": "INTERNAL_ERROR",
+					"title": "Server Error"
+				}]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/legacy-submission-123":
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appStoreVersionSubmissions/legacy-submission-123":
+			return submitJSONResponse(http.StatusNoContent, "")
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err == nil {
+		var result asc.AppStoreVersionSubmissionCancelResult
+		if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+			t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+		}
+		if result.ID != "legacy-submission-123" || !result.Cancelled {
+			t.Fatalf("unexpected result: %+v", result)
+		}
+	} else {
+		t.Fatalf("expected legacy fallback success, got %v", err)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-123?include=app",
+		"GET /v1/apps/app-1/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+		"GET /v1/appStoreVersions/version-123/appStoreVersionSubmission",
+		"PATCH /v1/reviewSubmissions/legacy-submission-123",
+		"DELETE /v1/appStoreVersionSubmissions/legacy-submission-123",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitCancelCommand_ByVersionIDTreatsCancelingModernSubmissionAsSuccess(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 2)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {"platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "review-submission-123",
+					"attributes": {
+						"state": "CANCELING",
+						"submittedDate": "2026-03-15T11:00:00Z"
+					},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-123"}
+						}
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
+			t.Fatalf("did not expect cancel attempt for already CANCELING submission")
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
+			t.Fatalf("did not expect legacy fallback for matched CANCELING submission")
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err != nil {
+		t.Fatalf("expected command to succeed, got %v", err)
+	}
+
+	var result asc.AppStoreVersionSubmissionCancelResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if result.ID != "review-submission-123" || !result.Cancelled {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-123?include=app",
+		"GET /v1/apps/app-1/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+}
+
+func TestSubmitCancelCommand_ByVersionIDModernConflictSurfacesModernError(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {"platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "review-submission-123",
+					"attributes": {"state": "WAITING_FOR_REVIEW"},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-123"}
+						}
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
+			return submitJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
+			t.Fatalf("did not expect legacy fallback after matched modern submission conflict")
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), `submission review-submission-123 is no longer cancellable`) {
+		t.Fatalf("expected modern non-cancellable error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "Resource is not in cancellable state") {
+		t.Fatalf("expected original ASC conflict detail to be preserved, got %v", err)
+	}
+}
+
+func TestSubmitCancelCommand_ByVersionIDModernConflictRefreshesCancelingStateToSuccess(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 4)
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				return nil, fmt.Errorf("expected include=app, got %q", got)
+			}
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {"platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "review-submission-123",
+					"attributes": {"state": "WAITING_FOR_REVIEW"},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-123"}
+						}
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
+			return submitJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "reviewSubmissions",
+					"id": "review-submission-123",
+					"attributes": {"state": "CANCELING"},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-123"}
+						}
+					}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
+			t.Fatalf("did not expect legacy fallback after refreshed CANCELING state")
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	stdout, err := captureSubmitCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
+	})
+	if err != nil {
+		t.Fatalf("expected command to succeed after refreshed CANCELING state, got %v", err)
+	}
+
+	var result asc.AppStoreVersionSubmissionCancelResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if result.ID != "review-submission-123" || !result.Cancelled {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+
+	wantRequests := []string{
+		"GET /v1/appStoreVersions/version-123?include=app",
+		"GET /v1/apps/app-1/reviewSubmissions?include=appStoreVersionForReview&limit=200",
+		"PATCH /v1/reviewSubmissions/review-submission-123",
+		"GET /v1/reviewSubmissions/review-submission-123",
 	}
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
@@ -1691,6 +2274,82 @@ func TestPrepareReviewSubmissionForCreateWarnsOnGenericConflict(t *testing.T) {
 	}
 	if strings.Contains(stderr, "Skipped stale submission stale-sub-1") {
 		t.Fatalf("did not expect stale submission skip message, got %q", stderr)
+	}
+}
+
+func TestPrepareReviewSubmissionForCreateDoesNotReuseSubmissionThatBecameCanceling(t *testing.T) {
+	requests := make([]string, 0, 3)
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "stale-sub-1",
+					"attributes": {
+						"state": "READY_FOR_REVIEW",
+						"platform": "IOS"
+					}
+				}]
+			}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/stale-sub-1":
+			return submitJSONResponse(http.StatusConflict, `{
+				"errors": [{
+					"status": "409",
+					"code": "CONFLICT",
+					"title": "Resource state is invalid.",
+					"detail": "Resource is not in cancellable state"
+				}]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/stale-sub-1":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "reviewSubmissions",
+					"id": "stale-sub-1",
+					"attributes": {
+						"state": "CANCELING",
+						"platform": "IOS"
+					},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-1"}
+						}
+					}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/stale-sub-1/items":
+			t.Fatalf("did not expect item lookup once refreshed submission includes the version relationship")
+			return nil, fmt.Errorf("unexpected request after fatal: %s %s", req.Method, req.URL.RequestURI())
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	stderr := captureSubmitStderr(t, func() {
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		if got.reuseSubmissionID != "" {
+			t.Fatalf("expected no reusable submission after refreshed CANCELING state, got %#v", got)
+		}
+		if got.canceledSubmissionIDs != nil {
+			t.Fatalf("expected no canceled submissions, got %#v", got.canceledSubmissionIDs)
+		}
+	})
+
+	wantRequests := []string{
+		"GET /v1/apps/app-1/reviewSubmissions?filter%5Bplatform%5D=IOS&filter%5Bstate%5D=READY_FOR_REVIEW&include=appStoreVersionForReview&limit=200",
+		"PATCH /v1/reviewSubmissions/stale-sub-1",
+		"GET /v1/reviewSubmissions/stale-sub-1",
+	}
+	if !reflect.DeepEqual(requests, wantRequests) {
+		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
+	}
+	if !strings.Contains(stderr, "Skipped stale submission stale-sub-1: already transitioned to a non-cancellable state") {
+		t.Fatalf("expected stale submission skip message, got %q", stderr)
+	}
+	if strings.Contains(stderr, "Reusing existing review submission stale-sub-1") {
+		t.Fatalf("did not expect reuse message, got %q", stderr)
 	}
 }
 

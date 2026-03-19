@@ -251,6 +251,7 @@ func runSubmitCreateReadinessPreflight(ctx context.Context, appID, versionID, pl
 	if err != nil {
 		return fmt.Errorf("submit create: failed to run readiness preflight: %w", err)
 	}
+	printSubmitCreateReadinessWarnings(report.Checks)
 	if report.Summary.Blocking == 0 {
 		return nil
 	}
@@ -270,6 +271,27 @@ func runSubmitCreateReadinessPreflight(ctx context.Context, appID, versionID, pl
 		platform,
 	)
 	return fmt.Errorf("submit create: submit preflight failed")
+}
+
+func printSubmitCreateReadinessWarnings(checks []validation.CheckResult) {
+	for _, check := range checks {
+		if !isSubmitCreateReadinessWarning(check) {
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "Warning: %s: %s\n", submitCreateReadinessCheckLabel(check), check.Message)
+	}
+}
+
+func isSubmitCreateReadinessWarning(check validation.CheckResult) bool {
+	if check.Severity != validation.SeverityWarning {
+		return false
+	}
+	switch check.ID {
+	case "pricing.schedule.unverified", "availability.unverified":
+		return true
+	default:
+		return false
+	}
 }
 
 func submitCreateReadinessCheckLabel(check validation.CheckResult) string {
@@ -754,6 +776,7 @@ Examples:
 				}
 			} else {
 				resolvedVersionID := strings.TrimSpace(*versionID)
+				explicitAppID := strings.TrimSpace(*appID)
 
 				// Prefer the app relationship on the version itself so a stale
 				// ASC_APP_ID/config value does not misdirect the modern lookup.
@@ -765,7 +788,11 @@ Examples:
 					}
 				}
 				if resolvedAppID == "" {
-					resolvedAppID = shared.ResolveAppID(*appID)
+					if explicitAppID != "" {
+						resolvedAppID = explicitAppID
+					} else {
+						resolvedAppID = shared.ResolveAppID(*appID)
+					}
 				}
 
 				if resolvedAppID != "" {
@@ -773,6 +800,14 @@ Examples:
 					if findErr != nil {
 						fmt.Fprintf(os.Stderr, "Warning: modern review submission lookup failed: %v (falling back to legacy)\n", findErr)
 					} else if submission != nil {
+						if submission.Attributes.SubmissionState == asc.ReviewSubmissionStateCanceling {
+							resolvedSubmissionID = submission.ID
+							result := &asc.AppStoreVersionSubmissionCancelResult{
+								ID:        resolvedSubmissionID,
+								Cancelled: true,
+							}
+							return shared.PrintOutput(result, *output.Output, *output.Pretty)
+						}
 						if !isPotentiallyCancellableReviewSubmissionState(submission.Attributes.SubmissionState) {
 							submission = nil
 						}
@@ -781,7 +816,15 @@ Examples:
 						_, cancelErr := client.CancelReviewSubmission(requestCtx, submission.ID)
 						if cancelErr != nil {
 							if isExpectedNonCancellableReviewSubmissionError(cancelErr) {
-								submission = nil
+								if refreshedCanceling, refreshErr := reviewSubmissionIsState(requestCtx, client, submission.ID, asc.ReviewSubmissionStateCanceling); refreshErr == nil && refreshedCanceling {
+									resolvedSubmissionID = submission.ID
+									result := &asc.AppStoreVersionSubmissionCancelResult{
+										ID:        resolvedSubmissionID,
+										Cancelled: true,
+									}
+									return shared.PrintOutput(result, *output.Output, *output.Pretty)
+								}
+								return fmt.Errorf("submit cancel: submission %s is no longer cancellable: %w", submission.ID, cancelErr)
 							} else {
 								return fmt.Errorf("submit cancel: failed to cancel submission %s: %w", submission.ID, cancelErr)
 							}
@@ -1203,25 +1246,53 @@ func reusableReviewSubmissionForCreate(
 		return "", false, nil
 	}
 
-	resolvedVersionID := reviewSubmissionAppStoreVersionID(submission)
+	submissionID = strings.TrimSpace(submission.ID)
+	if submissionID == "" {
+		return "", false, nil
+	}
+	refreshed, err := refreshReviewSubmission(ctx, client, submissionID)
+	if err != nil {
+		return "", false, err
+	}
+	if refreshed == nil || refreshed.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
+		return "", false, nil
+	}
+
+	resolvedVersionID := reviewSubmissionAppStoreVersionID(refreshed)
 	if resolvedVersionID == "" {
-		resolvedVersionID, err = resolveReviewSubmissionVersionID(ctx, client, submission)
+		resolvedVersionID, err = resolveReviewSubmissionVersionID(ctx, client, refreshed)
 		if err != nil {
 			return "", false, err
 		}
 	}
 
-	submissionID = strings.TrimSpace(submission.ID)
-	if submissionID == "" {
-		return "", false, nil
-	}
 	if resolvedVersionID == "" {
-		return "", false, nil
+		return submissionID, false, nil
 	}
 	if targetVersionID != "" && resolvedVersionID == targetVersionID {
 		return submissionID, true, nil
 	}
 	return "", false, nil
+}
+
+func refreshReviewSubmission(ctx context.Context, client *asc.Client, submissionID string) (*asc.ReviewSubmissionResource, error) {
+	submissionID = strings.TrimSpace(submissionID)
+	if submissionID == "" || client == nil {
+		return nil, nil
+	}
+	resp, err := client.GetReviewSubmission(ctx, submissionID)
+	if err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
+}
+
+func reviewSubmissionIsState(ctx context.Context, client *asc.Client, submissionID string, wantState asc.ReviewSubmissionState) (bool, error) {
+	refreshed, err := refreshReviewSubmission(ctx, client, submissionID)
+	if err != nil || refreshed == nil {
+		return false, err
+	}
+	return refreshed.Attributes.SubmissionState == wantState, nil
 }
 
 func cleanupEmptyReviewSubmission(ctx context.Context, client *asc.Client, submissionID string) {

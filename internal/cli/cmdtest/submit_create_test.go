@@ -1174,7 +1174,7 @@ func TestSubmitCreateRecoversFromAlreadyAddedError(t *testing.T) {
 	}
 }
 
-func TestSubmitCreateDoesNotReuseExistingSubmissionWithoutVersionItems(t *testing.T) {
+func TestSubmitCreateReusesExistingEmptySubmissionWithoutVersionItemsAfterConflictRefresh(t *testing.T) {
 	setupSubmitCreateAuth(t)
 
 	originalTransport := http.DefaultTransport
@@ -1214,6 +1214,15 @@ func TestSubmitCreateDoesNotReuseExistingSubmissionWithoutVersionItems(t *testin
 				return submitCreateJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
 			}
 			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"existing-empty","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-empty":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "reviewSubmissions",
+					"id": "existing-empty",
+					"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
+				}
+			}`)
 
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-empty/items":
 			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
@@ -1257,17 +1266,17 @@ func TestSubmitCreateDoesNotReuseExistingSubmissionWithoutVersionItems(t *testin
 			foundNewSubmissionCreate = true
 		}
 	}
-	if !foundNewSubmissionCreate {
-		t.Fatalf("expected a fresh review submission when the blocked submission has no version items, requests: %v", requests)
+	if foundNewSubmissionCreate {
+		t.Fatalf("did not expect a fresh review submission when the refreshed submission is still empty, requests: %v", requests)
 	}
 	if !strings.Contains(strings.Join(requests, "\n"), "GET /v1/reviewSubmissions/existing-empty/items") {
-		t.Fatalf("expected existing submission items lookup before skipping reuse, requests: %v", requests)
+		t.Fatalf("expected existing submission items lookup before reusing the empty submission, requests: %v", requests)
 	}
-	if !strings.Contains(stdout, "new-sub-1") {
-		t.Fatalf("expected output to reference the fresh submission ID, got %q", stdout)
+	if !strings.Contains(stdout, "existing-empty") {
+		t.Fatalf("expected output to reference the reused submission ID, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Skipped stale submission existing-empty: already transitioned to a non-cancellable state") {
-		t.Fatalf("expected stderr to explain why the existing submission was not reused, got %q", stderr)
+	if !strings.Contains(stderr, "Reusing existing empty review submission existing-empty because App Store Connect would not cancel it.") {
+		t.Fatalf("expected stderr to explain why the existing empty submission was reused, got %q", stderr)
 	}
 }
 
