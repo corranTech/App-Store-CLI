@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -44,22 +45,26 @@ func WaitForBuildByNumberOrUploadFailure(ctx context.Context, client *asc.Client
 	return asc.PollUntil(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
 		if uploadID != "" {
 			upload, err := client.GetBuildUpload(ctx, uploadID)
-			if err != nil {
+			if err != nil && shouldReturnBuildWaitError(err) {
 				return nil, false, err
 			}
-			if err := buildUploadFailureError(upload); err != nil {
-				return nil, false, enrichBuildUploadFailure(ctx, appID, upload, err)
-			}
-			buildID, err := buildIDForUpload(upload)
-			if err != nil {
-				return nil, false, err
-			}
-			if buildID != "" {
-				build, err := client.GetBuild(ctx, buildID)
-				if err != nil {
-					return nil, false, err
+			if err == nil {
+				if err := buildUploadFailureError(upload); err != nil {
+					return nil, false, enrichBuildUploadFailure(ctx, appID, upload, err)
 				}
-				return build, true, nil
+				buildID, err := buildIDForUpload(upload)
+				if err == nil && buildID != "" {
+					// Keep upload-status probing best-effort so transient ASC
+					// lookup issues do not regress the older build-list polling path.
+					build, err := client.GetBuild(ctx, buildID)
+					if err != nil {
+						if shouldReturnBuildWaitError(err) {
+							return nil, false, err
+						}
+					} else {
+						return build, true, nil
+					}
+				}
 			}
 		}
 		build, err := findBuildByNumber(ctx, client, appID, version, buildNumber, platform, uploadID)
@@ -257,6 +262,10 @@ func joinDiagnosticDetails(values []string) string {
 		parts = append(parts, trimmed)
 	}
 	return strings.Join(parts, "; ")
+}
+
+func shouldReturnBuildWaitError(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // SetBuildUploadFailureDiagnosticsForTesting overrides build failure enrichment.

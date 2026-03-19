@@ -36,9 +36,13 @@ func newBuildWaitTestClient(t *testing.T, transport buildWaitRoundTripFunc) *asc
 }
 
 func buildWaitJSONResponse(body string) (*http.Response, error) {
+	return buildWaitJSONStatusResponse(http.StatusOK, body)
+}
+
+func buildWaitJSONStatusResponse(statusCode int, body string) (*http.Response, error) {
 	return &http.Response{
-		StatusCode: http.StatusOK,
-		Status:     fmt.Sprintf("%d %s", http.StatusOK, http.StatusText(http.StatusOK)),
+		StatusCode: statusCode,
+		Status:     fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}, nil
@@ -224,6 +228,161 @@ func TestWaitForBuildByNumberOrUploadFailureIncludesProcessingDiagnostics(t *tes
 	}
 	if !strings.Contains(err.Error(), `Invalid Siri Support. App Intent description "Searches Apple Music" cannot contain "apple"`) {
 		t.Fatalf("expected enriched processing details, got %v", err)
+	}
+}
+
+func TestWaitForBuildByNumberOrUploadFailureFallsBackWhenUploadLookupFails(t *testing.T) {
+	client := newBuildWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("expected GET, got %s", req.Method)
+		}
+
+		switch req.URL.Path {
+		case "/v1/buildUploads/upload-current":
+			return buildWaitJSONStatusResponse(http.StatusNotFound, `{
+				"errors": [
+					{"status": "404", "code": "NOT_FOUND", "title": "not found"}
+				]
+			}`)
+		case "/v1/preReleaseVersions":
+			return buildWaitJSONResponse(`{
+				"data": [
+					{
+						"type": "preReleaseVersions",
+						"id": "prv-1",
+						"attributes": {
+							"version": "1.2.3",
+							"platform": "IOS"
+						}
+					}
+				],
+				"links": {}
+			}`)
+		case "/v1/builds":
+			return buildWaitJSONResponse(`{
+				"data": [
+					{
+						"type": "builds",
+						"id": "build-123",
+						"attributes": {
+							"version": "42",
+							"processingState": "PROCESSING"
+						},
+						"relationships": {
+							"buildUpload": {
+								"data": {
+									"type": "buildUploads",
+									"id": "upload-current"
+								}
+							}
+						}
+					}
+				],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	if err != nil {
+		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+	}
+	if buildResp == nil {
+		t.Fatal("expected build response after falling back to build discovery")
+	}
+	if buildResp.Data.ID != "build-123" {
+		t.Fatalf("expected build ID build-123, got %q", buildResp.Data.ID)
+	}
+}
+
+func TestWaitForBuildByNumberOrUploadFailureFallsBackWhenLinkedBuildLookupFails(t *testing.T) {
+	client := newBuildWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("expected GET, got %s", req.Method)
+		}
+
+		switch req.URL.Path {
+		case "/v1/buildUploads/upload-current":
+			return buildWaitJSONResponse(`{
+				"data": {
+					"type": "buildUploads",
+					"id": "upload-current",
+					"attributes": {
+						"cfBundleShortVersionString": "1.2.3",
+						"cfBundleVersion": "42",
+						"platform": "IOS",
+						"state": {
+							"state": "PROCESSING"
+						}
+					},
+					"relationships": {
+						"build": {
+							"data": {
+								"type": "builds",
+								"id": "build-123"
+							}
+						}
+					}
+				}
+			}`)
+		case "/v1/builds/build-123":
+			return buildWaitJSONStatusResponse(http.StatusNotFound, `{
+				"errors": [
+					{"status": "404", "code": "NOT_FOUND", "title": "not found"}
+				]
+			}`)
+		case "/v1/preReleaseVersions":
+			return buildWaitJSONResponse(`{
+				"data": [
+					{
+						"type": "preReleaseVersions",
+						"id": "prv-1",
+						"attributes": {
+							"version": "1.2.3",
+							"platform": "IOS"
+						}
+					}
+				],
+				"links": {}
+			}`)
+		case "/v1/builds":
+			return buildWaitJSONResponse(`{
+				"data": [
+					{
+						"type": "builds",
+						"id": "build-123",
+						"attributes": {
+							"version": "42",
+							"processingState": "PROCESSING"
+						},
+						"relationships": {
+							"buildUpload": {
+								"data": {
+									"type": "buildUploads",
+									"id": "upload-current"
+								}
+							}
+						}
+					}
+				],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+	})
+
+	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	if err != nil {
+		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+	}
+	if buildResp == nil {
+		t.Fatal("expected build response after falling back from linked build lookup")
+	}
+	if buildResp.Data.ID != "build-123" {
+		t.Fatalf("expected build ID build-123, got %q", buildResp.Data.ID)
 	}
 }
 
