@@ -192,6 +192,58 @@ func TestSubmitCancelByVersionIDMissingLegacySubmissionReturnsClearError(t *test
 	}
 }
 
+func TestSubmitCancelByVersionIDLegacyForbiddenSurfacesPermissionError(t *testing.T) {
+	setupSubmitCancelAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-forbidden" && req.URL.Query().Get("include") == "app":
+			return submitCancelJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-forbidden",
+					"attributes": {"platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitCancelJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-forbidden/appStoreVersionSubmission":
+			return submitCancelJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"submit", "cancel", "--version-id", "version-forbidden", "--confirm"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if strings.Contains(err.Error(), `no active submission found for version "version-forbidden"`) {
+			t.Fatalf("expected legacy forbidden error to surface, got %v", err)
+		}
+		if !strings.Contains(strings.ToUpper(err.Error()), "FORBIDDEN") {
+			t.Fatalf("expected forbidden error to be preserved, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}
+
 func TestSubmitCancelByVersionIDIgnoresHistoricalCompleteReviewSubmission(t *testing.T) {
 	setupSubmitCancelAuth(t)
 

@@ -948,6 +948,53 @@ func TestSubmitCancelCommand_ByVersionIDNotFoundReportsLegacySubmissionError(t *
 	}
 }
 
+func TestSubmitCancelCommand_ByVersionIDLegacyForbiddenSurfacesError(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		path := req.URL.Path
+		switch {
+		case req.Method == http.MethodGet && path == "/v1/appStoreVersions/version-forbidden":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-forbidden",
+					"attributes": {"platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+		case req.Method == http.MethodGet && path == "/v1/appStoreVersions/version-forbidden/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	})
+
+	cmd := SubmitCancelCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-forbidden", "--confirm"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if strings.Contains(err.Error(), `no active submission found for version "version-forbidden"`) {
+		t.Fatalf("expected forbidden error to surface, got %v", err)
+	}
+	if !strings.Contains(strings.ToUpper(err.Error()), "FORBIDDEN") {
+		t.Fatalf("expected forbidden error to be preserved, got %v", err)
+	}
+}
+
 func TestSubmitCancelCommand_ByVersionIDIgnoresHistoricalCompleteReviewSubmission(t *testing.T) {
 	setupSubmitAuth(t)
 
@@ -1644,6 +1691,62 @@ func TestPrepareReviewSubmissionForCreateWarnsOnGenericConflict(t *testing.T) {
 	}
 	if strings.Contains(stderr, "Skipped stale submission stale-sub-1") {
 		t.Fatalf("did not expect stale submission skip message, got %q", stderr)
+	}
+}
+
+func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testing.T) {
+	requests := make([]string, 0, 4)
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" && req.URL.Query().Get("cursor") == "":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [],
+				"links": {
+					"next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" && req.URL.Query().Get("cursor") == "page-2":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "existing-submission",
+					"attributes": {
+						"state": "READY_FOR_REVIEW",
+						"platform": "IOS"
+					},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-1"}
+						}
+					}
+				}],
+				"links": {}
+			}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	stderr := captureSubmitStderr(t, func() {
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		if got.reuseSubmissionID != "existing-submission" {
+			t.Fatalf("expected paginated submission to be reused, got %#v", got)
+		}
+		if !got.reuseSubmissionHasVersion {
+			t.Fatalf("expected reused paginated submission to already carry the target version, got %#v", got)
+		}
+		if got.canceledSubmissionIDs != nil {
+			t.Fatalf("did not expect canceled submissions when paginated reusable submission exists, got %#v", got.canceledSubmissionIDs)
+		}
+	})
+
+	if !strings.Contains(strings.Join(requests, "\n"), "GET /v1/apps/app-1/reviewSubmissions?cursor=page-2") {
+		t.Fatalf("expected second review-submissions page lookup, got %v", requests)
+	}
+	if !strings.Contains(stderr, "Reusing existing review submission existing-submission") {
+		t.Fatalf("expected reuse message for paginated submission, got %q", stderr)
 	}
 }
 

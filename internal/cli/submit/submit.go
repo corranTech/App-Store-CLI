@@ -800,7 +800,7 @@ Examples:
 				// Fall back to legacy version submission lookup.
 				submissionResp, err := client.GetAppStoreVersionSubmissionForVersion(requestCtx, resolvedVersionID)
 				if err != nil {
-					if asc.IsNotFound(err) || errors.Is(err, asc.ErrForbidden) {
+					if asc.IsNotFound(err) {
 						return fmt.Errorf("submit cancel: no active submission found for version %q (tried modern and legacy APIs)", resolvedVersionID)
 					}
 					return fmt.Errorf("submit cancel: %w", err)
@@ -1096,23 +1096,39 @@ func prepareReviewSubmissionForCreate(
 		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
 		asc.WithReviewSubmissionsPlatforms([]string{platform}),
 		asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
+		asc.WithReviewSubmissionsLimit(200),
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to query stale review submissions: %v\n", err)
 		return submitCreateReviewSubmissionPreparation{}
 	}
-	if len(existing.Data) == 0 {
+
+	submissions := make([]asc.ReviewSubmissionResource, 0, len(existing.Data))
+	for {
+		submissions = append(submissions, existing.Data...)
+		nextURL := strings.TrimSpace(existing.Links.Next)
+		if nextURL == "" {
+			break
+		}
+		existing, err = client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to query stale review submissions: %v\n", err)
+			return submitCreateReviewSubmissionPreparation{}
+		}
+	}
+
+	if len(submissions) == 0 {
 		return submitCreateReviewSubmissionPreparation{}
 	}
 
 	result := submitCreateReviewSubmissionPreparation{
-		canceledSubmissionIDs: make(map[string]struct{}, len(existing.Data)),
+		canceledSubmissionIDs: make(map[string]struct{}, len(submissions)),
 	}
 	normalizedPlatform := strings.ToUpper(strings.TrimSpace(platform))
 	targetVersionID := strings.TrimSpace(versionID)
 
-	for i := range existing.Data {
-		sub := existing.Data[i]
+	for i := range submissions {
+		sub := submissions[i]
 		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
 			continue
 		}
@@ -1123,12 +1139,13 @@ func prepareReviewSubmissionForCreate(
 			fmt.Fprintf(os.Stderr, "Reusing existing review submission %s because the target version is already attached.\n", sub.ID)
 			result.reuseSubmissionID = strings.TrimSpace(sub.ID)
 			result.reuseSubmissionHasVersion = true
+			result.canceledSubmissionIDs = nil
 			return result
 		}
 	}
 
-	for i := range existing.Data {
-		sub := existing.Data[i]
+	for i := range submissions {
+		sub := submissions[i]
 		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
 			continue
 		}
@@ -1147,6 +1164,7 @@ func prepareReviewSubmissionForCreate(
 					}
 					result.reuseSubmissionID = reuseSubmission
 					result.reuseSubmissionHasVersion = reuseHasVersion
+					result.canceledSubmissionIDs = nil
 					return result
 				}
 				if reuseErr != nil {
@@ -1198,7 +1216,7 @@ func reusableReviewSubmissionForCreate(
 		return "", false, nil
 	}
 	if resolvedVersionID == "" {
-		return submissionID, false, nil
+		return "", false, nil
 	}
 	if targetVersionID != "" && resolvedVersionID == targetVersionID {
 		return submissionID, true, nil
