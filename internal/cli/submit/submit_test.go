@@ -1602,7 +1602,7 @@ func TestCleanupEmptyReviewSubmissionWarnsOnGenericConflict(t *testing.T) {
 	}
 }
 
-func TestCancelStaleReviewSubmissionsWarnsOnGenericConflict(t *testing.T) {
+func TestPrepareReviewSubmissionForCreateWarnsOnGenericConflict(t *testing.T) {
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
@@ -1631,9 +1631,12 @@ func TestCancelStaleReviewSubmissionsWarnsOnGenericConflict(t *testing.T) {
 	}))
 
 	stderr := captureSubmitStderr(t, func() {
-		got := cancelStaleReviewSubmissions(context.Background(), client, "app-1", "IOS")
-		if got != nil {
-			t.Fatalf("expected no canceled submissions, got %#v", got)
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		if got.reuseSubmissionID != "" {
+			t.Fatalf("expected no reusable submission, got %#v", got)
+		}
+		if got.canceledSubmissionIDs != nil {
+			t.Fatalf("expected no canceled submissions, got %#v", got.canceledSubmissionIDs)
 		}
 	})
 	if !strings.Contains(stderr, "Warning: failed to cancel stale submission stale-sub-1:") {
