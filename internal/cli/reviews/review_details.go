@@ -261,8 +261,11 @@ Examples:
 				return fmt.Errorf("review details-update: %w", err)
 			}
 
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
 			if err := validateReviewDetailUpdateDemoCredentials(
-				ctx,
+				requestCtx,
 				client,
 				detailValue,
 				visited,
@@ -307,9 +310,6 @@ Examples:
 				attrs.Notes = &value
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			resp, err := client.UpdateAppStoreReviewDetail(requestCtx, detailValue, attrs)
 			if err != nil {
 				return fmt.Errorf("review details-update: failed to update: %w", err)
@@ -350,10 +350,7 @@ func validateReviewDetailUpdateDemoCredentials(
 		return validateReviewDetailDemoCredentialValues(effectiveName, effectivePassword)
 	}
 
-	fetchCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
-	resp, err := client.GetAppStoreReviewDetail(fetchCtx, detailID)
+	resp, err := client.GetAppStoreReviewDetail(ctx, detailID)
 	if err != nil {
 		return fmt.Errorf("review details-update: failed to fetch existing review details for demo credential validation: %w", err)
 	}
