@@ -1692,6 +1692,19 @@ func TestAddBetaGroupsToBuildWithNotify_BuildBetaDetailFailureExplainsGroupsAlre
 	if err == nil {
 		t.Fatal("expected error")
 	}
+	var partialErr *BuildBetaGroupsPartialError
+	if !errors.As(err, &partialErr) {
+		t.Fatalf("expected BuildBetaGroupsPartialError, got %T", err)
+	}
+	if partialErr.BuildID != "build-1" {
+		t.Fatalf("expected buildID build-1, got %q", partialErr.BuildID)
+	}
+	if partialErr.Step != "checking notification state" {
+		t.Fatalf("expected step checking notification state, got %q", partialErr.Step)
+	}
+	if partialErr.Unwrap() == nil {
+		t.Fatal("expected partial error to unwrap underlying error")
+	}
 	if !strings.Contains(err.Error(), `beta groups were added to build "build-1", but checking notification state failed`) {
 		t.Fatalf("expected partial-success detail fetch error, got %v", err)
 	}
