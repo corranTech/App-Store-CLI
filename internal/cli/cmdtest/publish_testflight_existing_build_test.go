@@ -405,7 +405,7 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 	}
 }
 
-func TestPublishTestflightExistingBuildIDNotifyExplainsGroupsWereAddedWhenNotificationFails(t *testing.T) {
+func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlreadyEnabled(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -477,7 +477,6 @@ func TestPublishTestflightExistingBuildIDNotifyExplainsGroupsWereAddedWhenNotifi
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
@@ -488,23 +487,22 @@ func TestPublishTestflightExistingBuildIDNotifyExplainsGroupsWereAddedWhenNotifi
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 	})
 
-	if runErr == nil {
-		t.Fatal("expected error")
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(runErr.Error(), `publish testflight: failed to add groups: beta groups were added to build "build-1", but notifying testers failed`) {
-		t.Fatalf("expected partial-success publish error, got %v", runErr)
+	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
+		t.Fatalf("expected internal group in output, got %q", stdout)
 	}
-	if !strings.Contains(runErr.Error(), "Auto-notify already enabled") {
-		t.Fatalf("expected underlying notification error, got %v", runErr)
+	if !strings.Contains(stdout, `"notified":false`) {
+		t.Fatalf("expected notified=false in output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, `"notificationAction":"auto_notify_enabled"`) {
+		t.Fatalf("expected notificationAction=auto_notify_enabled in output, got %q", stdout)
 	}
 	if requestCount != 5 {
 		t.Fatalf("expected 5 requests, got %d", requestCount)

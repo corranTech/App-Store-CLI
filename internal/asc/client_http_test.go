@@ -1703,7 +1703,7 @@ func TestAddBetaGroupsToBuildWithNotify_BuildBetaDetailFailureExplainsGroupsAlre
 	}
 }
 
-func TestAddBetaGroupsToBuildWithNotify_NotificationFailureExplainsGroupsAlreadyAdded(t *testing.T) {
+func TestAddBetaGroupsToBuildWithNotify_TreatsAutoNotifyConflictAsAlreadyEnabled(t *testing.T) {
 	responses := []*http.Response{
 		jsonResponse(http.StatusNoContent, ``),
 		jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`),
@@ -1730,15 +1730,12 @@ func TestAddBetaGroupsToBuildWithNotify_NotificationFailureExplainsGroupsAlready
 		}
 	}, responses...)
 
-	_, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true)
-	if err == nil {
-		t.Fatal("expected error")
+	action, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true)
+	if err != nil {
+		t.Fatalf("AddBetaGroupsToBuildWithNotify() error: %v", err)
 	}
-	if !strings.Contains(err.Error(), `beta groups were added to build "build-1", but notifying testers failed`) {
-		t.Fatalf("expected partial-success notification error, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "Auto-notify already enabled") {
-		t.Fatalf("expected underlying API error, got %v", err)
+	if action != BuildBetaGroupsNotificationActionAutoNotifyEnabled {
+		t.Fatalf("expected auto-notify-enabled action, got %q", action)
 	}
 	if requestCount != 3 {
 		t.Fatalf("expected 3 requests, got %d", requestCount)

@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -388,6 +389,11 @@ func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID str
 			return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
 		}
 		if _, err := c.CreateBuildBetaNotification(ctx, buildID); err != nil {
+			// Apple can still reject the follow-up create with the same
+			// already-enabled state even after buildBetaDetail says false.
+			if isAutoNotifyAlreadyEnabledNotificationError(err) {
+				return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
+			}
 			return BuildBetaGroupsNotificationActionNone, buildBetaGroupsNotifyPartialError(buildID, "notifying testers", err)
 		}
 		return BuildBetaGroupsNotificationActionManual, nil
@@ -397,6 +403,17 @@ func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID str
 
 func buildBetaGroupsNotifyPartialError(buildID, step string, err error) error {
 	return fmt.Errorf("beta groups were added to build %q, but %s failed: %w", buildID, step, err)
+}
+
+func isAutoNotifyAlreadyEnabledNotificationError(err error) bool {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok || apiErr == nil {
+		return false
+	}
+	if !strings.EqualFold(strings.TrimSpace(apiErr.Code), "STATE_ERROR.ENTITY_STATE_INVALID") {
+		return false
+	}
+	return strings.Contains(strings.ToLower(strings.TrimSpace(apiErr.Detail)), "auto-notify already enabled")
 }
 
 // RemoveBetaGroupsFromBuild removes beta groups from a build.
