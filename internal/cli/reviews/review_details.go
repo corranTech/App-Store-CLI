@@ -18,6 +18,7 @@ const (
 	reviewDetailDemoAccountPasswordUsage = "Demo account password when demo credentials are required"
 	reviewDetailDemoAccountRequiredUsage = "Set true only when App Review needs demo credentials; leave false when reviewer guidance in --notes is enough"
 	reviewDetailNotesUsage               = "Review notes for reviewer instructions or context; supplemental when demo credentials are required"
+	reviewDetailDemoCredentialsError     = "Error: --demo-account-required=true requires both --demo-account-name and --demo-account-password"
 )
 
 // ReviewDetailsGetCommand returns the review details get subcommand.
@@ -146,6 +147,12 @@ Examples:
 				visited[f.Name] = true
 			})
 
+			if visited["demo-account-required"] && *demoAccountRequired {
+				if err := validateReviewDetailDemoCredentialValues(strings.TrimSpace(*demoAccountName), strings.TrimSpace(*demoAccountPassword)); err != nil {
+					return err
+				}
+			}
+
 			var attrsPtr *asc.AppStoreReviewDetailCreateAttributes
 			if hasReviewDetailUpdates(visited) {
 				attrs := asc.AppStoreReviewDetailCreateAttributes{}
@@ -249,6 +256,23 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("review details-update: %w", err)
+			}
+
+			if err := validateReviewDetailUpdateDemoCredentials(
+				ctx,
+				client,
+				detailValue,
+				visited,
+				*demoAccountRequired,
+				strings.TrimSpace(*demoAccountName),
+				strings.TrimSpace(*demoAccountPassword),
+			); err != nil {
+				return err
+			}
+
 			attrs := asc.AppStoreReviewDetailUpdateAttributes{}
 			if visited["contact-first-name"] {
 				value := strings.TrimSpace(*contactFirstName)
@@ -283,11 +307,6 @@ Examples:
 				attrs.Notes = &value
 			}
 
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("review details-update: %w", err)
-			}
-
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
@@ -310,4 +329,50 @@ func hasReviewDetailUpdates(visited map[string]bool) bool {
 		visited["demo-account-password"] ||
 		visited["demo-account-required"] ||
 		visited["notes"]
+}
+
+func validateReviewDetailUpdateDemoCredentials(
+	ctx context.Context,
+	client *asc.Client,
+	detailID string,
+	visited map[string]bool,
+	demoAccountRequired bool,
+	demoAccountName string,
+	demoAccountPassword string,
+) error {
+	if !visited["demo-account-required"] || !demoAccountRequired {
+		return nil
+	}
+
+	effectiveName := demoAccountName
+	effectivePassword := demoAccountPassword
+	if visited["demo-account-name"] && visited["demo-account-password"] {
+		return validateReviewDetailDemoCredentialValues(effectiveName, effectivePassword)
+	}
+
+	fetchCtx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
+	resp, err := client.GetAppStoreReviewDetail(fetchCtx, detailID)
+	if err != nil {
+		return fmt.Errorf("review details-update: failed to fetch existing review details for demo credential validation: %w", err)
+	}
+
+	if !visited["demo-account-name"] {
+		effectiveName = strings.TrimSpace(resp.Data.Attributes.DemoAccountName)
+	}
+	if !visited["demo-account-password"] {
+		effectivePassword = strings.TrimSpace(resp.Data.Attributes.DemoAccountPassword)
+	}
+
+	return validateReviewDetailDemoCredentialValues(effectiveName, effectivePassword)
+}
+
+func validateReviewDetailDemoCredentialValues(demoAccountName, demoAccountPassword string) error {
+	if strings.TrimSpace(demoAccountName) != "" && strings.TrimSpace(demoAccountPassword) != "" {
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, reviewDetailDemoCredentialsError)
+	return flag.ErrHelp
 }
