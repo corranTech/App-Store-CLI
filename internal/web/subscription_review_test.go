@@ -224,3 +224,39 @@ func TestDeleteSubscriptionSubmissionUsesSubscriptionIDPath(t *testing.T) {
 		t.Fatalf("DeleteSubscriptionSubmission() error = %v", err)
 	}
 }
+
+func TestReviewSubscriptionJSONPreservesFalseBooleans(t *testing.T) {
+	payload := ReviewSubscription{
+		ID:                            "sub-1",
+		IsAppStoreReviewInProgress:    false,
+		SubmitWithNextAppStoreVersion: false,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	text := string(body)
+	if !strings.Contains(text, `"isAppStoreReviewInProgress":false`) {
+		t.Fatalf("expected false review progress flag in JSON, got %s", text)
+	}
+	if !strings.Contains(text, `"submitWithNextAppStoreVersion":false`) {
+		t.Fatalf("expected false attach flag in JSON, got %s", text)
+	}
+}
+
+func TestReviewSubscriptionSubmissionJSONPreservesFalseBooleans(t *testing.T) {
+	payload := ReviewSubscriptionSubmission{
+		ID:                            "submission-1",
+		SubmitWithNextAppStoreVersion: false,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	text := string(body)
+	if !strings.Contains(text, `"submitWithNextAppStoreVersion":false`) {
+		t.Fatalf("expected false attach flag in JSON, got %s", text)
+	}
+}

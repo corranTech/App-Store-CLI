@@ -19,15 +19,15 @@ type ReviewSubscription struct {
 	ProductID                     string `json:"productId,omitempty"`
 	Name                          string `json:"name,omitempty"`
 	State                         string `json:"state,omitempty"`
-	IsAppStoreReviewInProgress    bool   `json:"isAppStoreReviewInProgress,omitempty"`
-	SubmitWithNextAppStoreVersion bool   `json:"submitWithNextAppStoreVersion,omitempty"`
+	IsAppStoreReviewInProgress    bool   `json:"isAppStoreReviewInProgress"`
+	SubmitWithNextAppStoreVersion bool   `json:"submitWithNextAppStoreVersion"`
 }
 
 // ReviewSubscriptionSubmission captures the hidden submission resource returned by the web attach flow.
 type ReviewSubscriptionSubmission struct {
 	ID                            string `json:"id"`
 	SubscriptionID                string `json:"subscriptionId,omitempty"`
-	SubmitWithNextAppStoreVersion bool   `json:"submitWithNextAppStoreVersion,omitempty"`
+	SubmitWithNextAppStoreVersion bool   `json:"submitWithNextAppStoreVersion"`
 }
 
 func decodeReviewSubscriptions(resources []jsonAPIResource, included []jsonAPIResource) []ReviewSubscription {
