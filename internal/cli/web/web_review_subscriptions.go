@@ -29,6 +29,22 @@ type reviewSubscriptionMutationOutput struct {
 	Subscription webcore.ReviewSubscription `json:"subscription"`
 }
 
+type reviewSubscriptionMutationSkip struct {
+	Subscription webcore.ReviewSubscription `json:"subscription"`
+	Reason       string                     `json:"reason"`
+}
+
+type reviewSubscriptionGroupMutationOutput struct {
+	AppID              string                           `json:"appId"`
+	GroupID            string                           `json:"groupId"`
+	GroupReferenceName string                           `json:"groupReferenceName,omitempty"`
+	Operation          string                           `json:"operation"`
+	ChangedCount       int                              `json:"changedCount"`
+	SkippedCount       int                              `json:"skippedCount"`
+	Changed            []webcore.ReviewSubscription     `json:"changedSubscriptions,omitempty"`
+	Skipped            []reviewSubscriptionMutationSkip `json:"skippedSubscriptions,omitempty"`
+}
+
 func reviewSubscriptionValue(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -50,6 +66,10 @@ func reviewSubscriptionName(subscription webcore.ReviewSubscription) string {
 
 func reviewSubscriptionBool(value bool) string {
 	return strconv.FormatBool(value)
+}
+
+func reviewSubscriptionState(subscription webcore.ReviewSubscription) string {
+	return strings.ToUpper(strings.TrimSpace(subscription.State))
 }
 
 func reviewSubscriptionAttachPreflight(appID string, subscription webcore.ReviewSubscription) error {
@@ -101,6 +121,55 @@ func countAttachedReviewSubscriptions(subscriptions []webcore.ReviewSubscription
 		}
 	}
 	return count
+}
+
+func buildReviewSubscriptionGroupMutationRows(payload reviewSubscriptionGroupMutationOutput) [][]string {
+	rows := [][]string{
+		{"Summary", "App ID", reviewSubscriptionValue(payload.AppID)},
+		{"Summary", "Group ID", reviewSubscriptionValue(payload.GroupID)},
+		{"Summary", "Group", reviewSubscriptionValue(payload.GroupReferenceName)},
+		{"Summary", "Operation", reviewSubscriptionValue(payload.Operation)},
+		{"Summary", "Changed Count", strconv.Itoa(payload.ChangedCount)},
+		{"Summary", "Skipped Count", strconv.Itoa(payload.SkippedCount)},
+	}
+	for i, subscription := range payload.Changed {
+		rows = append(rows, []string{
+			"Changed",
+			fmt.Sprintf("Subscription %d", i+1),
+			fmt.Sprintf(
+				"id=%s name=%s state=%s attached=%s",
+				reviewSubscriptionValue(subscription.ID),
+				reviewSubscriptionValue(reviewSubscriptionName(subscription)),
+				reviewSubscriptionValue(subscription.State),
+				reviewSubscriptionBool(subscription.SubmitWithNextAppStoreVersion),
+			),
+		})
+	}
+	for i, skipped := range payload.Skipped {
+		rows = append(rows, []string{
+			"Skipped",
+			fmt.Sprintf("Subscription %d", i+1),
+			fmt.Sprintf(
+				"id=%s name=%s reason=%s",
+				reviewSubscriptionValue(skipped.Subscription.ID),
+				reviewSubscriptionValue(reviewSubscriptionName(skipped.Subscription)),
+				reviewSubscriptionValue(skipped.Reason),
+			),
+		})
+	}
+	return rows
+}
+
+func renderReviewSubscriptionGroupMutationTable(payload reviewSubscriptionGroupMutationOutput) error {
+	headers := []string{"Section", "Field", "Value"}
+	asc.RenderTable(headers, buildReviewSubscriptionGroupMutationRows(payload))
+	return nil
+}
+
+func renderReviewSubscriptionGroupMutationMarkdown(payload reviewSubscriptionGroupMutationOutput) error {
+	headers := []string{"Section", "Field", "Value"}
+	asc.RenderMarkdown(headers, buildReviewSubscriptionGroupMutationRows(payload))
+	return nil
 }
 
 func buildReviewSubscriptionsListTableRows(subscriptions []webcore.ReviewSubscription) [][]string {
@@ -170,6 +239,84 @@ func findReviewSubscription(subscriptions []webcore.ReviewSubscription, subscrip
 	return nil, false
 }
 
+func findReviewSubscriptionsByGroup(subscriptions []webcore.ReviewSubscription, groupID string) []webcore.ReviewSubscription {
+	groupID = strings.TrimSpace(groupID)
+	if groupID == "" {
+		return nil
+	}
+	filtered := make([]webcore.ReviewSubscription, 0)
+	for _, subscription := range subscriptions {
+		if strings.TrimSpace(subscription.GroupID) == groupID {
+			filtered = append(filtered, subscription)
+		}
+	}
+	return filtered
+}
+
+func reviewSubscriptionGroupLabel(subscriptions []webcore.ReviewSubscription, groupID string) string {
+	for _, subscription := range subscriptions {
+		if strings.TrimSpace(subscription.GroupReferenceName) != "" {
+			return strings.TrimSpace(subscription.GroupReferenceName)
+		}
+	}
+	return strings.TrimSpace(groupID)
+}
+
+func reviewSubscriptionAttachSkipReason(subscription webcore.ReviewSubscription) string {
+	switch state := reviewSubscriptionState(subscription); state {
+	case "MISSING_METADATA":
+		return "state is MISSING_METADATA; run `asc validate subscriptions` and upload missing assets first"
+	case "READY_TO_SUBMIT":
+		return "already attached"
+	case "":
+		return "state is unknown; Apple only allows attach from READY_TO_SUBMIT"
+	default:
+		return fmt.Sprintf("state is %s; Apple only allows attach from READY_TO_SUBMIT", state)
+	}
+}
+
+func reviewSubscriptionGroupAttachPreflight(appID, groupID string, subscriptions []webcore.ReviewSubscription) error {
+	readyCount := 0
+	missingCount := 0
+	for _, subscription := range subscriptions {
+		switch reviewSubscriptionState(subscription) {
+		case "READY_TO_SUBMIT":
+			if !subscription.SubmitWithNextAppStoreVersion {
+				readyCount++
+			}
+		case "MISSING_METADATA":
+			if !subscription.SubmitWithNextAppStoreVersion {
+				missingCount++
+			}
+		}
+	}
+	if readyCount > 0 || missingCount == 0 {
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(
+		os.Stderr,
+		"Attach preflight: subscription group %q (%s) has no READY_TO_SUBMIT subscriptions for first-review attachment yet.\n",
+		reviewSubscriptionGroupLabel(subscriptions, groupID),
+		reviewSubscriptionValue(groupID),
+	)
+	fmt.Fprintf(
+		os.Stderr,
+		"Hint: run `asc validate subscriptions --app \"%s\"` to inspect readiness.\n",
+		reviewSubscriptionValue(strings.TrimSpace(appID)),
+	)
+	fmt.Fprintln(os.Stderr, "Hint: Apple only allows attach after the relevant subscriptions reach READY_TO_SUBMIT.")
+	fmt.Fprintln(os.Stderr, "Hint: In live testing, a subscription promotional image also mattered in addition to localization, pricing coverage, and the App Store review screenshot.")
+
+	return shared.NewReportedError(
+		fmt.Errorf(
+			"web review subscriptions attach-group: group %q has no READY_TO_SUBMIT subscriptions to attach",
+			groupID,
+		),
+	)
+}
+
 func loadReviewSubscriptionsWithLabel(ctx context.Context, client *webcore.Client, appID, label string) ([]webcore.ReviewSubscription, error) {
 	return withWebSpinnerValue(label, func() ([]webcore.ReviewSubscription, error) {
 		return client.ListReviewSubscriptions(ctx, appID)
@@ -192,7 +339,9 @@ This uses private Apple web-session /iris endpoints and may break without notice
 Subcommands:
   list    List subscriptions and their next-version attach state
   attach  Attach one subscription to the next app version review
+  attach-group  Attach all READY_TO_SUBMIT subscriptions in one group
   remove  Remove one subscription from the next app version review
+  remove-group  Remove all attached subscriptions in one group
 
 ` + webWarningText,
 		FlagSet:   fs,
@@ -200,7 +349,9 @@ Subcommands:
 		Subcommands: []*ffcli.Command{
 			WebReviewSubscriptionsListCommand(),
 			WebReviewSubscriptionsAttachCommand(),
+			WebReviewSubscriptionsAttachGroupCommand(),
 			WebReviewSubscriptionsRemoveCommand(),
+			WebReviewSubscriptionsRemoveGroupCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -346,6 +497,117 @@ func WebReviewSubscriptionsAttachCommand() *ffcli.Command {
 	}
 }
 
+// WebReviewSubscriptionsAttachGroupCommand attaches every READY_TO_SUBMIT subscription in one group.
+func WebReviewSubscriptionsAttachGroupCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web review subscriptions attach-group", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App ID")
+	groupID := fs.String("group-id", "", "Subscription group ID")
+	confirm := fs.Bool("confirm", false, "Confirm the attach-group operation")
+	authFlags := bindWebSessionFlags(fs)
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "attach-group",
+		ShortUsage: "asc web review subscriptions attach-group --app APP_ID --group-id GROUP_ID --confirm [flags]",
+		ShortHelp:  "[experimental] Attach all READY_TO_SUBMIT subscriptions in one group.",
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedAppID := strings.TrimSpace(*appID)
+			trimmedGroupID := strings.TrimSpace(*groupID)
+			switch {
+			case trimmedAppID == "":
+				return shared.UsageError("--app is required")
+			case trimmedGroupID == "":
+				return shared.UsageError("--group-id is required")
+			case !*confirm:
+				return shared.UsageError("--confirm is required")
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
+			if err != nil {
+				return err
+			}
+			client := newWebClientFn(session)
+
+			subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading review subscriptions")
+			if err != nil {
+				return withWebAuthHint(err, "web review subscriptions attach-group")
+			}
+			groupSubscriptions := findReviewSubscriptionsByGroup(subscriptions, trimmedGroupID)
+			if len(groupSubscriptions) == 0 {
+				return fmt.Errorf("subscription group %q was not found for app %q", trimmedGroupID, trimmedAppID)
+			}
+			if err := reviewSubscriptionGroupAttachPreflight(trimmedAppID, trimmedGroupID, groupSubscriptions); err != nil {
+				return err
+			}
+
+			skipped := make([]reviewSubscriptionMutationSkip, 0)
+			attachIDs := make([]string, 0)
+			for _, subscription := range groupSubscriptions {
+				switch {
+				case subscription.SubmitWithNextAppStoreVersion:
+					skipped = append(skipped, reviewSubscriptionMutationSkip{Subscription: subscription, Reason: "already attached"})
+				case reviewSubscriptionState(subscription) != "READY_TO_SUBMIT":
+					skipped = append(skipped, reviewSubscriptionMutationSkip{Subscription: subscription, Reason: reviewSubscriptionAttachSkipReason(subscription)})
+				default:
+					attachIDs = append(attachIDs, strings.TrimSpace(subscription.ID))
+				}
+			}
+
+			if len(attachIDs) > 0 {
+				err = withWebSpinner("Attaching subscription group to next app version", func() error {
+					for _, subscriptionID := range attachIDs {
+						if _, err := client.CreateSubscriptionSubmission(requestCtx, subscriptionID); err != nil {
+							return err
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					return withWebAuthHint(err, "web review subscriptions attach-group")
+				}
+			}
+
+			refreshedSubscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Refreshing review subscriptions")
+			if err != nil {
+				return withWebAuthHint(err, "web review subscriptions attach-group")
+			}
+			refreshedGroup := findReviewSubscriptionsByGroup(refreshedSubscriptions, trimmedGroupID)
+
+			changed := make([]webcore.ReviewSubscription, 0)
+			for _, subscriptionID := range attachIDs {
+				if refreshed, ok := findReviewSubscription(refreshedGroup, subscriptionID); ok {
+					changed = append(changed, *refreshed)
+				}
+			}
+
+			payload := reviewSubscriptionGroupMutationOutput{
+				AppID:              trimmedAppID,
+				GroupID:            trimmedGroupID,
+				GroupReferenceName: reviewSubscriptionGroupLabel(refreshedGroup, trimmedGroupID),
+				Operation:          "attach-group",
+				ChangedCount:       len(changed),
+				SkippedCount:       len(skipped),
+				Changed:            changed,
+				Skipped:            skipped,
+			}
+
+			return shared.PrintOutputWithRenderers(
+				payload,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderReviewSubscriptionGroupMutationTable(payload) },
+				func() error { return renderReviewSubscriptionGroupMutationMarkdown(payload) },
+			)
+		},
+	}
+}
+
 // WebReviewSubscriptionsRemoveCommand removes a subscription from the next app version review.
 func WebReviewSubscriptionsRemoveCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web review subscriptions remove", flag.ExitOnError)
@@ -424,6 +686,111 @@ func WebReviewSubscriptionsRemoveCommand() *ffcli.Command {
 				*output.Pretty,
 				func() error { return renderReviewSubscriptionMutationTable(payload) },
 				func() error { return renderReviewSubscriptionMutationMarkdown(payload) },
+			)
+		},
+	}
+}
+
+// WebReviewSubscriptionsRemoveGroupCommand removes all attached subscriptions in one group.
+func WebReviewSubscriptionsRemoveGroupCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web review subscriptions remove-group", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App ID")
+	groupID := fs.String("group-id", "", "Subscription group ID")
+	confirm := fs.Bool("confirm", false, "Confirm the remove-group operation")
+	authFlags := bindWebSessionFlags(fs)
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "remove-group",
+		ShortUsage: "asc web review subscriptions remove-group --app APP_ID --group-id GROUP_ID --confirm [flags]",
+		ShortHelp:  "[experimental] Remove all attached subscriptions in one group.",
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedAppID := strings.TrimSpace(*appID)
+			trimmedGroupID := strings.TrimSpace(*groupID)
+			switch {
+			case trimmedAppID == "":
+				return shared.UsageError("--app is required")
+			case trimmedGroupID == "":
+				return shared.UsageError("--group-id is required")
+			case !*confirm:
+				return shared.UsageError("--confirm is required")
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
+			if err != nil {
+				return err
+			}
+			client := newWebClientFn(session)
+
+			subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading review subscriptions")
+			if err != nil {
+				return withWebAuthHint(err, "web review subscriptions remove-group")
+			}
+			groupSubscriptions := findReviewSubscriptionsByGroup(subscriptions, trimmedGroupID)
+			if len(groupSubscriptions) == 0 {
+				return fmt.Errorf("subscription group %q was not found for app %q", trimmedGroupID, trimmedAppID)
+			}
+
+			skipped := make([]reviewSubscriptionMutationSkip, 0)
+			removeIDs := make([]string, 0)
+			for _, subscription := range groupSubscriptions {
+				if subscription.SubmitWithNextAppStoreVersion {
+					removeIDs = append(removeIDs, strings.TrimSpace(subscription.ID))
+					continue
+				}
+				skipped = append(skipped, reviewSubscriptionMutationSkip{Subscription: subscription, Reason: "not attached"})
+			}
+
+			if len(removeIDs) > 0 {
+				err = withWebSpinner("Removing subscription group from next app version", func() error {
+					for _, subscriptionID := range removeIDs {
+						if err := client.DeleteSubscriptionSubmission(requestCtx, subscriptionID); err != nil {
+							return err
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					return withWebAuthHint(err, "web review subscriptions remove-group")
+				}
+			}
+
+			refreshedSubscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Refreshing review subscriptions")
+			if err != nil {
+				return withWebAuthHint(err, "web review subscriptions remove-group")
+			}
+			refreshedGroup := findReviewSubscriptionsByGroup(refreshedSubscriptions, trimmedGroupID)
+
+			changed := make([]webcore.ReviewSubscription, 0)
+			for _, subscriptionID := range removeIDs {
+				if refreshed, ok := findReviewSubscription(refreshedGroup, subscriptionID); ok {
+					changed = append(changed, *refreshed)
+				}
+			}
+
+			payload := reviewSubscriptionGroupMutationOutput{
+				AppID:              trimmedAppID,
+				GroupID:            trimmedGroupID,
+				GroupReferenceName: reviewSubscriptionGroupLabel(refreshedGroup, trimmedGroupID),
+				Operation:          "remove-group",
+				ChangedCount:       len(changed),
+				SkippedCount:       len(skipped),
+				Changed:            changed,
+				Skipped:            skipped,
+			}
+
+			return shared.PrintOutputWithRenderers(
+				payload,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderReviewSubscriptionGroupMutationTable(payload) },
+				func() error { return renderReviewSubscriptionGroupMutationMarkdown(payload) },
 			)
 		},
 	}

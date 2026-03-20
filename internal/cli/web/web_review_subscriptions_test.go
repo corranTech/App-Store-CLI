@@ -395,3 +395,229 @@ func TestWebReviewSubscriptionsAttachFailsFastForMissingMetadata(t *testing.T) {
 		t.Fatalf("expected labels %v, got %v", wantLabels, *labels)
 	}
 }
+
+func TestWebReviewSubscriptionsAttachGroupCommandRefreshesReadySubscriptions(t *testing.T) {
+	labels := stubWebProgressLabels(t)
+
+	origResolveSession := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = origResolveSession })
+
+	listCalls := 0
+	postIDs := []string{}
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{
+			Client: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					switch {
+					case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/app-1/subscriptionGroups":
+						listCalls++
+						sub1Attached := "false"
+						sub2Attached := "false"
+						if listCalls > 1 {
+							sub1Attached = "true"
+							sub2Attached = "true"
+						}
+						body := `{
+							"data": [{
+								"id": "group-1",
+								"type": "subscriptionGroups",
+								"attributes": {"referenceName": "Premium"},
+								"relationships": {
+									"subscriptions": {"data": [
+										{"type": "subscriptions", "id": "sub-1"},
+										{"type": "subscriptions", "id": "sub-2"},
+										{"type": "subscriptions", "id": "sub-3"}
+									]}
+								}
+							}],
+							"included": [
+								{"id": "sub-1", "type": "subscriptions", "attributes": {"productId": "com.example.monthly", "name": "Monthly", "state": "READY_TO_SUBMIT", "submitWithNextAppStoreVersion": ` + sub1Attached + `}},
+								{"id": "sub-2", "type": "subscriptions", "attributes": {"productId": "com.example.annual", "name": "Annual", "state": "READY_TO_SUBMIT", "submitWithNextAppStoreVersion": ` + sub2Attached + `}},
+								{"id": "sub-3", "type": "subscriptions", "attributes": {"productId": "com.example.legacy", "name": "Legacy", "state": "MISSING_METADATA", "submitWithNextAppStoreVersion": false}}
+							]
+						}`
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+
+					case req.Method == http.MethodPost && req.URL.Path == "/iris/v1/subscriptionSubmissions":
+						var payload struct {
+							Data struct {
+								Relationships map[string]struct {
+									Data struct {
+										ID string `json:"id"`
+									} `json:"data"`
+								} `json:"relationships"`
+							} `json:"data"`
+						}
+						if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+							t.Fatalf("decode body: %v", err)
+						}
+						postIDs = append(postIDs, payload.Data.Relationships["subscription"].Data.ID)
+						body := `{"data":{"id":"submission-` + postIDs[len(postIDs)-1] + `","type":"subscriptionSubmissions","attributes":{"submitWithNextAppStoreVersion":true}}}`
+						return &http.Response{
+							StatusCode: http.StatusCreated,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+
+					default:
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+						return nil, nil
+					}
+				}),
+			},
+		}, "cache", nil
+	}
+
+	cmd := WebReviewSubscriptionsAttachGroupCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "app-1",
+		"--group-id", "group-1",
+		"--confirm",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+	})
+
+	var payload reviewSubscriptionGroupMutationOutput
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("failed to parse stdout JSON: %v\nstdout=%s", err, stdout)
+	}
+	if payload.Operation != "attach-group" || payload.ChangedCount != 2 || payload.SkippedCount != 1 {
+		t.Fatalf("unexpected attach-group output: %#v", payload)
+	}
+	if len(postIDs) != 2 || postIDs[0] != "sub-1" || postIDs[1] != "sub-2" {
+		t.Fatalf("expected attach requests for sub-1 and sub-2, got %v", postIDs)
+	}
+	if len(payload.Changed) != 2 {
+		t.Fatalf("expected two changed subscriptions, got %#v", payload.Changed)
+	}
+	if len(payload.Skipped) != 1 || !strings.Contains(payload.Skipped[0].Reason, "MISSING_METADATA") {
+		t.Fatalf("expected missing metadata skip, got %#v", payload.Skipped)
+	}
+	wantLabels := []string{
+		"Loading review subscriptions",
+		"Attaching subscription group to next app version",
+		"Refreshing review subscriptions",
+	}
+	if strings.Join(*labels, "|") != strings.Join(wantLabels, "|") {
+		t.Fatalf("expected labels %v, got %v", wantLabels, *labels)
+	}
+}
+
+func TestWebReviewSubscriptionsRemoveGroupCommandRefreshesAttachedSubscriptions(t *testing.T) {
+	labels := stubWebProgressLabels(t)
+
+	origResolveSession := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = origResolveSession })
+
+	listCalls := 0
+	deletePaths := []string{}
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{
+			Client: &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					switch {
+					case req.Method == http.MethodGet && req.URL.Path == "/iris/v1/apps/app-1/subscriptionGroups":
+						listCalls++
+						sub1Attached := "true"
+						sub2Attached := "true"
+						if listCalls > 1 {
+							sub1Attached = "false"
+							sub2Attached = "false"
+						}
+						body := `{
+							"data": [{
+								"id": "group-1",
+								"type": "subscriptionGroups",
+								"attributes": {"referenceName": "Premium"},
+								"relationships": {
+									"subscriptions": {"data": [
+										{"type": "subscriptions", "id": "sub-1"},
+										{"type": "subscriptions", "id": "sub-2"},
+										{"type": "subscriptions", "id": "sub-3"}
+									]}
+								}
+							}],
+							"included": [
+								{"id": "sub-1", "type": "subscriptions", "attributes": {"productId": "com.example.monthly", "name": "Monthly", "state": "READY_TO_SUBMIT", "submitWithNextAppStoreVersion": ` + sub1Attached + `}},
+								{"id": "sub-2", "type": "subscriptions", "attributes": {"productId": "com.example.annual", "name": "Annual", "state": "READY_TO_SUBMIT", "submitWithNextAppStoreVersion": ` + sub2Attached + `}},
+								{"id": "sub-3", "type": "subscriptions", "attributes": {"productId": "com.example.legacy", "name": "Legacy", "state": "MISSING_METADATA", "submitWithNextAppStoreVersion": false}}
+							]
+						}`
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(body)),
+							Request:    req,
+						}, nil
+
+					case req.Method == http.MethodDelete && strings.HasPrefix(req.URL.Path, "/iris/v1/subscriptionSubmissions/"):
+						deletePaths = append(deletePaths, req.URL.Path)
+						return &http.Response{
+							StatusCode: http.StatusNoContent,
+							Header:     http.Header{"Content-Type": []string{"application/json"}},
+							Body:       io.NopCloser(strings.NewReader("")),
+							Request:    req,
+						}, nil
+
+					default:
+						t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+						return nil, nil
+					}
+				}),
+			},
+		}, "cache", nil
+	}
+
+	cmd := WebReviewSubscriptionsRemoveGroupCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "app-1",
+		"--group-id", "group-1",
+		"--confirm",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+	})
+
+	var payload reviewSubscriptionGroupMutationOutput
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("failed to parse stdout JSON: %v\nstdout=%s", err, stdout)
+	}
+	if payload.Operation != "remove-group" || payload.ChangedCount != 2 || payload.SkippedCount != 1 {
+		t.Fatalf("unexpected remove-group output: %#v", payload)
+	}
+	if len(deletePaths) != 2 ||
+		deletePaths[0] != "/iris/v1/subscriptionSubmissions/sub-1" ||
+		deletePaths[1] != "/iris/v1/subscriptionSubmissions/sub-2" {
+		t.Fatalf("expected delete requests for sub-1 and sub-2, got %v", deletePaths)
+	}
+	if len(payload.Skipped) != 1 || !strings.Contains(payload.Skipped[0].Reason, "not attached") {
+		t.Fatalf("expected not attached skip, got %#v", payload.Skipped)
+	}
+	wantLabels := []string{
+		"Loading review subscriptions",
+		"Removing subscription group from next app version",
+		"Refreshing review subscriptions",
+	}
+	if strings.Join(*labels, "|") != strings.Join(wantLabels, "|") {
+		t.Fatalf("expected labels %v, got %v", wantLabels, *labels)
+	}
+}
