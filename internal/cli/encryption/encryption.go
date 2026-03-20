@@ -332,8 +332,8 @@ func EncryptionDeclarationsExemptDeclareCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "exempt-declare",
 		ShortUsage: "asc encryption declarations exempt-declare [--plist ./Info.plist]",
-		ShortHelp:  "Declare that your app uses no non-exempt encryption.",
-		LongHelp: `Declare that your app uses no non-exempt encryption.
+		ShortHelp:  "Guide local Info.plist exemption for exempt encryption.",
+		LongHelp: `Guide local Info.plist exemption for exempt encryption.
 
 The App Store Connect API does not support creating an encryption declaration
 with all cryptography flags set to false. For apps that use no encryption (or
@@ -342,6 +342,10 @@ ITSAppUsesNonExemptEncryption to false in your Info.plist.
 
 This command can update your Info.plist automatically, or print the required
 entry for you to add manually.
+
+This command only updates local project metadata. It does not create or attach
+an App Store Connect encryption declaration. For uploaded builds, use
+"asc submit preflight" to verify ASC-side encryption state.
 
 Examples:
   asc encryption declarations exempt-declare
@@ -378,6 +382,15 @@ Or pass --plist to update it automatically:
 
 This eliminates the encryption compliance dialog on each TestFlight and
 App Store submission. Most apps that only use HTTPS/TLS qualify as exempt.
+
+This command only updates local project metadata. It does not create or attach
+an App Store Connect encryption declaration.
+
+For uploaded builds in App Store Connect, verify encryption state with:
+  asc submit preflight --app "APP_ID" --version "1.0"
+
+If a build still reports non-exempt encryption incorrectly, update the build:
+  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=false
 
 For details, see:
   https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption`)
