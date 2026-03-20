@@ -1537,9 +1537,10 @@ func TestAddBetaGroupsToBuild_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestAddBetaGroupsToBuildWithNotify_SendsRequest(t *testing.T) {
+func TestAddBetaGroupsToBuildWithNotify_SendsBuildBetaNotificationWhenAutoNotifyDisabled(t *testing.T) {
 	responses := []*http.Response{
 		jsonResponse(http.StatusNoContent, ``),
+		jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`),
 		jsonResponse(http.StatusCreated, `{"data":{"type":"buildBetaNotifications","id":"notif-1"}}`),
 	}
 	requestCount := 0
@@ -1568,6 +1569,14 @@ func TestAddBetaGroupsToBuildWithNotify_SendsRequest(t *testing.T) {
 			}
 			assertAuthorized(t, req)
 		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
+				t.Fatalf("expected path /v1/builds/build-1/buildBetaDetail, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		case 3:
 			if req.Method != http.MethodPost {
 				t.Fatalf("expected POST, got %s", req.Method)
 			}
@@ -1583,6 +1592,57 @@ func TestAddBetaGroupsToBuildWithNotify_SendsRequest(t *testing.T) {
 			}
 			if payload.Data.Relationships.Build.Data.Type != ResourceTypeBuilds || payload.Data.Relationships.Build.Data.ID != "build-1" {
 				t.Fatalf("unexpected build relationship: %+v", payload.Data.Relationships.Build.Data)
+			}
+			assertAuthorized(t, req)
+		default:
+			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+		}
+	}, responses...)
+
+	if err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true); err != nil {
+		t.Fatalf("AddBetaGroupsToBuildWithNotify() error: %v", err)
+	}
+	if requestCount != 3 {
+		t.Fatalf("expected 3 requests, got %d", requestCount)
+	}
+}
+
+func TestAddBetaGroupsToBuildWithNotify_SkipsBuildBetaNotificationWhenAutoNotifyEnabled(t *testing.T) {
+	responses := []*http.Response{
+		jsonResponse(http.StatusNoContent, ``),
+		jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":true}}}`),
+	}
+	requestCount := 0
+	client := newTestClient(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPost {
+				t.Fatalf("expected POST, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
+				t.Fatalf("expected path /v1/builds/build-1/relationships/betaGroups, got %s", req.URL.Path)
+			}
+			if req.URL.RawQuery != "" {
+				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
+			}
+			var payload RelationshipRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("failed to decode request: %v", err)
+			}
+			if len(payload.Data) != 1 {
+				t.Fatalf("expected 1 relationship, got %d", len(payload.Data))
+			}
+			if payload.Data[0].Type != ResourceTypeBetaGroups || payload.Data[0].ID != "group-1" {
+				t.Fatalf("unexpected relationship: %+v", payload.Data[0])
+			}
+			assertAuthorized(t, req)
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
+				t.Fatalf("expected path /v1/builds/build-1/buildBetaDetail, got %s", req.URL.Path)
 			}
 			assertAuthorized(t, req)
 		default:

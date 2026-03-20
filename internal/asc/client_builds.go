@@ -370,6 +370,13 @@ func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID str
 		return err
 	}
 	if notify {
+		detail, err := c.GetBuildBuildBetaDetail(ctx, buildID)
+		if err != nil {
+			return err
+		}
+		if detail.Data.Attributes.AutoNotifyEnabled {
+			return nil
+		}
 		if _, err := c.CreateBuildBetaNotification(ctx, buildID); err != nil {
 			return err
 		}
