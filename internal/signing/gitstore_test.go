@@ -112,6 +112,35 @@ func TestGitStoreWriteEncryptedFileRejectsSymlinkedParentDirectory(t *testing.T)
 	}
 }
 
+func TestGitStoreWriteEncryptedFileRejectsSymlinkTarget(t *testing.T) {
+	store := &GitStore{LocalDir: t.TempDir()}
+	outsideDir := t.TempDir()
+	outsidePath := filepath.Join(outsideDir, "secret.enc")
+
+	if err := os.WriteFile(outsidePath, []byte("original"), 0o600); err != nil {
+		t.Fatalf("write outside target: %v", err)
+	}
+	if err := os.Symlink(outsidePath, filepath.Join(store.LocalDir, "secret.enc")); err != nil {
+		t.Fatalf("create file symlink: %v", err)
+	}
+
+	err := store.WriteEncryptedFile("secret", []byte("secret"), "test-password")
+	if err == nil {
+		t.Fatal("expected symlink rejection error, got nil")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink rejection error, got %v", err)
+	}
+
+	got, readErr := os.ReadFile(outsidePath)
+	if readErr != nil {
+		t.Fatalf("read outside target: %v", readErr)
+	}
+	if string(got) != "original" {
+		t.Fatalf("did not expect write through symlink target, got %q", got)
+	}
+}
+
 func TestGitStoreReadEncryptedFileRejectsSymlink(t *testing.T) {
 	store := &GitStore{LocalDir: t.TempDir()}
 	targetDir := t.TempDir()

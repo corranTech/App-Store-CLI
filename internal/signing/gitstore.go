@@ -75,6 +75,9 @@ func (g *GitStore) WriteEncryptedFile(relPath string, plaintext []byte, password
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 		return err
 	}
+	if err := rejectSymlinkIfExists(fullPath); err != nil {
+		return err
+	}
 
 	return os.WriteFile(fullPath, encrypted, 0o600)
 }
@@ -223,6 +226,20 @@ func rejectSymlink(path string) error {
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("refusing to read symlink %q (potential escape)", path)
+	}
+	return nil
+}
+
+func rejectSymlinkIfExists(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to write symlink %q (potential escape)", path)
 	}
 	return nil
 }
