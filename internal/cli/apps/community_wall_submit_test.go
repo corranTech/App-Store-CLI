@@ -30,6 +30,66 @@ func TestCollectCommunityWallSubmitInputAllowsAppIDOnlyWhenNonInteractive(t *tes
 	}
 }
 
+func TestCollectCommunityWallSubmitInputNormalizesAppStoreIDPrefix(t *testing.T) {
+	previousPromptEnabled := communityWallPromptEnabled
+	communityWallPromptEnabled = func() bool { return false }
+	t.Cleanup(func() { communityWallPromptEnabled = previousPromptEnabled })
+
+	input, err := collectCommunityWallSubmitInput("id1234567890", "", "")
+	if err != nil {
+		t.Fatalf("collect input: %v", err)
+	}
+
+	if input.AppID != "1234567890" {
+		t.Fatalf("expected app ID prefix to be normalized, got %q", input.AppID)
+	}
+}
+
+func TestNormalizeCommunityWallAppID(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "strips lowercase id prefix",
+			input: "id1234567890",
+			want:  "1234567890",
+		},
+		{
+			name:  "strips uppercase id prefix",
+			input: "ID1234567890",
+			want:  "1234567890",
+		},
+		{
+			name:  "trims whitespace",
+			input: "  1234567890  ",
+			want:  "1234567890",
+		},
+		{
+			name:  "keeps bare numeric id",
+			input: "1234567890",
+			want:  "1234567890",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := normalizeCommunityWallAppID(test.input); got != test.want {
+				t.Fatalf("normalizeCommunityWallAppID(%q) = %q, want %q", test.input, got, test.want)
+			}
+		})
+	}
+}
+
+func TestCommunityWallAppStoreURLUsesBareAppID(t *testing.T) {
+	got := communityWallAppStoreURL("1234567890")
+	want := "https://apps.apple.com/app/id1234567890"
+	if got != want {
+		t.Fatalf("communityWallAppStoreURL() = %q, want %q", got, want)
+	}
+}
+
 func TestSubmitCommunityWallEntryDryRunReturnsPlan(t *testing.T) {
 	sourceJSON := `[
   {
@@ -400,11 +460,17 @@ func TestWaitForRepoReturnsFriendlyTimeoutAfterSleepCancellation(t *testing.T) {
 
 func TestFetchCommunityWallAppDetailsOmitsCountryFilter(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/lookup" {
+			t.Fatalf("expected /lookup path, got %q", got)
+		}
 		if got := r.URL.Query().Get("id"); got != "1234567890" {
 			t.Fatalf("expected id query, got %q", got)
 		}
 		if got := r.URL.Query().Get("country"); got != "" {
 			t.Fatalf("expected no country query filter, got %q", got)
+		}
+		if got := r.URL.Query().Get("entity"); got != "software" {
+			t.Fatalf("expected entity=software, got %q", got)
 		}
 		_, _ = w.Write([]byte(`{"results":[{"trackId":1234567890,"trackName":"Beta","trackViewUrl":"https://apps.apple.com/app/id1234567890","artworkUrl100":"https://example.com/icon.png"}]}`))
 	}))
