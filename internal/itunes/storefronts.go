@@ -4,9 +4,12 @@ package itunes
 import (
 	"sort"
 	"strings"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/language/display"
 )
 
-// Storefronts maps ISO 3166-1 alpha-2 country codes to Apple App Store storefront IDs.
+// Storefronts maps a subset of public App Store country codes to Apple storefront IDs.
 // These IDs are required for the X-Apple-Store-Front header when fetching ratings histograms.
 var Storefronts = map[string]string{
 	"ae": "143481", // United Arab Emirates
@@ -126,7 +129,8 @@ var Storefronts = map[string]string{
 	"za": "143472", // South Africa
 }
 
-// CountryNames maps ISO 3166-1 alpha-2 country codes to display names.
+// CountryNames maps country codes with custom display-name handling.
+// Public-only countries not listed here fall back to CLDR English names.
 var CountryNames = map[string]string{
 	"ae": "UAE",
 	"ai": "Anguilla",
@@ -245,6 +249,52 @@ var CountryNames = map[string]string{
 	"za": "South Africa",
 }
 
+// publicCountryCodes lists the public App Store country codes accepted by lookup/search.
+var publicCountryCodes = []string{
+	"ae", "af", "ag", "ai", "al", "am", "ao", "ar", "at", "au", "az", "ba", "bb", "be", "bf",
+	"bg", "bh", "bj", "bm", "bn", "bo", "br", "bs", "bt", "bw", "by", "bz", "ca", "cd", "cg",
+	"ch", "ci", "cl", "cm", "cn", "co", "cr", "cv", "cy", "cz", "de", "dk", "dm", "do", "dz",
+	"ec", "ee", "eg", "es", "fi", "fj", "fm", "fr", "ga", "gb", "gd", "ge", "gh", "gm", "gr",
+	"gt", "gw", "gy", "hk", "hn", "hr", "hu", "id", "ie", "il", "in", "iq", "is", "it", "jm",
+	"jo", "jp", "ke", "kg", "kh", "kn", "kr", "kw", "ky", "kz", "la", "lb", "lc", "lk", "lr",
+	"lt", "lu", "lv", "ly", "ma", "md", "me", "mg", "mk", "ml", "mm", "mn", "mo", "mr", "ms",
+	"mt", "mu", "mv", "mw", "mx", "my", "mz", "na", "ne", "ng", "ni", "nl", "no", "np", "nr",
+	"nz", "om", "pa", "pe", "pg", "ph", "pk", "pl", "pt", "pw", "py", "qa", "ro", "rs", "ru",
+	"rw", "sa", "sb", "sc", "se", "sg", "si", "sk", "sl", "sn", "sr", "st", "sv", "sz", "tc",
+	"td", "th", "tj", "tm", "tn", "to", "tr", "tt", "tw", "tz", "ua", "ug", "us", "uy", "uz",
+	"vc", "ve", "vg", "vn", "vu", "xk", "ye", "za", "zm", "zw",
+}
+
+var publicCountrySet = func() map[string]struct{} {
+	set := make(map[string]struct{}, len(publicCountryCodes))
+	for _, code := range publicCountryCodes {
+		set[code] = struct{}{}
+	}
+	return set
+}()
+
+func publicCountryName(country string) string {
+	country = strings.ToLower(strings.TrimSpace(country))
+	if name, ok := CountryNames[country]; ok {
+		return name
+	}
+
+	region, err := language.ParseRegion(strings.ToUpper(country))
+	if err != nil {
+		return ""
+	}
+	region = region.Canonicalize()
+	if !region.IsCountry() {
+		return ""
+	}
+
+	name := display.English.Regions().Name(region)
+	if name == "" || name == region.String() || name == "Unknown Region" {
+		return ""
+	}
+	return name
+}
+
 // Storefront contains public storefront metadata for a single country.
 type Storefront struct {
 	Country      string `json:"country"`
@@ -252,7 +302,7 @@ type Storefront struct {
 	StorefrontID string `json:"storefrontId"`
 }
 
-// AllCountries returns a sorted list of all supported country codes.
+// AllCountries returns a sorted list of the histogram storefront countries.
 func AllCountries() []string {
 	countries := make([]string, 0, len(Storefronts))
 	for code := range Storefronts {
@@ -262,14 +312,19 @@ func AllCountries() []string {
 	return countries
 }
 
+// AllPublicCountries returns a sorted list of all public App Store country codes.
+func AllPublicCountries() []string {
+	return append([]string(nil), publicCountryCodes...)
+}
+
 // ListStorefronts returns storefront metadata in deterministic country order.
 func ListStorefronts() []Storefront {
-	countries := AllCountries()
+	countries := AllPublicCountries()
 	storefronts := make([]Storefront, 0, len(countries))
 	for _, country := range countries {
 		storefronts = append(storefronts, Storefront{
 			Country:      strings.ToUpper(country),
-			CountryName:  CountryNames[country],
+			CountryName:  publicCountryName(country),
 			StorefrontID: Storefronts[country],
 		})
 	}

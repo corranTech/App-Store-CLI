@@ -133,6 +133,16 @@ func TestAppsPublicValidationErrors(t *testing.T) {
 			args:    []string{"apps", "public", "search", "--term", "focus", "--country", "usa"},
 			wantErr: "unsupported country code",
 		},
+		{
+			name:    "prices invalid country",
+			args:    []string{"apps", "public", "prices", "--app", "123", "--country", "usa"},
+			wantErr: "unsupported country code",
+		},
+		{
+			name:    "descriptions invalid country",
+			args:    []string{"apps", "public", "descriptions", "--app", "123", "--country", "usa"},
+			wantErr: "unsupported country code",
+		},
 	}
 
 	for _, test := range tests {
@@ -146,6 +156,57 @@ func TestAppsPublicValidationErrors(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestAppsPublicRejectsUnsupportedTwoLetterCountryBeforeRequest(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request for unsupported country: %s", req.URL.String())
+		return nil, errors.New("unexpected request")
+	})
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "view",
+			args: []string{"apps", "public", "view", "--app", "123", "--country", "zz"},
+		},
+		{
+			name: "search",
+			args: []string{"apps", "public", "search", "--term", "focus", "--country", "zz"},
+		},
+		{
+			name: "prices",
+			args: []string{"apps", "public", "prices", "--app", "123", "--country", "zz"},
+		},
+		{
+			name: "descriptions",
+			args: []string{"apps", "public", "descriptions", "--app", "123", "--country", "zz"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, runErr := runCommand(t, test.args)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "unsupported country code: zz") {
+				t.Fatalf("expected stderr to contain unsupported country code, got %q", stderr)
 			}
 		})
 	}
@@ -314,6 +375,36 @@ func TestAppsPublicViewAcceptsZeroPaddedAppIDAndUnlistedCountry(t *testing.T) {
 	if payload.Country != "KZ" {
 		t.Fatalf("Country = %q, want KZ", payload.Country)
 	}
+}
+
+func TestAppsPublicStorefrontsListIncludesPublicOnlyCountry(t *testing.T) {
+	stdout, stderr, runErr := runCommand(t, []string{"apps", "public", "storefronts", "list", "--output", "json"})
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload []itunes.Storefront
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal storefronts: %v", err)
+	}
+
+	for _, storefront := range payload {
+		if storefront.Country != "KZ" {
+			continue
+		}
+		if storefront.CountryName != "Kazakhstan" {
+			t.Fatalf("CountryName = %q, want Kazakhstan", storefront.CountryName)
+		}
+		if storefront.StorefrontID != "" {
+			t.Fatalf("StorefrontID = %q, want empty string", storefront.StorefrontID)
+		}
+		return
+	}
+
+	t.Fatal("expected KZ storefront in public storefront list output")
 }
 
 func TestAppsPublicOutputFormats(t *testing.T) {

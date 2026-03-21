@@ -79,6 +79,9 @@ func NormalizeCountryCode(country string) (string, error) {
 			return "", fmt.Errorf("unsupported country code: %s", strings.TrimSpace(country))
 		}
 	}
+	if _, ok := publicCountrySet[normalized]; !ok {
+		return "", fmt.Errorf("unsupported country code: %s", strings.TrimSpace(country))
+	}
 	return normalized, nil
 }
 
@@ -221,7 +224,7 @@ func buildApp(result lookupResult, country string) App {
 	}
 	if country != "" {
 		app.Country = strings.ToUpper(country)
-		app.CountryName = CountryNames[country]
+		app.CountryName = publicCountryName(country)
 	}
 	return app
 }

@@ -29,6 +29,9 @@ func TestNormalizeCountryCode(t *testing.T) {
 	if _, err := NormalizeCountryCode("usa"); err == nil {
 		t.Fatal("expected invalid country code error")
 	}
+	if _, err := NormalizeCountryCode("zz"); err == nil {
+		t.Fatal("expected unsupported public country code error")
+	}
 }
 
 func TestLookupAppOmitsCountryWhenUnspecified(t *testing.T) {
@@ -269,6 +272,25 @@ func TestListStorefrontsDeterministicOrder(t *testing.T) {
 	if storefronts[0].Country != "AE" {
 		t.Fatalf("expected first storefront AE, got %q", storefronts[0].Country)
 	}
+}
+
+func TestListStorefrontsIncludesPublicCountryWithoutHistogramStorefrontID(t *testing.T) {
+	storefronts := ListStorefronts()
+
+	for _, storefront := range storefronts {
+		if storefront.Country != "KZ" {
+			continue
+		}
+		if storefront.CountryName != "Kazakhstan" {
+			t.Fatalf("CountryName = %q, want Kazakhstan", storefront.CountryName)
+		}
+		if storefront.StorefrontID != "" {
+			t.Fatalf("StorefrontID = %q, want empty string", storefront.StorefrontID)
+		}
+		return
+	}
+
+	t.Fatal("expected KZ storefront in public storefront list")
 }
 
 func TestGetRatingsHistogramRequestHeader(t *testing.T) {
