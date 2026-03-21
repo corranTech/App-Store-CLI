@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -24,6 +25,8 @@ const (
 )
 
 var (
+	openTTYFn                                = openTTY
+	promptTwoFactorCodeFn                    = promptTwoFactorCodeInteractive
 	promptPasswordFn                         = promptPasswordInteractive
 	readTwoFactorCodeFromCommandFn           = readTwoFactorCodeFromCommand
 	webLoginFn                               = webcore.Login
@@ -36,6 +39,10 @@ var (
 	resolveSessionFn               any       = resolveSession
 	sessionExpiredWriter           io.Writer = os.Stderr
 )
+
+func openTTY() (*os.File, error) {
+	return os.OpenFile("/dev/tty", os.O_RDWR, 0)
+}
 
 type webAuthStatus struct {
 	Authenticated bool   `json:"authenticated"`
@@ -162,13 +169,61 @@ func readPasswordFromTerminal(ctx context.Context, terminal *os.File, writer io.
 }
 
 func promptPasswordInteractive(ctx context.Context) (string, error) {
-	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+	if tty, err := openTTYFn(); err == nil {
 		return readPasswordFromTerminal(ctx, tty, tty, true)
 	}
 	if termIsTerminalFn(int(os.Stdin.Fd())) {
 		return readPasswordFromTerminal(ctx, os.Stdin, os.Stderr, false)
 	}
 	return "", nil
+}
+
+func readTwoFactorCodeFrom(reader io.Reader, writer io.Writer) (string, error) {
+	if reader == nil || writer == nil {
+		return "", fmt.Errorf("2fa required: unable to prompt for code")
+	}
+	if _, err := fmt.Fprint(writer, "Two-factor code required. Enter 2FA code: "); err != nil {
+		return "", fmt.Errorf("2fa required: unable to prompt for code")
+	}
+	line, err := bufio.NewReader(reader).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("2fa required: failed to read 2fa code")
+	}
+	code := strings.TrimSpace(line)
+	if code == "" {
+		return "", fmt.Errorf("2fa required: empty 2fa code")
+	}
+	return code, nil
+}
+
+func readTwoFactorCodeFromTerminalFD(fd int, writer io.Writer) (string, error) {
+	if writer == nil {
+		return "", fmt.Errorf("2fa required: unable to prompt for code")
+	}
+	if _, err := fmt.Fprint(writer, "Two-factor code required. Enter 2FA code: "); err != nil {
+		return "", fmt.Errorf("2fa required: unable to prompt for code")
+	}
+	codeBytes, err := termReadPasswordFn(fd)
+	_, _ = fmt.Fprintln(writer)
+	if err != nil {
+		return "", fmt.Errorf("2fa required: failed to read 2fa code")
+	}
+	code := strings.TrimSpace(string(codeBytes))
+	if code == "" {
+		return "", fmt.Errorf("2fa required: empty 2fa code")
+	}
+	return code, nil
+}
+
+func promptTwoFactorCodeInteractive() (string, error) {
+	if tty, err := openTTYFn(); err == nil {
+		defer func() { _ = tty.Close() }()
+		return readTwoFactorCodeFromTerminalFD(int(tty.Fd()), tty)
+	}
+	if termIsTerminalFn(int(os.Stdin.Fd())) {
+		return readTwoFactorCodeFromTerminalFD(int(os.Stdin.Fd()), os.Stderr)
+	}
+	return "", fmt.Errorf("2fa required: run in a terminal for an interactive prompt or pass --two-factor-code-command or set %s", webTwoFactorCodeCommandEnv)
 }
 
 func readTwoFactorCodeFromCommand(ctx context.Context, command string) (string, error) {
@@ -243,7 +298,11 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 				}
 				code = resolvedCode
 			} else {
-				return nil, fmt.Errorf("2fa required: configure %s or pass --two-factor-code-command", webTwoFactorCodeCommandEnv)
+				var promptErr error
+				code, promptErr = promptTwoFactorCodeFn()
+				if promptErr != nil {
+					return nil, promptErr
+				}
 			}
 		}
 		if err := withWebSpinner("Verifying two-factor code", func() error {
@@ -388,8 +447,9 @@ Password input options:
   - ASC_WEB_PASSWORD environment variable
 
 Two-factor input options:
+  - secure interactive prompt (default for manual use)
   - --two-factor-code-command
-  - ` + webTwoFactorCodeCommandEnv + ` environment variable
+  - ` + webTwoFactorCodeCommandEnv + ` environment variable (recommended for automation)
 
 ` + webWarningText + `
 

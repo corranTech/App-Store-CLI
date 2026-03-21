@@ -3,8 +3,8 @@
 --   osascript /absolute/path/to/get-apple-2fa-code.scpt 90
 --
 -- This script polls the macOS FollowUpUI accessibility tree for a 6-digit
--- Apple two-factor code and prints the first match to stdout. If the first
--- trust dialog only shows an Allow button, the script clicks it and keeps
+-- Apple two-factor code and prints the first match to stdout. If the trust
+-- dialog only shows one localized button, the script clicks it and keeps
 -- polling for the code dialog.
 --
 -- Requirements:
@@ -47,27 +47,16 @@ on findTwoFactorCode()
 
 			tell process "FollowUpUI"
 				repeat with currentWindow in windows
-					set didAdvanceTrustPrompt to my clickTrustButtonIfPresent(currentWindow)
-					if didAdvanceTrustPrompt then
-						delay postTrustClickDelaySeconds
-					end if
-
-					set code to my scanElement(currentWindow)
+					set code to my scanWindowForCode(currentWindow)
 					if code is not "" then
 						my clickDoneButtonIfPresent(currentWindow)
 						return code
 					end if
 
-					try
-						set windowElements to entire contents of currentWindow
-						repeat with currentElement in windowElements
-							set code to my scanElement(currentElement)
-							if code is not "" then
-								my clickDoneButtonIfPresent(currentWindow)
-								return code
-							end if
-						end repeat
-					end try
+					set didAdvanceTrustPrompt to my clickTrustButtonIfPresent(currentWindow)
+					if didAdvanceTrustPrompt then
+						delay postTrustClickDelaySeconds
+					end if
 				end repeat
 			end tell
 		end tell
@@ -77,6 +66,25 @@ on findTwoFactorCode()
 
 	return ""
 end findTwoFactorCode
+
+on scanWindowForCode(theWindow)
+	set code to my scanElement(theWindow)
+	if code is not "" then
+		return code
+	end if
+
+	try
+		tell application "System Events" to set windowElements to entire contents of theWindow
+		repeat with currentElement in windowElements
+			set code to my scanElement(currentElement)
+			if code is not "" then
+				return code
+			end if
+		end repeat
+	end try
+
+	return ""
+end scanWindowForCode
 
 on clickTrustButtonIfPresent(theWindow)
 	if my clickAllowButtonIfPresent(theWindow) then
@@ -127,7 +135,7 @@ on clickRightmostButton(theWindow)
 		return false
 	end try
 
-	if (count of windowButtons) < 2 then
+	if (count of windowButtons) = 0 then
 		return false
 	end if
 
