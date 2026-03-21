@@ -296,9 +296,19 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "reviews ratings does not accept positional arguments",
 		},
 		{
+			name:    "reviews ratings unsupported country",
+			args:    []string{"reviews", "ratings", "--app", "123", "--country", "zz"},
+			wantErr: "unsupported country code",
+		},
+		{
 			name:    "apps public view unsupported country",
 			args:    []string{"apps", "public", "view", "--app", "123", "--country", "zz"},
 			wantErr: "unsupported country code",
+		},
+		{
+			name:    "apps public view signed app id",
+			args:    []string{"apps", "public", "view", "--app", "-123"},
+			wantErr: "--app must be a numeric App Store app ID",
 		},
 	}
 

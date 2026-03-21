@@ -212,6 +212,53 @@ func TestAppsPublicRejectsUnsupportedTwoLetterCountryBeforeRequest(t *testing.T)
 	}
 }
 
+func TestAppsPublicRejectsSignedAppIDsBeforeRequest(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request for signed app ID: %s", req.URL.String())
+		return nil, errors.New("unexpected request")
+	})
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "view negative app",
+			args: []string{"apps", "public", "view", "--app", "-123"},
+		},
+		{
+			name: "prices positive app",
+			args: []string{"apps", "public", "prices", "--app", "+123"},
+		},
+		{
+			name: "descriptions negative alias",
+			args: []string{"apps", "public", "descriptions", "--id", "-123"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, runErr := runCommand(t, test.args)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "--app must be a numeric App Store app ID") {
+				t.Fatalf("expected stderr to contain numeric app ID error, got %q", stderr)
+			}
+		})
+	}
+}
+
 func TestAppsPublicAliasIsSilentAndMatchesCanonical(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "poison")

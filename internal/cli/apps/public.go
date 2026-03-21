@@ -420,15 +420,31 @@ func resolvePublicAppID(appID, alias string) (string, error) {
 		return "", fmt.Errorf("--app and --id are mutually exclusive")
 	}
 	if appID != "" {
-		if _, err := strconv.ParseInt(appID, 10, 64); err != nil {
+		if err := validatePublicAppID(appID); err != nil {
 			return "", fmt.Errorf("--app must be a numeric App Store app ID")
 		}
 		return appID, nil
 	}
-	if _, err := strconv.ParseInt(alias, 10, 64); err != nil {
+	if err := validatePublicAppID(alias); err != nil {
 		return "", fmt.Errorf("--app must be a numeric App Store app ID")
 	}
 	return alias, nil
+}
+
+func validatePublicAppID(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("app ID is required")
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return fmt.Errorf("app ID must contain only digits")
+		}
+	}
+	if _, err := strconv.ParseInt(value, 10, 64); err != nil {
+		return err
+	}
+	return nil
 }
 
 func normalizePublicCountry(country string) (string, error) {

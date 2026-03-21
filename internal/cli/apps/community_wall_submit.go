@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -772,7 +773,7 @@ func communityWallIconForLink(ctx context.Context, link string) (string, error) 
 }
 
 func communityWallAppStoreURL(appStoreID string) string {
-	return "https://apps.apple.com/app/id" + strings.TrimSpace(appStoreID)
+	return "https://apps.apple.com/app/id" + canonicalizeCommunityWallAppID(appStoreID)
 }
 
 func normalizeCommunityWallAppID(value string) string {
@@ -789,6 +790,19 @@ func normalizeCommunityWallAppID(value string) string {
 		return strings.TrimSpace(trimmed[2:])
 	}
 	return trimmed
+}
+
+func canonicalizeCommunityWallAppID(value string) string {
+	normalized := normalizeCommunityWallAppID(value)
+	if normalized == "" {
+		return ""
+	}
+
+	parsed, err := strconv.ParseInt(normalized, 10, 64)
+	if err != nil {
+		return normalized
+	}
+	return strconv.FormatInt(parsed, 10)
 }
 
 func extractCommunityWallAppStoreID(link string) string {

@@ -90,6 +90,45 @@ func TestCommunityWallAppStoreURLUsesBareAppID(t *testing.T) {
 	}
 }
 
+func TestCommunityWallAppStoreURLCanonicalizesZeroPaddedID(t *testing.T) {
+	got := communityWallAppStoreURL("00123")
+	want := "https://apps.apple.com/app/id123"
+	if got != want {
+		t.Fatalf("communityWallAppStoreURL() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveCommunityWallCandidateCanonicalizesFallbackAppStoreURL(t *testing.T) {
+	previousLookupDetails := communityWallLookupAppDetails
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+		return map[string]communityWallAppDetails{
+			"00123": {
+				Name: "Beta",
+				Link: "",
+			},
+		}, nil
+	}
+	t.Cleanup(func() {
+		communityWallLookupAppDetails = previousLookupDetails
+	})
+
+	candidate, warnings, err := resolveCommunityWallCandidate(context.Background(), communityWallSubmitInput{
+		AppID: "00123",
+	})
+	if err != nil {
+		t.Fatalf("resolve candidate: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("expected no warnings, got %+v", warnings)
+	}
+	if candidate.App != "Beta" {
+		t.Fatalf("App = %q, want Beta", candidate.App)
+	}
+	if candidate.Link != "https://apps.apple.com/app/id123" {
+		t.Fatalf("Link = %q, want canonical App Store URL", candidate.Link)
+	}
+}
+
 func TestSubmitCommunityWallEntryDryRunReturnsPlan(t *testing.T) {
 	sourceJSON := `[
   {

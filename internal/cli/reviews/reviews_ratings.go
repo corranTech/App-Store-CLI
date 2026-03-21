@@ -59,6 +59,12 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --workers must be at least 1")
 				return flag.ErrHelp
 			}
+			if !*all {
+				if _, err := itunes.NormalizeCountryCode(*country); err != nil {
+					fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+					return flag.ErrHelp
+				}
+			}
 
 			return executeRatings(ctx, *appID, *country, *all, *workers, *output.Output, *output.Pretty)
 		},

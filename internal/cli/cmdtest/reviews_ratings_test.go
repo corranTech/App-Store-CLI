@@ -30,6 +30,11 @@ func TestReviewsRatingsValidationErrors(t *testing.T) {
 			args:    []string{"reviews", "ratings", "--app", "123", "extra"},
 			wantErr: "reviews ratings does not accept positional arguments",
 		},
+		{
+			name:    "reviews ratings unsupported country",
+			args:    []string{"reviews", "ratings", "--app", "123", "--country", "zz"},
+			wantErr: "unsupported country code",
+		},
 	}
 
 	for _, test := range tests {
