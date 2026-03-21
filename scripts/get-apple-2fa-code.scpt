@@ -13,7 +13,8 @@
 
 property initialSettleDelaySeconds : 2
 property postTrustClickDelaySeconds : 2
-property trustDialogTextHints : {"trust", "browser", "trusted", "remember this browser", "do not ask again", "don't ask again"}
+property trustDialogTextHints : {"browser", "this browser", "remember this browser", "remember browser", "do not ask again", "don't ask again"}
+property codeEntryDialogTextHints : {"trusted devices", "verification code", "enter the verification code", "code sent"}
 
 on run argv
 	set timeoutSeconds to 60
@@ -197,6 +198,10 @@ on scanElement(theElement)
 end scanElement
 
 on looksLikeTrustDialog(theWindow)
+	if my windowContainsAnyTextHint(theWindow, codeEntryDialogTextHints) then
+		return false
+	end if
+
 	return my windowContainsAnyTextHint(theWindow, trustDialogTextHints)
 end looksLikeTrustDialog
 

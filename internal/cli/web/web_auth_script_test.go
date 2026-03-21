@@ -66,10 +66,27 @@ func TestAppleTwoFactorScriptRestrictsFallbackToRecognizedTrustPrompts(t *testin
 	if !strings.Contains(script, "property trustDialogTextHints :") {
 		t.Fatalf("expected trust dialog text hints in script")
 	}
+	if strings.Contains(script, "\"trust\"") || strings.Contains(script, "\"trusted\"") {
+		t.Fatalf("expected trust dialog hints to avoid generic trust/trusted substrings")
+	}
 	if !strings.Contains(script, "return my windowContainsAnyTextHint(theWindow, trustDialogTextHints)") {
 		t.Fatalf("expected trust dialog detection helper in script")
 	}
 	if !strings.Contains(script, "if not (my looksLikeTrustDialog(theWindow)) then") || !strings.Contains(script, "\t\treturn false") {
 		t.Fatalf("expected script to refuse unknown FollowUpUI dialogs before fallback clicking")
+	}
+}
+
+func TestAppleTwoFactorScriptDoesNotTreatTrustedDevicesPromptAsTrustDialog(t *testing.T) {
+	script := loadAppleTwoFactorScript(t)
+
+	if !strings.Contains(script, "property codeEntryDialogTextHints :") {
+		t.Fatalf("expected code-entry dialog text hints in script")
+	}
+	if !strings.Contains(script, "if my windowContainsAnyTextHint(theWindow, codeEntryDialogTextHints) then") {
+		t.Fatalf("expected trust dialog detection to reject ordinary code-entry prompts first")
+	}
+	if !strings.Contains(script, "\"trusted devices\"") || !strings.Contains(script, "\"verification code\"") {
+		t.Fatalf("expected code-entry dialog hints for ordinary 2FA challenge text")
 	}
 }
