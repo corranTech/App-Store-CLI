@@ -220,14 +220,8 @@ func printExpiredSessionNotice(writer io.Writer) {
 }
 
 func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, error) {
-	return loginWithOptionalTwoFactorUsing(ctx, "Signing in to Apple web session", appleID, password, twoFactorCode, func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
-		return webLoginFn(ctx, creds)
-	})
-}
-
-func loginWithOptionalTwoFactorUsing(ctx context.Context, label, appleID, password, twoFactorCode string, loginFn func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error)) (*webcore.AuthSession, error) {
-	session, err := withWebSpinnerValue(label, func() (*webcore.AuthSession, error) {
-		return loginFn(ctx, webcore.LoginCredentials{
+	session, err := withWebSpinnerValue("Signing in to Apple web session", func() (*webcore.AuthSession, error) {
+		return webLoginFn(ctx, webcore.LoginCredentials{
 			Username: appleID,
 			Password: password,
 		})
