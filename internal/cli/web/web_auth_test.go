@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -192,124 +193,72 @@ func TestReadPasswordFromTerminalPropagatesCtrlCAsInterrupt(t *testing.T) {
 	}
 }
 
-func TestReadTwoFactorCodeFrom(t *testing.T) {
-	t.Run("trims input", func(t *testing.T) {
-		input := strings.NewReader(" 123456 \n")
-		var prompt bytes.Buffer
+func TestReadTwoFactorCodeFromCommand(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell command coverage uses POSIX shell commands")
+	}
 
-		code, err := readTwoFactorCodeFrom(input, &prompt)
+	t.Run("trims stdout", func(t *testing.T) {
+		t.Setenv("SHELL", "/bin/sh")
+
+		code, err := readTwoFactorCodeFromCommand(context.Background(), "printf ' 123456 \\n'")
 		if err != nil {
-			t.Fatalf("readTwoFactorCodeFrom returned error: %v", err)
+			t.Fatalf("readTwoFactorCodeFromCommand returned error: %v", err)
 		}
 		if code != "123456" {
 			t.Fatalf("expected code %q, got %q", "123456", code)
 		}
-		if !strings.Contains(prompt.String(), "Enter 2FA code") {
-			t.Fatalf("expected prompt text, got %q", prompt.String())
+	})
+
+	t.Run("rejects empty output", func(t *testing.T) {
+		t.Setenv("SHELL", "/bin/sh")
+
+		_, err := readTwoFactorCodeFromCommand(context.Background(), "printf '   \\n'")
+		if err == nil {
+			t.Fatal("expected error for empty output")
+		}
+		if !strings.Contains(err.Error(), "returned empty output") {
+			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 
-	t.Run("rejects empty", func(t *testing.T) {
-		input := strings.NewReader("\n")
-		var prompt bytes.Buffer
+	t.Run("surfaces command stderr", func(t *testing.T) {
+		t.Setenv("SHELL", "/bin/sh")
 
-		_, err := readTwoFactorCodeFrom(input, &prompt)
+		_, err := readTwoFactorCodeFromCommand(context.Background(), "printf 'boom\\n' >&2; exit 9")
 		if err == nil {
-			t.Fatal("expected error for empty input")
+			t.Fatal("expected command failure")
 		}
-		if !strings.Contains(err.Error(), "empty 2fa code") {
-			t.Fatalf("unexpected error: %v", err)
+		if !strings.Contains(err.Error(), "boom") {
+			t.Fatalf("expected stderr in error, got %v", err)
 		}
 	})
 }
 
-func TestReadTwoFactorCodeFromTerminalFD(t *testing.T) {
-	origReadPassword := termReadPasswordFn
-	t.Cleanup(func() {
-		termReadPasswordFn = origReadPassword
-	})
-
-	t.Run("trims input", func(t *testing.T) {
-		termReadPasswordFn = func(fd int) ([]byte, error) {
-			return []byte(" 654321 "), nil
-		}
-		var prompt bytes.Buffer
-
-		code, err := readTwoFactorCodeFromTerminalFD(0, &prompt)
-		if err != nil {
-			t.Fatalf("readTwoFactorCodeFromTerminalFD returned error: %v", err)
-		}
-		if code != "654321" {
-			t.Fatalf("expected code %q, got %q", "654321", code)
-		}
-		if !strings.Contains(prompt.String(), "Enter 2FA code") {
-			t.Fatalf("expected prompt text, got %q", prompt.String())
-		}
-	})
-
-	t.Run("rejects empty", func(t *testing.T) {
-		termReadPasswordFn = func(fd int) ([]byte, error) {
-			return []byte("   "), nil
-		}
-
-		_, err := readTwoFactorCodeFromTerminalFD(0, &bytes.Buffer{})
-		if err == nil {
-			t.Fatal("expected error for empty input")
-		}
-		if !strings.Contains(err.Error(), "empty 2fa code") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("read failure", func(t *testing.T) {
-		termReadPasswordFn = func(fd int) ([]byte, error) {
-			return nil, errors.New("tty read failed")
-		}
-
-		_, err := readTwoFactorCodeFromTerminalFD(0, &bytes.Buffer{})
-		if err == nil {
-			t.Fatal("expected read error")
-		}
-		if !strings.Contains(err.Error(), "failed to read 2fa code") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-}
-
-func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
-	origPrompt := promptTwoFactorCodeFn
+func TestLoginWithOptionalTwoFactorUsesProvidedCodeWhenPresent(t *testing.T) {
 	origLogin := webLoginFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
-		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
 		submitTwoFactorCodeFn = origSubmit
 	})
 
-	var prompted bool
 	var submittedCode string
 
 	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
-	}
-	promptTwoFactorCodeFn = func() (string, error) {
-		prompted = true
-		return "654321", nil
 	}
 	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
 		submittedCode = code
 		return nil
 	}
 
-	session, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "")
+	session, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "654321")
 	if err != nil {
 		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
 	}
 	if session == nil {
 		t.Fatal("expected non-nil session")
-	}
-	if !prompted {
-		t.Fatal("expected interactive prompt for missing 2fa code")
 	}
 	if submittedCode != "654321" {
 		t.Fatalf("expected submitted code %q, got %q", "654321", submittedCode)
@@ -317,32 +266,73 @@ func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
 }
 
 func TestLoginWithOptionalTwoFactorReturnsPromptError(t *testing.T) {
-	origPrompt := promptTwoFactorCodeFn
 	origLogin := webLoginFn
+	origReadCommand := readTwoFactorCodeFromCommandFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
-		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
+		readTwoFactorCodeFromCommandFn = origReadCommand
 		submitTwoFactorCodeFn = origSubmit
 	})
 
 	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
 	}
-	promptTwoFactorCodeFn = func() (string, error) {
-		return "", errors.New("2fa required: re-run with --two-factor-code")
+	readTwoFactorCodeFromCommandFn = func(ctx context.Context, command string) (string, error) {
+		t.Fatal("did not expect 2FA command without configuration")
+		return "", nil
 	}
 	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
-		t.Fatal("did not expect submit when prompt fails")
+		t.Fatal("did not expect submit when 2FA command is not configured")
 		return nil
 	}
 
-	_, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "")
+	_, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "", "")
 	if err == nil {
 		t.Fatal("expected error when prompt fails")
 	}
-	if !strings.Contains(err.Error(), "re-run with --two-factor-code") {
+	if !strings.Contains(err.Error(), "configure "+webTwoFactorCodeCommandEnv+" or pass --two-factor-code-command") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoginWithOptionalTwoFactorUsesCommandWhenConfigured(t *testing.T) {
+	origLogin := webLoginFn
+	origReadCommand := readTwoFactorCodeFromCommandFn
+	origSubmit := submitTwoFactorCodeFn
+	t.Cleanup(func() {
+		webLoginFn = origLogin
+		readTwoFactorCodeFromCommandFn = origReadCommand
+		submitTwoFactorCodeFn = origSubmit
+	})
+
+	var commandValue string
+	var submittedCode string
+
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+	}
+	readTwoFactorCodeFromCommandFn = func(ctx context.Context, command string) (string, error) {
+		commandValue = command
+		return "246810", nil
+	}
+	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
+		submittedCode = code
+		return nil
+	}
+
+	session, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
+	if err != nil {
+		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
+	}
+	if session == nil {
+		t.Fatal("expected non-nil session")
+	}
+	if commandValue != "osascript ./get-2fa.scpt" {
+		t.Fatalf("expected command %q, got %q", "osascript ./get-2fa.scpt", commandValue)
+	}
+	if submittedCode != "246810" {
+		t.Fatalf("expected submitted code %q, got %q", "246810", submittedCode)
 	}
 }
 
@@ -456,6 +446,68 @@ func TestResolveSessionPrintsExpiredNoticeBeforePrompt(t *testing.T) {
 	}
 	if got := notice.String(); got != "Session expired.\n" {
 		t.Fatalf("expected expired notice output, got %q", got)
+	}
+}
+
+func TestResolveSessionUsesTwoFactorCodeCommandEnvWhen2FARequired(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origPromptPassword := promptPasswordFn
+	origReadCommand := readTwoFactorCodeFromCommandFn
+	origWebLogin := webLoginFn
+	origSubmit := submitTwoFactorCodeFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		promptPasswordFn = origPromptPassword
+		readTwoFactorCodeFromCommandFn = origReadCommand
+		webLoginFn = origWebLogin
+		submitTwoFactorCodeFn = origSubmit
+	})
+
+	t.Setenv(webPasswordEnv, "")
+	t.Setenv(webTwoFactorCodeCommandEnv, "osascript ./get-2fa.scpt")
+
+	var commandValue string
+	var submittedCode string
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	promptPasswordFn = func(ctx context.Context) (string, error) {
+		return "secret", nil
+	}
+	readTwoFactorCodeFromCommandFn = func(ctx context.Context, command string) (string, error) {
+		commandValue = command
+		return "135790", nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return &webcore.AuthSession{UserEmail: "user@example.com"}, &webcore.TwoFactorRequiredError{}
+	}
+	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
+		submittedCode = code
+		return nil
+	}
+
+	session, source, err := resolveSession(context.Background(), "user@example.com", "", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession returned error: %v", err)
+	}
+	if source != "fresh" {
+		t.Fatalf("expected source %q, got %q", "fresh", source)
+	}
+	if session == nil {
+		t.Fatal("expected non-nil session")
+	}
+	if commandValue != "osascript ./get-2fa.scpt" {
+		t.Fatalf("expected command %q, got %q", "osascript ./get-2fa.scpt", commandValue)
+	}
+	if submittedCode != "135790" {
+		t.Fatalf("expected submitted code %q, got %q", "135790", submittedCode)
 	}
 }
 

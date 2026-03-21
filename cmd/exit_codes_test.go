@@ -428,6 +428,45 @@ func TestBuildsLatestExcludeExpiredInvalidBooleanExitCode(t *testing.T) {
 	}
 }
 
+func TestWebAuthLoginLegacyTwoFactorFlagExitCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	buildCmd.Dir = ".."
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, out)
+	}
+
+	runCmd := exec.Command(
+		binaryPath,
+		"web", "auth", "login",
+		"--apple-id", "user@example.com",
+		"--two-factor-code", "123456",
+	)
+	runCmd.Env = append(
+		isolatedCLITestEnv(filepath.Join(tmpDir, "config.json")),
+		"ASC_WEB_PASSWORD=secret",
+	)
+	output, err := runCmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit for removed 2FA flag, got success output: %s", output)
+	}
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
+	}
+	if exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
+	}
+
+	stderr := string(output)
+	if !strings.Contains(stderr, "flag provided but not defined: -two-factor-code") {
+		t.Fatalf("expected unknown flag message, got %q", stderr)
+	}
+}
+
 func TestAuthTokenConfirmInvalidBooleanExitCode(t *testing.T) {
 	tmpDir := t.TempDir()
 	binaryPath := filepath.Join(tmpDir, "asc-test")

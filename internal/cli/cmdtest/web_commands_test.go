@@ -109,4 +109,10 @@ func TestWebAuthLoginDoesNotExposePlaintextPasswordFlag(t *testing.T) {
 	if cmd.FlagSet.Lookup("password-stdin") != nil {
 		t.Fatal("did not expect --password-stdin flag on web auth login")
 	}
+	if cmd.FlagSet.Lookup("two-factor-code") != nil {
+		t.Fatal("did not expect legacy --two-factor-code flag on web auth login")
+	}
+	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
+		t.Fatal("expected --two-factor-code-command flag on web auth login")
+	}
 }

@@ -11,23 +11,24 @@ import (
 )
 
 type webSessionFlags struct {
-	appleID       *string
-	twoFactorCode *string
+	appleID              *string
+	twoFactorCodeCommand *string
 }
 
 func bindWebSessionFlags(fs *flag.FlagSet) webSessionFlags {
 	return webSessionFlags{
-		appleID:       fs.String("apple-id", "", "Apple Account email used to scope a user-owned session cache (optional when a cached session exists)"),
-		twoFactorCode: fs.String("two-factor-code", "", "2FA code if your account requires verification"),
+		appleID:              fs.String("apple-id", "", "Apple Account email used to scope a user-owned session cache (optional when a cached session exists)"),
+		twoFactorCodeCommand: fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required"),
 	}
 }
 
 func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*webcore.AuthSession, error) {
-	session, _, err := resolveSessionFn(
+	session, _, err := callResolveSessionFn(
 		ctx,
 		*flags.appleID,
 		"",
-		*flags.twoFactorCode,
+		"",
+		*flags.twoFactorCodeCommand,
 	)
 	if err != nil {
 		return nil, err
