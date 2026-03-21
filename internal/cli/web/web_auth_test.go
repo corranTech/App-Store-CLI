@@ -334,9 +334,6 @@ func TestTwoFactorCodeCommandShellArgs(t *testing.T) {
 	if args[0] != "-c" {
 		t.Fatalf("expected non-login shell flag %q, got %q", "-c", args[0])
 	}
-	if args[0] == "-lc" {
-		t.Fatalf("did not expect login shell flag in args: %v", args)
-	}
 }
 
 func TestReadTwoFactorCodeFromCommand(t *testing.T) {
@@ -377,6 +374,21 @@ func TestReadTwoFactorCodeFromCommand(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "boom") {
 			t.Fatalf("expected stderr in error, got %v", err)
+		}
+	})
+
+	t.Run("honors asc timeout override while waiting for helper output", func(t *testing.T) {
+		t.Setenv("ASC_TIMEOUT", "50ms")
+
+		_, err := readTwoFactorCodeFromCommand(context.Background(), "sleep 0.1; printf '123456\\n'")
+		if err == nil {
+			t.Fatal("expected timeout error")
+		}
+		if !strings.Contains(err.Error(), "interrupted") {
+			t.Fatalf("expected interrupted error, got %v", err)
+		}
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("expected deadline exceeded, got %v", err)
 		}
 	})
 

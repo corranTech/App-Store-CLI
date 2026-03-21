@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"golang.org/x/term"
@@ -22,6 +23,7 @@ import (
 const (
 	webPasswordEnv             = "ASC_WEB_PASSWORD"
 	webTwoFactorCodeCommandEnv = "ASC_WEB_2FA_CODE_COMMAND"
+	webTwoFactorCommandTimeout = 60 * time.Second
 )
 
 var errAutoReauthRequiresAppleID = errors.New("cached web session is missing stored apple id metadata")
@@ -250,16 +252,13 @@ func readTwoFactorCodeFromCommand(ctx context.Context, command string) (string, 
 		return "", fmt.Errorf("2fa required: empty 2fa code command")
 	}
 
-	commandCtx := shared.ContextWithoutTimeout(ctx)
+	commandCtx, cancel := shared.ContextWithResolvedTimeout(shared.ContextWithoutTimeout(ctx), webTwoFactorCommandTimeout)
+	defer cancel()
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		cmd = exec.CommandContext(commandCtx, "cmd", twoFactorCodeCommandShellArgs(command)...)
 	} else {
-		shell := strings.TrimSpace(os.Getenv("SHELL"))
-		if shell == "" {
-			shell = "/bin/sh"
-		}
-		cmd = exec.CommandContext(commandCtx, shell, twoFactorCodeCommandShellArgs(command)...)
+		cmd = exec.CommandContext(commandCtx, "/bin/sh", twoFactorCodeCommandShellArgs(command)...)
 	}
 
 	output, err := cmd.Output()
