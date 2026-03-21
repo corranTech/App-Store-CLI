@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -12,6 +15,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -375,6 +379,24 @@ func TestReadTwoFactorCodeFromCommand(t *testing.T) {
 			t.Fatalf("expected stderr in error, got %v", err)
 		}
 	})
+
+	t.Run("ignores shared request timeout while waiting for helper output", func(t *testing.T) {
+		t.Setenv("SHELL", "/bin/sh")
+
+		requestCtx, cancel := shared.ContextWithTimeoutDuration(context.Background(), 30*time.Millisecond)
+		t.Cleanup(cancel)
+
+		code, err := readTwoFactorCodeFromCommand(requestCtx, "sleep 0.1; printf '123456\\n'")
+		if err != nil {
+			t.Fatalf("readTwoFactorCodeFromCommand returned error: %v", err)
+		}
+		if code != "123456" {
+			t.Fatalf("expected code %q, got %q", "123456", code)
+		}
+		if !errors.Is(requestCtx.Err(), context.DeadlineExceeded) {
+			t.Fatalf("expected original request context to time out, got %v", requestCtx.Err())
+		}
+	})
 }
 
 func TestLoginWithOptionalTwoFactorPromptsWhenCodeMissing(t *testing.T) {
@@ -529,6 +551,57 @@ func TestLoginWithOptionalTwoFactorUsesCommandWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestLoginWithOptionalTwoFactorReappliesTimeoutAfterDelayedCommand(t *testing.T) {
+	origLogin := webLoginFn
+	origReadCommand := readTwoFactorCodeFromCommandFn
+	origSubmit := submitTwoFactorCodeFn
+	t.Cleanup(func() {
+		webLoginFn = origLogin
+		readTwoFactorCodeFromCommandFn = origReadCommand
+		submitTwoFactorCodeFn = origSubmit
+	})
+
+	requestCtx, cancel := shared.ContextWithTimeoutDuration(context.Background(), 30*time.Millisecond)
+	t.Cleanup(cancel)
+
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
+	}
+	readTwoFactorCodeFromCommandFn = func(ctx context.Context, command string) (string, error) {
+		if command != "osascript ./get-2fa.scpt" {
+			t.Fatalf("expected command %q, got %q", "osascript ./get-2fa.scpt", command)
+		}
+		time.Sleep(100 * time.Millisecond)
+		if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			t.Fatalf("expected original request context to expire while waiting for 2FA code, got %v", ctx.Err())
+		}
+		return "246810", nil
+	}
+	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
+		if code != "246810" {
+			t.Fatalf("expected submitted code %q, got %q", "246810", code)
+		}
+		if ctx.Err() != nil {
+			t.Fatalf("expected fresh verification context, got %v", ctx.Err())
+		}
+		if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) <= 0 {
+			t.Fatalf("expected verification context to have a future deadline, got ok=%v deadline=%v", ok, deadline)
+		}
+		return nil
+	}
+
+	session, err := loginWithOptionalTwoFactor(requestCtx, "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
+	if err != nil {
+		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
+	}
+	if session == nil {
+		t.Fatal("expected non-nil session")
+	}
+	if !errors.Is(requestCtx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("expected original request context to time out, got %v", requestCtx.Err())
+	}
+}
+
 func TestResolveSessionUsesLastCachedSessionWhenAppleIDMissing(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
@@ -583,14 +656,22 @@ func TestResolveSessionRequiresAppleIDWhenNoCachedSessionExists(t *testing.T) {
 func TestResolveSessionPrintsExpiredNoticeBeforePrompt(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
+	origLoadCachedSession := loadCachedSessionFn
+	origLoadLastCachedSession := loadLastCachedSessionFn
 	origPromptPassword := promptPasswordFn
 	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
 	origExpiredWriter := sessionExpiredWriter
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
+		loadCachedSessionFn = origLoadCachedSession
+		loadLastCachedSessionFn = origLoadLastCachedSession
 		promptPasswordFn = origPromptPassword
 		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
 		sessionExpiredWriter = origExpiredWriter
 	})
 
@@ -610,6 +691,23 @@ func TestResolveSessionPrintsExpiredNoticeBeforePrompt(t *testing.T) {
 	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
 		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
 		return nil, false, nil
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last cached-session load when apple-id is provided")
+		return nil, false, nil
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		if session != expected {
+			t.Fatal("expected prompted fresh-login session to be persisted")
+		}
+		return nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect cached-client relogin without an env password")
+		return nil, nil
 	}
 	promptPasswordFn = func(ctx context.Context) (string, error) {
 		if got := notice.String(); got != "Session expired.\n" {
@@ -769,6 +867,508 @@ func TestResolveSessionPromptsForTwoFactorCodeWhen2FARequiredWithoutCommand(t *t
 	}
 	if submittedCode != "135790" {
 		t.Fatalf("expected submitted code %q, got %q", "135790", submittedCode)
+	}
+}
+
+func TestResolveSessionAutoReauthsExpiredCachedSessionUsingEnvPassword(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origLoadCachedSession := loadCachedSessionFn
+	origLoadLastCachedSession := loadLastCachedSessionFn
+	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		loadCachedSessionFn = origLoadCachedSession
+		loadLastCachedSessionFn = origLoadLastCachedSession
+		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
+		sessionExpiredWriter = origExpiredWriter
+	})
+
+	t.Setenv(webPasswordEnv, "env-secret")
+
+	var notice bytes.Buffer
+	sessionExpiredWriter = &notice
+
+	cachedClient := &http.Client{}
+	expected := &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com", ProviderID: 7}
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		if username != "user@example.com" {
+			t.Fatalf("expected username user@example.com, got %q", username)
+		}
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		if username != "user@example.com" {
+			t.Fatalf("expected cached-session load for user@example.com, got %q", username)
+		}
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}, true, nil
+	}
+	loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last cached-session load when apple-id is provided")
+		return nil, false, nil
+	}
+	promptPasswordFn = func(ctx context.Context) (string, error) {
+		t.Fatal("did not expect password prompt during silent auto-reauth")
+		return "", nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect fresh-login path during silent auto-reauth")
+		return nil, nil
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		if session != expected {
+			t.Fatal("expected auto-reauth session to be persisted")
+		}
+		return nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if client != cachedClient {
+			t.Fatal("expected cached client to be reused for auto-reauth")
+		}
+		if creds.Username != "user@example.com" {
+			t.Fatalf("expected login username user@example.com, got %q", creds.Username)
+		}
+		if creds.Password != "env-secret" {
+			t.Fatalf("expected env password to be used, got %q", creds.Password)
+		}
+		return expected, nil
+	}
+
+	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession returned error: %v", err)
+	}
+	if source != "auto-reauth" {
+		t.Fatalf("expected source %q, got %q", "auto-reauth", source)
+	}
+	if session != expected {
+		t.Fatal("expected auto-reauth session to be returned")
+	}
+	if got := notice.String(); got != "" {
+		t.Fatalf("did not expect expired-session notice on successful auto-reauth, got %q", got)
+	}
+}
+
+func TestResolveSessionAutoReauthsExpiredLastCachedSessionUsingStoredEmail(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origLoadCachedSession := loadCachedSessionFn
+	origLoadLastCachedSession := loadLastCachedSessionFn
+	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		loadCachedSessionFn = origLoadCachedSession
+		loadLastCachedSessionFn = origLoadLastCachedSession
+		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
+		sessionExpiredWriter = origExpiredWriter
+	})
+
+	t.Setenv(webPasswordEnv, "env-secret")
+
+	var notice bytes.Buffer
+	sessionExpiredWriter = &notice
+
+	cachedClient := &http.Client{}
+	expected := &webcore.AuthSession{Client: cachedClient, UserEmail: "cached@example.com", ProviderID: 42}
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect user-scoped cache lookup when apple-id is omitted")
+		return nil, false, nil
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect user-scoped cached-session load when apple-id is omitted")
+		return nil, false, nil
+	}
+	loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "cached@example.com"}, true, nil
+	}
+	promptPasswordFn = func(ctx context.Context) (string, error) {
+		t.Fatal("did not expect password prompt during silent auto-reauth")
+		return "", nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect fresh-login path during silent auto-reauth")
+		return nil, nil
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		if session != expected {
+			t.Fatal("expected auto-reauth session to be persisted")
+		}
+		return nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if client != cachedClient {
+			t.Fatal("expected cached client to be reused for last-session auto-reauth")
+		}
+		if creds.Username != "cached@example.com" {
+			t.Fatalf("expected stored email cached@example.com, got %q", creds.Username)
+		}
+		if creds.Password != "env-secret" {
+			t.Fatalf("expected env password to be used, got %q", creds.Password)
+		}
+		return expected, nil
+	}
+
+	session, source, err := resolveSession(context.Background(), "", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession returned error: %v", err)
+	}
+	if source != "auto-reauth" {
+		t.Fatalf("expected source %q, got %q", "auto-reauth", source)
+	}
+	if session != expected {
+		t.Fatal("expected auto-reauth session to be returned")
+	}
+	if got := notice.String(); got != "" {
+		t.Fatalf("did not expect expired-session notice on successful auto-reauth, got %q", got)
+	}
+}
+
+func TestResolveSessionAutoReauthFallsBackToFreshLoginWhenCachedClientFails(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origLoadCachedSession := loadCachedSessionFn
+	origLoadLastCachedSession := loadLastCachedSessionFn
+	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		loadCachedSessionFn = origLoadCachedSession
+		loadLastCachedSessionFn = origLoadLastCachedSession
+		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
+		sessionExpiredWriter = origExpiredWriter
+	})
+
+	t.Setenv(webPasswordEnv, "env-secret")
+
+	var notice bytes.Buffer
+	sessionExpiredWriter = &notice
+
+	cachedClient := &http.Client{}
+	freshSession := &webcore.AuthSession{UserEmail: "user@example.com", ProviderID: 99}
+	cachedTried := false
+	freshTried := false
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}, true, nil
+	}
+	loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last cached-session load when apple-id is provided")
+		return nil, false, nil
+	}
+	promptPasswordFn = func(ctx context.Context) (string, error) {
+		t.Fatal("did not expect password prompt when env password is set")
+		return "", nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		cachedTried = true
+		return nil, errors.New("cached client rejected")
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		freshTried = true
+		if creds.Password != "env-secret" {
+			t.Fatalf("expected env password to be reused for fresh fallback, got %q", creds.Password)
+		}
+		return freshSession, nil
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		if session != freshSession {
+			t.Fatal("expected fresh fallback session to be persisted")
+		}
+		return nil
+	}
+
+	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession returned error: %v", err)
+	}
+	if !cachedTried {
+		t.Fatal("expected cached-client auto-reauth attempt")
+	}
+	if !freshTried {
+		t.Fatal("expected fresh-login fallback after cached-client failure")
+	}
+	if source != "fresh" {
+		t.Fatalf("expected source %q, got %q", "fresh", source)
+	}
+	if session != freshSession {
+		t.Fatal("expected fresh fallback session to be returned")
+	}
+	if got := notice.String(); got != "Session expired.\n" {
+		t.Fatalf("expected expired notice before fresh fallback, got %q", got)
+	}
+}
+
+func TestResolveSessionAutoReauthDoesNotRetryFreshLoginOnInvalidCredentials(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origLoadCachedSession := loadCachedSessionFn
+	origLoadLastCachedSession := loadLastCachedSessionFn
+	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		loadCachedSessionFn = origLoadCachedSession
+		loadLastCachedSessionFn = origLoadLastCachedSession
+		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
+		sessionExpiredWriter = origExpiredWriter
+	})
+
+	t.Setenv(webPasswordEnv, "wrong-secret")
+
+	var notice bytes.Buffer
+	sessionExpiredWriter = &notice
+
+	cachedClient := &http.Client{}
+	freshTried := false
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}, true, nil
+	}
+	loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last cached-session load when apple-id is provided")
+		return nil, false, nil
+	}
+	promptPasswordFn = func(ctx context.Context) (string, error) {
+		t.Fatal("did not expect password prompt when env password is set")
+		return "", nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if client != cachedClient {
+			t.Fatal("expected cached client to be reused for auto-reauth")
+		}
+		return nil, fmt.Errorf("srp login failed: %w", webcore.ErrInvalidAppleAccountCredentials)
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		freshTried = true
+		return nil, nil
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		t.Fatal("did not expect session persist on invalid auto-reauth credentials")
+		return nil
+	}
+
+	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err == nil {
+		t.Fatal("expected auto-reauth credential error")
+	}
+	if !errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) {
+		t.Fatalf("expected invalid credentials error, got %v", err)
+	}
+	if freshTried {
+		t.Fatal("did not expect fresh-login retry after invalid auto-reauth credentials")
+	}
+	if got := notice.String(); got != "" {
+		t.Fatalf("did not expect expired-session notice when auto-reauth returns invalid credentials, got %q", got)
+	}
+}
+
+func TestResolveSessionAutoReauthIgnoresPersistFailure(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origLoadCachedSession := loadCachedSessionFn
+	origLoadLastCachedSession := loadLastCachedSessionFn
+	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		loadCachedSessionFn = origLoadCachedSession
+		loadLastCachedSessionFn = origLoadLastCachedSession
+		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
+		sessionExpiredWriter = origExpiredWriter
+	})
+
+	t.Setenv(webPasswordEnv, "env-secret")
+
+	var notice bytes.Buffer
+	sessionExpiredWriter = &notice
+
+	cachedClient := &http.Client{}
+	expected := &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}, true, nil
+	}
+	loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last cached-session load when apple-id is provided")
+		return nil, false, nil
+	}
+	promptPasswordFn = func(ctx context.Context) (string, error) {
+		t.Fatal("did not expect password prompt during silent auto-reauth")
+		return "", nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect fresh-login fallback on successful cached-client auto-reauth")
+		return nil, nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return expected, nil
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		return errors.New("keychain offline")
+	}
+
+	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession returned error: %v", err)
+	}
+	if source != "auto-reauth" {
+		t.Fatalf("expected source %q, got %q", "auto-reauth", source)
+	}
+	if session != expected {
+		t.Fatal("expected successful auto-reauth session to be returned")
+	}
+	if got := notice.String(); got != "" {
+		t.Fatalf("did not expect expired-session notice on successful auto-reauth, got %q", got)
+	}
+}
+
+func TestResolveSessionRequiresAppleIDToRefreshLegacyLastCachedSession(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origLoadCachedSession := loadCachedSessionFn
+	origLoadLastCachedSession := loadLastCachedSessionFn
+	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
+	origPersistWebSession := persistWebSessionFn
+	origWebLoginWithClient := webLoginWithClientFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		loadCachedSessionFn = origLoadCachedSession
+		loadLastCachedSessionFn = origLoadLastCachedSession
+		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
+		persistWebSessionFn = origPersistWebSession
+		webLoginWithClientFn = origWebLoginWithClient
+		sessionExpiredWriter = origExpiredWriter
+	})
+
+	t.Setenv(webPasswordEnv, "env-secret")
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect user-scoped cache lookup when apple-id is omitted")
+		return nil, false, nil
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	loadCachedSessionFn = func(username string) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect user-scoped cached-session load when apple-id is omitted")
+		return nil, false, nil
+	}
+	loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: &http.Client{}}, true, nil
+	}
+	promptPasswordFn = func(ctx context.Context) (string, error) {
+		t.Fatal("did not expect password prompt during legacy cache detection")
+		return "", nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect fresh-login path for legacy cache compatibility error")
+		return nil, nil
+	}
+	webLoginWithClientFn = func(ctx context.Context, client *http.Client, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("did not expect cached-client auto-reauth without stored apple id metadata")
+		return nil, nil
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		t.Fatal("did not expect session persist during legacy cache compatibility error")
+		return nil
+	}
+
+	var stderr bytes.Buffer
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe error: %v", err)
+	}
+	os.Stderr = w
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(&stderr, r)
+		close(done)
+	}()
+
+	_, _, runErr := resolveSession(context.Background(), "", "", "")
+
+	_ = w.Close()
+	os.Stderr = origStderr
+	<-done
+	_ = r.Close()
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr.String(), "predates stored Apple ID metadata") {
+		t.Fatalf("expected legacy-cache guidance, got %q", stderr.String())
 	}
 }
 
