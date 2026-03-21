@@ -11,6 +11,9 @@
 --   - The Apple 2FA dialog must be visible on this Mac.
 --   - The caller (Terminal/Codex/etc.) must have Accessibility access.
 
+property initialSettleDelaySeconds : 2
+property postTrustClickDelaySeconds : 2
+
 on run argv
 	set timeoutSeconds to 60
 	if (count of argv) > 0 then
@@ -20,6 +23,8 @@ on run argv
 			error "invalid timeout seconds: " & (item 1 of argv)
 		end try
 	end if
+
+	delay initialSettleDelaySeconds
 
 	set deadlineAt to (current date) + timeoutSeconds
 	repeat while (current date) is less than deadlineAt
@@ -44,7 +49,7 @@ on findTwoFactorCode()
 				repeat with currentWindow in windows
 					set didAdvanceTrustPrompt to my clickTrustButtonIfPresent(currentWindow)
 					if didAdvanceTrustPrompt then
-						delay 1
+						delay postTrustClickDelaySeconds
 					end if
 
 					set code to my scanElement(currentWindow)
