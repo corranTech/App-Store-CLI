@@ -1,6 +1,11 @@
 // Package itunes provides a client for the iTunes Lookup API.
 package itunes
 
+import (
+	"sort"
+	"strings"
+)
+
 // Storefronts maps ISO 3166-1 alpha-2 country codes to Apple App Store storefront IDs.
 // These IDs are required for the X-Apple-Store-Front header when fetching ratings histograms.
 var Storefronts = map[string]string{
@@ -240,11 +245,33 @@ var CountryNames = map[string]string{
 	"za": "South Africa",
 }
 
+// Storefront contains public storefront metadata for a single country.
+type Storefront struct {
+	Country      string `json:"country"`
+	CountryName  string `json:"countryName"`
+	StorefrontID string `json:"storefrontId"`
+}
+
 // AllCountries returns a sorted list of all supported country codes.
 func AllCountries() []string {
 	countries := make([]string, 0, len(Storefronts))
 	for code := range Storefronts {
 		countries = append(countries, code)
 	}
+	sort.Strings(countries)
 	return countries
+}
+
+// ListStorefronts returns storefront metadata in deterministic country order.
+func ListStorefronts() []Storefront {
+	countries := AllCountries()
+	storefronts := make([]Storefront, 0, len(countries))
+	for _, country := range countries {
+		storefronts = append(storefronts, Storefront{
+			Country:      strings.ToUpper(country),
+			CountryName:  CountryNames[country],
+			StorefrontID: Storefronts[country],
+		})
+	}
+	return storefronts
 }
