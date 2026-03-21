@@ -294,6 +294,9 @@ func tryAutoReauthWebSession(ctx context.Context, appleID, password string) (*we
 		})
 	})
 	if err != nil {
+		if errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) {
+			return nil, "", false, err
+		}
 		// Fall back to the pre-existing fresh-login path when the cached-jar
 		// attempt cannot be completed. The cache format is intentionally
 		// best-effort and may not preserve enough cookie metadata for relogin.

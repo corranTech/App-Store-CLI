@@ -55,6 +55,10 @@ const (
 var (
 	errTwoFactorRequired              = errors.New("two-factor authentication required")
 	errInvalidAppleAccountCredentials = errors.New("incorrect Apple Account email or password")
+
+	// ErrInvalidAppleAccountCredentials reports rejected Apple Account
+	// credentials during web login flows.
+	ErrInvalidAppleAccountCredentials = errInvalidAppleAccountCredentials
 )
 
 var webTLSRootBundlePaths = []string{
