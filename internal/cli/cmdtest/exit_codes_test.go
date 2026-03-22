@@ -264,6 +264,11 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--verify-timeout must be zero or greater",
 		},
 		{
+			name:    "builds upload dry-run rejects verify-timeout",
+			args:    []string{"builds", "upload", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--build-number", "42", "--dry-run", "--verify-timeout", "5s"},
+			wantErr: "--verify-timeout is not supported with --dry-run",
+		},
+		{
 			name:    "builds wait missing selector",
 			args:    []string{"builds", "wait"},
 			wantErr: "--app is required when --build is not provided",

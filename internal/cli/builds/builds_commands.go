@@ -82,6 +82,9 @@ Examples:
 			if *verifyTimeout < 0 {
 				return shared.UsageError("--verify-timeout must be zero or greater")
 			}
+			if *dryRun && *verifyTimeout > 0 {
+				return shared.UsageError("--verify-timeout is not supported with --dry-run")
+			}
 
 			// Determine file path and UTI based on provided flag
 			var filePath string
