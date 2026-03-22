@@ -311,23 +311,31 @@ func submitCreateReadinessBuild(ctx context.Context, client *asc.Client, buildID
 
 func printSubmitCreateReadinessWarnings(checks []validation.CheckResult) {
 	for _, check := range checks {
-		if !isSubmitCreateReadinessWarning(check) {
+		prefix, ok := submitCreateReadinessNoticePrefix(check)
+		if !ok {
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "Warning: %s: %s\n", submitCreateReadinessCheckLabel(check), check.Message)
+		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", prefix, submitCreateReadinessCheckLabel(check), check.Message)
+		if remediation := strings.TrimSpace(check.Remediation); remediation != "" {
+			fmt.Fprintf(os.Stderr, "Hint: %s\n", remediation)
+		}
 	}
 }
 
-func isSubmitCreateReadinessWarning(check validation.CheckResult) bool {
-	if check.Severity != validation.SeverityWarning {
-		return false
+func submitCreateReadinessNoticePrefix(check validation.CheckResult) (string, bool) {
+	switch check.Severity {
+	case validation.SeverityWarning:
+		switch check.ID {
+		case "pricing.schedule.unverified", "availability.unverified":
+			return "Warning", true
+		}
+	case validation.SeverityInfo:
+		if check.ID == "privacy.publish_state.unverified" {
+			return "Advisory", true
+		}
 	}
-	switch check.ID {
-	case "pricing.schedule.unverified", "availability.unverified":
-		return true
-	default:
-		return false
-	}
+
+	return "", false
 }
 
 func submitCreateReadinessCheckLabel(check validation.CheckResult) string {
@@ -344,6 +352,8 @@ func submitCreateReadinessCheckLabel(check validation.CheckResult) string {
 		label = "Pricing"
 	case strings.HasPrefix(check.ID, "availability."):
 		label = "Availability"
+	case strings.HasPrefix(check.ID, "privacy."):
+		label = "App Privacy"
 	case strings.HasPrefix(check.ID, "screenshots."):
 		label = "Screenshots"
 	case strings.HasPrefix(check.ID, "age_rating."):
@@ -360,6 +370,8 @@ func submitCreateReadinessCheckLabel(check validation.CheckResult) string {
 			label = "App information"
 		case "build":
 			label = "Attached build"
+		case "appPrivacy":
+			label = "App Privacy"
 		case "appScreenshotSet", "appScreenshot":
 			label = "Screenshots"
 		}

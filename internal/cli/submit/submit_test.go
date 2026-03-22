@@ -141,6 +141,46 @@ func TestRunSubmitCreateReadinessPreflight_PrintsNonBlockingPricingAndAvailabili
 	}
 }
 
+func TestRunSubmitCreateReadinessPreflight_PrintsPrivacyPublishStateAdvisory(t *testing.T) {
+	originalBuilder := submitReadinessReportBuilder
+	t.Cleanup(func() {
+		submitReadinessReportBuilder = originalBuilder
+	})
+
+	submitReadinessReportBuilder = func(ctx context.Context, opts validatecli.ReadinessOptions) (validation.Report, error) {
+		return validation.Report{
+			Summary: validation.Summary{Infos: 1},
+			Checks: []validation.CheckResult{
+				{
+					ID:           "privacy.publish_state.unverified",
+					Severity:     validation.SeverityInfo,
+					ResourceType: "appPrivacy",
+					ResourceID:   "app-123",
+					Message:      "App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission",
+					Remediation:  "Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/app-123/appPrivacy",
+				},
+			},
+		}, nil
+	}
+
+	var err error
+	stderr := captureSubmitStderr(t, func() {
+		err = runSubmitCreateReadinessPreflight(context.Background(), nil, "app-123", "version-123", "IOS", "")
+	})
+	if err != nil {
+		t.Fatalf("expected advisory-only readiness report to pass, got %v", err)
+	}
+	if !strings.Contains(stderr, "Advisory: App Privacy: App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission") {
+		t.Fatalf("expected App Privacy advisory in stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Hint: Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/app-123/appPrivacy") {
+		t.Fatalf("expected App Privacy hint in stderr, got %q", stderr)
+	}
+	if strings.Contains(strings.ToLower(stderr), "asc web") {
+		t.Fatalf("did not expect private/web command references in stderr, got %q", stderr)
+	}
+}
+
 func TestRunSubmitCreateReadinessPreflight_DoesNotSkipOtherBlockingChecks(t *testing.T) {
 	originalBuilder := submitReadinessReportBuilder
 	t.Cleanup(func() {
