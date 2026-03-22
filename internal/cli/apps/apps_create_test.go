@@ -175,4 +175,7 @@ func TestAppsCreateCommandPrintsWarningAndForwardsToWebRunner(t *testing.T) {
 	if received.Output != "json" {
 		t.Fatalf("expected forwarded output, got %q", received.Output)
 	}
+	if !received.PromptForAppleIDWithPassword {
+		t.Fatal("expected deprecated shim to preserve password-without-apple-id prompting behavior")
+	}
 }

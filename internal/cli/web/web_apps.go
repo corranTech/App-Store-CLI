@@ -51,6 +51,8 @@ var (
 	}
 )
 
+var errBundleIDPreflightAuthUnavailable = errors.New("bundle id preflight official auth unavailable")
+
 func isDuplicateBundleIDError(err error) bool {
 	var apiErr *asc.APIError
 	if !errors.As(err, &apiErr) || apiErr == nil {
@@ -90,7 +92,7 @@ func bundleIDPlatformForWebApp(platform string) (asc.Platform, error) {
 func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform string) (bool, error) {
 	client, err := shared.GetASCClient()
 	if err != nil {
-		return false, err
+		return false, errors.Join(errBundleIDPreflightAuthUnavailable, err)
 	}
 
 	platformValue, err := bundleIDPlatformForWebApp(platform)

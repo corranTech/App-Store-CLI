@@ -31,6 +31,11 @@ type AppsCreateRunOptions struct {
 	AutoRename bool
 	Output     string
 	Pretty     bool
+
+	// Deprecated shim compatibility: when a direct password is provided without an
+	// Apple ID, preserve the old behavior of prompting for account selection
+	// instead of silently reusing the last cached session.
+	PromptForAppleIDWithPassword bool
 }
 
 const (
@@ -269,6 +274,12 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		}
 	}
 
+	if opts.PromptForAppleIDWithPassword && opts.AppleID == "" && webPasswordProvided(opts.Password) {
+		if err := promptAppsCreateSessionAppleID(&opts.AppleID); err != nil {
+			return err
+		}
+	}
+
 	opts = normalizeAppsCreateRunOptions(opts)
 
 	fmt.Fprintln(os.Stderr)
@@ -316,8 +327,8 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		return ensureBundleIDFn(requestCtx, opts.BundleID, opts.Name, opts.Platform)
 	})
 	if err != nil {
-		if errors.Is(err, shared.ErrMissingAuth) {
-			fmt.Fprintln(os.Stderr, "Skipping Bundle ID preflight because official ASC API authentication is not configured.")
+		if errors.Is(err, shared.ErrMissingAuth) || errors.Is(err, errBundleIDPreflightAuthUnavailable) {
+			fmt.Fprintln(os.Stderr, "Skipping Bundle ID preflight because official ASC API authentication is unavailable or misconfigured.")
 			createdBundleID = false
 		} else {
 			return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", err)
