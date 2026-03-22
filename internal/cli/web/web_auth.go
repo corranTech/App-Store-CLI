@@ -16,6 +16,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"golang.org/x/term"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -350,35 +351,55 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 		if len(twoFactorCodeCommand) > 0 {
 			command = strings.TrimSpace(twoFactorCodeCommand[0])
 		}
+		writeDeliveryNotice := func(destination string) {
+			destination = strings.TrimSpace(destination)
+			if destination == "" || twoFactorStatusWriter == nil {
+				return
+			}
+			_, _ = fmt.Fprintf(twoFactorStatusWriter, "Verification code sent to %s.\n", destination)
+		}
+		readCode := func() (string, error) {
+			if command != "" {
+				return readTwoFactorCodeFromCommandFn(ctx, command)
+			}
+			return promptTwoFactorCodeFn()
+		}
 		if code == "" {
 			if challenge != nil && challenge.IsPhoneMethod() {
 				challenge, prepErr = ensureTwoFactorCodeRequestedFn(ctx, session)
 				if prepErr != nil {
 					return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
 				}
-				if challenge != nil && challenge.Requested && challenge.Destination != "" && twoFactorStatusWriter != nil {
-					_, _ = fmt.Fprintf(twoFactorStatusWriter, "Verification code sent to %s.\n", challenge.Destination)
+				if challenge != nil && challenge.Requested {
+					writeDeliveryNotice(challenge.Destination)
 				}
 			}
-			if command != "" {
-				resolvedCode, codeErr := readTwoFactorCodeFromCommandFn(ctx, command)
+			resolvedCode, codeErr := readCode()
+			if codeErr != nil {
+				return nil, codeErr
+			}
+			code = resolvedCode
+		}
+		submitCode := func(code string) error {
+			verifyCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+			defer cancel()
+			return withWebSpinner("Verifying two-factor code", func() error {
+				return submitTwoFactorCodeFn(verifyCtx, session, code)
+			})
+		}
+		if err := submitCode(code); err != nil {
+			var phoneCodeRequestedErr *appleauth.PhoneCodeRequestedError
+			if errors.As(err, &phoneCodeRequestedErr) {
+				writeDeliveryNotice(phoneCodeRequestedErr.Destination)
+				resolvedCode, codeErr := readCode()
 				if codeErr != nil {
 					return nil, codeErr
 				}
-				code = resolvedCode
-			} else {
-				var promptErr error
-				code, promptErr = promptTwoFactorCodeFn()
-				if promptErr != nil {
-					return nil, promptErr
+				if err := submitCode(resolvedCode); err != nil {
+					return nil, fmt.Errorf("2fa verification failed: %w", err)
 				}
+				return session, nil
 			}
-		}
-		verifyCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
-		defer cancel()
-		if err := withWebSpinner("Verifying two-factor code", func() error {
-			return submitTwoFactorCodeFn(verifyCtx, session, code)
-		}); err != nil {
 			return nil, fmt.Errorf("2fa verification failed: %w", err)
 		}
 		return session, nil

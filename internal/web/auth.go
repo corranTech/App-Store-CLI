@@ -1232,6 +1232,9 @@ func SubmitTwoFactorCode(ctx context.Context, session *AuthSession, code string)
 			}
 			return opts.AuthOptions(), nil
 		},
+		func(ctx context.Context, phoneID int, mode string) error {
+			return requestPhoneCode(ctx, session, phoneID, mode)
+		},
 		func(ctx context.Context, code string) error {
 			return submitTrustedDeviceCode(ctx, session, code)
 		},

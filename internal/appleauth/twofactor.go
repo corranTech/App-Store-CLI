@@ -26,6 +26,26 @@ func (e *UnsupportedTwoFactorMethodError) Error() string {
 	return fmt.Sprintf("unsupported verification method %q", e.Method)
 }
 
+type PhoneCodeRequestedError struct {
+	Destination string
+	Err         error
+}
+
+func (e *PhoneCodeRequestedError) Error() string {
+	destination := strings.TrimSpace(e.Destination)
+	if destination != "" {
+		return fmt.Sprintf("trusted-device verification failed; verification code sent to %s", destination)
+	}
+	return "trusted-device verification failed; verification code sent to trusted phone number"
+}
+
+func (e *PhoneCodeRequestedError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 type MarshalPayloadError struct {
 	Err error
 }
@@ -219,7 +239,7 @@ func EnsureTwoFactorCodeRequested(ctx context.Context, session SessionState, get
 	return challenge, nil
 }
 
-func SubmitTwoFactorCode(ctx context.Context, session SessionState, code string, getAuthOptions func(context.Context) (*AuthOptions, error), submitTrustedDeviceCode func(context.Context, string) error, submitPhoneCode func(context.Context, string, int, string) error, finalize func(context.Context) error) error {
+func SubmitTwoFactorCode(ctx context.Context, session SessionState, code string, getAuthOptions func(context.Context) (*AuthOptions, error), requestPhoneCode func(context.Context, int, string) error, submitTrustedDeviceCode func(context.Context, string) error, submitPhoneCode func(context.Context, string, int, string) error, finalize func(context.Context) error) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -237,13 +257,26 @@ func SubmitTwoFactorCode(ctx context.Context, session SessionState, code string,
 		return finalize(ctx)
 	case TwoFactorMethodTrustedDevice:
 		if err := submitTrustedDeviceCode(ctx, code); err != nil {
-			if session.TwoFactorPhoneID() == 0 {
+			phoneID := session.TwoFactorPhoneID()
+			if phoneID == 0 {
 				return err
 			}
-			if phoneErr := submitPhoneCode(ctx, code, session.TwoFactorPhoneID(), session.TwoFactorPhoneMode()); phoneErr != nil {
+			phoneMode := session.TwoFactorPhoneMode()
+			destination := session.TwoFactorDestination()
+			if !session.TwoFactorCodeRequested() {
+				if requestPhoneCode == nil {
+					return err
+				}
+				if requestErr := requestPhoneCode(ctx, phoneID, phoneMode); requestErr != nil {
+					return requestErr
+				}
+				session.SetPreparedTwoFactorState(TwoFactorMethodPhone, phoneID, phoneMode, destination, true)
+				return &PhoneCodeRequestedError{Destination: destination, Err: err}
+			}
+			if phoneErr := submitPhoneCode(ctx, code, phoneID, phoneMode); phoneErr != nil {
 				return phoneErr
 			}
-			session.SetPreparedTwoFactorState(TwoFactorMethodPhone, session.TwoFactorPhoneID(), session.TwoFactorPhoneMode(), session.TwoFactorDestination(), true)
+			session.SetPreparedTwoFactorState(TwoFactorMethodPhone, phoneID, phoneMode, destination, true)
 		}
 		return finalize(ctx)
 	default:

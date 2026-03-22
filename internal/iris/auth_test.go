@@ -475,12 +475,13 @@ func TestSubmitTwoFactorCodeFallsBackToPhoneAfterTrustedDeviceFailure(t *testing
 				}
 			}),
 		},
-		ServiceKey:         "service-key",
-		AppleIDSessionID:   "session-id",
-		SCNT:               "scnt-token",
-		twoFactorMethod:    twoFactorMethodTrustedDevice,
-		twoFactorPhoneID:   7,
-		twoFactorPhoneMode: "sms",
+		ServiceKey:             "service-key",
+		AppleIDSessionID:       "session-id",
+		SCNT:                   "scnt-token",
+		twoFactorMethod:        twoFactorMethodTrustedDevice,
+		twoFactorPhoneID:       7,
+		twoFactorPhoneMode:     "sms",
+		twoFactorCodeRequested: true,
 	}
 
 	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {

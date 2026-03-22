@@ -542,12 +542,13 @@ func TestSubmitTwoFactorCodeFallsBackToPhoneAfterTrustedDeviceFailure(t *testing
 				}
 			}),
 		},
-		ServiceKey:         "service-key",
-		AppleIDSessionID:   "session-id",
-		SCNT:               "scnt-token",
-		twoFactorMethod:    twoFactorMethodTrustedDevice,
-		twoFactorPhoneID:   7,
-		twoFactorPhoneMode: "sms",
+		ServiceKey:             "service-key",
+		AppleIDSessionID:       "session-id",
+		SCNT:                   "scnt-token",
+		twoFactorMethod:        twoFactorMethodTrustedDevice,
+		twoFactorPhoneID:       7,
+		twoFactorPhoneMode:     "sms",
+		twoFactorCodeRequested: true,
 	}
 
 	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
@@ -584,13 +585,14 @@ func TestSubmitTwoFactorCodePreservesPhoneFallbackStateWhenFinalizeFails(t *test
 				}
 			}),
 		},
-		ServiceKey:           "service-key",
-		AppleIDSessionID:     "session-id",
-		SCNT:                 "scnt-token",
-		twoFactorMethod:      twoFactorMethodTrustedDevice,
-		twoFactorPhoneID:     7,
-		twoFactorPhoneMode:   "sms",
-		twoFactorDestination: "+1 (•••) •••-••66",
+		ServiceKey:             "service-key",
+		AppleIDSessionID:       "session-id",
+		SCNT:                   "scnt-token",
+		twoFactorMethod:        twoFactorMethodTrustedDevice,
+		twoFactorPhoneID:       7,
+		twoFactorPhoneMode:     "sms",
+		twoFactorDestination:   "+1 (•••) •••-••66",
+		twoFactorCodeRequested: true,
 	}
 
 	err := SubmitTwoFactorCode(context.Background(), session, "123456")
