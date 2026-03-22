@@ -3,6 +3,7 @@ package submit
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -125,6 +126,25 @@ func TestPreflightResult_AllPass(t *testing.T) {
 	tallyCounts(result)
 	if result.FailCount != 0 {
 		t.Fatalf("expected 0 failures, got %d", result.FailCount)
+	}
+}
+
+func TestPrivacyPublishStateAdvisoryCheck_SetsPassedWhenPresent(t *testing.T) {
+	check, ok := privacyPublishStateAdvisoryCheck("app-1")
+	if !ok {
+		t.Fatal("expected advisory check for non-empty app ID")
+	}
+	if !check.Advisory {
+		t.Fatalf("expected advisory flag, got %+v", check)
+	}
+	if !check.Passed {
+		t.Fatalf("expected advisory check to serialize as passed, got %+v", check)
+	}
+}
+
+func TestPrivacyPublishStateAdvisoryCheck_SkipsBlankAppID(t *testing.T) {
+	if _, ok := privacyPublishStateAdvisoryCheck(" \t "); ok {
+		t.Fatal("expected blank app ID to skip advisory check")
 	}
 }
 
@@ -567,6 +587,9 @@ func TestRunPreflight_AllPass(t *testing.T) {
 			if !check.Advisory {
 				t.Fatalf("expected App Privacy check to be advisory, got %+v", check)
 			}
+			if !check.Passed {
+				t.Fatalf("expected App Privacy advisory to serialize as passed, got %+v", check)
+			}
 			if strings.Contains(strings.ToLower(check.Hint), "asc web") {
 				t.Fatalf("did not expect web command hint in advisory, got %q", check.Hint)
 			}
@@ -600,6 +623,32 @@ func TestPreflightTextOutput(t *testing.T) {
 	}
 }
 
+func TestPreflightTextOutput_AdvisoryOnlyDoesNotClaimReadyToSubmit(t *testing.T) {
+	var buf bytes.Buffer
+	printPreflightText(&buf, &preflightResult{
+		AppID:    "123",
+		Version:  "1.0",
+		Platform: "IOS",
+		Checks: []checkResult{
+			{
+				Name:     "App Privacy",
+				Passed:   true,
+				Advisory: true,
+				Message:  "App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission",
+				Hint:     "Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/123/appPrivacy",
+			},
+		},
+	})
+
+	output := buf.String()
+	if strings.Contains(output, "Ready to submit") {
+		t.Fatalf("did not expect advisory-only result to claim readiness, got %q", output)
+	}
+	if !strings.Contains(output, "Result: Required checks passed, but 1 advisory should be reviewed before submitting.") {
+		t.Fatalf("expected advisory summary in text output, got %q", output)
+	}
+}
+
 func TestSubmitPreflightCommand_AllPassIncludesPrivacyAdvisory(t *testing.T) {
 	setupSubmitAuth(t)
 
@@ -630,6 +679,59 @@ func TestSubmitPreflightCommand_AllPassIncludesPrivacyAdvisory(t *testing.T) {
 	}
 	if strings.Contains(strings.ToLower(stdout), "asc web") {
 		t.Fatalf("did not expect private/web command references in stdout, got %q", stdout)
+	}
+}
+
+func TestSubmitPreflightCommand_JSONAllPassIncludesPrivacyAdvisoryAsPassed(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = submitAllPassTransport()
+
+	cmd := SubmitPreflightCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--version", "1.0", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	var (
+		runErr error
+		result preflightResult
+	)
+	stdout, stderr := capturePreflightCommandOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	if runErr != nil {
+		t.Fatalf("expected success when only advisory is present, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
+	}
+	if result.FailCount != 0 {
+		t.Fatalf("expected advisory-only JSON result to stay non-blocking, got %+v", result)
+	}
+
+	foundPrivacyAdvisory := false
+	for _, check := range result.Checks {
+		if check.Name != "App Privacy" {
+			continue
+		}
+		foundPrivacyAdvisory = true
+		if !check.Advisory {
+			t.Fatalf("expected App Privacy advisory in JSON output, got %+v", check)
+		}
+		if !check.Passed {
+			t.Fatalf("expected App Privacy advisory to serialize as passed, got %+v", check)
+		}
+	}
+	if !foundPrivacyAdvisory {
+		t.Fatalf("expected App Privacy advisory in JSON output, got %+v", result.Checks)
 	}
 }
 

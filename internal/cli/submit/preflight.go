@@ -156,7 +156,9 @@ func runPreflight(ctx context.Context, client *asc.Client, appID, version, platf
 		locChecks := checkLocalizations(ctx, client, versionID, appID, version, platform)
 		result.Checks = append(result.Checks, locChecks...)
 	}
-	result.Checks = append(result.Checks, privacyPublishStateAdvisoryCheck(appID))
+	if advisoryCheck, ok := privacyPublishStateAdvisoryCheck(appID); ok {
+		result.Checks = append(result.Checks, advisoryCheck)
+	}
 
 	tallyCounts(result)
 	return result
@@ -177,14 +179,28 @@ func tallyCounts(result *preflightResult) {
 	}
 }
 
-func privacyPublishStateAdvisoryCheck(appID string) checkResult {
+func countAdvisories(checks []checkResult) int {
+	count := 0
+	for _, check := range checks {
+		if check.Advisory {
+			count++
+		}
+	}
+	return count
+}
+
+func privacyPublishStateAdvisoryCheck(appID string) (checkResult, bool) {
 	advisory := validation.PrivacyPublishStateAdvisory(appID)
+	if advisory.ID == "" {
+		return checkResult{}, false
+	}
 	return checkResult{
 		Name:     "App Privacy",
-		Advisory: advisory.ID != "",
+		Passed:   true,
+		Advisory: true,
 		Message:  advisory.Message,
 		Hint:     advisory.Remediation,
-	}
+	}, true
 }
 
 // --- Individual checks ---
@@ -737,8 +753,15 @@ func printPreflightText(w io.Writer, result *preflightResult) {
 	}
 
 	fmt.Fprintln(w)
-	if result.FailCount == 0 {
+	advisoryCount := countAdvisories(result.Checks)
+	if result.FailCount == 0 && advisoryCount == 0 {
 		fmt.Fprintln(w, "Result: All checks passed. Ready to submit.")
+	} else if result.FailCount == 0 {
+		label := "advisories"
+		if advisoryCount == 1 {
+			label = "advisory"
+		}
+		fmt.Fprintf(w, "Result: Required checks passed, but %d %s should be reviewed before submitting.\n", advisoryCount, label)
 	} else {
 		fmt.Fprintf(w, "Result: %d issue(s) found. Fix them before submitting.\n", result.FailCount)
 	}
