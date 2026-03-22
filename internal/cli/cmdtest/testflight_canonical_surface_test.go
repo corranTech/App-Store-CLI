@@ -531,7 +531,7 @@ func TestCanonicalTestFlightValidationPaths(t *testing.T) {
 		},
 		{
 			name:    "app localizations get missing id",
-			args:    []string{"testflight", "app-localizations", "get"},
+			args:    []string{"testflight", "app-localizations", "view"},
 			wantErr: "--id is required",
 		},
 		{
@@ -1342,7 +1342,7 @@ func TestTestFlightAppLocalizationsHelpShowsCanonicalSurface(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	for _, want := range []string{"list", "get", "app", "create", "update", "delete"} {
+	for _, want := range []string{"list", "view", "app", "create", "update", "delete"} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected app-localizations help to contain %q, got %q", want, stderr)
 		}
