@@ -225,9 +225,9 @@ func isDeprecatedCompatibilityAliasCommand(cmd *ffcli.Command) bool {
 	longHelp := strings.ToLower(strings.TrimSpace(cmd.LongHelp))
 
 	return strings.HasPrefix(shortHelp, "deprecated:") ||
-		strings.Contains(shortHelp, "compatibility alias") ||
-		strings.Contains(longHelp, "deprecated compatibility alias") ||
-		strings.Contains(longHelp, "compatibility alias")
+		strings.HasPrefix(shortHelp, "compatibility alias") ||
+		strings.HasPrefix(longHelp, "deprecated compatibility alias") ||
+		strings.HasPrefix(longHelp, "compatibility alias")
 }
 
 func wrapUsageFuncsToHideDeprecatedAliases(cmd *ffcli.Command) {
