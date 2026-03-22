@@ -295,7 +295,7 @@ on extractFirstCode(sourceText)
 		return extractedCode
 	end if
 	set digitsOnly to my digitsOnlyText(sourceText)
-	if (length of digitsOnly) is 6 and not (my containsLatinLetters(sourceText)) then
+	if (length of digitsOnly) is 6 then
 		return digitsOnly
 	end if
 	return ""
@@ -312,16 +312,3 @@ on digitsOnlyText(sourceText)
 	end repeat
 	return extractedDigits
 end digitsOnlyText
-
-on containsLatinLetters(sourceText)
-	set sourceText to sourceText as text
-	ignoring case
-		repeat with currentCharacter in characters of sourceText
-			set currentCharacter to contents of currentCharacter
-			if currentCharacter is in "abcdefghijklmnopqrstuvwxyz" then
-				return true
-			end if
-		end repeat
-	end ignoring
-	return false
-end containsLatinLetters

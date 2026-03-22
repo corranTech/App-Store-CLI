@@ -114,13 +114,13 @@ func TestAppleTwoFactorScriptExtractsSpacedSixDigitCodes(t *testing.T) {
 	if !strings.Contains(script, "set digitsOnly to my digitsOnlyText(sourceText)") {
 		t.Fatalf("expected spaced-digit fallback extraction in script")
 	}
-	if !strings.Contains(script, "if (length of digitsOnly) is 6 and not (my containsLatinLetters(sourceText)) then") {
-		t.Fatalf("expected spaced-digit fallback to require exactly six digits and no letters")
+	if !strings.Contains(script, "if (length of digitsOnly) is 6 then") {
+		t.Fatalf("expected spaced-digit fallback to accept exactly six digits even when the AX text includes labels")
 	}
 	if !strings.Contains(script, "on digitsOnlyText(sourceText)") {
 		t.Fatalf("expected digit-normalization helper in script")
 	}
-	if !strings.Contains(script, "on containsLatinLetters(sourceText)") {
-		t.Fatalf("expected letter guard helper in script")
+	if strings.Contains(script, "containsLatinLetters") {
+		t.Fatalf("did not expect letter guard to reject labeled FollowUpUI verification code strings")
 	}
 }
