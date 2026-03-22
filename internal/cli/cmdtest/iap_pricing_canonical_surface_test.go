@@ -16,9 +16,9 @@ import (
 const (
 	iapPricesDeprecationWarning         = "Warning: `asc iap prices` is deprecated. Use `asc iap pricing summary`."
 	iapPricePointsDeprecationWarning    = "Warning: `asc iap price-points list` is deprecated. Use `asc iap pricing price-points list`."
-	iapPriceSchedulesDeprecationWarning = "Warning: `asc iap price-schedules get` is deprecated. Use `asc iap pricing schedules get`."
-	iapAvailabilityDeprecationWarning   = "Warning: `asc iap availability get` is deprecated. Use `asc iap pricing availability get`."
-	iapAvailabilitiesDeprecationWarning = "Warning: `asc iap availabilities get` is deprecated. Use `asc iap pricing availabilities get`."
+	iapPriceSchedulesDeprecationWarning = "Warning: `asc iap price-schedules get` is deprecated. Use `asc iap pricing schedules view`."
+	iapAvailabilityDeprecationWarning   = "Warning: `asc iap availability get` is deprecated. Use `asc iap pricing availability view`."
+	iapAvailabilitiesDeprecationWarning = "Warning: `asc iap availabilities get` is deprecated. Use `asc iap pricing availabilities view`."
 )
 
 func findCommandByPath(t *testing.T, path ...string) *ffcli.Command {

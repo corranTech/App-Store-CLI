@@ -109,6 +109,9 @@ func NormalizeViewEditCommandTree(root *ffcli.Command, editPaths map[string]stru
 	sortCommandTextReplacements(replacements)
 	rewriteCommandStrings(root, replacements)
 	rewriteCommandErrors(root, replacements)
+	rewriteDeprecatedAliasLeafWarnings(root, func(input string) string {
+		return applyCommandTextReplacements(input, replacements)
+	})
 
 	for _, pending := range aliases {
 		pending.parent.Subcommands = append(pending.parent.Subcommands, pending.alias)

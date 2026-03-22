@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 )
+
+type deprecatedAliasLeafMetadata struct {
+	warning string
+	exec    func(context.Context, []string) error
+}
+
+var deprecatedAliasLeafRegistry sync.Map
 
 // VisibleUsageFunc renders command help while omitting deprecated aliases from
 // nested subcommand listings. Root-level deprecated commands are already hidden
@@ -44,11 +52,35 @@ func DeprecatedAliasLeafCommand(cmd *ffcli.Command, name, shortUsage, newCommand
 	clone.LongHelp = fmt.Sprintf("Deprecated compatibility alias for `%s`.", newCommand)
 	clone.UsageFunc = DeprecatedUsageFunc
 
-	origExec := cmd.Exec
+	meta := &deprecatedAliasLeafMetadata{
+		warning: warning,
+		exec:    cmd.Exec,
+	}
+	deprecatedAliasLeafRegistry.Store(&clone, meta)
+
 	clone.Exec = func(ctx context.Context, args []string) error {
-		fmt.Fprintln(os.Stderr, warning)
-		return origExec(ctx, args)
+		fmt.Fprintln(os.Stderr, meta.warning)
+		if meta.exec == nil {
+			return nil
+		}
+		return meta.exec(ctx, args)
 	}
 
 	return &clone
+}
+
+func rewriteDeprecatedAliasLeafWarnings(cmd *ffcli.Command, rewrite func(string) string) {
+	if cmd == nil || rewrite == nil {
+		return
+	}
+
+	if raw, ok := deprecatedAliasLeafRegistry.Load(cmd); ok {
+		if meta, ok := raw.(*deprecatedAliasLeafMetadata); ok && meta != nil {
+			meta.warning = rewrite(meta.warning)
+		}
+	}
+
+	for _, sub := range cmd.Subcommands {
+		rewriteDeprecatedAliasLeafWarnings(sub, rewrite)
+	}
 }

@@ -205,7 +205,7 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 		{
 			name:        "beta app localizations leaf help",
 			args:        []string{"beta-app-localizations", "get"},
-			wantUsage:   "asc testflight app-localizations get --id \"LOCALIZATION_ID\"",
+			wantUsage:   "asc testflight app-localizations view --id \"LOCALIZATION_ID\"",
 			wantWarning: "",
 			wantNotShown: []string{
 				"asc beta-app-localizations get --id \"LOCALIZATION_ID\"",
@@ -1395,6 +1395,48 @@ func TestLegacyBetaAppLocalizationsAliasWarnsAndDelegates(t *testing.T) {
 		t.Fatalf("expected delegated output, got %q", stdout)
 	}
 	requireStderrContainsWarning(t, stderr, betaAppLocalizationsListDeprecationWarning)
+}
+
+func TestLegacyBetaAppLocalizationsGetAliasWarnsAndDelegates(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaAppLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/betaAppLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		body := `{"data":{"type":"betaAppLocalizations","id":"loc-1"}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"beta-app-localizations", "get", "--id", "loc-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stdout, `"id":"loc-1"`) {
+		t.Fatalf("expected delegated output, got %q", stdout)
+	}
+	requireStderrContainsWarning(t, stderr, "Warning: `asc beta-app-localizations get` is deprecated. Use `asc testflight app-localizations view`.")
 }
 
 func TestTestFlightAppLocalizationsListOutputHasNoDeprecationWarning(t *testing.T) {
