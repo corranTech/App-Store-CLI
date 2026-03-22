@@ -109,6 +109,49 @@ func TestResolveAppCreateSessionUsesCacheEvenWhenPasswordProvided(t *testing.T) 
 	}
 }
 
+func TestResolveAppCreateSessionFallsBackToFreshLoginWhenCacheLookupFails(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origWebLogin := webLoginFn
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		webLoginFn = origWebLogin
+	})
+
+	cacheErr := errors.New("cache metadata unreadable")
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		if username != "user@example.com" {
+			t.Fatalf("expected cache lookup for %q, got %q", "user@example.com", username)
+		}
+		return nil, false, cacheErr
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if creds.Username != "user@example.com" {
+			t.Fatalf("expected fresh login username %q, got %q", "user@example.com", creds.Username)
+		}
+		if creds.Password != "fixture-password" {
+			t.Fatalf("expected fresh login password %q, got %q", "fixture-password", creds.Password)
+		}
+		return &webcore.AuthSession{UserEmail: creds.Username}, nil
+	}
+
+	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "fixture-password", "")
+	if err != nil {
+		t.Fatalf("resolveAppCreateSession returned error: %v", err)
+	}
+	if source != "fresh" {
+		t.Fatalf("expected source %q, got %q", "fresh", source)
+	}
+	if session == nil || session.UserEmail != "user@example.com" {
+		t.Fatalf("expected fresh login session for %q, got %+v", "user@example.com", session)
+	}
+}
+
 func TestResolveAppCreateSessionUsesPasswordEnvWithoutTrimming(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn

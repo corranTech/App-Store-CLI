@@ -1035,14 +1035,16 @@ func TestResolveSessionPrintsExpiredNoticeBeforePrompt(t *testing.T) {
 	}
 }
 
-func TestResolveSessionReturnsCacheLookupErrorBeforePrompt(t *testing.T) {
+func TestResolveSessionFallsBackToFreshLoginWhenCacheLookupFailsBeforePrompt(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
 		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
 	})
 
 	cacheErr := errors.New("cache permission denied")
@@ -1057,28 +1059,39 @@ func TestResolveSessionReturnsCacheLookupErrorBeforePrompt(t *testing.T) {
 		return nil, false, nil
 	}
 	promptPasswordFn = func(ctx context.Context) (string, error) {
-		t.Fatal("did not expect password prompt when cache lookup fails")
+		t.Fatal("did not expect password prompt when a password is provided")
 		return "", nil
 	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if creds.Username != "user@example.com" {
+			t.Fatalf("expected fresh login username %q, got %q", "user@example.com", creds.Username)
+		}
+		if creds.Password != "secret" {
+			t.Fatalf("expected fresh login password %q, got %q", "secret", creds.Password)
+		}
+		return &webcore.AuthSession{UserEmail: creds.Username}, nil
+	}
 
-	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
-	if err == nil {
-		t.Fatal("expected cache lookup error")
+	session, source, err := resolveSession(context.Background(), "user@example.com", "secret", "")
+	if err != nil {
+		t.Fatalf("expected fresh login fallback, got %v", err)
 	}
-	if !errors.Is(err, cacheErr) {
-		t.Fatalf("expected cache lookup error %v, got %v", cacheErr, err)
+	if source != "fresh" {
+		t.Fatalf("expected source %q, got %q", "fresh", source)
 	}
-	if !strings.Contains(err.Error(), "checking cached web session failed") {
-		t.Fatalf("expected wrapped cache lookup error, got %q", err.Error())
+	if session == nil || session.UserEmail != "user@example.com" {
+		t.Fatalf("expected fresh login session for %q, got %+v", "user@example.com", session)
 	}
 }
 
-func TestResolveWebSessionReturnsPromptedAppleIDCacheLookupError(t *testing.T) {
+func TestResolveWebSessionFallsBackToFreshLoginAfterPromptedAppleIDCacheError(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
+	origWebLogin := webLoginFn
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
+		webLoginFn = origWebLogin
 	})
 
 	cacheErr := errors.New("cache metadata unreadable")
@@ -1093,7 +1106,19 @@ func TestResolveWebSessionReturnsPromptedAppleIDCacheLookupError(t *testing.T) {
 	}
 
 	passwordResolved := false
-	_, _, err := resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
+	loggedIn := false
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		loggedIn = true
+		if creds.Username != "user@example.com" {
+			t.Fatalf("expected prompted login username %q, got %q", "user@example.com", creds.Username)
+		}
+		if creds.Password != "secret" {
+			t.Fatalf("expected prompted login password %q, got %q", "secret", creds.Password)
+		}
+		return &webcore.AuthSession{UserEmail: creds.Username}, nil
+	}
+
+	session, source, err := resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
 		promptAppleID: func(appleID *string) error {
 			*appleID = "user@example.com"
 			return nil
@@ -1103,17 +1128,21 @@ func TestResolveWebSessionReturnsPromptedAppleIDCacheLookupError(t *testing.T) {
 			return "secret", nil
 		},
 	})
-	if err == nil {
-		t.Fatal("expected prompted cache lookup error")
+	if err != nil {
+		t.Fatalf("expected prompted fresh login fallback, got %v", err)
 	}
-	if !errors.Is(err, cacheErr) {
-		t.Fatalf("expected prompted cache lookup error %v, got %v", cacheErr, err)
+	if source != "fresh" {
+		t.Fatalf("expected source %q, got %q", "fresh", source)
 	}
 	if passwordResolved {
-		t.Fatal("did not expect password resolution after cache lookup failure")
+		if !loggedIn {
+			t.Fatal("expected fresh login after resolving password")
+		}
+	} else {
+		t.Fatal("expected password resolution after prompted cache lookup failure")
 	}
-	if !strings.Contains(err.Error(), "checking cached web session failed") {
-		t.Fatalf("expected wrapped cache lookup error, got %q", err.Error())
+	if session == nil || session.UserEmail != "user@example.com" {
+		t.Fatalf("expected prompted fresh session for %q, got %+v", "user@example.com", session)
 	}
 }
 

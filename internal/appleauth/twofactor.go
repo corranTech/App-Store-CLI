@@ -270,13 +270,9 @@ func SubmitTwoFactorCode(ctx context.Context, session SessionState, code string,
 				if requestErr := requestPhoneCode(ctx, phoneID, phoneMode); requestErr != nil {
 					return requestErr
 				}
-				session.SetPreparedTwoFactorState(TwoFactorMethodPhone, phoneID, phoneMode, destination, true)
-				return &PhoneCodeRequestedError{Destination: destination, Err: err}
-			}
-			if phoneErr := submitPhoneCode(ctx, code, phoneID, phoneMode); phoneErr != nil {
-				return phoneErr
 			}
 			session.SetPreparedTwoFactorState(TwoFactorMethodPhone, phoneID, phoneMode, destination, true)
+			return &PhoneCodeRequestedError{Destination: destination, Err: err}
 		}
 		return finalize(ctx)
 	default:

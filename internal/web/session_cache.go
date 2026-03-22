@@ -804,6 +804,22 @@ func readSessionFromFileWithKeychainFallback(key string, fallbackKeychain bool) 
 	return sess, ok, nil
 }
 
+func readSessionFromFileIgnoringErrors(key string) (persistedSession, bool, error) {
+	sess, ok, err := readSessionFromFile(key)
+	if err != nil {
+		return persistedSession{}, false, nil
+	}
+	return sess, ok, nil
+}
+
+func readLastSessionFromFileIgnoringErrors() (persistedSession, bool, error) {
+	key, ok, err := readLastKeyFromFile()
+	if err != nil || !ok {
+		return persistedSession{}, false, nil
+	}
+	return readSessionFromFileIgnoringErrors(key)
+}
+
 func readSessionBySelection(selection backendSelection, key string) (persistedSession, bool, error) {
 	switch selection.backend {
 	case sessionBackendOff:
@@ -812,12 +828,12 @@ func readSessionBySelection(selection backendSelection, key string) (persistedSe
 		sess, ok, err := readSessionFromKeychain(key)
 		if err != nil {
 			if selection.fallbackFile && isKeyringUnavailable(err) {
-				return readSessionFromFile(key)
+				return readSessionFromFileIgnoringErrors(key)
 			}
 			return persistedSession{}, false, err
 		}
 		if !ok && selection.fallbackFile {
-			return readSessionFromFile(key)
+			return readSessionFromFileIgnoringErrors(key)
 		}
 		return sess, ok, nil
 	case sessionBackendFile:
@@ -855,20 +871,12 @@ func readLastSessionBySelection(selection backendSelection) (persistedSession, b
 		sess, ok, err := readLastSessionFromKeychain()
 		if err != nil {
 			if selection.fallbackFile && isKeyringUnavailable(err) {
-				key, ok, err := readLastKeyFromFile()
-				if err != nil || !ok {
-					return persistedSession{}, false, err
-				}
-				return readSessionFromFile(key)
+				return readLastSessionFromFileIgnoringErrors()
 			}
 			return persistedSession{}, false, err
 		}
 		if !ok && selection.fallbackFile {
-			key, ok, err := readLastKeyFromFile()
-			if err != nil || !ok {
-				return persistedSession{}, false, err
-			}
-			return readSessionFromFile(key)
+			return readLastSessionFromFileIgnoringErrors()
 		}
 		return sess, ok, nil
 	case sessionBackendFile:

@@ -498,15 +498,15 @@ func tryResumeKnownWebSession(ctx context.Context, appleID string) (*webcore.Aut
 	return resumed, ok, errors.Is(err, webcore.ErrCachedSessionExpired), err
 }
 
-func resolveKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool, error) {
+func resolveKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool) {
 	resumed, ok, cacheExpired, err := tryResumeKnownWebSession(ctx, appleID)
 	if err == nil {
-		return resumed, ok, false, nil
+		return resumed, ok, false
 	}
 	if cacheExpired {
-		return nil, false, true, nil
+		return nil, false, true
 	}
-	return nil, false, false, fmt.Errorf("checking cached web session failed: %w", err)
+	return nil, false, false
 }
 
 func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
@@ -540,9 +540,7 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		return nil, "", false, nil
 	}
 
-	if resumed, ok, cacheExpired, err := resolveKnownWebSession(ctx, appleID); err != nil {
-		return nil, "", err
-	} else if ok {
+	if resumed, ok, cacheExpired := resolveKnownWebSession(ctx, appleID); ok {
 		return resumed, "cache", nil
 	} else if cacheExpired {
 		if session, source, ok, err := tryHandleExpiredSession(appleID); err != nil {
@@ -560,9 +558,7 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 			return nil, "", err
 		}
 		appleID = strings.TrimSpace(appleID)
-		if resumed, ok, cacheExpired, err := resolveKnownWebSession(ctx, appleID); err != nil {
-			return nil, "", err
-		} else if ok {
+		if resumed, ok, cacheExpired := resolveKnownWebSession(ctx, appleID); ok {
 			return resumed, "cache", nil
 		} else if cacheExpired {
 			if session, source, ok, err := tryHandleExpiredSession(appleID); err != nil {

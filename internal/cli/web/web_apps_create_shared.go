@@ -78,7 +78,6 @@ func trimAppsCreateRunOptions(opts AppsCreateRunOptions) AppsCreateRunOptions {
 }
 
 func normalizeAppsCreateRunOptions(opts AppsCreateRunOptions) AppsCreateRunOptions {
-	opts = trimAppsCreateRunOptions(opts)
 	if opts.PrimaryLocale == "" {
 		opts.PrimaryLocale = appCreateDefaultPrimaryLocale
 	}

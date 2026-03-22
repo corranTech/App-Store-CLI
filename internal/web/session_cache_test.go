@@ -1057,6 +1057,54 @@ func TestTryResumeLastSessionPersistsRefreshedCookies(t *testing.T) {
 	}
 }
 
+func TestReadSessionBySelectionKeychainBackendIgnoresBrokenFileMirror(t *testing.T) {
+	withArraySessionKeyring(t)
+	cacheDir := filepath.Join(t.TempDir(), "web-cache")
+	t.Setenv(webSessionBackendEnv, "keychain")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, cacheDir)
+
+	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+		t.Fatalf("mkdir cache dir: %v", err)
+	}
+
+	key := webSessionCacheKey("user@example.com")
+	if err := os.WriteFile(filepath.Join(cacheDir, "session-"+key+".json"), []byte("{"), 0o600); err != nil {
+		t.Fatalf("write malformed file mirror: %v", err)
+	}
+
+	_, ok, err := readSessionBySelection(resolveBackendSelection(), key)
+	if err != nil {
+		t.Fatalf("expected broken file mirror to be ignored in keychain mode, got %v", err)
+	}
+	if ok {
+		t.Fatal("did not expect session when keychain misses and file mirror is broken")
+	}
+}
+
+func TestReadLastSessionBySelectionKeychainBackendIgnoresBrokenFileMirror(t *testing.T) {
+	withArraySessionKeyring(t)
+	cacheDir := filepath.Join(t.TempDir(), "web-cache")
+	t.Setenv(webSessionBackendEnv, "keychain")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, cacheDir)
+
+	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+		t.Fatalf("mkdir cache dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(cacheDir, "last.json"), []byte("{"), 0o600); err != nil {
+		t.Fatalf("write malformed last marker: %v", err)
+	}
+
+	_, ok, err := readLastSessionBySelection(resolveBackendSelection())
+	if err != nil {
+		t.Fatalf("expected broken last-session mirror to be ignored in keychain mode, got %v", err)
+	}
+	if ok {
+		t.Fatal("did not expect session when keychain misses and last-session mirror is broken")
+	}
+}
+
 func TestTryResumeSessionReturnsExpiredErrorForUnauthorizedCache(t *testing.T) {
 	withArraySessionKeyring(t)
 	t.Setenv(webSessionBackendEnv, "keychain")

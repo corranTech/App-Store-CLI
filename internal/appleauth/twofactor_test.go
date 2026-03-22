@@ -154,3 +154,68 @@ func TestSubmitTwoFactorCodeRequestsPhoneFallbackBeforeRetry(t *testing.T) {
 		t.Fatal("expected session to remember that phone delivery was requested")
 	}
 }
+
+func TestSubmitTwoFactorCodeReturnsRetryWhenTrustedDeviceFallbackWasAlreadyRequested(t *testing.T) {
+	session := &stubSessionState{
+		method:      TwoFactorMethodTrustedDevice,
+		phoneID:     7,
+		phoneMode:   "sms",
+		destination: "+1 (•••) •••-••66",
+		requested:   true,
+	}
+
+	trustedDeviceErr := errors.New("trusted-device rejected code")
+	requestedPhoneCode := false
+	submittedPhoneCode := false
+	finalized := false
+
+	err := SubmitTwoFactorCode(
+		context.Background(),
+		session,
+		"123456",
+		func(context.Context) (*AuthOptions, error) {
+			t.Fatal("did not expect auth options lookup for prepared trusted-device session")
+			return nil, nil
+		},
+		func(context.Context, int, string) error {
+			requestedPhoneCode = true
+			return nil
+		},
+		func(ctx context.Context, code string) error {
+			if code != "123456" {
+				t.Fatalf("expected trusted-device code %q, got %q", "123456", code)
+			}
+			return trustedDeviceErr
+		},
+		func(context.Context, string, int, string) error {
+			submittedPhoneCode = true
+			return nil
+		},
+		func(context.Context) error {
+			finalized = true
+			return nil
+		},
+	)
+	var requestedErr *PhoneCodeRequestedError
+	if !errors.As(err, &requestedErr) {
+		t.Fatalf("expected phone-code-requested error, got %v", err)
+	}
+	if !errors.Is(err, trustedDeviceErr) {
+		t.Fatalf("expected trusted-device error to be preserved, got %v", err)
+	}
+	if requestedPhoneCode {
+		t.Fatal("did not expect duplicate phone delivery request when fallback was already requested")
+	}
+	if submittedPhoneCode {
+		t.Fatal("did not expect stale phone verification submission before a new code is entered")
+	}
+	if finalized {
+		t.Fatal("did not expect finalize after retry signal")
+	}
+	if session.method != TwoFactorMethodPhone {
+		t.Fatalf("expected session method to switch to phone, got %q", session.method)
+	}
+	if !session.requested {
+		t.Fatal("expected session to keep requested phone-delivery state")
+	}
+}

@@ -420,7 +420,7 @@ func TestSubmitTwoFactorCodeUsesPreparedPhoneFlow(t *testing.T) {
 	}
 }
 
-func TestSubmitTwoFactorCodeFallsBackToPhoneAfterTrustedDeviceFailure(t *testing.T) {
+func TestSubmitTwoFactorCodeSubmitsPreparedPhoneFallbackAfterTrustedDeviceFailure(t *testing.T) {
 	session := &AuthSession{
 		Client: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -478,7 +478,7 @@ func TestSubmitTwoFactorCodeFallsBackToPhoneAfterTrustedDeviceFailure(t *testing
 		ServiceKey:             "service-key",
 		AppleIDSessionID:       "session-id",
 		SCNT:                   "scnt-token",
-		twoFactorMethod:        twoFactorMethodTrustedDevice,
+		twoFactorMethod:        twoFactorMethodPhone,
 		twoFactorPhoneID:       7,
 		twoFactorPhoneMode:     "sms",
 		twoFactorCodeRequested: true,
