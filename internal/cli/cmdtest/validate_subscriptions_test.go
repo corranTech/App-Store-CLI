@@ -700,6 +700,42 @@ func TestValidateSubscriptionsRefreshesContextBeforeBuildProbeAfterAvailabilityT
 	}
 }
 
+func TestValidateSubscriptionsSkipsBuildProbeWhenNoMissingMetadataDiagnosticsNeedIt(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restoreClient := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restoreClient()
+
+	restoreBuilds := validate.SetFetchAppBuildCountFunc(func(context.Context, *asc.Client, string) (int, bool, string, error) {
+		return 0, false, "", errors.New("unexpected build probe")
+	})
+	defer restoreBuilds()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected validate subscriptions to skip build probing for healthy subscriptions, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(report.Diagnostics) != 0 {
+		t.Fatalf("expected no diagnostics for approved subscriptions, got %+v", report.Diagnostics)
+	}
+}
+
 func TestValidateSubscriptionsSurfacesSkippedPricingVerificationForApprovedSubscriptions(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.expectedPriceInclude = "territory"

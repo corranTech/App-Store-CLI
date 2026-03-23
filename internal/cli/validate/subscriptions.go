@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -89,16 +90,25 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 		}
 	}
 
-	buildCount, buildStatus, err := fetchAppBuildCountFn(requestCtx, client, opts.AppID)
-	if err != nil {
-		return fmt.Errorf("validate subscriptions: %w", err)
-	}
-	buildCheckSkipped := !buildStatus.Verified
-	buildCheckSkipReason := buildStatus.SkipReason
-
 	subs, err := fetchSubscriptionsFn(ctx, client, opts.AppID)
 	if err != nil {
 		return fmt.Errorf("validate subscriptions: %w", err)
+	}
+
+	buildCount := 0
+	buildCheckSkipped := false
+	buildCheckSkipReason := ""
+	var buildStatus metadataCheckStatus
+	for _, sub := range subs {
+		if strings.EqualFold(strings.TrimSpace(sub.State), "MISSING_METADATA") {
+			buildCount, buildStatus, err = fetchAppBuildCountFn(requestCtx, client, opts.AppID)
+			if err != nil {
+				return fmt.Errorf("validate subscriptions: %w", err)
+			}
+			buildCheckSkipped = !buildStatus.Verified
+			buildCheckSkipReason = buildStatus.SkipReason
+			break
+		}
 	}
 
 	report := validation.ValidateSubscriptions(validation.SubscriptionsInput{
