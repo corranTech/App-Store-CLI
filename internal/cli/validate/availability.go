@@ -13,16 +13,20 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var fetchAvailableTerritoriesFn = fetchAvailableTerritories
+var (
+	fetchAvailableTerritoriesFn      = fetchAvailableTerritories
+	fetchAvailableTerritoryDetailsFn = fetchAvailableTerritoryDetails
+)
 
 func fetchAvailableTerritories(ctx context.Context, client *asc.Client, appID string) (string, int, error) {
-	availabilityID, _, availableTerritories, err := fetchAvailableTerritoryDetails(ctx, client, appID)
+	availabilityID, _, availableTerritories, err := fetchAvailableTerritoryDetailsFn(ctx, client, appID)
 	return availabilityID, availableTerritories, err
 }
 
 func fetchAvailableTerritoryDetails(ctx context.Context, client *asc.Client, appID string) (string, []string, int, error) {
 	availabilityID := ""
 	availableTerritories := 0
+	decodedAvailableTerritories := 0
 	territoryIDs := make(map[string]struct{})
 
 	availabilityResp, err := client.GetAppAvailabilityV2(ctx, appID)
@@ -53,9 +57,12 @@ func fetchAvailableTerritoryDetails(ctx context.Context, client *asc.Client, app
 		for _, territoryAvailability := range territoryResp.Data {
 			if territoryAvailability.Attributes.Available {
 				availableTerritories++
-				if territoryID, err := territoryAvailabilityTerritoryID(territoryAvailability.Relationships); err == nil && strings.TrimSpace(territoryID) != "" {
-					territoryIDs[strings.TrimSpace(territoryID)] = struct{}{}
+				territoryID, err := territoryAvailabilityTerritoryID(territoryAvailability.Relationships)
+				if err != nil || strings.TrimSpace(territoryID) == "" {
+					continue
 				}
+				decodedAvailableTerritories++
+				territoryIDs[strings.TrimSpace(territoryID)] = struct{}{}
 			}
 		}
 
@@ -70,6 +77,9 @@ func fetchAvailableTerritoryDetails(ctx context.Context, client *asc.Client, app
 		ids = append(ids, territoryID)
 	}
 	slices.Sort(ids)
+	if availableTerritories > 0 && decodedAvailableTerritories != availableTerritories {
+		return availabilityID, nil, availableTerritories, nil
+	}
 
 	return availabilityID, ids, availableTerritories, nil
 }

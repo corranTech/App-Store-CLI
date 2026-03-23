@@ -384,6 +384,60 @@ func TestValidateSubscriptionsCountsAvailableTerritoriesAcrossPages(t *testing.T
 	}
 }
 
+func TestValidateSubscriptionsFallsBackToCountWhenAppTerritoryIDsAreIncomplete(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
+	fixture.territories = `{"data":[
+		{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+		{"type":"territoryAvailabilities","id":"ta-2","attributes":{"available":true}}
+	]}`
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected warning-only validate subscriptions run, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+
+	var coverageCheck *validation.CheckResult
+	for i := range report.Checks {
+		if report.Checks[i].ID == "subscriptions.pricing.partial_territory_coverage" {
+			coverageCheck = &report.Checks[i]
+			break
+		}
+	}
+	if coverageCheck == nil {
+		t.Fatalf("expected pricing coverage warning when app territory IDs are incomplete, got %+v", report.Checks)
+	}
+	if !strings.Contains(coverageCheck.Message, "1 of 2 available territories") {
+		t.Fatalf("expected count-based fallback coverage warning, got %+v", *coverageCheck)
+	}
+	if strings.Contains(coverageCheck.Message, "missing:") {
+		t.Fatalf("did not expect exact territory diff when app territory IDs are incomplete, got %+v", *coverageCheck)
+	}
+}
+
 func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityForbidden(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.availabilityV2Status = http.StatusForbidden

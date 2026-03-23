@@ -71,7 +71,7 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 	defer cancel()
 
 	pricingCoverageSkipReason := ""
-	_, appAvailableTerritories, availableTerritories, err := fetchAvailableTerritoryDetails(requestCtx, client, opts.AppID)
+	_, appAvailableTerritories, availableTerritories, err := fetchAvailableTerritoryDetailsFn(requestCtx, client, opts.AppID)
 	if err != nil {
 		if reason, ok := availabilityCheckSkipReason(err); ok {
 			pricingCoverageSkipReason = reason
