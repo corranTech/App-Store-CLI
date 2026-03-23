@@ -17,6 +17,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	authcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -25,6 +26,15 @@ import (
 
 func captureOutput(t *testing.T, fn func()) (string, string) {
 	t.Helper()
+
+	asc.ResetConfigCacheForTest()
+	auth.ResetInvalidBypassKeychainWarningsForTest()
+	shared.ResetDefaultOutputFormat()
+	shared.ResetTierCacheForTest()
+	t.Cleanup(asc.ResetConfigCacheForTest)
+	t.Cleanup(auth.ResetInvalidBypassKeychainWarningsForTest)
+	t.Cleanup(shared.ResetDefaultOutputFormat)
+	t.Cleanup(shared.ResetTierCacheForTest)
 
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr
