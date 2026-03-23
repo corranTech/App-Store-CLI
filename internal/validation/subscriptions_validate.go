@@ -301,6 +301,38 @@ func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories
 
 		label := formatSubscriptionLabel(sub)
 		priceTerritories := sortedUniqueNonEmpty(sub.PriceTerritories)
+		subscriptionAvailabilityTerritories := sortedUniqueNonEmpty(sub.AvailabilityTerritories)
+		if len(subscriptionAvailabilityTerritories) > 0 {
+			if len(priceTerritories) > 0 {
+				missing := missingValues(subscriptionAvailabilityTerritories, priceTerritories)
+				if len(missing) == 0 {
+					continue
+				}
+				checks = append(checks, CheckResult{
+					ID:           "subscriptions.pricing.partial_territory_coverage",
+					Severity:     SeverityWarning,
+					Field:        "pricing",
+					ResourceType: "subscription",
+					ResourceID:   strings.TrimSpace(sub.ID),
+					Message:      fmt.Sprintf("%s has pricing for %d of %d subscription availability territories; missing: %s", label, len(priceTerritories), len(subscriptionAvailabilityTerritories), strings.Join(missing, ",")),
+					Remediation:  "Set prices for all subscription availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
+				})
+				continue
+			}
+			if sub.PriceCount >= len(subscriptionAvailabilityTerritories) {
+				continue
+			}
+			checks = append(checks, CheckResult{
+				ID:           "subscriptions.pricing.partial_territory_coverage",
+				Severity:     SeverityWarning,
+				Field:        "pricing",
+				ResourceType: "subscription",
+				ResourceID:   strings.TrimSpace(sub.ID),
+				Message:      fmt.Sprintf("%s has pricing for %d of %d subscription availability territories", label, sub.PriceCount, len(subscriptionAvailabilityTerritories)),
+				Remediation:  "Set prices for all subscription availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
+			})
+			continue
+		}
 		if len(appAvailableTerritories) > 0 && len(priceTerritories) > 0 {
 			missing := missingValues(appAvailableTerritories, priceTerritories)
 			if len(missing) == 0 {

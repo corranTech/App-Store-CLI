@@ -168,6 +168,23 @@ func TestSubscriptionPricingCoverage_SkipsWhenPriceCheckSkipped(t *testing.T) {
 	}
 }
 
+func TestSubscriptionPricingCoverage_PrefersSubscriptionAvailabilityTerritories(t *testing.T) {
+	checks := subscriptionPricingCoverageChecks([]Subscription{
+		{
+			ID:                      "sub-1",
+			Name:                    "Monthly",
+			ProductID:               "com.example.monthly",
+			State:                   "MISSING_METADATA",
+			AvailabilityTerritories: []string{"USA"},
+			PriceCount:              1,
+			PriceTerritories:        []string{"USA"},
+		},
+	}, 2, []string{"USA", "CAN"})
+	if len(checks) != 0 {
+		t.Fatalf("expected no app-territory warning when subscription availability is narrower, got %v", checks)
+	}
+}
+
 func TestSubscriptionPricingVerificationChecks_AddsInfoWhenPriceCheckSkipped(t *testing.T) {
 	checks := subscriptionPricingVerificationChecks([]Subscription{
 		{
@@ -502,6 +519,45 @@ func TestValidateSubscriptionsMarksSkippedBuildDiagnosticAsUnverified(t *testing
 	}
 	if buildRow.Remediation != "build endpoint forbidden" {
 		t.Fatalf("expected build skip reason to be preserved, got %+v", buildRow)
+	}
+}
+
+func TestValidateSubscriptionsFallsBackToAppTerritoryCountInDiagnostics(t *testing.T) {
+	report := ValidateSubscriptions(SubscriptionsInput{
+		AppID:                "app-1",
+		AvailableTerritories: 2,
+		Subscriptions: []Subscription{
+			{
+				ID:                      "sub-1",
+				Name:                    "Monthly",
+				ProductID:               "com.example.monthly",
+				State:                   "MISSING_METADATA",
+				GroupID:                 "group-1",
+				GroupName:               "Premium",
+				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:      "shot-1",
+				AvailabilityID:          "avail-1",
+				AvailabilityTerritories: []string{"USA", "CAN"},
+				PriceCount:              2,
+				PriceTerritories:        []string{"USA", "CAN"},
+			},
+		},
+	}, false)
+
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one subscription diagnostics entry, got %+v", report.Diagnostics)
+	}
+
+	appCoverageRow, ok := findSubscriptionDiagnosticRow(report.Diagnostics[0].Rows, "price_coverage_app_availability")
+	if !ok {
+		t.Fatalf("expected app coverage diagnostic row, got %+v", report.Diagnostics[0].Rows)
+	}
+	if appCoverageRow.Status != DiagnosticStatusYes {
+		t.Fatalf("expected app coverage diagnostics to fall back to territory count, got %+v", appCoverageRow)
+	}
+	if !strings.Contains(appCoverageRow.Evidence, "priced_count=2") || !strings.Contains(appCoverageRow.Evidence, "app_count=2") {
+		t.Fatalf("expected count-based evidence, got %+v", appCoverageRow)
 	}
 }
 

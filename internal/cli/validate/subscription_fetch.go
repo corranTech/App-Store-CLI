@@ -436,7 +436,7 @@ func fetchSubscriptionAvailabilityTerritories(ctx context.Context, client *asc.C
 		}
 	}
 
-	return availabilityID, sortedUniqueTerritories(allTerritories), metadataCheckStatus{Verified: true}, nil
+	return availabilityID, validation.SortedUniqueNonEmptyStrings(allTerritories), metadataCheckStatus{Verified: true}, nil
 }
 
 func fetchSubscriptionIntroductoryOfferCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus, error) {
@@ -485,24 +485,6 @@ func fetchSubscriptionWinBackOfferCount(ctx context.Context, client *asc.Client,
 		return 0, metadataCheckStatus{}, err
 	}
 	return len(resp.Data), metadataCheckStatus{Verified: true}, nil
-}
-
-func sortedUniqueTerritories(values []string) []string {
-	territories := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		territories[trimmed] = struct{}{}
-	}
-
-	result := make([]string, 0, len(territories))
-	for territoryID := range territories {
-		result = append(result, territoryID)
-	}
-	slices.Sort(result)
-	return result
 }
 
 func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (subscriptionImageStatus, error) {

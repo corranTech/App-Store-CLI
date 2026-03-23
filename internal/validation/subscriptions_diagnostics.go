@@ -42,6 +42,10 @@ type SubscriptionDiagnostics struct {
 func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagnostics {
 	diagnostics := make([]SubscriptionDiagnostics, 0, len(input.Subscriptions))
 	appTerritories := sortedUniqueNonEmpty(input.AppAvailableTerritories)
+	appTerritoryCount := input.AvailableTerritories
+	if len(appTerritories) > 0 {
+		appTerritoryCount = len(appTerritories)
+	}
 
 	for _, sub := range input.Subscriptions {
 		if isRemovedMonetizationState(sub.State) {
@@ -58,7 +62,7 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 			buildSubscriptionAvailabilityDiagnosticRow(sub),
 			buildPriceRecordsDiagnosticRow(sub),
 			buildSubscriptionAvailabilityCoverageDiagnosticRow(sub),
-			buildAppAvailabilityCoverageDiagnosticRow(sub, appTerritories, input.PricingCoverageSkipReason),
+			buildAppAvailabilityCoverageDiagnosticRow(sub, appTerritories, appTerritoryCount, input.PricingCoverageSkipReason),
 			buildPromotionalImageDiagnosticRow(sub),
 			buildAppBuildDiagnosticRow(input.AppBuildCount, input.BuildCheckSkipped, input.BuildCheckSkipReason),
 			buildOptionalOfferDiagnosticRow(
@@ -358,7 +362,7 @@ func buildSubscriptionAvailabilityCoverageDiagnosticRow(sub Subscription) Subscr
 	return row
 }
 
-func buildAppAvailabilityCoverageDiagnosticRow(sub Subscription, appTerritories []string, skipReason string) SubscriptionDiagnosticRow {
+func buildAppAvailabilityCoverageDiagnosticRow(sub Subscription, appTerritories []string, appTerritoryCount int, skipReason string) SubscriptionDiagnosticRow {
 	row := SubscriptionDiagnosticRow{
 		Key:      "price_coverage_app_availability",
 		Label:    "Price coverage vs app availability",
@@ -373,12 +377,6 @@ func buildAppAvailabilityCoverageDiagnosticRow(sub Subscription, appTerritories 
 		return row
 	}
 
-	if len(appTerritories) == 0 {
-		row.Evidence = "app availability territories unavailable"
-		row.Remediation = "Verify app availability before comparing subscription pricing coverage against the app."
-		return row
-	}
-
 	if sub.PriceCheckSkipped {
 		row.Status = DiagnosticStatusUnverified
 		row.Remediation = fallbackString(sub.PriceCheckSkipReason, "Validation could not verify subscription pricing automatically")
@@ -386,6 +384,29 @@ func buildAppAvailabilityCoverageDiagnosticRow(sub Subscription, appTerritories 
 	}
 
 	priced := sortedUniqueNonEmpty(sub.PriceTerritories)
+	if len(appTerritories) == 0 {
+		if appTerritoryCount <= 0 {
+			row.Evidence = "app availability territories unavailable"
+			row.Remediation = "Verify app availability before comparing subscription pricing coverage against the app."
+			return row
+		}
+
+		pricedCount := sub.PriceCount
+		if len(priced) > pricedCount {
+			pricedCount = len(priced)
+		}
+		if pricedCount >= appTerritoryCount {
+			row.Status = DiagnosticStatusYes
+			row.Evidence = fmt.Sprintf("priced_count=%d app_count=%d", pricedCount, appTerritoryCount)
+			return row
+		}
+
+		row.Status = DiagnosticStatusNo
+		row.Evidence = fmt.Sprintf("priced_count=%d app_count=%d", pricedCount, appTerritoryCount)
+		row.Remediation = fmt.Sprintf("Add prices for the missing app territories with `asc subscriptions pricing prices set --subscription-id %q ...` or `asc subscriptions pricing equalize --subscription-id %q --base-territory USA`.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"), fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
+		return row
+	}
+
 	missing := missingValues(appTerritories, priced)
 	if len(missing) > 0 {
 		row.Status = DiagnosticStatusNo
@@ -486,7 +507,8 @@ func summarizeSubscriptionDiagnostics(sub Subscription, rows []SubscriptionDiagn
 	}
 }
 
-func sortedUniqueNonEmpty(values []string) []string {
+// SortedUniqueNonEmptyStrings trims, deduplicates, and sorts a string slice.
+func SortedUniqueNonEmptyStrings(values []string) []string {
 	if len(values) == 0 {
 		return nil
 	}
@@ -507,6 +529,10 @@ func sortedUniqueNonEmpty(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func sortedUniqueNonEmpty(values []string) []string {
+	return SortedUniqueNonEmptyStrings(values)
 }
 
 func missingValues(expected, actual []string) []string {
