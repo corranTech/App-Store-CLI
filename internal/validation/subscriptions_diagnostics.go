@@ -409,6 +409,7 @@ func buildAppBuildDiagnosticRow(count int, skipped bool, skipReason string) Subs
 	}
 
 	if skipped {
+		row.Status = DiagnosticStatusUnverified
 		row.Remediation = fallbackString(skipReason, "Validation could not determine whether this app has builds")
 		return row
 	}

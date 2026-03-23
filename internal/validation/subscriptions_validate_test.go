@@ -463,6 +463,48 @@ func TestValidateSubscriptionsDiagnosticsShowExactMissingTerritories(t *testing.
 	}
 }
 
+func TestValidateSubscriptionsMarksSkippedBuildDiagnosticAsUnverified(t *testing.T) {
+	report := ValidateSubscriptions(SubscriptionsInput{
+		AppID:                   "app-1",
+		AppAvailableTerritories: []string{"USA", "CAN"},
+		AppBuildCount:           0,
+		BuildCheckSkipped:       true,
+		BuildCheckSkipReason:    "build endpoint forbidden",
+		Subscriptions: []Subscription{
+			{
+				ID:                      "sub-1",
+				Name:                    "Monthly",
+				ProductID:               "com.example.monthly",
+				State:                   "MISSING_METADATA",
+				GroupID:                 "group-1",
+				GroupName:               "Premium",
+				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:      "shot-1",
+				AvailabilityID:          "avail-1",
+				AvailabilityTerritories: []string{"USA", "CAN"},
+				PriceCount:              2,
+				PriceTerritories:        []string{"USA", "CAN"},
+			},
+		},
+	}, false)
+
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one subscription diagnostics entry, got %+v", report.Diagnostics)
+	}
+
+	buildRow, ok := findSubscriptionDiagnosticRow(report.Diagnostics[0].Rows, "app_has_build")
+	if !ok {
+		t.Fatalf("expected app_has_build row, got %+v", report.Diagnostics[0].Rows)
+	}
+	if buildRow.Status != DiagnosticStatusUnverified {
+		t.Fatalf("expected app_has_build=unverified when build check is skipped, got %+v", buildRow)
+	}
+	if buildRow.Remediation != "build endpoint forbidden" {
+		t.Fatalf("expected build skip reason to be preserved, got %+v", buildRow)
+	}
+}
+
 func findSubscriptionDiagnosticRow(rows []SubscriptionDiagnosticRow, key string) (SubscriptionDiagnosticRow, bool) {
 	for _, row := range rows {
 		if row.Key == key {
