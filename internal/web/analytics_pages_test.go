@@ -112,6 +112,98 @@ func TestGetAnalyticsSourcesListRequestsExpectedEndpointAndPayload(t *testing.T)
 	}
 }
 
+func TestGetAnalyticsCampaignsPageUsesDefaultRankingLimit(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path != "/analytics/api/v1/data/sources/list" {
+					t.Fatalf("unexpected path: %s", req.URL.Path)
+				}
+				body, err := io.ReadAll(req.Body)
+				if err != nil {
+					t.Fatalf("failed to read body: %v", err)
+				}
+				var payload map[string]any
+				if err := json.Unmarshal(body, &payload); err != nil {
+					t.Fatalf("failed to decode body: %v", err)
+				}
+				if payload["limit"] != float64(10) {
+					t.Fatalf("expected default ranking limit 10, got %#v", payload["limit"])
+				}
+				return analyticsTestJSONResponse(req, `{"size":0,"results":[],"meetsThreshold":true}`), nil
+			}),
+		},
+		baseURL:            analyticsAPIBaseURL,
+		minRequestInterval: 0,
+	}
+
+	resp, err := client.GetAnalyticsCampaignsPage(context.Background(), "app-1", "2025-12-24", "2026-03-23")
+	if err != nil {
+		t.Fatalf("GetAnalyticsCampaignsPage() error = %v", err)
+	}
+	if resp.Result == nil || resp.Result.Size != 0 {
+		t.Fatalf("unexpected campaigns response: %#v", resp)
+	}
+}
+
+func TestGetAnalyticsSettingsIncludesRequestedByHeader(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Path != "/analytics/api/v1/settings/all" {
+					t.Fatalf("unexpected path: %s", req.URL.Path)
+				}
+				if got := req.Header.Get("X-Requested-By"); got != "appstoreconnect.apple.com" {
+					t.Fatalf("expected X-Requested-By header, got %q", got)
+				}
+				return analyticsTestJSONResponse(req, `{"configuration":{"dataStartDate":"2015-04-01T00:00:00Z"}}`), nil
+			}),
+		},
+		baseURL:            analyticsAPIBaseURL,
+		minRequestInterval: 0,
+	}
+
+	resp, err := client.GetAnalyticsSettings(context.Background())
+	if err != nil {
+		t.Fatalf("GetAnalyticsSettings() error = %v", err)
+	}
+	if resp.Configuration.DataStartDate != "2015-04-01T00:00:00Z" {
+		t.Fatalf("unexpected settings response: %#v", resp)
+	}
+}
+
+func TestGetAnalyticsV2TimeSeriesUsesClientBaseURL(t *testing.T) {
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Host != "analytics.example.test" {
+					t.Fatalf("unexpected host: %s", req.URL.Host)
+				}
+				if req.URL.Path != "/custom-base/data/time-series" {
+					t.Fatalf("unexpected path: %s", req.URL.Path)
+				}
+				return analyticsTestJSONResponse(req, `{"size":0,"results":[]}`), nil
+			}),
+		},
+		baseURL:            "https://analytics.example.test/custom-base",
+		minRequestInterval: 0,
+	}
+
+	resp, err := client.GetAnalyticsV2TimeSeries(context.Background(), AnalyticsV2TimeSeriesRequest{
+		AppID:     "app-1",
+		StartTime: "2026-02-23T00:00:00Z",
+		EndTime:   "2026-02-23T00:00:00Z",
+		Measures:  []string{"conversionRate"},
+		Frequency: "week",
+	})
+	if err != nil {
+		t.Fatalf("GetAnalyticsV2TimeSeries() error = %v", err)
+	}
+	if resp.Size != 0 {
+		t.Fatalf("unexpected response: %#v", resp)
+	}
+}
+
 func TestGetAnalyticsBenchmarksMergesAppAndPercentiles(t *testing.T) {
 	client := &Client{
 		httpClient: &http.Client{

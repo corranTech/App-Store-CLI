@@ -257,6 +257,7 @@ func analyticsHeaders(referer string) http.Header {
 	headers := make(http.Header)
 	headers.Set("Accept", "application/json")
 	headers.Set("Content-Type", "application/json")
+	headers.Set("X-Requested-By", "appstoreconnect.apple.com")
 	headers.Set("Origin", appStoreBaseURL)
 	if referer != "" {
 		headers.Set("Referer", referer)

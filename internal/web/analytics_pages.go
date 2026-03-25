@@ -267,8 +267,19 @@ func (c *Client) doAnalyticsGetRequest(ctx context.Context, path, referer string
 	return c.doRequestBase(ctx, c.analyticsBaseURL(), http.MethodGet, path, nil, analyticsHeaders(referer))
 }
 
+func (c *Client) analyticsV2BaseURL() string {
+	baseURL := strings.TrimSpace(c.baseURL)
+	if baseURL == "" {
+		return analyticsV2BaseURL
+	}
+	if strings.Contains(baseURL, "/analytics/api/v1") {
+		return strings.Replace(baseURL, "/analytics/api/v1", "/analytics/api/v2", 1)
+	}
+	return baseURL
+}
+
 func (c *Client) doAnalyticsV2Request(ctx context.Context, path string, body any, referer string) ([]byte, error) {
-	return c.doRequestBase(ctx, analyticsV2BaseURL, http.MethodPost, path, body, analyticsHeaders(referer))
+	return c.doRequestBase(ctx, c.analyticsV2BaseURL(), http.MethodPost, path, body, analyticsHeaders(referer))
 }
 
 // GetAnalyticsSettings loads the shared analytics settings payload.
@@ -533,7 +544,6 @@ func (c *Client) GetAnalyticsCampaignsPage(ctx context.Context, appID, startDate
 		Measures:  []string{"impressionsTotal", "totalDownloads", "proceeds", "sessions"},
 		Dimension: "campaignId",
 		Frequency: "day",
-		Limit:     1,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("campaigns page: %w", err)

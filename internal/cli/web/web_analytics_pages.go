@@ -543,23 +543,6 @@ func analyticsSeriesStats(data []map[string]any, key string) (*float64, *float64
 	return &total, &avg, last
 }
 
-func analyticsBenchmarkValueString(key string, value *float64) string {
-	if value == nil {
-		return "-"
-	}
-	switch strings.TrimSpace(key) {
-	case "conversionRate", "crashRate", "retentionD1", "retentionD7", "retentionD28", "download-to-paid-rate-d35":
-		return fmt.Sprintf("%.2f%%", *value)
-	case "arppu", "proceeds-per-download-average-d35":
-		if *value == float64(int64(*value)) {
-			return fmt.Sprintf("$%.0f", *value)
-		}
-		return fmt.Sprintf("$%.2f", *value)
-	default:
-		return analyticsNumberString(value)
-	}
-}
-
 func buildAnalyticsSourcesRows(result *webcore.AnalyticsSourcesPage) [][]string {
 	rows := [][]string{
 		{"Query", "App ID", result.AppID, ""},
@@ -583,9 +566,16 @@ func buildAnalyticsSourcesRows(result *webcore.AnalyticsSourcesPage) [][]string 
 }
 
 func renderAnalyticsSourcesTable(result *webcore.AnalyticsSourcesPage) error {
-	headers := []string{"Section", "Field", "Value", "Notes"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsSourcesRows(result), 4))
-	return nil
+	return renderAnalyticsTableSections(
+		analyticsQuerySection(
+			"Sources",
+			result.AppID,
+			result.StartDate,
+			result.EndDate,
+			[]string{"Metric", analyticsMeasureLabel(result.Measure)},
+		),
+		analyticsSourcesPerformanceSection(result),
+	)
 }
 
 func renderAnalyticsSourcesMarkdown(result *webcore.AnalyticsSourcesPage) error {
@@ -617,9 +607,22 @@ func buildAnalyticsInAppEventsRows(result *webcore.AnalyticsInAppEventsPage) [][
 }
 
 func renderAnalyticsInAppEventsTable(result *webcore.AnalyticsInAppEventsPage) error {
-	headers := []string{"Section", "Field", "Value", "Notes", "Change"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsInAppEventsRows(result), 5))
-	return nil
+	var metricResults []webcore.AnalyticsMeasureResult
+	if result.SelectedMetrics != nil {
+		metricResults = result.SelectedMetrics.Results
+	}
+	return renderAnalyticsTableSections(
+		analyticsQuerySection(
+			"In-App Events",
+			result.AppID,
+			result.RequestedStartDate,
+			result.RequestedEndDate,
+			[]string{"Effective Range", analyticsDateRangeString(result.EffectiveStartTime, result.EffectiveEndTime)},
+			[]string{"Selected Event", result.SelectedEventID},
+		),
+		analyticsInAppEventsListSection(result),
+		analyticsMeasureSummarySection("Selected Event Metrics", metricResults),
+	)
 }
 
 func renderAnalyticsInAppEventsMarkdown(result *webcore.AnalyticsInAppEventsPage) error {
@@ -663,9 +666,10 @@ func buildAnalyticsCampaignRows(result *webcore.AnalyticsCampaignsPage) [][]stri
 }
 
 func renderAnalyticsCampaignsTable(result *webcore.AnalyticsCampaignsPage) error {
-	headers := []string{"Section", "Field", "Value", "Notes"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsCampaignRows(result), 4))
-	return nil
+	return renderAnalyticsTableSections(
+		analyticsQuerySection("Campaigns", result.AppID, result.StartDate, result.EndDate),
+		analyticsCampaignPerformanceSection(result),
+	)
 }
 
 func renderAnalyticsCampaignsMarkdown(result *webcore.AnalyticsCampaignsPage) error {
@@ -717,9 +721,14 @@ func buildAnalyticsSalesRows(result *webcore.AnalyticsSalesSummary) [][]string {
 }
 
 func renderAnalyticsSalesTable(result *webcore.AnalyticsSalesSummary) error {
-	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsSalesRows(result), 5))
-	return nil
+	return renderAnalyticsTableSections(
+		analyticsQuerySection("Sales", result.AppID, result.StartDate, result.EndDate),
+		analyticsMeasureSummarySection("Summary Cards", result.Summary),
+		analyticsLatestCohortSection("Download to Paid", result.DownloadToPaid),
+		analyticsLatestCohortSection("Proceeds per Download", result.ProceedsPerDownload),
+		analyticsBreakdownSection("", result.RevenueByPurchase),
+		analyticsBreakdownSection("", result.RevenueByTerritory),
+	)
 }
 
 func renderAnalyticsSalesMarkdown(result *webcore.AnalyticsSalesSummary) error {
@@ -740,19 +749,27 @@ func buildAnalyticsBenchmarkRows(result *webcore.AnalyticsBenchmarksSummary) [][
 		rows = append(rows, []string{
 			"Benchmark",
 			metric.Label,
-			analyticsBenchmarkValueString(metric.Key, metric.AppValue),
-			analyticsBenchmarkValueString(metric.Key, metric.P25),
-			analyticsBenchmarkValueString(metric.Key, metric.P50),
-			analyticsBenchmarkValueString(metric.Key, metric.P75),
+			analyticsMeasureValueString(metric.Key, metric.AppValue),
+			analyticsMeasureValueString(metric.Key, metric.P25),
+			analyticsMeasureValueString(metric.Key, metric.P50),
+			analyticsMeasureValueString(metric.Key, metric.P75),
 		})
 	}
 	return rows
 }
 
 func renderAnalyticsBenchmarksTable(result *webcore.AnalyticsBenchmarksSummary) error {
-	headers := []string{"Section", "Field", "App", "25th", "50th", "75th"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsBenchmarkRows(result), 6))
-	return nil
+	return renderAnalyticsTableSections(
+		analyticsQuerySection(
+			"Benchmarks",
+			result.AppID,
+			result.WeekStart,
+			result.WeekEnd,
+			[]string{"Category", result.Category},
+		),
+		analyticsBenchmarkPeerGroupsSection(result),
+		analyticsBenchmarkMetricsSection(result),
+	)
 }
 
 func renderAnalyticsBenchmarksMarkdown(result *webcore.AnalyticsBenchmarksSummary) error {
@@ -781,9 +798,12 @@ func buildAnalyticsCapabilityRows(payload analyticsPageCapabilityOutput) [][]str
 }
 
 func renderAnalyticsCapabilityTable(payload analyticsPageCapabilityOutput) error {
-	headers := []string{"Section", "Field", "Value"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsCapabilityRows(payload), 3))
-	return nil
+	return renderAnalyticsTableSections(
+		analyticsCapabilityStatusSection(payload),
+		analyticsCapabilityListSection("Relevant Measures", "Measure", payload.RelevantMeasures),
+		analyticsCapabilityListSection("Relevant Dimensions", "Dimension", payload.RelevantDimensions),
+		analyticsCapabilityHintsSection(payload),
+	)
 }
 
 func renderAnalyticsCapabilityMarkdown(payload analyticsPageCapabilityOutput) error {

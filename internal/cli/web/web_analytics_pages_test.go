@@ -146,6 +146,9 @@ func TestWebAnalyticsBenchmarksCommandTableIncludesPercentiles(t *testing.T) {
 			WeekStart:    "2026-02-23",
 			WeekEnd:      "2026-03-01",
 			PeerGroupIDs: []string{"202", "74"},
+			SelectedGroups: []webcore.AnalyticsBenchmarkPeerGroup{
+				{ID: "202", Title: "IPG-202", Monetization: "SUBS", Size: "ALL", MemberOf: true, Primary: true},
+			},
 			Metrics: []webcore.AnalyticsBenchmarkMetric{
 				{Key: "conversionRate", Label: "Conversion Rate", AppValue: floatPtr(0.62), P25: floatPtr(1.42), P50: floatPtr(3.06), P75: floatPtr(6.99)},
 			},
@@ -171,6 +174,12 @@ func TestWebAnalyticsBenchmarksCommandTableIncludesPercentiles(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "6.99%") {
 		t.Fatalf("expected percentile output in table output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Peer Groups") {
+		t.Fatalf("expected Peer Groups section in table output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Benchmark Metrics") {
+		t.Fatalf("expected Benchmark Metrics section in table output, got %q", stdout)
 	}
 }
 

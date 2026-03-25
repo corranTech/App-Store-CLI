@@ -29,6 +29,9 @@ func TestGetAnalyticsMeasuresRequestsExpectedEndpointAndPayload(t *testing.T) {
 				if got := req.Header.Get("Referer"); !strings.Contains(got, "/apps/app-1/analytics") {
 					t.Fatalf("expected analytics referer, got %q", got)
 				}
+				if got := req.Header.Get("X-Requested-By"); got != "appstoreconnect.apple.com" {
+					t.Fatalf("expected X-Requested-By header, got %q", got)
+				}
 				body, err := io.ReadAll(req.Body)
 				if err != nil {
 					t.Fatalf("failed to read body: %v", err)

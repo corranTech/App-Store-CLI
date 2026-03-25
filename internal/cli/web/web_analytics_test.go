@@ -311,6 +311,66 @@ func TestWebAnalyticsSubscriptionsCommandTableIncludesSummaryLabels(t *testing.T
 	if !strings.Contains(stdout, "Monthly Recurring Revenue") {
 		t.Fatalf("expected Monthly Recurring Revenue label in table output, got %q", stdout)
 	}
+	if !strings.Contains(stdout, "Summary Cards") {
+		t.Fatalf("expected Summary Cards section in table output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Subscriptions\n-------------") {
+		t.Fatalf("expected sectioned table heading in table output, got %q", stdout)
+	}
+}
+
+func TestWebAnalyticsOverviewCommandTableUsesSectionedLayout(t *testing.T) {
+	_ = stubWebProgressLabels(t)
+
+	origResolveSession := resolveSessionFn
+	origGetOverview := getAnalyticsOverviewFn
+	t.Cleanup(func() {
+		resolveSessionFn = origResolveSession
+		getAnalyticsOverviewFn = origGetOverview
+	})
+
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{Client: &http.Client{}}, "cache", nil
+	}
+	getAnalyticsOverviewFn = func(ctx context.Context, client *webcore.Client, appID, startDate, endDate string) (*webcore.AnalyticsOverview, error) {
+		return &webcore.AnalyticsOverview{
+			AppID:     appID,
+			StartDate: startDate,
+			EndDate:   endDate,
+			Acquisition: []webcore.AnalyticsMeasureResult{
+				{Measure: "units", Total: floatPtr(94), PreviousTotal: floatPtr(86), PercentChange: floatPtr(0.093)},
+			},
+			Sales: []webcore.AnalyticsMeasureResult{
+				{Measure: "proceeds", Total: floatPtr(46), PreviousTotal: floatPtr(38), PercentChange: floatPtr(0.211)},
+			},
+		}, nil
+	}
+
+	cmd := WebAnalyticsOverviewCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "app-1",
+		"--start", "2025-12-24",
+		"--end", "2026-03-23",
+		"--output", "table",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stdout, "Overview\n--------") {
+		t.Fatalf("expected Overview section heading in table output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Acquisition\n-----------") {
+		t.Fatalf("expected Acquisition section heading in table output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Sales\n-----") {
+		t.Fatalf("expected Sales section heading in table output, got %q", stdout)
+	}
 }
 
 func TestWebAnalyticsMetricsCommandRequiresMeasures(t *testing.T) {

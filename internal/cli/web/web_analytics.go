@@ -477,6 +477,8 @@ func analyticsMeasureLabel(measure string) string {
 		return "First-Time Downloads"
 	case "redownloads":
 		return "Redownloads"
+	case "totalDownloads":
+		return "Total Downloads"
 	case "conversionRate", "benchConversionRate":
 		return "Conversion Rate"
 	case "impressionsTotal":
@@ -499,12 +501,16 @@ func analyticsMeasureLabel(measure string) string {
 		return "App Clip Sessions"
 	case "appClipCrashes":
 		return "App Clip Crashes"
+	case "crashes":
+		return "Crashes"
 	case "proceeds":
 		return "Proceeds"
 	case "payingUsers":
 		return "Paying Users"
 	case "iap":
 		return "In-App Purchases"
+	case "sessions":
+		return "Sessions"
 	case "subscription-state-plans-active":
 		return "Active Plans"
 	case "subscription-state-paid":
@@ -809,11 +815,21 @@ func buildAnalyticsOverviewRows(result *webcore.AnalyticsOverview) [][]string {
 }
 
 func renderAnalyticsOverviewTable(result *webcore.AnalyticsOverview) error {
-	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
-	rows := buildAnalyticsOverviewRows(result)
-	normalized := normalizeAnalyticsRows(rows, 5)
-	asc.RenderTable(headers, normalized)
-	return nil
+	sections := []analyticsTableSection{
+		analyticsQuerySection("Overview", result.AppID, result.StartDate, result.EndDate),
+		analyticsMeasureSummarySection("Acquisition", result.Acquisition),
+		analyticsMeasureSummarySection("Sales", result.Sales),
+		analyticsMeasureSummarySection("Subscriptions", result.Subscriptions),
+		analyticsLatestCohortSection("Download to Paid", result.DownloadToPaid),
+		analyticsLatestTimelineSection("Paid Plan Timeline", result.PlanTimeline),
+	}
+	for i := range result.FeatureBreakdowns {
+		sections = append(sections, analyticsBreakdownSection("", &result.FeatureBreakdowns[i]))
+	}
+	for i := range result.AppUsageBreakdowns {
+		sections = append(sections, analyticsBreakdownSection("", &result.AppUsageBreakdowns[i]))
+	}
+	return renderAnalyticsTableSections(sections...)
 }
 
 func renderAnalyticsOverviewMarkdown(result *webcore.AnalyticsOverview) error {
@@ -852,9 +868,14 @@ func buildAnalyticsSubscriptionsRows(result *webcore.AnalyticsSubscriptionsSumma
 }
 
 func renderAnalyticsSubscriptionsTable(result *webcore.AnalyticsSubscriptionsSummary) error {
-	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsSubscriptionsRows(result), 5))
-	return nil
+	sections := []analyticsTableSection{
+		analyticsQuerySection("Subscriptions", result.AppID, result.StartDate, result.EndDate),
+		analyticsMeasureSummarySection("Summary Cards", result.Summary),
+		analyticsLatestTimelineSection("Paid Plan Timeline", result.PlanTimeline),
+		analyticsBreakdownSection("Active Plans by Subscription", result.ActivePlansBySubscription),
+		analyticsLatestCohortSection("Subscription Retention", result.SubscriptionRetention),
+	}
+	return renderAnalyticsTableSections(sections...)
 }
 
 func renderAnalyticsSubscriptionsMarkdown(result *webcore.AnalyticsSubscriptionsSummary) error {
@@ -878,9 +899,20 @@ func buildAnalyticsMetricsRows(payload analyticsMetricsOutput) [][]string {
 }
 
 func renderAnalyticsMetricsTable(payload analyticsMetricsOutput) error {
-	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsMetricsRows(payload), 5))
-	return nil
+	var results []webcore.AnalyticsMeasureResult
+	if payload.Result != nil {
+		results = payload.Result.Results
+	}
+	return renderAnalyticsTableSections(
+		analyticsQuerySection(
+			"Metrics",
+			payload.AppID,
+			payload.StartDate,
+			payload.EndDate,
+			[]string{"Frequency", payload.Frequency},
+		),
+		analyticsMeasureSummarySection("Measure Summary", results),
+	)
 }
 
 func renderAnalyticsMetricsMarkdown(payload analyticsMetricsOutput) error {
@@ -913,9 +945,16 @@ func buildAnalyticsRetentionRows(payload analyticsRetentionOutput) [][]string {
 }
 
 func renderAnalyticsRetentionTable(payload analyticsRetentionOutput) error {
-	headers := []string{"Cohort", "Date", "Retention", "Value"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsRetentionRows(payload), 4))
-	return nil
+	return renderAnalyticsTableSections(
+		analyticsQuerySection(
+			"Retention",
+			payload.AppID,
+			payload.StartDate,
+			payload.EndDate,
+			[]string{"Frequency", payload.Frequency},
+		),
+		analyticsRetentionDataSection(payload),
+	)
 }
 
 func renderAnalyticsRetentionMarkdown(payload analyticsRetentionOutput) error {
@@ -981,9 +1020,18 @@ func analyticsAnyValueString(measure string, raw any) string {
 }
 
 func renderAnalyticsCohortsTable(payload analyticsCohortsOutput) error {
-	headers := []string{"Date", "Period", "Measure", "Value"}
-	asc.RenderTable(headers, normalizeAnalyticsRows(buildAnalyticsCohortRows(payload), 4))
-	return nil
+	return renderAnalyticsTableSections(
+		analyticsQuerySection(
+			"Cohorts",
+			payload.AppID,
+			payload.StartDate,
+			payload.EndDate,
+			[]string{"Frequency", payload.Frequency},
+			[]string{"Measures", strings.Join(payload.Measures, ", ")},
+			[]string{"Periods", strings.Join(payload.Periods, ", ")},
+		),
+		analyticsCohortDataSection(payload),
+	)
 }
 
 func renderAnalyticsCohortsMarkdown(payload analyticsCohortsOutput) error {
