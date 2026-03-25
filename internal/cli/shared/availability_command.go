@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
+
+const bulkAvailabilityTimeout = 5 * time.Minute
 
 // AvailabilitySetCommandConfig configures the availability set command.
 type AvailabilitySetCommandConfig struct {
@@ -73,7 +76,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := contextWithAvailabilityTimeout(ctx, *allTerritories)
 			defer cancel()
 
 			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
@@ -162,6 +165,13 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 			return printOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func contextWithAvailabilityTimeout(ctx context.Context, allTerritories bool) (context.Context, context.CancelFunc) {
+	if allTerritories {
+		return ContextWithResolvedTimeout(ctx, bulkAvailabilityTimeout)
+	}
+	return contextWithTimeout(ctx)
 }
 
 type territoryAvailabilityIDPayload struct {
