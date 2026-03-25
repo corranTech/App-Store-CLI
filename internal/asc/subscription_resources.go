@@ -338,12 +338,12 @@ type SubscriptionGroupSubmissionCreateRequest struct {
 
 // SubscriptionAppStoreReviewScreenshotAttributes describes a subscription review screenshot.
 type SubscriptionAppStoreReviewScreenshotAttributes struct {
-	FileSize           int64              `json:"fileSize,omitempty"`
-	FileName           string             `json:"fileName,omitempty"`
-	SourceFileChecksum string             `json:"sourceFileChecksum,omitempty"`
-	AssetToken         string             `json:"assetToken,omitempty"`
-	ImageAsset         *ImageAsset        `json:"imageAsset,omitempty"`
-	UploadOperations   []UploadOperation  `json:"uploadOperations,omitempty"`
+	FileSize           int64               `json:"fileSize,omitempty"`
+	FileName           string              `json:"fileName,omitempty"`
+	SourceFileChecksum string              `json:"sourceFileChecksum,omitempty"`
+	AssetToken         string              `json:"assetToken,omitempty"`
+	ImageAsset         *ImageAsset         `json:"imageAsset,omitempty"`
+	UploadOperations   []UploadOperation   `json:"uploadOperations,omitempty"`
 	AssetDeliveryState *AppMediaAssetState `json:"assetDeliveryState,omitempty"`
 }
 
