@@ -382,6 +382,26 @@ func TestWebAnalyticsMetricsCommandOutputsJSON(t *testing.T) {
 	}
 }
 
+func TestSortedAnalyticsPeriodsCoversExtendedPeriods(t *testing.T) {
+	values := map[string]*float64{
+		"d90":  floatPtr(1),
+		"d14":  floatPtr(1),
+		"d180": floatPtr(1),
+		"d35":  floatPtr(1),
+		"d7":   floatPtr(1),
+		"m2":   floatPtr(1),
+		"m12":  floatPtr(1),
+		"m9":   floatPtr(1),
+		"m1":   floatPtr(1),
+	}
+
+	got := strings.Join(sortedAnalyticsPeriods(values), ",")
+	want := "d7,d14,d35,d90,d180,m1,m2,m9,m12"
+	if got != want {
+		t.Fatalf("unexpected sorted periods: got %q want %q", got, want)
+	}
+}
+
 func floatPtr(v float64) *float64 {
 	return &v
 }

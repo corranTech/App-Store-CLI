@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -700,22 +701,42 @@ func sortedAnalyticsPeriods(values map[string]*float64) []string {
 	for period := range values {
 		periods = append(periods, period)
 	}
-	order := map[string]int{
-		"d1": 1, "d7": 2, "d35": 3,
-		"m1": 4, "m3": 5, "m6": 6, "m12": 7,
-	}
 	sort.Slice(periods, func(i, j int) bool {
-		li, lok := order[strings.ToLower(periods[i])]
-		lj, jok := order[strings.ToLower(periods[j])]
-		if lok && jok {
-			return li < lj
+		lPrefix, lValue, lok := analyticsPeriodSortKey(periods[i])
+		rPrefix, rValue, rok := analyticsPeriodSortKey(periods[j])
+		if lok && rok {
+			if lPrefix != rPrefix {
+				return lPrefix < rPrefix
+			}
+			return lValue < rValue
 		}
-		if lok != jok {
+		if lok != rok {
 			return lok
 		}
 		return periods[i] < periods[j]
 	})
 	return periods
+}
+
+func analyticsPeriodSortKey(period string) (int, int, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(period))
+	if len(normalized) < 2 {
+		return 0, 0, false
+	}
+	value, err := strconv.Atoi(normalized[1:])
+	if err != nil {
+		return 0, 0, false
+	}
+	switch normalized[0] {
+	case 'd':
+		return 0, value, true
+	case 'w':
+		return 1, value, true
+	case 'm':
+		return 2, value, true
+	default:
+		return 0, 0, false
+	}
 }
 
 func analyticsLatestTimelineRows(results []webcore.AnalyticsTimeseriesResult) [][]string {
