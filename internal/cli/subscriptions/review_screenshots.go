@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+const reviewScreenshotPollInterval = 2 * time.Second
 
 // SubscriptionsReviewScreenshotsCommand returns the review screenshots command group.
 func SubscriptionsReviewScreenshotsCommand() *ffcli.Command {
@@ -154,6 +157,15 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots create: failed to commit upload: %w", err)
 			}
+
+			// Verify asset delivery — poll until COMPLETE or FAILED
+			screenshotID := resp.Data.ID
+			finalState, verifyErr := waitForSubscriptionReviewScreenshotDelivery(requestCtx, client, screenshotID)
+			if verifyErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: upload committed but verification failed (state: %s): %v\n", finalState, verifyErr)
+				fmt.Fprintf(os.Stderr, "Check status with: asc subscriptions review screenshots view --screenshot-id %s\n", screenshotID)
+			}
+
 			if commitResp != nil {
 				return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
 			}
@@ -268,4 +280,42 @@ Examples:
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// waitForSubscriptionReviewScreenshotDelivery polls the screenshot until
+// its asset delivery state is COMPLETE or FAILED, matching the pattern
+// used by app screenshot uploads in assets_helpers.go.
+func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
+	var lastState string
+	_, err := asc.PollUntil(ctx, reviewScreenshotPollInterval, func(ctx context.Context) (struct{}, bool, error) {
+		resp, err := client.GetSubscriptionAppStoreReviewScreenshot(ctx, screenshotID)
+		if err != nil {
+			return struct{}{}, false, err
+		}
+		state := resp.Data.Attributes.AssetDeliveryState
+		if state != nil {
+			lastState = state.State
+			switch strings.ToUpper(state.State) {
+			case "COMPLETE":
+				return struct{}{}, true, nil
+			case "FAILED":
+				errMsgs := make([]string, 0, len(state.Errors))
+				for _, e := range state.Errors {
+					if e.Code != "" {
+						errMsgs = append(errMsgs, e.Code)
+					}
+				}
+				detail := strings.Join(errMsgs, "; ")
+				if detail == "" {
+					detail = "unknown error"
+				}
+				return struct{}{}, false, fmt.Errorf("screenshot %s delivery failed: %s", screenshotID, detail)
+			}
+		}
+		return struct{}{}, false, nil
+	})
+	if err != nil {
+		return lastState, err
+	}
+	return lastState, nil
 }
