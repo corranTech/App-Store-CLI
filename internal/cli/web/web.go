@@ -31,6 +31,7 @@ These commands can break without notice and are intentionally detached from offi
 
 Examples:
   asc web auth status
+  asc web sandbox create --first-name "Jane" --last-name "Tester" --email "jane+sandbox@example.com" --password "Passwordtest1" --territory "USA"
   asc web auth login --apple-id "user@example.com"
   asc web privacy plan --app "123456789" --file "./privacy.json"
   asc web review list --app "123456789" --apple-id "user@example.com"
@@ -41,6 +42,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebAuthCommand(),
+			WebSandboxCommand(),
 			WebAppsCommand(),
 			WebPrivacyCommand(),
 			WebReviewCommand(),
