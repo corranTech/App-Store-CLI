@@ -340,15 +340,16 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 
 	createdBundleID := false
 	if !opts.DisableBundleIDPreflight {
-		createdBundleID, err = withWebSpinnerValue("Checking or creating Bundle ID", func() (bool, error) {
+		preflightCreatedBundleID, preflightErr := withWebSpinnerValue("Checking or creating Bundle ID", func() (bool, error) {
 			return ensureBundleIDFn(requestCtx, opts.BundleID, opts.Name, opts.Platform)
 		})
-		if err != nil {
-			if errors.Is(err, shared.ErrMissingAuth) || errors.Is(err, errBundleIDPreflightAuthUnavailable) {
+		createdBundleID = preflightCreatedBundleID
+		if preflightErr != nil {
+			if errors.Is(preflightErr, shared.ErrMissingAuth) || errors.Is(preflightErr, errBundleIDPreflightAuthUnavailable) {
 				fmt.Fprintln(os.Stderr, "Skipping Bundle ID preflight because official ASC API authentication is unavailable or misconfigured.")
 				createdBundleID = false
 			} else {
-				return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", err)
+				return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", preflightErr)
 			}
 		}
 		if createdBundleID {

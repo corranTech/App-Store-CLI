@@ -416,6 +416,23 @@ func TestSubmitTwoFactorCodeUsesPreparedPhoneFlow(t *testing.T) {
 		Client: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch {
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone delivery payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected delivery phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					return &http.Response{
+						StatusCode: http.StatusNoContent,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader("")),
+					}, nil
 				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/phone/securitycode":
 					var payload struct {
 						PhoneNumber struct {
@@ -610,7 +627,7 @@ func TestSubmitTwoFactorCodePreservesPreparedPhoneFallbackStateWhenFinalizeFails
 	}
 }
 
-func TestSubmitTwoFactorCodeDoesNotForcePhoneRequestBeforeVerification(t *testing.T) {
+func TestSubmitTwoFactorCodeRequestsPhoneDeliveryBeforeVerification(t *testing.T) {
 	session := &AuthSession{
 		Client: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -626,6 +643,23 @@ func TestSubmitTwoFactorCodeDoesNotForcePhoneRequestBeforeVerification(t *testin
 								{"id": 9, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••88"}
 							]
 						}`)),
+					}, nil
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone delivery payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected delivery phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					return &http.Response{
+						StatusCode: http.StatusNoContent,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader("")),
 					}, nil
 				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/phone/securitycode":
 					var payload struct {
@@ -665,9 +699,6 @@ func TestSubmitTwoFactorCodeDoesNotForcePhoneRequestBeforeVerification(t *testin
 							"user": {"emailAddress": "user@example.com"}
 						}`)),
 					}, nil
-				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
-					t.Fatal("did not expect phone delivery request when verifying an already provided code")
-					return nil, nil
 				default:
 					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
 					return nil, nil

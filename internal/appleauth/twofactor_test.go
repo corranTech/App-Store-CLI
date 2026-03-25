@@ -219,3 +219,75 @@ func TestSubmitTwoFactorCodeReturnsRetryWhenTrustedDeviceFallbackWasAlreadyReque
 		t.Fatal("expected session to keep requested phone-delivery state")
 	}
 }
+
+func TestSubmitTwoFactorCodeRequestsPhoneDeliveryBeforePreparedPhoneVerification(t *testing.T) {
+	session := &stubSessionState{
+		method:      TwoFactorMethodPhone,
+		phoneID:     7,
+		phoneMode:   "sms",
+		destination: "+1 (•••) •••-••66",
+	}
+
+	requestedPhoneCode := false
+	submittedPhoneCode := false
+	finalized := false
+
+	err := SubmitTwoFactorCode(
+		context.Background(),
+		session,
+		"123456",
+		func(context.Context) (*AuthOptions, error) {
+			t.Fatal("did not expect auth options lookup for prepared phone session")
+			return nil, nil
+		},
+		func(ctx context.Context, phoneID int, mode string) error {
+			requestedPhoneCode = true
+			if phoneID != 7 {
+				t.Fatalf("expected phone id 7, got %d", phoneID)
+			}
+			if mode != "sms" {
+				t.Fatalf("expected phone mode %q, got %q", "sms", mode)
+			}
+			return nil
+		},
+		func(context.Context, string) error {
+			t.Fatal("did not expect trusted-device submission for phone flow")
+			return nil
+		},
+		func(ctx context.Context, code string, phoneID int, mode string) error {
+			submittedPhoneCode = true
+			if code != "123456" {
+				t.Fatalf("expected phone code %q, got %q", "123456", code)
+			}
+			if phoneID != 7 {
+				t.Fatalf("expected phone id 7, got %d", phoneID)
+			}
+			if mode != "sms" {
+				t.Fatalf("expected phone mode %q, got %q", "sms", mode)
+			}
+			return nil
+		},
+		func(context.Context) error {
+			finalized = true
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("expected successful phone verification, got %v", err)
+	}
+	if !requestedPhoneCode {
+		t.Fatal("expected phone delivery request before verification")
+	}
+	if !submittedPhoneCode {
+		t.Fatal("expected phone verification submission")
+	}
+	if !finalized {
+		t.Fatal("expected finalize after phone verification")
+	}
+	if session.method != TwoFactorMethodPhone {
+		t.Fatalf("expected session method to remain phone, got %q", session.method)
+	}
+	if !session.requested {
+		t.Fatal("expected session to remember that phone delivery was requested")
+	}
+}

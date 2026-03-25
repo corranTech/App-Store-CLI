@@ -250,10 +250,25 @@ func SubmitTwoFactorCode(ctx context.Context, session SessionState, code string,
 
 	switch challenge.Method {
 	case TwoFactorMethodPhone:
-		if err := submitPhoneCode(ctx, code, session.TwoFactorPhoneID(), session.TwoFactorPhoneMode()); err != nil {
+		phoneID := session.TwoFactorPhoneID()
+		phoneMode := session.TwoFactorPhoneMode()
+		destination := session.TwoFactorDestination()
+		if !session.TwoFactorCodeRequested() {
+			if phoneID == 0 {
+				return ErrNoTrustedPhoneNumbers
+			}
+			if requestPhoneCode == nil {
+				return ErrNoTrustedPhoneNumbers
+			}
+			if err := requestPhoneCode(ctx, phoneID, phoneMode); err != nil {
+				return err
+			}
+			session.SetPreparedTwoFactorState(TwoFactorMethodPhone, phoneID, phoneMode, destination, true)
+		}
+		if err := submitPhoneCode(ctx, code, phoneID, phoneMode); err != nil {
 			return err
 		}
-		session.SetPreparedTwoFactorState(TwoFactorMethodPhone, session.TwoFactorPhoneID(), session.TwoFactorPhoneMode(), session.TwoFactorDestination(), true)
+		session.SetPreparedTwoFactorState(TwoFactorMethodPhone, phoneID, phoneMode, destination, true)
 		return finalize(ctx)
 	case TwoFactorMethodTrustedDevice:
 		if err := submitTrustedDeviceCode(ctx, code); err != nil {
