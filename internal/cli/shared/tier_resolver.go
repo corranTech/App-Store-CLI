@@ -254,6 +254,28 @@ func resolveTiersWithFetcher(
 }
 
 // ResolvePricePointByTier finds the price point ID for a given tier number.
+// ResolveFreeAppPricePoint fetches price points for an app and territory,
+// returning the price point ID with customerPrice == "0" or "0.0".
+// Unlike ResolveTiers which excludes free price points, this specifically finds them.
+func ResolveFreeAppPricePoint(ctx context.Context, client *asc.Client, appID, territory string) (string, error) {
+	opts := []asc.PricePointsOption{
+		asc.WithPricePointsLimit(200),
+		asc.WithPricePointsTerritory(strings.ToUpper(strings.TrimSpace(territory))),
+	}
+	resp, err := client.GetAppPricePoints(ctx, appID, opts...)
+	if err != nil {
+		return "", fmt.Errorf("fetch price points: %w", err)
+	}
+	for _, pp := range resp.Data {
+		cp := strings.TrimSpace(pp.Attributes.CustomerPrice)
+		parsed, parseErr := strconv.ParseFloat(cp, 64)
+		if parseErr == nil && parsed == 0 {
+			return pp.ID, nil
+		}
+	}
+	return "", fmt.Errorf("no free ($0) price point found for territory %s", territory)
+}
+
 func ResolvePricePointByTier(tiers []TierEntry, tier int) (string, error) {
 	for _, t := range tiers {
 		if t.Tier == tier {
@@ -285,12 +307,14 @@ func ResolvePricePointByPrice(tiers []TierEntry, price string) (string, error) {
 	return "", fmt.Errorf("no price point found matching price %s in this territory", price)
 }
 
-// ValidatePriceSelectionFlags checks that --price-point, --tier, and --price are mutually exclusive.
+// ValidatePriceSelectionFlags checks that --price-point, --tier, --price, and --free are mutually exclusive.
 // Returns a usage-style error if more than one is set.
-func ValidatePriceSelectionFlags(pricePoint string, tier int, price string) error {
+func ValidatePriceSelectionFlags(pricePoint string, tier int, price string, free ...bool) error {
 	if tier < 0 {
 		return fmt.Errorf("--tier must be a positive integer")
 	}
+
+	isFree := len(free) > 0 && free[0]
 
 	count := 0
 	if strings.TrimSpace(pricePoint) != "" {
@@ -302,11 +326,14 @@ func ValidatePriceSelectionFlags(pricePoint string, tier int, price string) erro
 	if strings.TrimSpace(price) != "" {
 		count++
 	}
+	if isFree {
+		count++
+	}
 	if count == 0 {
-		return fmt.Errorf("one of --price-point, --tier, or --price is required")
+		return fmt.Errorf("one of --price-point, --tier, --price, or --free is required")
 	}
 	if count > 1 {
-		return fmt.Errorf("--price-point, --tier, and --price are mutually exclusive")
+		return fmt.Errorf("--price-point, --tier, --price, and --free are mutually exclusive")
 	}
 	return nil
 }

@@ -35,6 +35,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 	pricePointID := fs.String("price-point", "", "App price point ID")
 	tier := fs.Int("tier", 0, "Pricing tier number (1-based, mutually exclusive with --price-point and --price)")
 	price := fs.String("price", "", "Customer price (e.g., 0.99) to select price point")
+	free := fs.Bool("free", false, "Set app price to Free ($0)")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", config.StartDateHelp)
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
@@ -56,8 +57,9 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			pricePointValue := strings.TrimSpace(*pricePointID)
 			tierValue := *tier
 			priceValue := strings.TrimSpace(*price)
+			freeValue := *free
 
-			if err := ValidatePriceSelectionFlags(pricePointValue, tierValue, priceValue); err != nil {
+			if err := ValidatePriceSelectionFlags(pricePointValue, tierValue, priceValue, freeValue); err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
@@ -67,9 +69,13 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			}
 
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
-			if (config.RequireBaseTerritory || tierValue > 0 || priceValue != "") && baseTerritoryValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
-				return flag.ErrHelp
+			if (config.RequireBaseTerritory || tierValue > 0 || priceValue != "" || freeValue) && baseTerritoryValue == "" {
+				if freeValue {
+					baseTerritoryValue = "USA"
+				} else {
+					fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
+					return flag.ErrHelp
+				}
 			}
 
 			startDateValue := strings.TrimSpace(*startDate)
@@ -103,7 +109,13 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				}
 			}
 
-			if tierValue > 0 || priceValue != "" {
+			if freeValue {
+				resolvedID, err := ResolveFreeAppPricePoint(requestCtx, client, resolvedAppID, baseTerritoryID)
+				if err != nil {
+					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				}
+				pricePointValue = resolvedID
+			} else if tierValue > 0 || priceValue != "" {
 				tiers, err := ResolveTiers(requestCtx, client, resolvedAppID, baseTerritoryID, *refresh)
 				if err != nil {
 					return fmt.Errorf("resolve tiers: %w", err)

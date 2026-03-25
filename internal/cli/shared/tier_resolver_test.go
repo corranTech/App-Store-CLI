@@ -9,7 +9,7 @@ func TestValidatePriceSelectionFlags_NoneSet(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when no flags set")
 	}
-	expected := "one of --price-point, --tier, or --price is required"
+	expected := "one of --price-point, --tier, --price, or --free is required"
 	if err.Error() != expected {
 		t.Fatalf("expected %q, got %q", expected, err.Error())
 	}
@@ -64,7 +64,7 @@ func TestValidatePriceSelectionFlags_MultipleSet(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error for multiple flags")
 			}
-			expected := "--price-point, --tier, and --price are mutually exclusive"
+			expected := "--price-point, --tier, --price, and --free are mutually exclusive"
 			if err.Error() != expected {
 				t.Fatalf("expected %q, got %q", expected, err.Error())
 			}
