@@ -344,7 +344,7 @@ type SubscriptionAppStoreReviewScreenshotAttributes struct {
 	AssetToken         string             `json:"assetToken,omitempty"`
 	ImageAsset         *ImageAsset        `json:"imageAsset,omitempty"`
 	UploadOperations   []UploadOperation  `json:"uploadOperations,omitempty"`
-	AssetDeliveryState *AssetDeliveryState `json:"assetDeliveryState,omitempty"`
+	AssetDeliveryState *AppMediaAssetState `json:"assetDeliveryState,omitempty"`
 }
 
 // SubscriptionAppStoreReviewScreenshotCreateAttributes describes attributes for creating review screenshots.

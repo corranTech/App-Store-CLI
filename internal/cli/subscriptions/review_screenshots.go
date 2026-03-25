@@ -291,9 +291,9 @@ func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *as
 			return struct{}{}, false, err
 		}
 		state := resp.Data.Attributes.AssetDeliveryState
-		if state != nil {
-			lastState = state.State
-			switch strings.ToUpper(state.State) {
+		if state != nil && state.State != nil {
+			lastState = *state.State
+			switch strings.ToUpper(*state.State) {
 			case "COMPLETE":
 				return struct{}{}, true, nil
 			case "FAILED":
@@ -301,6 +301,8 @@ func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *as
 				for _, e := range state.Errors {
 					if e.Code != "" {
 						errMsgs = append(errMsgs, e.Code)
+					} else if e.Message != "" {
+						errMsgs = append(errMsgs, e.Message)
 					}
 				}
 				detail := strings.Join(errMsgs, "; ")
