@@ -61,6 +61,16 @@ func TestWebSandboxCreateValidationErrors(t *testing.T) {
 	}
 }
 
+func TestNormalizeWebSandboxPasswordCountsCharactersNotBytes(t *testing.T) {
+	_, err := normalizeWebSandboxPassword("Aéééé1b")
+	if err == nil {
+		t.Fatal("expected too-short password error")
+	}
+	if !strings.Contains(err.Error(), "at least 8 characters") {
+		t.Fatalf("expected length error, got %v", err)
+	}
+}
+
 func TestWebSandboxCreateResolvesSessionBeforeTimeoutContext(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() {

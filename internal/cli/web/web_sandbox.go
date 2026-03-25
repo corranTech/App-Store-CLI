@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -194,7 +195,7 @@ func normalizeWebSandboxPassword(value string) (string, error) {
 		}
 	}
 
-	if len(trimmed) < 8 || !hasUpper || !hasLower || !hasDigit {
+	if utf8.RuneCountInString(trimmed) < 8 || !hasUpper || !hasLower || !hasDigit {
 		return "", fmt.Errorf("--password must be at least 8 characters and include uppercase, lowercase, and numeric characters")
 	}
 	return trimmed, nil
