@@ -208,6 +208,10 @@ func promptAppsCreateSessionAppleID(appleID *string) error {
 	return promptAppsCreateAppleID(appleID)
 }
 
+func appCreatePasswordInputProvided(password string) bool {
+	return password != ""
+}
+
 func resolveAppCreatePassword(_ context.Context, password string) (string, error) {
 	if webPasswordProvided(password) {
 		return password, nil
@@ -289,7 +293,7 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		}
 	}
 
-	if opts.PromptForAppleIDWithPassword && opts.AppleID == "" && webPasswordProvided(opts.Password) {
+	if opts.PromptForAppleIDWithPassword && opts.AppleID == "" && appCreatePasswordInputProvided(opts.Password) {
 		if err := promptAppsCreateSessionAppleID(&opts.AppleID); err != nil {
 			return err
 		}

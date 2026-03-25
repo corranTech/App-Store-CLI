@@ -314,6 +314,78 @@ func TestRunAppsCreatePromptsAppleIDBeforeResolvingWhenPasswordProvided(t *testi
 	}
 }
 
+func TestRunAppsCreatePromptsAppleIDBeforeResolvingWhenWhitespacePasswordProvided(t *testing.T) {
+	origAskOne := appCreateAskOneFn
+	origCanPrompt := appCreateCanPromptInteractivelyFn
+	origResolveAppCreateSession := resolveAppCreateSessionFn
+	origNewWebClient := newWebClientFn
+	origEnsureBundleID := ensureBundleIDFn
+	origCreateWebApp := createWebAppFn
+	t.Cleanup(func() {
+		appCreateAskOneFn = origAskOne
+		appCreateCanPromptInteractivelyFn = origCanPrompt
+		resolveAppCreateSessionFn = origResolveAppCreateSession
+		newWebClientFn = origNewWebClient
+		ensureBundleIDFn = origEnsureBundleID
+		createWebAppFn = origCreateWebApp
+	})
+
+	appCreateCanPromptInteractivelyFn = func() bool { return true }
+	appCreateAskOneFn = func(p survey.Prompt, response interface{}, _ ...survey.AskOpt) error {
+		prompt, ok := p.(*survey.Input)
+		if !ok {
+			t.Fatalf("expected apple-id input prompt, got %T", p)
+		}
+		if prompt.Message != "Apple ID (email):" {
+			t.Fatalf("unexpected prompt message %q", prompt.Message)
+		}
+		target, ok := response.(*string)
+		if !ok {
+			t.Fatalf("expected *string response, got %T", response)
+		}
+		*target = "prompted@example.com"
+		return nil
+	}
+
+	var (
+		resolvedAppleID string
+		resolvedPass    string
+	)
+	resolveAppCreateSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		resolvedAppleID = appleID
+		resolvedPass = password
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
+		return &webcore.Client{}
+	}
+	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+		return false, nil
+	}
+	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		resp := &webcore.AppResponse{}
+		resp.Data.ID = "app-123"
+		return resp, nil
+	}
+
+	err := RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		Name:                         "My App",
+		BundleID:                     "com.example.app",
+		SKU:                          "SKU123",
+		Password:                     "   ",
+		PromptForAppleIDWithPassword: true,
+	})
+	if err != nil {
+		t.Fatalf("RunAppsCreate returned error: %v", err)
+	}
+	if resolvedAppleID != "prompted@example.com" {
+		t.Fatalf("expected prompted apple ID %q, got %q", "prompted@example.com", resolvedAppleID)
+	}
+	if resolvedPass != "   " {
+		t.Fatalf("expected whitespace password to be preserved, got %q", resolvedPass)
+	}
+}
+
 func TestResolveAppCreateSessionWhitespaceOnlyPasswordFallsBackToEnv(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn

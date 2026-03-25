@@ -366,6 +366,16 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 			}
 			_, _ = fmt.Fprintf(twoFactorStatusWriter, "Verification code sent to %s.\n", destination)
 		}
+		writeFallbackGuidance := func(usingCommand bool) {
+			if twoFactorStatusWriter == nil {
+				return
+			}
+			if usingCommand {
+				_, _ = fmt.Fprintln(twoFactorStatusWriter, "Trusted-device verification was rejected. Re-running the configured 2FA code command for the phone verification code.")
+				return
+			}
+			_, _ = fmt.Fprintln(twoFactorStatusWriter, "Trusted-device verification was rejected. Enter the phone verification code that was just sent.")
+		}
 		readCode := func() (string, error) {
 			if command != "" {
 				return readTwoFactorCodeFromCommandFn(ctx, command)
@@ -399,12 +409,13 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 			var phoneCodeRequestedErr *appleauth.PhoneCodeRequestedError
 			if errors.As(err, &phoneCodeRequestedErr) {
 				writeDeliveryNotice(phoneCodeRequestedErr.Destination)
+				writeFallbackGuidance(command != "")
 				resolvedCode, codeErr := readCode()
 				if codeErr != nil {
 					return nil, codeErr
 				}
 				if err := submitCode(resolvedCode); err != nil {
-					return nil, fmt.Errorf("2fa verification failed: %w", err)
+					return nil, fmt.Errorf("2fa verification failed after switching to phone delivery: %w", err)
 				}
 				return session, nil
 			}
