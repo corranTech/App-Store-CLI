@@ -628,6 +628,7 @@ func analyticsPercentChangeString(value *float64) string {
 	if value == nil {
 		return "-"
 	}
+	// App Store Connect returns percentChange as a ratio, so 3 means +300.0%.
 	v := *value * 100
 	if v > 0 {
 		return fmt.Sprintf("+%.1f%%", v)

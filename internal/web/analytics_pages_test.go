@@ -204,6 +204,26 @@ func TestGetAnalyticsV2TimeSeriesUsesClientBaseURL(t *testing.T) {
 	}
 }
 
+func TestAnalyticsBenchmarkWeekWindowForDisplayFormatsAPIAndDisplayDates(t *testing.T) {
+	window, err := analyticsBenchmarkWeekWindowForDisplay(&AnalyticsSettingsResponse{
+		Configuration: AnalyticsSettingsConfiguration{
+			BenchmarkEndDate: "2026-03-02T00:00:00Z",
+		},
+	})
+	if err != nil {
+		t.Fatalf("analyticsBenchmarkWeekWindowForDisplay() error = %v", err)
+	}
+	if window.StartTime != "2026-02-23T00:00:00Z" {
+		t.Fatalf("unexpected start time: %#v", window)
+	}
+	if window.StartDate != "2026-02-23" {
+		t.Fatalf("unexpected start date: %#v", window)
+	}
+	if window.EndDate != "2026-03-01" {
+		t.Fatalf("unexpected end date: %#v", window)
+	}
+}
+
 func TestGetAnalyticsBenchmarksMergesAppAndPercentiles(t *testing.T) {
 	client := &Client{
 		httpClient: &http.Client{

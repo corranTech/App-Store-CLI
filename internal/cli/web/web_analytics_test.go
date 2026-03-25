@@ -317,6 +317,18 @@ func TestWebAnalyticsSubscriptionsCommandTableIncludesSummaryLabels(t *testing.T
 	if !strings.Contains(stdout, "Subscriptions\n-------------") {
 		t.Fatalf("expected sectioned table heading in table output, got %q", stdout)
 	}
+	if !strings.Contains(stdout, "+300.0%") {
+		t.Fatalf("expected ratio-based percent change in table output, got %q", stdout)
+	}
+}
+
+func TestAnalyticsPercentChangeStringUsesRatioValues(t *testing.T) {
+	if got := analyticsPercentChangeString(floatPtr(3)); got != "+300.0%" {
+		t.Fatalf("expected ratio value to render as +300.0%%, got %q", got)
+	}
+	if got := analyticsPercentChangeString(floatPtr(0.093)); got != "+9.3%" {
+		t.Fatalf("expected 0.093 ratio to render as +9.3%%, got %q", got)
+	}
 }
 
 func TestWebAnalyticsOverviewCommandTableUsesSectionedLayout(t *testing.T) {

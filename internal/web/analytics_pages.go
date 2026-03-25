@@ -639,18 +639,28 @@ func analyticsMustRFC3339(value string) (string, error) {
 	return t.Format(time.RFC3339), nil
 }
 
-func analyticsWeekRange(settings *AnalyticsSettingsResponse) (string, string, error) {
+type analyticsBenchmarkWeekWindow struct {
+	StartTime string
+	StartDate string
+	EndDate   string
+}
+
+func analyticsBenchmarkWeekWindowForDisplay(settings *AnalyticsSettingsResponse) (analyticsBenchmarkWeekWindow, error) {
 	if settings == nil {
-		return "", "", fmt.Errorf("settings are required")
+		return analyticsBenchmarkWeekWindow{}, fmt.Errorf("settings are required")
 	}
 	endRaw, err := analyticsMustRFC3339(settings.Configuration.BenchmarkEndDate)
 	if err != nil {
-		return "", "", fmt.Errorf("invalid benchmark end date: %w", err)
+		return analyticsBenchmarkWeekWindow{}, fmt.Errorf("invalid benchmark end date: %w", err)
 	}
-	end, _ := time.Parse(time.RFC3339, endRaw)
-	start := end.AddDate(0, 0, -7)
-	weekEnd := start.AddDate(0, 0, 6)
-	return start.Format(time.RFC3339), weekEnd.Format("2006-01-02"), nil
+	endExclusive, _ := time.Parse(time.RFC3339, endRaw)
+	start := endExclusive.AddDate(0, 0, -7)
+	endInclusive := endExclusive.AddDate(0, 0, -1)
+	return analyticsBenchmarkWeekWindow{
+		StartTime: start.Format(time.RFC3339),
+		StartDate: start.Format("2006-01-02"),
+		EndDate:   endInclusive.Format("2006-01-02"),
+	}, nil
 }
 
 func analyticsFirstPrimaryMemberCategory(groups []AnalyticsBenchmarkPeerGroup) string {
@@ -763,14 +773,14 @@ func (c *Client) GetAnalyticsBenchmarks(ctx context.Context, appID string) (*Ana
 		peerGroupIDs = append(peerGroupIDs, group.ID)
 	}
 
-	weekStart, weekEnd, err := analyticsWeekRange(settings)
+	weekWindow, err := analyticsBenchmarkWeekWindowForDisplay(settings)
 	if err != nil {
 		return nil, fmt.Errorf("benchmarks week range: %w", err)
 	}
 	appSeries, err := c.GetAnalyticsV2TimeSeries(ctx, AnalyticsV2TimeSeriesRequest{
 		AppID:     appID,
-		StartTime: weekStart,
-		EndTime:   weekStart,
+		StartTime: weekWindow.StartTime,
+		EndTime:   weekWindow.StartTime,
 		Measures: []string{
 			"crashRate",
 			"retentionD1",
@@ -796,8 +806,8 @@ func (c *Client) GetAnalyticsBenchmarks(ctx context.Context, appID string) (*Ana
 	}
 	benchmarkSeries, err := c.GetAnalyticsV2TimeSeries(ctx, AnalyticsV2TimeSeriesRequest{
 		AppID:     appID,
-		StartTime: weekStart,
-		EndTime:   weekStart,
+		StartTime: weekWindow.StartTime,
+		EndTime:   weekWindow.StartTime,
 		Measures: []string{
 			"benchCrashRate",
 			"benchRetentionD1",
@@ -840,8 +850,8 @@ func (c *Client) GetAnalyticsBenchmarks(ctx context.Context, appID string) (*Ana
 	return &AnalyticsBenchmarksSummary{
 		AppID:          strings.TrimSpace(appInfo.AdamID),
 		Category:       category,
-		WeekStart:      strings.TrimSuffix(weekStart, "T00:00:00Z"),
-		WeekEnd:        weekEnd,
+		WeekStart:      weekWindow.StartDate,
+		WeekEnd:        weekWindow.EndDate,
 		PeerGroupIDs:   peerGroupIDs,
 		SelectedGroups: selectedGroups,
 		Metrics:        metrics,
