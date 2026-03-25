@@ -69,18 +69,32 @@ func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "apps", "create"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	var stderr string
+	withNonTTYStdin(t, func() {
+		_, stderr = captureOutput(t, func() {
+			if err := root.Parse([]string{"web", "apps", "create", "--name", "My App"}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr = root.Run(context.Background())
+		})
 	})
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "Error: --name is required") {
-		t.Fatalf("expected missing --name error, got %q", stderr)
+	if !strings.Contains(stderr, "Error: missing required flags: --bundle-id, --sku") {
+		t.Fatalf("expected aggregated missing-flags error, got %q", stderr)
+	}
+}
+
+func TestWebAppsCreateExposesPasswordCompatibilityFlag(t *testing.T) {
+	root := RootCommand("1.2.3")
+	cmd := findSubcommand(root, "web", "apps", "create")
+	if cmd == nil {
+		t.Fatal("expected web apps create command")
+	}
+	if cmd.FlagSet.Lookup("password") == nil {
+		t.Fatal("expected temporary password compatibility flag on web apps create")
 	}
 }
 
