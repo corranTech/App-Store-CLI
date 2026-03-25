@@ -36,6 +36,10 @@ type AppsCreateRunOptions struct {
 	// Apple ID, preserve the old behavior of prompting for account selection
 	// instead of silently reusing the last cached session.
 	PromptForAppleIDWithPassword bool
+
+	// Deprecated shim compatibility: preserve the old apps-create contract and
+	// avoid official ASC bundle-ID preflight side effects.
+	DisableBundleIDPreflight bool
 }
 
 const (
@@ -334,19 +338,22 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		CompanyName:   opts.CompanyName,
 	}
 
-	createdBundleID, err := withWebSpinnerValue("Checking or creating Bundle ID", func() (bool, error) {
-		return ensureBundleIDFn(requestCtx, opts.BundleID, opts.Name, opts.Platform)
-	})
-	if err != nil {
-		if errors.Is(err, shared.ErrMissingAuth) || errors.Is(err, errBundleIDPreflightAuthUnavailable) {
-			fmt.Fprintln(os.Stderr, "Skipping Bundle ID preflight because official ASC API authentication is unavailable or misconfigured.")
-			createdBundleID = false
-		} else {
-			return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", err)
+	createdBundleID := false
+	if !opts.DisableBundleIDPreflight {
+		createdBundleID, err = withWebSpinnerValue("Checking or creating Bundle ID", func() (bool, error) {
+			return ensureBundleIDFn(requestCtx, opts.BundleID, opts.Name, opts.Platform)
+		})
+		if err != nil {
+			if errors.Is(err, shared.ErrMissingAuth) || errors.Is(err, errBundleIDPreflightAuthUnavailable) {
+				fmt.Fprintln(os.Stderr, "Skipping Bundle ID preflight because official ASC API authentication is unavailable or misconfigured.")
+				createdBundleID = false
+			} else {
+				return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", err)
+			}
 		}
-	}
-	if createdBundleID {
-		fmt.Fprintf(os.Stderr, "Bundle ID %q was missing; created automatically.\n", opts.BundleID)
+		if createdBundleID {
+			fmt.Fprintf(os.Stderr, "Bundle ID %q was missing; created automatically.\n", opts.BundleID)
+		}
 	}
 
 	app, err := withWebSpinnerValue("Creating app via Apple web API", func() (*webcore.AppResponse, error) {

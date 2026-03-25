@@ -123,7 +123,10 @@ func TestAppsCreateCommandPrintsWarningAndForwardsToWebRunner(t *testing.T) {
 		"--apple-id", "user@example.com",
 		passwordFlag, "fixture-password",
 		"--two-factor-code", "123456",
+		"--two-factor-code-command", "printf 123456",
+		"--auto-rename=false",
 		"--output", "json",
+		"--pretty",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -135,6 +138,9 @@ func TestAppsCreateCommandPrintsWarningAndForwardsToWebRunner(t *testing.T) {
 
 	if !errors.Is(runErr, expectedErr) {
 		t.Fatalf("expected forwarded error %v, got %v", expectedErr, runErr)
+	}
+	if !strings.Contains(runErr.Error(), "apps create:") {
+		t.Fatalf("expected deprecated shim error prefix, got %v", runErr)
 	}
 	if !strings.Contains(stderr, appsCreateDeprecationWarning) {
 		t.Fatalf("expected deprecation warning in stderr, got %q", stderr)
@@ -172,10 +178,22 @@ func TestAppsCreateCommandPrintsWarningAndForwardsToWebRunner(t *testing.T) {
 	if received.TwoFactorCode != "123456" {
 		t.Fatalf("expected forwarded 2fa code, got %q", received.TwoFactorCode)
 	}
+	if received.TwoFactorCodeCommand != "printf 123456" {
+		t.Fatalf("expected forwarded 2fa command, got %q", received.TwoFactorCodeCommand)
+	}
+	if received.AutoRename {
+		t.Fatal("expected deprecated shim to forward --auto-rename=false")
+	}
 	if received.Output != "json" {
 		t.Fatalf("expected forwarded output, got %q", received.Output)
 	}
+	if !received.Pretty {
+		t.Fatal("expected forwarded pretty flag")
+	}
 	if !received.PromptForAppleIDWithPassword {
 		t.Fatal("expected deprecated shim to preserve password-without-apple-id prompting behavior")
+	}
+	if !received.DisableBundleIDPreflight {
+		t.Fatal("expected deprecated shim to preserve old bundle-id preflight contract")
 	}
 }

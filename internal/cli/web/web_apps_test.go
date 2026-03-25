@@ -865,6 +865,52 @@ func TestWebAppsCreateEnsuresBundleIDBeforeCreateApp(t *testing.T) {
 	}
 }
 
+func TestRunAppsCreateCanDisableBundleIDPreflight(t *testing.T) {
+	origResolveAppCreateSession := resolveAppCreateSessionFn
+	origNewWebClient := newWebClientFn
+	origEnsureBundleID := ensureBundleIDFn
+	origCreateWebApp := createWebAppFn
+	t.Cleanup(func() {
+		resolveAppCreateSessionFn = origResolveAppCreateSession
+		newWebClientFn = origNewWebClient
+		ensureBundleIDFn = origEnsureBundleID
+		createWebAppFn = origCreateWebApp
+	})
+
+	resolveAppCreateSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
+		return &webcore.Client{}
+	}
+	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+		t.Fatal("did not expect bundle-id preflight when compatibility mode disables it")
+		return false, nil
+	}
+	createCalled := false
+	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		createCalled = true
+		resp := &webcore.AppResponse{}
+		resp.Data.ID = "app-123"
+		return resp, nil
+	}
+
+	err := RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		Name:                     "My App",
+		BundleID:                 "com.example.app",
+		SKU:                      "SKU123",
+		AppleID:                  "user@example.com",
+		Output:                   "json",
+		DisableBundleIDPreflight: true,
+	})
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if !createCalled {
+		t.Fatal("expected app creation to continue when bundle-id preflight is disabled")
+	}
+}
+
 func TestWebAppsCreateFailsWhenBundleIDPreflightFails(t *testing.T) {
 	origResolveAppCreateSession := resolveAppCreateSessionFn
 	origNewWebClient := newWebClientFn

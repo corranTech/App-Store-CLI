@@ -2,6 +2,7 @@ package apps
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -202,9 +203,9 @@ Legacy ` + "`ASC_IRIS_SESSION_CACHE*`" + ` entries are imported into the web
 session cache automatically during the deprecation window.
 
 If flags are not provided, an interactive prompt will guide you through the required fields.
-If official ASC API authentication is available, the web-backed flow will also
-check or create the bundle ID before app creation. Otherwise it assumes the
-bundle ID already exists, matching the old Apple-ID-only contract.
+This deprecated shim preserves the old Apple-ID-only contract and assumes the
+bundle ID already exists. Use ` + "`asc web apps create`" + ` if you want the
+new official-auth bundle-ID preflight and auto-create behavior.
 
 Examples:
   asc web apps create
@@ -216,7 +217,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			fmt.Fprintln(os.Stderr, appsCreateDeprecationWarning)
 			fmt.Fprintln(os.Stderr, appsCreateMigrationGuidance)
-			return runAppsCreateShimFn(ctx, cliweb.AppsCreateRunOptions{
+			err := runAppsCreateShimFn(ctx, cliweb.AppsCreateRunOptions{
 				Name:                         *name,
 				BundleID:                     *bundleID,
 				SKU:                          *sku,
@@ -232,7 +233,12 @@ Examples:
 				Output:                       *output.Output,
 				Pretty:                       *output.Pretty,
 				PromptForAppleIDWithPassword: true,
+				DisableBundleIDPreflight:     true,
 			})
+			if err == nil || errors.Is(err, flag.ErrHelp) {
+				return err
+			}
+			return fmt.Errorf("apps create: %w", err)
 		},
 	}
 }
