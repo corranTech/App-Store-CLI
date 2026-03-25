@@ -43,6 +43,13 @@ func TestWebAppsCreateSubcommandIsRegistered(t *testing.T) {
 	}
 }
 
+func TestWebSandboxCreateSubcommandIsRegistered(t *testing.T) {
+	root := RootCommand("1.2.3")
+	if sub := findSubcommand(root, "web", "sandbox", "create"); sub == nil {
+		t.Fatalf("expected web sandbox create to be registered")
+	}
+}
+
 func TestWebAuthCapabilitiesSubcommandIsRegistered(t *testing.T) {
 	root := RootCommand("1.2.3")
 	if sub := findSubcommand(root, "web", "auth", "capabilities"); sub == nil {
@@ -74,6 +81,26 @@ func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "Error: --name is required") {
 		t.Fatalf("expected missing --name error, got %q", stderr)
+	}
+}
+
+func TestWebSandboxCreateMissingRequiredFlags(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"web", "sandbox", "create"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "Error: --first-name is required") {
+		t.Fatalf("expected missing --first-name error, got %q", stderr)
 	}
 }
 
@@ -137,5 +164,24 @@ func TestWebAppsCreateExposesDeprecatedTwoFactorAlias(t *testing.T) {
 	}
 	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
 		t.Fatal("expected --two-factor-code-command flag on web apps create")
+	}
+}
+
+func TestWebSandboxCreateExposesDeprecatedTwoFactorAlias(t *testing.T) {
+	root := RootCommand("1.2.3")
+	cmd := findSubcommand(root, "web", "sandbox", "create")
+	if cmd == nil {
+		t.Fatal("expected web sandbox create command")
+	}
+
+	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
+	if twoFactorCodeFlag == nil {
+		t.Fatal("expected deprecated --two-factor-code flag on web sandbox create")
+	}
+	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
+		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
+	}
+	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
+		t.Fatal("expected --two-factor-code-command flag on web sandbox create")
 	}
 }
