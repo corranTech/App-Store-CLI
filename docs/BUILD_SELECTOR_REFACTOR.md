@@ -156,8 +156,9 @@ Design note:
    - `--app APP --latest`
    - `--app APP --build-number NUM [--platform PLATFORM]`
 
-   For backward compatibility with `asc builds find`, app-scoped
-   `--build-number` lookup defaults `--platform` to `IOS` when omitted.
+   `--app APP --build-number NUM` requires a unique match. When multiple
+   platforms can satisfy the lookup, callers must pass
+   `--platform PLATFORM` explicitly.
 
 4. Backward-compatibility / deprecation impact
    `asc builds find` remains available in this PR as a deprecated shim that
