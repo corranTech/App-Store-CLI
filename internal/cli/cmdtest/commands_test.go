@@ -314,6 +314,16 @@ func TestBuildsInfoValidationErrors(t *testing.T) {
 			args:    []string{"builds", "info", "--app", "APP_123", "--exclude-expired"},
 			wantErr: "--exclude-expired and --not-expired require --latest",
 		},
+		{
+			name:    "not-expired requires latest",
+			args:    []string{"builds", "info", "--app", "APP_123", "--not-expired"},
+			wantErr: "--exclude-expired and --not-expired require --latest",
+		},
+		{
+			name:    "build-id conflicts with not-expired",
+			args:    []string{"builds", "info", "--build-id", "BUILD_123", "--not-expired"},
+			wantErr: "--build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, --exclude-expired, or --not-expired",
+		},
 	}
 
 	for _, test := range tests {
