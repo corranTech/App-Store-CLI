@@ -86,23 +86,23 @@ func TestBuildsParityValidationErrors(t *testing.T) {
 			wantErr: "--build-id is required",
 		},
 		{
-			name:    "builds individual-testers add missing build",
+			name:    "builds individual-testers add missing build id",
 			args:    []string{"builds", "individual-testers", "add", "--tester", "TESTER_ID"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "builds individual-testers add missing tester",
-			args:    []string{"builds", "individual-testers", "add", "--build", "BUILD_ID"},
+			args:    []string{"builds", "individual-testers", "add", "--build-id", "BUILD_ID"},
 			wantErr: "--tester is required",
 		},
 		{
-			name:    "builds individual-testers remove missing build",
+			name:    "builds individual-testers remove missing build id",
 			args:    []string{"builds", "individual-testers", "remove", "--tester", "TESTER_ID"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "builds individual-testers remove missing tester",
-			args:    []string{"builds", "individual-testers", "remove", "--build", "BUILD_ID"},
+			args:    []string{"builds", "individual-testers", "remove", "--build-id", "BUILD_ID"},
 			wantErr: "--tester is required",
 		},
 		{

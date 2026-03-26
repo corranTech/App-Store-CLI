@@ -64,6 +64,48 @@ func TestBuildsSelectorAliasesWarnAndMatchCanonicalValidationPaths(t *testing.T)
 			warning:       buildsLegacyBuildWarning,
 			wantErr:       "Error: --build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, --exclude-expired, or --not-expired",
 		},
+		{
+			name:          "expire build alias",
+			canonicalArgs: []string{"builds", "expire", "--build-id", "BUILD_123"},
+			aliasArgs:     []string{"builds", "expire", "--build", "BUILD_123"},
+			warning:       buildsLegacyBuildWarning,
+			wantErr:       "Error: --confirm is required to expire build",
+		},
+		{
+			name:          "update build alias",
+			canonicalArgs: []string{"builds", "update", "--build-id", "BUILD_123"},
+			aliasArgs:     []string{"builds", "update", "--build", "BUILD_123"},
+			warning:       buildsLegacyBuildWarning,
+			wantErr:       "Error: at least one update flag is required (e.g. --uses-non-exempt-encryption)",
+		},
+		{
+			name:          "add-groups build alias",
+			canonicalArgs: []string{"builds", "add-groups", "--build-id", "BUILD_123"},
+			aliasArgs:     []string{"builds", "add-groups", "--build", "BUILD_123"},
+			warning:       buildsLegacyBuildWarning,
+			wantErr:       "Error: --group is required",
+		},
+		{
+			name:          "remove-groups build alias",
+			canonicalArgs: []string{"builds", "remove-groups", "--build-id", "BUILD_123"},
+			aliasArgs:     []string{"builds", "remove-groups", "--build", "BUILD_123"},
+			warning:       buildsLegacyBuildWarning,
+			wantErr:       "Error: --group is required",
+		},
+		{
+			name:          "individual-testers add build alias",
+			canonicalArgs: []string{"builds", "individual-testers", "add", "--build-id", "BUILD_123"},
+			aliasArgs:     []string{"builds", "individual-testers", "add", "--build", "BUILD_123"},
+			warning:       buildsLegacyBuildWarning,
+			wantErr:       "Error: --tester is required",
+		},
+		{
+			name:          "individual-testers remove build alias",
+			canonicalArgs: []string{"builds", "individual-testers", "remove", "--build-id", "BUILD_123", "--tester", "tester-1"},
+			aliasArgs:     []string{"builds", "individual-testers", "remove", "--build", "BUILD_123", "--tester", "tester-1"},
+			warning:       buildsLegacyBuildWarning,
+			wantErr:       "Error: --confirm is required",
+		},
 	}
 
 	for _, test := range tests {
@@ -318,6 +360,30 @@ func TestBuildsSelectorAliasesRejectConflictingBuildValues(t *testing.T) {
 		{
 			name: "dsyms conflicting build values",
 			args: []string{"builds", "dsyms", "--build-id", "BUILD_CANON", "--build", "BUILD_LEGACY"},
+		},
+		{
+			name: "expire conflicting build values",
+			args: []string{"builds", "expire", "--build-id", "BUILD_CANON", "--build", "BUILD_LEGACY", "--confirm"},
+		},
+		{
+			name: "update conflicting build values",
+			args: []string{"builds", "update", "--build-id", "BUILD_CANON", "--build", "BUILD_LEGACY", "--uses-non-exempt-encryption", "true"},
+		},
+		{
+			name: "add-groups conflicting build values",
+			args: []string{"builds", "add-groups", "--build-id", "BUILD_CANON", "--build", "BUILD_LEGACY", "--group", "GROUP_123"},
+		},
+		{
+			name: "remove-groups conflicting build values",
+			args: []string{"builds", "remove-groups", "--build-id", "BUILD_CANON", "--build", "BUILD_LEGACY", "--group", "GROUP_123", "--confirm"},
+		},
+		{
+			name: "individual-testers add conflicting build values",
+			args: []string{"builds", "individual-testers", "add", "--build-id", "BUILD_CANON", "--build", "BUILD_LEGACY", "--tester", "tester-1"},
+		},
+		{
+			name: "individual-testers remove conflicting build values",
+			args: []string{"builds", "individual-testers", "remove", "--build-id", "BUILD_CANON", "--build", "BUILD_LEGACY", "--tester", "tester-1", "--confirm"},
 		},
 	}
 
