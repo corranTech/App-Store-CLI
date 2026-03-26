@@ -12,6 +12,7 @@ import (
 // BuildsAppEncryptionDeclarationCommand returns the builds app-encryption-declaration command group.
 func BuildsAppEncryptionDeclarationCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-encryption-declaration", flag.ExitOnError)
+	viewCmd := BuildsAppEncryptionDeclarationViewCommand()
 
 	return &ffcli.Command{
 		Name:       "app-encryption-declaration",
@@ -23,9 +24,10 @@ Examples:
   asc builds app-encryption-declaration view --build-id "BUILD_ID"
   asc builds app-encryption-declaration view --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsAppEncryptionDeclarationGetCommand(),
+			viewCmd,
+			deprecatedBuildsGetAlias(viewCmd, "asc builds app-encryption-declaration view"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -33,18 +35,18 @@ Examples:
 	}
 }
 
-// BuildsAppEncryptionDeclarationGetCommand returns the get subcommand.
-func BuildsAppEncryptionDeclarationGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-encryption-declaration get", flag.ExitOnError)
+// BuildsAppEncryptionDeclarationViewCommand returns the view subcommand.
+func BuildsAppEncryptionDeclarationViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app-encryption-declaration view", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{includeLegacyID: true})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc builds app-encryption-declaration view (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER [--version VERSION] [--platform PLATFORM])",
-		ShortHelp:  "Get the encryption declaration for a build.",
-		LongHelp: `Get the encryption declaration for a build.
+		ShortHelp:  "View the encryption declaration for a build.",
+		LongHelp: `View the encryption declaration for a build.
 
 Examples:
   asc builds app-encryption-declaration view --build-id "BUILD_ID"
@@ -61,7 +63,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("builds app-encryption-declaration get: %w", err)
+				return fmt.Errorf("builds app-encryption-declaration view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -69,12 +71,12 @@ Examples:
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
 			if err != nil {
-				return fmt.Errorf("builds app-encryption-declaration get: %w", err)
+				return fmt.Errorf("builds app-encryption-declaration view: %w", err)
 			}
 
 			resp, err := client.GetBuildAppEncryptionDeclaration(requestCtx, buildID)
 			if err != nil {
-				return fmt.Errorf("builds app-encryption-declaration get: failed to fetch: %w", err)
+				return fmt.Errorf("builds app-encryption-declaration view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

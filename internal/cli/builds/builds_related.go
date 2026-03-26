@@ -15,6 +15,7 @@ import (
 // BuildsAppCommand returns the builds app command group.
 func BuildsAppCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app", flag.ExitOnError)
+	viewCmd := BuildsAppViewCommand()
 
 	return &ffcli.Command{
 		Name:       "app",
@@ -26,9 +27,10 @@ Examples:
   asc builds app view --build-id "BUILD_ID"
   asc builds app view --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsAppGetCommand(),
+			viewCmd,
+			deprecatedBuildsGetAlias(viewCmd, "asc builds app view"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -36,15 +38,15 @@ Examples:
 	}
 }
 
-// BuildsAppGetCommand returns the builds app get subcommand.
-func BuildsAppGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app get", flag.ExitOnError)
+// BuildsAppViewCommand returns the builds app view subcommand.
+func BuildsAppViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("app view", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{includeLegacyID: true})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc builds app view (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER [--version VERSION] [--platform PLATFORM])",
 		ShortHelp:  "View the app for a build.",
 		LongHelp: `View the app for a build.
@@ -64,7 +66,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("builds app get: %w", err)
+				return fmt.Errorf("builds app view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -72,12 +74,12 @@ Examples:
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
 			if err != nil {
-				return fmt.Errorf("builds app get: %w", err)
+				return fmt.Errorf("builds app view: %w", err)
 			}
 
 			resp, err := client.GetBuildApp(requestCtx, buildID)
 			if err != nil {
-				return fmt.Errorf("builds app get: failed to fetch: %w", err)
+				return fmt.Errorf("builds app view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -88,6 +90,7 @@ Examples:
 // BuildsPreReleaseVersionCommand returns the pre-release-version command group.
 func BuildsPreReleaseVersionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-release-version", flag.ExitOnError)
+	viewCmd := BuildsPreReleaseVersionViewCommand()
 
 	return &ffcli.Command{
 		Name:       "pre-release-version",
@@ -99,9 +102,10 @@ Examples:
   asc builds pre-release-version view --build-id "BUILD_ID"
   asc builds pre-release-version view --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsPreReleaseVersionGetCommand(),
+			viewCmd,
+			deprecatedBuildsGetAlias(viewCmd, "asc builds pre-release-version view"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -109,15 +113,15 @@ Examples:
 	}
 }
 
-// BuildsPreReleaseVersionGetCommand returns the pre-release-version get subcommand.
-func BuildsPreReleaseVersionGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-release-version get", flag.ExitOnError)
+// BuildsPreReleaseVersionViewCommand returns the pre-release-version view subcommand.
+func BuildsPreReleaseVersionViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("pre-release-version view", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{includeLegacyID: true})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc builds pre-release-version view (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER [--version VERSION] [--platform PLATFORM])",
 		ShortHelp:  "View the pre-release version for a build.",
 		LongHelp: `View the pre-release version for a build.
@@ -137,7 +141,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("builds pre-release-version get: %w", err)
+				return fmt.Errorf("builds pre-release-version view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -145,12 +149,12 @@ Examples:
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
 			if err != nil {
-				return fmt.Errorf("builds pre-release-version get: %w", err)
+				return fmt.Errorf("builds pre-release-version view: %w", err)
 			}
 
 			resp, err := client.GetBuildPreReleaseVersion(requestCtx, buildID)
 			if err != nil {
-				return fmt.Errorf("builds pre-release-version get: failed to fetch: %w", err)
+				return fmt.Errorf("builds pre-release-version view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -272,6 +276,7 @@ Examples:
 // BuildsBetaAppReviewSubmissionCommand returns the beta-app-review-submission command group.
 func BuildsBetaAppReviewSubmissionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-app-review-submission", flag.ExitOnError)
+	viewCmd := BuildsBetaAppReviewSubmissionViewCommand()
 
 	return &ffcli.Command{
 		Name:       "beta-app-review-submission",
@@ -283,9 +288,10 @@ Examples:
   asc builds beta-app-review-submission view --build-id "BUILD_ID"
   asc builds beta-app-review-submission view --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsBetaAppReviewSubmissionGetCommand(),
+			viewCmd,
+			deprecatedBuildsGetAlias(viewCmd, "asc builds beta-app-review-submission view"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -293,15 +299,15 @@ Examples:
 	}
 }
 
-// BuildsBetaAppReviewSubmissionGetCommand returns the beta-app-review-submission get subcommand.
-func BuildsBetaAppReviewSubmissionGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("beta-app-review-submission get", flag.ExitOnError)
+// BuildsBetaAppReviewSubmissionViewCommand returns the beta-app-review-submission view subcommand.
+func BuildsBetaAppReviewSubmissionViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("beta-app-review-submission view", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{includeLegacyID: true})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc builds beta-app-review-submission view (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER [--version VERSION] [--platform PLATFORM])",
 		ShortHelp:  "View beta app review submission for a build.",
 		LongHelp: `View beta app review submission for a build.
@@ -321,7 +327,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("builds beta-app-review-submission get: %w", err)
+				return fmt.Errorf("builds beta-app-review-submission view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -329,12 +335,12 @@ Examples:
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
 			if err != nil {
-				return fmt.Errorf("builds beta-app-review-submission get: %w", err)
+				return fmt.Errorf("builds beta-app-review-submission view: %w", err)
 			}
 
 			resp, err := client.GetBuildBetaAppReviewSubmission(requestCtx, buildID)
 			if err != nil {
-				return fmt.Errorf("builds beta-app-review-submission get: failed to fetch: %w", err)
+				return fmt.Errorf("builds beta-app-review-submission view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -345,6 +351,7 @@ Examples:
 // BuildsBuildBetaDetailCommand returns the build-beta-detail command group.
 func BuildsBuildBetaDetailCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("build-beta-detail", flag.ExitOnError)
+	viewCmd := BuildsBuildBetaDetailViewCommand()
 
 	return &ffcli.Command{
 		Name:       "build-beta-detail",
@@ -356,9 +363,10 @@ Examples:
   asc builds build-beta-detail view --build-id "BUILD_ID"
   asc builds build-beta-detail view --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsBuildBetaDetailGetCommand(),
+			viewCmd,
+			deprecatedBuildsGetAlias(viewCmd, "asc builds build-beta-detail view"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -366,15 +374,15 @@ Examples:
 	}
 }
 
-// BuildsBuildBetaDetailGetCommand returns the build-beta-detail get subcommand.
-func BuildsBuildBetaDetailGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("build-beta-detail get", flag.ExitOnError)
+// BuildsBuildBetaDetailViewCommand returns the build-beta-detail view subcommand.
+func BuildsBuildBetaDetailViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("build-beta-detail view", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{includeLegacyID: true})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc builds build-beta-detail view (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER [--version VERSION] [--platform PLATFORM])",
 		ShortHelp:  "View build beta detail for a build.",
 		LongHelp: `View build beta detail for a build.
@@ -394,7 +402,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("builds build-beta-detail get: %w", err)
+				return fmt.Errorf("builds build-beta-detail view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -402,12 +410,12 @@ Examples:
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
 			if err != nil {
-				return fmt.Errorf("builds build-beta-detail get: %w", err)
+				return fmt.Errorf("builds build-beta-detail view: %w", err)
 			}
 
 			resp, err := client.GetBuildBuildBetaDetail(requestCtx, buildID)
 			if err != nil {
-				return fmt.Errorf("builds build-beta-detail get: failed to fetch: %w", err)
+				return fmt.Errorf("builds build-beta-detail view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

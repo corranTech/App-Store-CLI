@@ -83,11 +83,11 @@ Commands in scope:
 - `asc builds wait`
 - `asc builds dsyms`
 - `asc builds info`
-- `asc builds app get`
-- `asc builds pre-release-version get`
+- `asc builds app view`
+- `asc builds pre-release-version view`
 - `asc builds icons list`
-- `asc builds beta-app-review-submission get`
-- `asc builds build-beta-detail get`
+- `asc builds beta-app-review-submission view`
+- `asc builds build-beta-detail view`
 - `asc builds links view`
 - `asc builds metrics beta-usages`
 - shared resolver helpers in `internal/cli/builds/resolve_build.go`
