@@ -75,10 +75,9 @@ func BuildsLatestCommand() *ffcli.Command {
 			if err != nil {
 				return err
 			}
-			if *initialBuildNumber < 1 {
+			if *next && *initialBuildNumber < 1 {
 				return shared.UsageError("--initial-build-number must be >= 1")
 			}
-
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds latest: %w", err)
@@ -432,7 +431,15 @@ func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 		if exactVersion == "" {
 			return true
 		}
-		return strings.TrimSpace(preReleaseVersion.Attributes.Version) == exactVersion
+		// ASC's version filter can return dotted-version near-matches like
+		// 1.1 and 1.1.0 together, so enforce exact matching client-side when
+		// the response includes attributes.version. If ASC omits the attribute
+		// entirely, trust the server-side filter instead.
+		versionAttr := strings.TrimSpace(preReleaseVersion.Attributes.Version)
+		if versionAttr == "" {
+			return true
+		}
+		return versionAttr == exactVersion
 	}
 
 	// Stream pages and keep only exact-matching IDs.

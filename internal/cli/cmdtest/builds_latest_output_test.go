@@ -492,6 +492,61 @@ func TestBuildsLatestTableOutput(t *testing.T) {
 	}
 }
 
+func TestBuildsLatestFetchIgnoresInitialBuildNumberWithoutNext(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("sort") != "-uploadedDate" {
+				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
+			}
+			body := `{
+				"data":[{"type":"builds","id":"build-fetch","attributes":{"version":"100","uploadedDate":"2026-02-01T00:00:00Z"}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--initial-build-number", "0", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
+	if !strings.Contains(stdout, `"id":"build-fetch"`) {
+		t.Fatalf("expected latest fetch output, got %q", stdout)
+	}
+}
+
 func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
