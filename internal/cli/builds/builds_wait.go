@@ -89,11 +89,8 @@ Examples:
 			}
 
 			if buildValue != "" {
-				if strings.TrimSpace(*appID) != "" || *latest || versionValue != "" || buildNumberValue != "" || platformValue != "" {
-					return shared.UsageError("--build-id is mutually exclusive with app-scoped selectors (--app, --latest, --version, --build-number, --platform)")
-				}
-				if sinceValue != "" {
-					return shared.UsageError("--since requires --latest or --build-number")
+				if strings.TrimSpace(*appID) != "" || *latest || versionValue != "" || buildNumberValue != "" || platformValue != "" || sinceValue != "" {
+					return shared.UsageError("--build-id is mutually exclusive with app-scoped selectors (--app, --latest, --version, --build-number, --platform, --since)")
 				}
 			} else {
 				if resolvedAppID == "" {

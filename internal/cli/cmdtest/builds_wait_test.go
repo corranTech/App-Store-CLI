@@ -557,8 +557,11 @@ func TestBuildsWaitRejectsSinceWithBuildID(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Error: --since requires --latest or --build-number") {
-		t.Fatalf("expected --since contract error, got %q", stderr)
+	if !strings.Contains(stderr, "Error: --build-id is mutually exclusive with app-scoped selectors") {
+		t.Fatalf("expected build-id mutual exclusivity error, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "--since") {
+		t.Fatalf("expected --since to be called out in mutual exclusivity error, got %q", stderr)
 	}
 }
 
