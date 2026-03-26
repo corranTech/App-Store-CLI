@@ -740,6 +740,7 @@ func BuildsInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds info", flag.ExitOnError)
 
 	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -753,6 +754,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if legacyBuildID.Used() {
+				return removedBuildFlagError(legacyBuildID.Value())
+			}
 			if strings.TrimSpace(*buildID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp

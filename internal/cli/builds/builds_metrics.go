@@ -41,6 +41,7 @@ func BuildsMetricsBetaUsagesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metrics beta-usages", flag.ExitOnError)
 
 	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	output := shared.BindOutputFlags(fs)
@@ -57,6 +58,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if legacyBuildID.Used() {
+				return removedBuildFlagError(legacyBuildID.Value())
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp

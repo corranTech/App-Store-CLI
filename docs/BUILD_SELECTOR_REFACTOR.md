@@ -44,6 +44,8 @@ Progress checklist:
 - [x] Convert `asc builds dsyms` from `--build` to `--build-id`
 - [x] Convert `asc builds wait` from `--build` / `--newest` to
   `--build-id` / `--latest`
+- [x] Keep removed selector spellings as explicit migration errors that point to
+  the new flags
 - [x] Update focused tests and command docs for the PR 1 slice
 - [ ] Decide whether `builds wait` should later reuse more of the shared
   selector engine instead of only sharing vocabulary

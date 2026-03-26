@@ -61,6 +61,7 @@ func BuildsRelationshipsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links view", flag.ExitOnError)
 
 	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	relType := fs.String("type", "", "Relationship type: "+strings.Join(buildRelationshipList(), ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -79,6 +80,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if legacyBuildID.Used() {
+				return removedBuildFlagError(legacyBuildID.Value())
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds links view: --limit must be between 1 and 200")
 			}

@@ -48,6 +48,7 @@ func BuildsDsymsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("dsyms", flag.ExitOnError)
 
 	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	appID := fs.String("app", "", "App ID, bundle ID, or app name (or ASC_APP_ID)")
 	version := fs.String("version", "", "App version string (e.g., 1.2.3)")
 	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion)")
@@ -82,6 +83,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if legacyBuildID.Used() {
+				return removedBuildFlagError(legacyBuildID.Value())
+			}
+
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			appInput := strings.TrimSpace(*appID)
 			resolveOpts := ResolveBuildOptions{

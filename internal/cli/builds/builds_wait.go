@@ -25,8 +25,10 @@ func BuildsWaitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("wait", flag.ExitOnError)
 
 	buildID := fs.String("build-id", "", "Build ID to wait for")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Wait for the latest matching build for --app context")
+	legacyNewest := bindHiddenBoolFlag(fs, "newest")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app")
 	buildNumber := fs.String("build-number", "", "Optional build number filter (CFBundleVersion) for --app")
 	since := fs.String("since", "", "Only consider builds uploaded on or after this RFC3339 timestamp")
@@ -63,6 +65,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if legacyBuildID.Used() {
+				return removedBuildFlagError(legacyBuildID.Value())
+			}
+			if legacyNewest.Used() {
+				return removedNewestFlagError()
+			}
+
 			started := time.Now()
 			buildValue := strings.TrimSpace(*buildID)
 			appInputProvided := strings.TrimSpace(*appID) != ""
