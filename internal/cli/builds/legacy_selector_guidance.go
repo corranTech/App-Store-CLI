@@ -83,6 +83,20 @@ func bindHiddenBoolFlag(fs *flag.FlagSet, name string) *trackedBoolFlag {
 	return value
 }
 
+func flagWasProvided(fs *flag.FlagSet, name string) bool {
+	if fs == nil {
+		return false
+	}
+
+	used := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			used = true
+		}
+	})
+	return used
+}
+
 const (
 	legacyBuildIDWarning = "Warning: `--build` is deprecated. Use `--build-id`."
 	legacyIDWarning      = "Warning: `--id` as a build selector is deprecated. Use `--build-id`."
@@ -97,14 +111,18 @@ func applyLegacyIDAlias(buildID *string, legacyID *trackedStringFlag) error {
 	return applyLegacyStringAlias(buildID, legacyID, "--id", "--build-id", legacyIDWarning)
 }
 
-func applyLegacyLatestAlias(latest *bool, legacyNewest *trackedBoolFlag) {
+func applyLegacyLatestAlias(latest *bool, latestProvided bool, legacyNewest *trackedBoolFlag) error {
 	if latest == nil || legacyNewest == nil || !legacyNewest.Used() {
-		return
+		return nil
 	}
-	if legacyNewest.value {
-		*latest = true
+	if latestProvided && *latest != legacyNewest.value {
+		return shared.UsageError("--newest conflicts with --latest; use only --latest")
+	}
+	if !latestProvided {
+		*latest = legacyNewest.value
 	}
 	fmt.Fprintln(os.Stderr, legacyNewestWarning)
+	return nil
 }
 
 func applyLegacyStringAlias(canonical *string, legacy *trackedStringFlag, legacyName, canonicalName, warning string) error {

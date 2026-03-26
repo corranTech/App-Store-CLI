@@ -68,7 +68,9 @@ Examples:
 			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
 				return err
 			}
-			applyLegacyLatestAlias(latest, legacyNewest)
+			if err := applyLegacyLatestAlias(latest, flagWasProvided(fs, "latest"), legacyNewest); err != nil {
+				return err
+			}
 
 			started := time.Now()
 			buildValue := strings.TrimSpace(*buildID)

@@ -97,6 +97,50 @@ func TestBuildsSelectorAliasesWarnAndMatchCanonicalValidationPaths(t *testing.T)
 	}
 }
 
+func TestBuildsWaitRejectsConflictingLatestAndNewest(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "latest false newest true",
+			args: []string{"builds", "wait", "--app", "APP_123", "--latest=false", "--newest=true", "--poll-interval", "0"},
+		},
+		{
+			name: "latest true newest false",
+			args: []string{"builds", "wait", "--app", "APP_123", "--latest=true", "--newest=false", "--poll-interval", "0"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "Error: --newest conflicts with --latest; use only --latest") {
+				t.Fatalf("expected conflict error, got %q", stderr)
+			}
+			if strings.Contains(stderr, "flag provided but not defined") {
+				t.Fatalf("expected usage conflict instead of parse error, got %q", stderr)
+			}
+		})
+	}
+}
+
 func TestBuildsSelectorAliasesWarnAndMatchCanonicalFetchPaths(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
