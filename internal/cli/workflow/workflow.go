@@ -76,7 +76,7 @@ Example workflow file (.asc/workflow.json):
         },
         {
           "name": "add_build_to_group",
-          "run": "asc builds add-groups --build ${steps.resolve_build.BUILD_ID} --group $GROUP_ID"
+          "run": "asc builds add-groups --build-id ${steps.resolve_build.BUILD_ID} --group $GROUP_ID"
         }
       ]
     },

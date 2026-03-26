@@ -117,9 +117,14 @@ func TestBuildsUpdateCommand_Shape(t *testing.T) {
 		t.Fatalf("unexpected command name: %q", cmd.Name)
 	}
 
+	buildIDFlag := cmd.FlagSet.Lookup("build-id")
+	if buildIDFlag == nil {
+		t.Fatal("expected --build-id flag to be defined")
+	}
+
 	buildFlag := cmd.FlagSet.Lookup("build")
 	if buildFlag == nil {
-		t.Fatal("expected --build flag to be defined")
+		t.Fatal("expected hidden legacy --build flag to be defined")
 	}
 
 	encFlag := cmd.FlagSet.Lookup("uses-non-exempt-encryption")
@@ -137,7 +142,7 @@ func TestBuildsUpdateCommand_HelpContainsExamples(t *testing.T) {
 
 func TestBuildsUpdateCommand_ShortUsageShowsRequiredFlag(t *testing.T) {
 	cmd := BuildsUpdateCommand()
-	want := "asc builds update --build BUILD_ID --uses-non-exempt-encryption [true|false] [flags]"
+	want := "asc builds update --build-id BUILD_ID --uses-non-exempt-encryption [true|false] [flags]"
 	if cmd.ShortUsage != want {
 		t.Fatalf("expected ShortUsage %q, got %q", want, cmd.ShortUsage)
 	}

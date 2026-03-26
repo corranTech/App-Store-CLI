@@ -50,8 +50,8 @@ Progress checklist:
 - [x] Keep legacy selector spellings as deprecated aliases that warn and forward
   to the canonical flags
 - [x] Update focused tests and command docs for the PR 1 slice
-- [ ] Decide whether `builds wait` should later reuse more of the shared
-  selector engine instead of only sharing vocabulary
+- [x] Defer deeper `builds wait` selector-engine sharing for now; current
+  shared vocabulary cleanup is sufficient without adding more internal coupling
 - [x] Extend `--build-id` vocabulary to the remaining read-oriented explicit
   build commands in `builds`
 
@@ -215,7 +215,7 @@ Design note:
 
 ### PR 4: Redesign `builds test-notes`
 
-Status: in progress on the combined PR 4/5 branch
+Status: complete
 
 Scope:
 
@@ -226,13 +226,23 @@ Scope:
 
 ### PR 5: Legacy Removal + Remaining Read Commands
 
-Status: folded into the combined PR 4/5 branch
+Status: complete
 
 Scope:
 
 - remove live `beta-build-localizations` behavior and leave removed-command guidance
 - remove live `builds test-notes get` behavior and leave removed-command guidance
 - standardize remaining read-oriented build commands on `--build-id`
+
+### PR 6: Mutating Command Selector Vocabulary
+
+Status: complete
+
+Scope:
+
+- standardize visible explicit selector naming to `--build-id` for mutating build commands
+- keep hidden deprecated `--build` aliases with warnings during the transition
+- do not add inferred selectors like `--app --latest` to destructive or mutating commands in this slice
 
 ## Command Target Shape
 
@@ -260,6 +270,5 @@ asc builds test-notes delete --app "123" --latest --locale "en-US" --confirm
 
 - `builds latest` remains in the repo after PR 3 as a hidden deprecated shim
   that warns toward `builds info --latest` and `builds next-build-number`.
-- Mutating commands like `expire`, `update`, `add-groups`, `remove-groups`, and
-  `individual-testers` should be reviewed separately before inheriting inferred
-  build selection.
+- PR 6 standardizes explicit `--build-id` for mutating commands. Inferred
+  selection for mutating/destructive commands remains intentionally deferred.

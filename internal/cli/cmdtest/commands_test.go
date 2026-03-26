@@ -367,7 +367,7 @@ func TestBuildsExpireRequiresBuildID(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--build is required") {
+	if !strings.Contains(stderr, "--build-id is required") {
 		t.Fatalf("expected missing build error, got %q", stderr)
 	}
 }
@@ -503,38 +503,38 @@ func TestBuildsGroupValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "builds add-groups missing build",
+			name:    "builds add-groups missing build id",
 			args:    []string{"builds", "add-groups"},
-			wantErr: "Error: --build is required",
+			wantErr: "Error: --build-id is required",
 		},
 		{
 			name:    "builds add-groups missing group",
-			args:    []string{"builds", "add-groups", "--build", "BUILD_123"},
+			args:    []string{"builds", "add-groups", "--build-id", "BUILD_123"},
 			wantErr: "Error: --group is required",
 		},
 		{
 			name:    "builds add-groups submit missing confirm",
-			args:    []string{"builds", "add-groups", "--build", "BUILD_123", "--group", "GROUP_123", "--submit"},
+			args:    []string{"builds", "add-groups", "--build-id", "BUILD_123", "--group", "GROUP_123", "--submit"},
 			wantErr: "Error: --confirm is required with --submit",
 		},
 		{
 			name:    "builds add-groups confirm requires submit",
-			args:    []string{"builds", "add-groups", "--build", "BUILD_123", "--group", "GROUP_123", "--confirm"},
+			args:    []string{"builds", "add-groups", "--build-id", "BUILD_123", "--group", "GROUP_123", "--confirm"},
 			wantErr: "Error: --confirm requires --submit",
 		},
 		{
-			name:    "builds remove-groups missing build",
+			name:    "builds remove-groups missing build id",
 			args:    []string{"builds", "remove-groups"},
-			wantErr: "Error: --build is required",
+			wantErr: "Error: --build-id is required",
 		},
 		{
 			name:    "builds remove-groups missing group",
-			args:    []string{"builds", "remove-groups", "--build", "BUILD_123"},
+			args:    []string{"builds", "remove-groups", "--build-id", "BUILD_123"},
 			wantErr: "Error: --group is required",
 		},
 		{
 			name:    "builds remove-groups missing confirm",
-			args:    []string{"builds", "remove-groups", "--build", "BUILD_123", "--group", "GROUP_123"},
+			args:    []string{"builds", "remove-groups", "--build-id", "BUILD_123", "--group", "GROUP_123"},
 			wantErr: "Error: --confirm is required",
 		},
 	}
@@ -636,13 +636,13 @@ func TestBuildsExpireValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "builds expire missing build",
+			name:    "builds expire missing build id",
 			args:    []string{"builds", "expire"},
-			wantErr: "Error: --build is required",
+			wantErr: "Error: --build-id is required",
 		},
 		{
 			name:    "builds expire missing confirm",
-			args:    []string{"builds", "expire", "--build", "BUILD_ID"},
+			args:    []string{"builds", "expire", "--build-id", "BUILD_ID"},
 			wantErr: "Error: --confirm is required to expire build",
 		},
 	}
@@ -680,7 +680,7 @@ func TestBuildsIndividualTestersValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "builds individual-testers remove missing confirm",
-			args:    []string{"builds", "individual-testers", "remove", "--build", "BUILD_ID", "--tester", "TESTER_ID"},
+			args:    []string{"builds", "individual-testers", "remove", "--build-id", "BUILD_ID", "--tester", "TESTER_ID"},
 			wantErr: "Error: --confirm is required",
 		},
 	}

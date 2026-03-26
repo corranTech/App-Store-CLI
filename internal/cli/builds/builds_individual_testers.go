@@ -25,8 +25,8 @@ func BuildsIndividualTestersCommand() *ffcli.Command {
 
 Examples:
   asc builds individual-testers list --build-id "BUILD_ID"
-  asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID"
-  asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID"`,
+  asc builds individual-testers add --build-id "BUILD_ID" --tester "TESTER_ID"
+  asc builds individual-testers remove --build-id "BUILD_ID" --tester "TESTER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -128,25 +128,30 @@ Examples:
 func BuildsIndividualTestersAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("individual-testers add", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	testers := fs.String("tester", "", "Comma-separated tester IDs")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
-		ShortUsage: "asc builds individual-testers add --build \"BUILD_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortUsage: "asc builds individual-testers add --build-id \"BUILD_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
 		ShortHelp:  "Add individual testers to a build.",
 		LongHelp: `Add individual testers to a build.
 
 Examples:
-  asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID"
-  asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+  asc builds individual-testers add --build-id "BUILD_ID" --tester "TESTER_ID"
+  asc builds individual-testers add --build-id "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
+
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -183,26 +188,31 @@ Examples:
 func BuildsIndividualTestersRemoveCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("individual-testers remove", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	testers := fs.String("tester", "", "Comma-separated tester IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove",
-		ShortUsage: "asc builds individual-testers remove --build \"BUILD_ID\" --tester \"TESTER_ID[,TESTER_ID...]\" --confirm",
+		ShortUsage: "asc builds individual-testers remove --build-id \"BUILD_ID\" --tester \"TESTER_ID[,TESTER_ID...]\" --confirm",
 		ShortHelp:  "Remove individual testers from a build.",
 		LongHelp: `Remove individual testers from a build.
 
 Examples:
-  asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID" --confirm
-  asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
+  asc builds individual-testers remove --build-id "BUILD_ID" --tester "TESTER_ID" --confirm
+  asc builds individual-testers remove --build-id "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
+
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 

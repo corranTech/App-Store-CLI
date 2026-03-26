@@ -18,7 +18,8 @@ import (
 func BuildsAddGroupsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("add-groups", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	groups := fs.String("group", "", "Comma-separated beta group IDs or names")
 	skipInternal := fs.Bool("skip-internal", false, "Skip internal beta groups instead of adding them")
 	submit := fs.Bool("submit", false, "Submit build for beta app review after adding external groups")
@@ -27,22 +28,26 @@ func BuildsAddGroupsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "add-groups",
-		ShortUsage: "asc builds add-groups --build BUILD_ID --group GROUP_ID[,GROUP_ID...] [--submit --confirm]",
+		ShortUsage: "asc builds add-groups --build-id BUILD_ID --group GROUP_ID[,GROUP_ID...] [--submit --confirm]",
 		ShortHelp:  "Add beta groups to a build for TestFlight distribution.",
 		LongHelp: `Add beta groups to a build for TestFlight distribution.
 
 Examples:
-  asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
-  asc builds add-groups --build "BUILD_ID" --group "External Testers"
-  asc builds add-groups --build "BUILD_ID" --group "GROUP1,GROUP2"
-  asc builds add-groups --build "BUILD_ID" --group "INTERNAL_ID,EXTERNAL_ID" --skip-internal
-  asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm`,
+  asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID"
+  asc builds add-groups --build-id "BUILD_ID" --group "External Testers"
+  asc builds add-groups --build-id "BUILD_ID" --group "GROUP1,GROUP2"
+  asc builds add-groups --build-id "BUILD_ID" --group "INTERNAL_ID,EXTERNAL_ID" --skip-internal
+  asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID" --submit --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
+
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -214,25 +219,30 @@ func hasAddedExternalBuildBetaGroup(groups []resolvedBuildBetaGroup, addedGroupI
 func BuildsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds update", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID (required)")
+	buildID := fs.String("build-id", "", "Build ID (required)")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	usesNonExemptEncryption := fs.String("uses-non-exempt-encryption", "", "Set encryption compliance: true or false")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc builds update --build BUILD_ID --uses-non-exempt-encryption [true|false] [flags]",
+		ShortUsage: "asc builds update --build-id BUILD_ID --uses-non-exempt-encryption [true|false] [flags]",
 		ShortHelp:  "Update build attributes.",
 		LongHelp: `Update build attributes such as encryption compliance.
 
 Examples:
-  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=false
-  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=true`,
+  asc builds update --build-id "BUILD_ID" --uses-non-exempt-encryption=false
+  asc builds update --build-id "BUILD_ID" --uses-non-exempt-encryption=true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
+
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -277,26 +287,31 @@ Examples:
 func BuildsRemoveGroupsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("remove-groups", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-groups",
-		ShortUsage: "asc builds remove-groups --build BUILD_ID --group GROUP_ID[,GROUP_ID...] --confirm",
+		ShortUsage: "asc builds remove-groups --build-id BUILD_ID --group GROUP_ID[,GROUP_ID...] --confirm",
 		ShortHelp:  "Remove beta groups from a build.",
 		LongHelp: `Remove beta groups from a build.
 
 Examples:
-  asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID" --confirm
-  asc builds remove-groups --build "BUILD_ID" --group "GROUP1,GROUP2" --confirm`,
+  asc builds remove-groups --build-id "BUILD_ID" --group "GROUP_ID" --confirm
+  asc builds remove-groups --build-id "BUILD_ID" --group "GROUP1,GROUP2" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
+
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 

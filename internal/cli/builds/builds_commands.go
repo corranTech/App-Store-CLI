@@ -409,17 +409,17 @@ Examples:
   asc builds info --app "123456789" --latest --version "1.2.3" --platform IOS
   asc builds info --app "123456789" --build-number "42"
   asc builds next-build-number --app "123456789" --version "1.2.3" --platform IOS
-  asc builds expire --build "BUILD_ID"
+  asc builds expire --build-id "BUILD_ID"
   asc builds expire-all --app "123456789" --older-than 90d --dry-run
   asc builds upload --app "123456789" --ipa "app.ipa"
   asc builds upload --app "123456789" --pkg "app.pkg" --version "1.0.0" --build-number "1"
   asc builds uploads list --app "123456789"
   asc builds test-notes list --build-id "BUILD_ID"
   asc builds individual-testers list --build-id "BUILD_ID"
-  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=false
-  asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
-  asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm
-  asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
+  asc builds update --build-id "BUILD_ID" --uses-non-exempt-encryption=false
+  asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID"
+  asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID" --submit --confirm
+  asc builds remove-groups --build-id "BUILD_ID" --group "GROUP_ID"
   asc builds app view --build-id "BUILD_ID"
   asc builds pre-release-version view --build-id "BUILD_ID"
   asc builds icons list --build-id "BUILD_ID"
@@ -837,25 +837,30 @@ Examples:
 func BuildsExpireCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds expire", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	confirm := fs.Bool("confirm", false, "Confirm expiration")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "expire",
-		ShortUsage: "asc builds expire --build BUILD_ID --confirm [flags]",
+		ShortUsage: "asc builds expire --build-id BUILD_ID --confirm [flags]",
 		ShortHelp:  "Expire a build for TestFlight.",
 		LongHelp: `Expire a build for TestFlight.
 
 This action is irreversible for the specified build.
 
 Examples:
-  asc builds expire --build "BUILD_ID" --confirm`,
+  asc builds expire --build-id "BUILD_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
+
 			if strings.TrimSpace(*buildID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 			if !*confirm {
