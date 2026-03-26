@@ -45,10 +45,18 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 
 	// Latest mode: find the most recently uploaded build.
 	if opts.Latest {
+		platform := strings.TrimSpace(opts.Platform)
+		if platform != "" {
+			normalized, err := shared.NormalizeAppStoreVersionPlatform(platform)
+			if err != nil {
+				return nil, shared.UsageError(err.Error())
+			}
+			platform = normalized
+		}
 		selection, err := resolveLatestBuildSelection(ctx, client, latestBuildSelectionOptions{
 			AppID:                 strings.TrimSpace(opts.AppID),
 			Version:               strings.TrimSpace(opts.Version),
-			Platform:              strings.TrimSpace(opts.Platform),
+			Platform:              platform,
 			ProcessingStateValues: opts.ProcessingStateValues,
 			ExcludeExpired:        opts.ExcludeExpired,
 		}, false)

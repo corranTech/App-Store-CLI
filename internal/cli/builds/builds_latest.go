@@ -403,17 +403,22 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts l
 }
 
 // findPreReleaseVersionIDs looks up preReleaseVersion IDs for given filters.
-// Returns all matching IDs when only platform is specified (paginates to get all),
-// or a single ID when version is specified.
+// Returns all matching IDs when platform is omitted or when only platform is
+// specified, and a single ID when both version and platform are provided.
 func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	opts := []asc.PreReleaseVersionsOption{}
 
 	if version != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsVersion(version))
-		// When version is specified, we only need one result (platform narrows it further)
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
+		if platform != "" {
+			// Version+platform narrows to a single pre-release version.
+			opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
+		} else {
+			// Version-only lookups can span multiple platforms.
+			opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
+		}
 	} else {
-		// When only platform is specified, use max limit for pagination
+		// Platform-only lookups can span multiple versions.
 		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
 	}
 
@@ -427,15 +432,15 @@ func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 		return nil, fmt.Errorf("failed to lookup pre-release versions: %w", err)
 	}
 
-	// If version is specified, we only need the first result
-	if version != "" {
+	// Version+platform narrows to a single result.
+	if version != "" && platform != "" {
 		if len(firstPage.Data) == 0 {
 			return nil, nil
 		}
 		return []string{firstPage.Data[0].ID}, nil
 	}
 
-	// For platform-only filtering, stream pages and keep only IDs.
+	// For version-only or platform-only filtering, stream pages and keep only IDs.
 	ids := make([]string, 0, len(firstPage.Data))
 	appendIDs := func(page *asc.PreReleaseVersionsResponse) {
 		for _, preReleaseVersion := range page.Data {
