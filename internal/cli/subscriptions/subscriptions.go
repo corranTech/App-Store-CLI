@@ -567,6 +567,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 	subID := fs.String("id", "", "Subscription ID")
 	referenceName := fs.String("reference-name", "", "Reference name")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
+	groupLevel := fs.Int("group-level", -1, "Subscription ordering level (positive integer)")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
@@ -579,6 +580,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions update --id "SUB_ID" --reference-name "New Name"
   asc subscriptions update --id "SUB_ID" --subscription-period ONE_YEAR
+  asc subscriptions update --id "SUB_ID" --group-level 3
   asc subscriptions update --id "SUB_ID" --family-sharable`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -595,7 +597,18 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
 				return flag.ErrHelp
 			}
-			if name == "" && period == "" && !*familySharable {
+			groupLevelProvided := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "group-level" {
+					groupLevelProvided = true
+				}
+			})
+			if groupLevelProvided && *groupLevel <= 0 {
+				fmt.Fprintln(os.Stderr, "Error: --group-level must be a positive integer")
+				return flag.ErrHelp
+			}
+
+			if name == "" && period == "" && !*familySharable && !groupLevelProvided {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
 			}
@@ -619,6 +632,10 @@ Examples:
 			if *familySharable {
 				val := true
 				attrs.FamilySharable = &val
+			}
+			if groupLevelProvided {
+				level := *groupLevel
+				attrs.GroupLevel = &level
 			}
 
 			resp, err := client.UpdateSubscription(requestCtx, id, attrs)
