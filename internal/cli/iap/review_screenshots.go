@@ -171,13 +171,9 @@ Examples:
 			screenshotID := resp.Data.ID
 			verifyCtx, verifyCancel := contextWithAssetUploadTimeout(ctx)
 			defer verifyCancel()
-			if _, verifyErr := waitForIAPReviewScreenshotDelivery(verifyCtx, client, screenshotID); verifyErr != nil {
+			finalResp, verifyErr := waitForIAPReviewScreenshotDelivery(verifyCtx, client, screenshotID)
+			if verifyErr != nil {
 				return fmt.Errorf("iap review-screenshots create: %w", verifyErr)
-			}
-
-			finalResp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(verifyCtx, screenshotID)
-			if err != nil {
-				return fmt.Errorf("iap review-screenshots create: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
@@ -339,10 +335,10 @@ Examples:
 	}
 }
 
-// waitForIAPReviewScreenshotDelivery polls the IAP review screenshot until
-// its asset delivery state is COMPLETE or FAILED.
-func waitForIAPReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
-	var lastState string
+// waitForIAPReviewScreenshotDelivery polls until the screenshot reaches
+// a terminal delivery state and returns the successful response for output.
+func waitForIAPReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (*asc.InAppPurchaseAppStoreReviewScreenshotResponse, error) {
+	var verifiedResp *asc.InAppPurchaseAppStoreReviewScreenshotResponse
 	_, err := asc.PollUntil(ctx, iapReviewScreenshotPollInterval, func(ctx context.Context) (struct{}, bool, error) {
 		resp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(ctx, screenshotID)
 		if err != nil {
@@ -350,9 +346,9 @@ func waitForIAPReviewScreenshotDelivery(ctx context.Context, client *asc.Client,
 		}
 		state := resp.Data.Attributes.AssetDeliveryState
 		if state != nil && state.State != nil {
-			lastState = *state.State
 			switch strings.ToUpper(*state.State) {
 			case "COMPLETE":
+				verifiedResp = resp
 				return struct{}{}, true, nil
 			case "FAILED":
 				errMsgs := make([]string, 0, len(state.Errors))
@@ -373,7 +369,10 @@ func waitForIAPReviewScreenshotDelivery(ctx context.Context, client *asc.Client,
 		return struct{}{}, false, nil
 	})
 	if err != nil {
-		return lastState, err
+		return nil, err
 	}
-	return lastState, nil
+	if verifiedResp == nil {
+		return nil, fmt.Errorf("screenshot %s delivery completed without a verified response", screenshotID)
+	}
+	return verifiedResp, nil
 }

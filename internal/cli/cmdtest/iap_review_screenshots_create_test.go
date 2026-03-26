@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func TestSubscriptionsReviewScreenshotsCreatePrintsVerifiedScreenshot(t *testing.T) {
+func TestIAPReviewScreenshotsCreatePrintsVerifiedScreenshot(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -31,8 +31,8 @@ func TestSubscriptionsReviewScreenshotsCreatePrintsVerifiedScreenshot(t *testing
 	getRequests := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionAppStoreReviewScreenshots":
-			body := fmt.Sprintf(`{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png","fileSize":%d,"uploadOperations":[{"method":"PUT","url":"https://upload.example.com/upload/shot-1","length":%d,"offset":0}]}}}`, imageInfo.Size(), imageInfo.Size())
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/inAppPurchaseAppStoreReviewScreenshots":
+			body := fmt.Sprintf(`{"data":{"type":"inAppPurchaseAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png","fileSize":%d,"uploadOperations":[{"method":"PUT","url":"https://upload.example.com/upload/shot-1","length":%d,"offset":0}]}}}`, imageInfo.Size(), imageInfo.Size())
 			return jsonResponse(http.StatusCreated, body)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{
@@ -40,11 +40,11 @@ func TestSubscriptionsReviewScreenshotsCreatePrintsVerifiedScreenshot(t *testing
 				Body:       io.NopCloser(strings.NewReader("")),
 				Header:     http.Header{},
 			}, nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptionAppStoreReviewScreenshots/shot-1":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAppStoreReviewScreenshots/shot-1":
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/inAppPurchaseAppStoreReviewScreenshots/shot-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/inAppPurchaseAppStoreReviewScreenshots/shot-1":
 			getRequests++
-			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png","assetDeliveryState":{"state":"COMPLETE"}}}}`)
+			return jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png","assetDeliveryState":{"state":"COMPLETE"}}}}`)
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -57,8 +57,8 @@ func TestSubscriptionsReviewScreenshotsCreatePrintsVerifiedScreenshot(t *testing
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "review", "screenshots", "create",
-			"--subscription-id", "sub-1",
+			"iap", "review-screenshots", "create",
+			"--iap-id", "iap-1",
 			"--file", imagePath,
 			"--output", "json",
 		}); err != nil {

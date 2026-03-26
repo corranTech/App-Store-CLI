@@ -161,13 +161,9 @@ Examples:
 			screenshotID := resp.Data.ID
 			verifyCtx, verifyCancel := shared.ContextWithUploadTimeout(ctx)
 			defer verifyCancel()
-			if _, verifyErr := waitForSubscriptionReviewScreenshotDelivery(verifyCtx, client, screenshotID); verifyErr != nil {
+			finalResp, verifyErr := waitForSubscriptionReviewScreenshotDelivery(verifyCtx, client, screenshotID)
+			if verifyErr != nil {
 				return fmt.Errorf("subscriptions review-screenshots create: %w", verifyErr)
-			}
-
-			finalResp, err := client.GetSubscriptionAppStoreReviewScreenshot(verifyCtx, screenshotID)
-			if err != nil {
-				return fmt.Errorf("subscriptions review-screenshots create: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
@@ -282,11 +278,10 @@ Examples:
 	}
 }
 
-// waitForSubscriptionReviewScreenshotDelivery polls the screenshot until
-// its asset delivery state is COMPLETE or FAILED, matching the pattern
-// used by app screenshot uploads in assets_helpers.go.
-func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (string, error) {
-	var lastState string
+// waitForSubscriptionReviewScreenshotDelivery polls until the screenshot reaches
+// a terminal delivery state and returns the successful response for output.
+func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
+	var verifiedResp *asc.SubscriptionAppStoreReviewScreenshotResponse
 	_, err := asc.PollUntil(ctx, reviewScreenshotPollInterval, func(ctx context.Context) (struct{}, bool, error) {
 		resp, err := client.GetSubscriptionAppStoreReviewScreenshot(ctx, screenshotID)
 		if err != nil {
@@ -294,9 +289,9 @@ func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *as
 		}
 		state := resp.Data.Attributes.AssetDeliveryState
 		if state != nil && state.State != nil {
-			lastState = *state.State
 			switch strings.ToUpper(*state.State) {
 			case "COMPLETE":
+				verifiedResp = resp
 				return struct{}{}, true, nil
 			case "FAILED":
 				errMsgs := make([]string, 0, len(state.Errors))
@@ -317,7 +312,10 @@ func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *as
 		return struct{}{}, false, nil
 	})
 	if err != nil {
-		return lastState, err
+		return nil, err
 	}
-	return lastState, nil
+	if verifiedResp == nil {
+		return nil, fmt.Errorf("screenshot %s delivery completed without a verified response", screenshotID)
+	}
+	return verifiedResp, nil
 }
