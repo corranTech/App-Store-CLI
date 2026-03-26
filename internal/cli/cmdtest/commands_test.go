@@ -304,6 +304,16 @@ func TestBuildsInfoValidationErrors(t *testing.T) {
 			args:    []string{"builds", "info", "--app", "APP_123", "--build-number", "42", "--platform", "ANDROID"},
 			wantErr: "--platform must be one of",
 		},
+		{
+			name:    "processing-state requires latest",
+			args:    []string{"builds", "info", "--app", "APP_123", "--build-number", "42", "--processing-state", "VALID"},
+			wantErr: "--processing-state requires --latest",
+		},
+		{
+			name:    "exclude-expired requires latest",
+			args:    []string{"builds", "info", "--app", "APP_123", "--build-number", "42", "--exclude-expired"},
+			wantErr: "--exclude-expired and --not-expired require --latest",
+		},
 	}
 
 	for _, test := range tests {

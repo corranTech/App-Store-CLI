@@ -165,7 +165,7 @@ Design note:
 
 ### PR 3: Replace `builds latest` With `builds next-number`
 
-Status: in progress
+Status: complete
 
 Scope:
 
@@ -201,6 +201,9 @@ Design note:
    docs, but remain available as a hidden deprecated shim for one transition
    cycle. Without `--next` it should warn toward `asc builds info --latest`;
    with `--next` it should warn toward `asc builds next-number`.
+   Commands that resolve `--latest` through the shared build resolver now use
+   the stronger latest-selection semantics that previously only lived in
+   `asc builds latest`.
 
 5. RED -> GREEN test plan
    - move latest-fetch coverage to `builds info --latest`

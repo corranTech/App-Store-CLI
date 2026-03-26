@@ -108,7 +108,7 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 	hasExplicitAppSelectors := appInput != "" || opts.Latest || buildNumber != "" || version != "" || platform != "" || len(opts.ProcessingStateValues) > 0 || opts.ExcludeExpired
 
 	if buildID != "" && hasExplicitAppSelectors {
-		return shared.UsageError("--build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, or --exclude-expired")
+		return shared.UsageError("--build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, --exclude-expired, or --not-expired")
 	}
 	if opts.Latest && buildNumber != "" {
 		return shared.UsageError("--latest and --build-number are mutually exclusive")
@@ -127,7 +127,7 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 		return shared.UsageError("--processing-state requires --latest")
 	}
 	if opts.ExcludeExpired && !opts.Latest {
-		return shared.UsageError("--exclude-expired requires --latest")
+		return shared.UsageError("--exclude-expired and --not-expired require --latest")
 	}
 	if platform != "" {
 		if _, err := shared.NormalizeAppStoreVersionPlatform(platform); err != nil {
