@@ -97,6 +97,7 @@ func TestAppSetupAvailabilitySetCommand_MissingFlags(t *testing.T) {
 	}{
 		{name: "missing app", args: []string{"--territory", "USA", "--available", "true", "--available-in-new-territories", "true"}},
 		{name: "missing territory", args: []string{"--app", "APP", "--available", "true", "--available-in-new-territories", "true"}},
+		{name: "invalid territory csv", args: []string{"--app", "APP", "--territory", ",,,", "--available", "true", "--available-in-new-territories", "true"}},
 		{name: "missing available", args: []string{"--app", "APP", "--territory", "USA", "--available-in-new-territories", "true"}},
 		{name: "missing available in new territories", args: []string{"--app", "APP", "--territory", "USA", "--available", "true"}},
 	}
@@ -112,6 +113,14 @@ func TestAppSetupAvailabilitySetCommand_MissingFlags(t *testing.T) {
 				t.Fatalf("expected flag.ErrHelp, got %v", err)
 			}
 		})
+	}
+}
+
+func TestAppSetupAvailabilitySetCommand_HelpMentionsAllTerritories(t *testing.T) {
+	cmd := AppSetupAvailabilitySetCommand()
+
+	if !strings.Contains(cmd.LongHelp, "--all-territories") {
+		t.Fatalf("expected --all-territories example in long help, got %q", cmd.LongHelp)
 	}
 }
 

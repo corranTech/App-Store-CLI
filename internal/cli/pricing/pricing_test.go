@@ -240,6 +240,7 @@ func TestPricingAvailabilitySetCommand_MissingFlags(t *testing.T) {
 	}{
 		{name: "missing app", args: []string{"--territory", "USA", "--available", "true", "--available-in-new-territories", "true"}},
 		{name: "missing territory", args: []string{"--app", "APP", "--available", "true", "--available-in-new-territories", "true"}},
+		{name: "invalid territory csv", args: []string{"--app", "APP", "--territory", ",,,", "--available", "true", "--available-in-new-territories", "true"}},
 		{name: "missing available", args: []string{"--app", "APP", "--territory", "USA", "--available-in-new-territories", "true"}},
 		{name: "missing available in new territories", args: []string{"--app", "APP", "--territory", "USA", "--available", "true"}},
 	}
@@ -277,6 +278,14 @@ func TestPricingAvailabilityCommand_UsesExistingAvailabilitySurface(t *testing.T
 
 	if !strings.Contains(cmd.LongHelp, `"asc web apps availability create"`) {
 		t.Fatalf("expected pricing availability help to point at web bootstrap flow, got %q", cmd.LongHelp)
+	}
+}
+
+func TestPricingAvailabilitySetCommand_HelpMentionsAllTerritories(t *testing.T) {
+	cmd := PricingAvailabilitySetCommand()
+
+	if !strings.Contains(cmd.LongHelp, "--all-territories") {
+		t.Fatalf("expected --all-territories example in long help, got %q", cmd.LongHelp)
 	}
 }
 
