@@ -33,6 +33,14 @@ type tierPage struct {
 
 type tierPageFetcher func(nextURL string) (tierPage, error)
 
+type freePricePointPage struct {
+	pricePointID string
+	nextURL      string
+	found        bool
+}
+
+type freePricePointPageFetcher func(nextURL string) (freePricePointPage, error)
+
 const (
 	tierCacheScopeSubscription = "subscription"
 	tierCacheScopeIAP          = "iap"
@@ -253,29 +261,35 @@ func resolveTiersWithFetcher(
 	return tiers, nil
 }
 
-// ResolvePricePointByTier finds the price point ID for a given tier number.
-// ResolveFreeAppPricePoint fetches price points for an app and territory,
-// returning the price point ID with customerPrice == "0" or "0.0".
-// Unlike ResolveTiers which excludes free price points, this specifically finds them.
+// ResolveFreeAppPricePoint finds the free ($0) price point ID for an app in a territory.
 func ResolveFreeAppPricePoint(ctx context.Context, client *asc.Client, appID, territory string) (string, error) {
-	opts := []asc.PricePointsOption{
-		asc.WithPricePointsLimit(200),
-		asc.WithPricePointsTerritory(strings.ToUpper(strings.TrimSpace(territory))),
-	}
-	resp, err := client.GetAppPricePoints(ctx, appID, opts...)
+	normalizedAppID, normalizedTerritory, err := normalizeTierResolverInputs("app", appID, territory)
 	if err != nil {
-		return "", fmt.Errorf("fetch price points: %w", err)
+		return "", err
 	}
-	for _, pp := range resp.Data {
-		cp := strings.TrimSpace(pp.Attributes.CustomerPrice)
-		parsed, parseErr := strconv.ParseFloat(cp, 64)
-		if parseErr == nil && parsed == 0 {
-			return pp.ID, nil
+
+	return resolveFreeAppPricePointWithFetcher(normalizedTerritory, func(nextURL string) (freePricePointPage, error) {
+		opts := []asc.PricePointsOption{
+			asc.WithPricePointsLimit(200),
+			asc.WithPricePointsTerritory(normalizedTerritory),
 		}
-	}
-	return "", fmt.Errorf("no free ($0) price point found for territory %s", territory)
+		if nextURL != "" {
+			opts = []asc.PricePointsOption{asc.WithPricePointsNextURL(nextURL)}
+		}
+		resp, err := client.GetAppPricePoints(ctx, normalizedAppID, opts...)
+		if err != nil {
+			return freePricePointPage{}, fmt.Errorf("fetch price points: %w", err)
+		}
+		pricePointID, found := findFreePricePointID(resp.Data)
+		return freePricePointPage{
+			pricePointID: pricePointID,
+			nextURL:      resp.Links.Next,
+			found:        found,
+		}, nil
+	})
 }
 
+// ResolvePricePointByTier finds the price point ID for a given tier number.
 func ResolvePricePointByTier(tiers []TierEntry, tier int) (string, error) {
 	for _, t := range tiers {
 		if t.Tier == tier {
@@ -283,6 +297,37 @@ func ResolvePricePointByTier(tiers []TierEntry, tier int) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("tier %d not found (valid range: 1-%d)", tier, len(tiers))
+}
+
+func resolveFreeAppPricePointWithFetcher(territory string, fetchPage freePricePointPageFetcher) (string, error) {
+	var nextURL string
+
+	for {
+		page, err := fetchPage(nextURL)
+		if err != nil {
+			return "", err
+		}
+		if page.found {
+			return page.pricePointID, nil
+		}
+		if page.nextURL == "" {
+			break
+		}
+		nextURL = page.nextURL
+	}
+
+	return "", fmt.Errorf("no free ($0) price point found for territory %s", territory)
+}
+
+func findFreePricePointID(pricePoints []asc.Resource[asc.AppPricePointV3Attributes]) (string, bool) {
+	for _, pp := range pricePoints {
+		cp := strings.TrimSpace(pp.Attributes.CustomerPrice)
+		parsed, err := strconv.ParseFloat(cp, 64)
+		if err == nil && parsed == 0 {
+			return pp.ID, true
+		}
+	}
+	return "", false
 }
 
 // ResolvePricePointByPrice finds the price point ID for a given customer price.

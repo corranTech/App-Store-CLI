@@ -69,13 +69,9 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			}
 
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
-			if (config.RequireBaseTerritory || tierValue > 0 || priceValue != "" || freeValue) && baseTerritoryValue == "" {
-				if freeValue {
-					baseTerritoryValue = "USA"
-				} else {
-					fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
-					return flag.ErrHelp
-				}
+			if requiresExplicitBaseTerritory(config, baseTerritoryValue, tierValue, priceValue, freeValue) {
+				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
+				return flag.ErrHelp
 			}
 
 			startDateValue := strings.TrimSpace(*startDate)
@@ -157,6 +153,16 @@ func normalizePricingStartDate(value string) (string, error) {
 		return "", fmt.Errorf("--start-date must be in YYYY-MM-DD format")
 	}
 	return parsed.Format("2006-01-02"), nil
+}
+
+func requiresExplicitBaseTerritory(config PricingSetCommandConfig, baseTerritory string, tier int, price string, free bool) bool {
+	if strings.TrimSpace(baseTerritory) != "" {
+		return false
+	}
+	if free && config.ResolveBaseTerritory && !config.RequireBaseTerritory {
+		return false
+	}
+	return config.RequireBaseTerritory || tier > 0 || strings.TrimSpace(price) != "" || free
 }
 
 func resolveBaseTerritoryID(ctx context.Context, client *asc.Client, appID string, baseTerritory string) (string, error) {

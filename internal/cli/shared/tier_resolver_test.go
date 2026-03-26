@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -32,14 +33,16 @@ func TestValidatePriceSelectionFlags_OneSet(t *testing.T) {
 		pricePoint string
 		tier       int
 		price      string
+		free       bool
 	}{
-		{"price-point only", "PP", 0, ""},
-		{"tier only", "", 5, ""},
-		{"price only", "", 0, "4.99"},
+		{"price-point only", "PP", 0, "", false},
+		{"tier only", "", 5, "", false},
+		{"price only", "", 0, "4.99", false},
+		{"free only", "", 0, "", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := ValidatePriceSelectionFlags(tc.pricePoint, tc.tier, tc.price); err != nil {
+			if err := ValidatePriceSelectionFlags(tc.pricePoint, tc.tier, tc.price, tc.free); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
@@ -52,15 +55,19 @@ func TestValidatePriceSelectionFlags_MultipleSet(t *testing.T) {
 		pricePoint string
 		tier       int
 		price      string
+		free       bool
 	}{
-		{"price-point and tier", "PP", 5, ""},
-		{"price-point and price", "PP", 0, "4.99"},
-		{"tier and price", "", 5, "4.99"},
-		{"all three", "PP", 5, "4.99"},
+		{"price-point and tier", "PP", 5, "", false},
+		{"price-point and price", "PP", 0, "4.99", false},
+		{"tier and price", "", 5, "4.99", false},
+		{"price-point and free", "PP", 0, "", true},
+		{"tier and free", "", 5, "", true},
+		{"price and free", "", 0, "4.99", true},
+		{"all four", "PP", 5, "4.99", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidatePriceSelectionFlags(tc.pricePoint, tc.tier, tc.price)
+			err := ValidatePriceSelectionFlags(tc.pricePoint, tc.tier, tc.price, tc.free)
 			if err == nil {
 				t.Fatal("expected error for multiple flags")
 			}
@@ -148,5 +155,62 @@ func TestResolvePricePointByPrice_InvalidInput(t *testing.T) {
 	_, err := ResolvePricePointByPrice(tiers, "not-a-number")
 	if err == nil {
 		t.Fatal("expected error for non-numeric price")
+	}
+}
+
+func TestResolveFreeAppPricePointWithFetcher_PaginatesUntilMatch(t *testing.T) {
+	callCount := 0
+	id, err := resolveFreeAppPricePointWithFetcher("USA", func(nextURL string) (freePricePointPage, error) {
+		callCount++
+		switch callCount {
+		case 1:
+			if nextURL != "" {
+				t.Fatalf("expected empty nextURL on first page, got %q", nextURL)
+			}
+			return freePricePointPage{nextURL: "page=2"}, nil
+		case 2:
+			if nextURL != "page=2" {
+				t.Fatalf("expected page=2 nextURL, got %q", nextURL)
+			}
+			return freePricePointPage{pricePointID: "free-pp", found: true}, nil
+		default:
+			t.Fatalf("unexpected extra page fetch %d", callCount)
+			return freePricePointPage{}, nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != "free-pp" {
+		t.Fatalf("expected free-pp, got %q", id)
+	}
+	if callCount != 2 {
+		t.Fatalf("expected 2 page fetches, got %d", callCount)
+	}
+}
+
+func TestResolveFreeAppPricePointWithFetcher_ReturnsNotFoundWhenAbsent(t *testing.T) {
+	_, err := resolveFreeAppPricePointWithFetcher("USA", func(nextURL string) (freePricePointPage, error) {
+		return freePricePointPage{}, nil
+	})
+	if err == nil {
+		t.Fatal("expected error when free price point is absent")
+	}
+	expected := "no free ($0) price point found for territory USA"
+	if err.Error() != expected {
+		t.Fatalf("expected %q, got %q", expected, err.Error())
+	}
+}
+
+func TestResolveFreeAppPricePointWithFetcher_PropagatesFetchErrors(t *testing.T) {
+	expectedErr := fmt.Errorf("fetch price points: boom")
+	_, err := resolveFreeAppPricePointWithFetcher("USA", func(nextURL string) (freePricePointPage, error) {
+		return freePricePointPage{}, expectedErr
+	})
+	if err == nil {
+		t.Fatal("expected fetch error")
+	}
+	if err.Error() != expectedErr.Error() {
+		t.Fatalf("expected %q, got %q", expectedErr.Error(), err.Error())
 	}
 }
