@@ -21,8 +21,9 @@ preserving compatibility aliases until the broader `1.0.0` cleanup.
 - `--id` remains as a deprecated alias for `--build-id` on build-related read
   surfaces during transition.
 - `asc builds latest` will be removed as a fetch command.
-- `asc builds find` is removed once `asc builds info` can resolve by
-  `--build-number`.
+- `asc builds find` becomes a deprecated alias for `asc builds info` once
+  `builds info` can resolve by `--build-number`, and removal moves to a later
+  cleanup PR.
 - `asc builds next-number` will replace current `asc builds latest --next`.
 - `test-notes` becomes build-scoped plus `--locale`, not localization-ID-first.
 
@@ -123,13 +124,13 @@ Status: in progress
 Scope:
 
 - add shared selector support to `asc builds info`
-- remove `asc builds find`
+- keep `asc builds find` as a deprecated alias to `asc builds info`
 
 Design note:
 
 1. Command placement in taxonomy
-   Keep the entry point at `asc builds info`; do not create a parallel
-   replacement command for `find`.
+   Keep the canonical entry point at `asc builds info`; retain `find` only as a
+   hidden deprecated alias during the transition.
 
 2. OpenAPI / endpoint impact
    Reuse `GET /v1/builds` filters (`filter[app]`, `filter[version]`,
@@ -142,15 +143,24 @@ Design note:
    - `--app APP --latest`
    - `--app APP --build-number NUM [--platform IOS]`
 
+   For backward compatibility with `asc builds find`, app-scoped
+   `--build-number` lookup defaults `--platform` to `IOS` when omitted.
+
 4. Backward-compatibility / deprecation impact
-   `asc builds find` is removed in this PR because its behavior becomes a strict
-   subset of `asc builds info`. The compatibility cost is deliberate to avoid
-   carrying two public entry points for the same lookup job.
+   `asc builds find` remains available in this PR as a deprecated shim that
+   warns and forwards to `asc builds info`. The canonical migration path is:
+
+   `asc builds find --app APP --build-number NUM`
+   -> `asc builds info --app APP --build-number NUM`
+
+   `--build-number` lookup also preserves the historical implicit `IOS`
+   platform default unless the caller passes `--platform` explicitly.
 
 5. RED -> GREEN test plan
-   - replace `builds find` tests with `builds info` selector coverage
+   - replace most `builds find` coverage with `builds info` selector coverage
+   - add deprecated alias coverage for `builds find`
    - update validation/exit-code expectations for app-scoped `builds info`
-   - remove `builds find` from help and command registration
+   - keep `builds find` hidden from canonical help while preserving execution
    - run focused selector tests, then full required checks
 
 ### PR 3: Replace `builds latest` With `builds next-number`

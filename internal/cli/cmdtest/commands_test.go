@@ -604,10 +604,10 @@ func TestBuildsWaitValidationErrors(t *testing.T) {
 	}
 }
 
-func TestBuildsFindRemovedFromCommandTree(t *testing.T) {
+func TestBuildsFindAliasHiddenFromCommandTree(t *testing.T) {
 	usage := usageForCommand(t, "builds")
 	if strings.Contains(usage, "\n  find\t") || strings.Contains(usage, "\n  find ") {
-		t.Fatalf("expected builds find to be removed from help, got %q", usage)
+		t.Fatalf("expected deprecated builds find alias to stay hidden from help, got %q", usage)
 	}
 }
 

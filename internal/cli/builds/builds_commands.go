@@ -15,7 +15,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-const buildWaitDefaultTimeout = 30 * time.Minute
+const (
+	buildWaitDefaultTimeout            = 30 * time.Minute
+	buildNumberSelectorDefaultPlatform = "IOS"
+)
 
 // BuildsUploadCommand returns a command to upload a build
 func BuildsUploadCommand() *ffcli.Command {
@@ -432,6 +435,7 @@ Examples:
 			BuildsLatestCommand(),
 			BuildsWaitCommand(),
 			BuildsInfoCommand(),
+			BuildsFindCommand(),
 			BuildsExpireCommand(),
 			BuildsExpireAllCommand(),
 			BuildsUploadCommand(),
@@ -743,7 +747,7 @@ func BuildsInfoCommand() *ffcli.Command {
 	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Show details for the latest build in --app context")
-	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion) for --app")
+	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion) for --app; defaults to IOS when --platform is omitted")
 	platform := fs.String("platform", "", "Optional platform filter for app-scoped selectors: IOS, MAC_OS, TV_OS, VISION_OS")
 	output := shared.BindOutputFlags(fs)
 
@@ -757,6 +761,10 @@ Selector modes:
   --build-id BUILD_ID
   --app APP --latest
   --app APP --build-number BUILD_NUMBER [--platform IOS]
+
+When using --app with --build-number, --platform defaults to IOS for
+backward-compatible lookup behavior. Pass --platform explicitly for other
+platforms.
 
 Examples:
   asc builds info --build-id "BUILD_ID"
@@ -776,6 +784,9 @@ Examples:
 				BuildNumber: strings.TrimSpace(*buildNumber),
 				Platform:    strings.TrimSpace(*platform),
 				Latest:      *latest,
+			}
+			if resolveOpts.BuildID == "" && !resolveOpts.Latest && resolveOpts.BuildNumber != "" && resolveOpts.Platform == "" {
+				resolveOpts.Platform = buildNumberSelectorDefaultPlatform
 			}
 			if err := validateResolveBuildOptions(resolveOpts); err != nil {
 				return err

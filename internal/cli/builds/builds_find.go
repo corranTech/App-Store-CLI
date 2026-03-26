@@ -1,0 +1,18 @@
+package builds
+
+import (
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+)
+
+// BuildsFindCommand returns a deprecated compatibility alias for builds info.
+func BuildsFindCommand() *ffcli.Command {
+	return shared.DeprecatedAliasLeafCommand(
+		BuildsInfoCommand(),
+		"find",
+		"asc builds find --app APP --build-number BUILD_NUMBER [--platform IOS] [flags]",
+		"asc builds info",
+		"Warning: `asc builds find` is deprecated. Use `asc builds info`.",
+	)
+}
