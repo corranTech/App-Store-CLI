@@ -407,6 +407,7 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts l
 // specified, and a single ID when both version and platform are provided.
 func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	opts := []asc.PreReleaseVersionsOption{}
+	exactVersion := strings.TrimSpace(version)
 
 	if version != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsVersion(version))
@@ -432,19 +433,31 @@ func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 		return nil, fmt.Errorf("failed to lookup pre-release versions: %w", err)
 	}
 
-	// Version+platform narrows to a single result.
-	if version != "" && platform != "" {
-		if len(firstPage.Data) == 0 {
-			return nil, nil
+	matchesRequestedVersion := func(preReleaseVersion asc.PreReleaseVersion) bool {
+		if exactVersion == "" {
+			return true
 		}
-		return []string{firstPage.Data[0].ID}, nil
+		return strings.TrimSpace(preReleaseVersion.Attributes.Version) == exactVersion
+	}
+
+	// Version+platform should still enforce exact version matching because ASC
+	// filters can return near matches like 1.1.0 when the caller asked for 1.1.
+	if version != "" && platform != "" {
+		for _, preReleaseVersion := range firstPage.Data {
+			if matchesRequestedVersion(preReleaseVersion) {
+				return []string{preReleaseVersion.ID}, nil
+			}
+		}
+		return nil, nil
 	}
 
 	// For version-only or platform-only filtering, stream pages and keep only IDs.
 	ids := make([]string, 0, len(firstPage.Data))
 	appendIDs := func(page *asc.PreReleaseVersionsResponse) {
 		for _, preReleaseVersion := range page.Data {
-			ids = append(ids, preReleaseVersion.ID)
+			if matchesRequestedVersion(preReleaseVersion) {
+				ids = append(ids, preReleaseVersion.ID)
+			}
 		}
 	}
 

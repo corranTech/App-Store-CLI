@@ -237,6 +237,9 @@ Scope:
 
 Examples for the end state:
 
+The `builds test-notes` examples below describe the planned PR 4 target shape,
+not the current PR 1-3 command surface.
+
 ```bash
 asc builds info --build-id "BUILD_ID"
 asc builds info --app "123" --latest
@@ -254,8 +257,8 @@ asc builds test-notes delete --app "123" --latest --locale "en-US" --confirm
 
 ## Notes
 
-- `builds latest` remains in the repo during PR 1 only to keep the change set
-  narrow.
+- `builds latest` remains in the repo after PR 3 as a hidden deprecated shim
+  that warns toward `builds info --latest` and `builds next-number`.
 - Mutating commands like `expire`, `update`, `add-groups`, `remove-groups`, and
   `individual-testers` should be reviewed separately before inheriting inferred
   build selection.

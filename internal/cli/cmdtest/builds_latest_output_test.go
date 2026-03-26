@@ -518,7 +518,7 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
 			}
 			body := `{
-				"data":[{"type":"preReleaseVersions","id":"prv-1"}],
+				"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],
 				"links":{"next":""}
 			}`
 			return &http.Response{
@@ -631,7 +631,7 @@ func TestBuildsLatestNextProcessedOnly(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
 			body := `{
-				"data":[{"type":"preReleaseVersions","id":"prv-1"}],
+				"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],
 				"links":{"next":""}
 			}`
 			return &http.Response{
@@ -1179,7 +1179,7 @@ func TestBuildsLatestNotExpiredAliasSinglePreReleasePath(t *testing.T) {
 			if query.Get("filter[platform]") != "IOS" {
 				t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
 			}
-			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1"}],"links":{"next":""}}`
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
