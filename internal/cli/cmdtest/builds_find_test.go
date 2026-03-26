@@ -85,7 +85,7 @@ func TestBuildsInfoByBuildNumberSuccess(t *testing.T) {
 	}
 }
 
-func TestBuildsInfoByBuildNumberExplicitPlatformOverridesIOSDefault(t *testing.T) {
+func TestBuildsInfoByBuildNumberExplicitPlatformNarrowsResults(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")

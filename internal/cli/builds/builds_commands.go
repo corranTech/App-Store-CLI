@@ -748,7 +748,7 @@ func BuildsInfoCommand() *ffcli.Command {
 	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Show details for the latest build in --app context")
-	version := fs.String("version", "", "Optional version filter for --latest")
+	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app selectors")
 	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion) for --app unique lookup")
 	platform := fs.String("platform", "", "Optional platform filter for app-scoped selectors: IOS, MAC_OS, TV_OS, VISION_OS")
 	processingState := fs.String("processing-state", "", "Optional processing state filter for --latest: VALID, PROCESSING, FAILED, INVALID, or all")

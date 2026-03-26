@@ -167,8 +167,9 @@ Design note:
    `asc builds find --app APP --build-number NUM`
    -> `asc builds info --app APP --build-number NUM`
 
-   `--build-number` lookup also preserves the historical implicit `IOS`
-   platform default unless the caller passes `--platform` explicitly.
+   The deprecated shim resolves app-scoped selectors with the same
+   unique-match semantics as `asc builds info`, including explicit
+   `--platform` disambiguation when needed.
 
 5. RED -> GREEN test plan
    - replace most `builds find` coverage with `builds info` selector coverage
@@ -256,11 +257,12 @@ Scope:
 
 - standardize visible explicit selector naming to `--build-id` for mutating build commands
 - keep hidden deprecated `--build` aliases with warnings during the transition
-- do not add inferred selectors like `--app --latest` to destructive or mutating commands in this slice
+- leave inferred selector rollout for mutating commands to PR 7 so the final
+  selector contract can land in one pass
 
 ### PR 7: Finalize Unified Build Selectors
 
-Status: planned
+Status: complete
 
 Scope:
 
@@ -315,8 +317,8 @@ Design note:
 
 Examples for the end state:
 
-The `builds test-notes` examples below describe the planned PR 4 target shape,
-not the current PR 1-3 command surface.
+The `builds test-notes` examples below reflect the canonical selector shape
+after the later selector-unification work.
 
 ```bash
 asc builds info --build-id "BUILD_ID"

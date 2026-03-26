@@ -30,7 +30,7 @@ func BuildsWaitCommand() *ffcli.Command {
 	latest := fs.Bool("latest", false, "Wait for the latest matching build for --app context")
 	legacyNewest := bindHiddenBoolFlag(fs, "newest")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app")
-	buildNumber := fs.String("build-number", "", "Optional build number filter (CFBundleVersion) for --app")
+	buildNumber := fs.String("build-number", "", "Select a unique build by build number (CFBundleVersion) for --app context")
 	since := fs.String("since", "", "Only consider builds uploaded on or after this RFC3339 timestamp")
 	platform := fs.String("platform", "", "Optional platform filter for --app selectors: IOS, MAC_OS, TV_OS, VISION_OS")
 	timeout := fs.Duration("timeout", buildsWaitDefaultTimeout, "Maximum time to wait for build processing")
