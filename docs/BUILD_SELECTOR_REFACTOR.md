@@ -215,22 +215,23 @@ Design note:
 
 ### PR 4: Redesign `builds test-notes`
 
-Status: planned
+Status: in progress on the combined PR 4/5 branch
 
 Scope:
 
 - make `test-notes` build-scoped plus `--locale`
 - replace build-related `--id` usage with `--build-id`
 - optionally keep `--localization-id` as a low-level escape hatch
+- keep hidden deprecated `--build` / `--id` flag aliases during the transition
 
 ### PR 5: Legacy Removal + Remaining Read Commands
 
-Status: planned
+Status: folded into the combined PR 4/5 branch
 
 Scope:
 
-- delete `beta-build-localizations`
-- remove `builds test-notes get`
+- remove live `beta-build-localizations` behavior and leave removed-command guidance
+- remove live `builds test-notes get` behavior and leave removed-command guidance
 - standardize remaining read-oriented build commands on `--build-id`
 
 ## Command Target Shape
