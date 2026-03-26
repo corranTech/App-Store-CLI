@@ -154,7 +154,7 @@ Design note:
    Canonical selector forms become:
    - `--build-id BUILD_ID`
    - `--app APP --latest`
-   - `--app APP --build-number NUM [--platform IOS]`
+   - `--app APP --build-number NUM [--platform PLATFORM]`
 
    For backward compatibility with `asc builds find`, app-scoped
    `--build-number` lookup defaults `--platform` to `IOS` when omitted.

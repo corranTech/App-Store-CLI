@@ -81,8 +81,8 @@ func BuildsTestNotesListCommand() *ffcli.Command {
 
 Build selector modes (one of):
   --build-id BUILD_ID
-  --app APP --latest [--version VER] [--platform IOS]
-  --app APP --build-number NUM [--platform IOS]
+  --app APP --latest [--version VER] [--platform PLATFORM]
+  --app APP --build-number NUM [--platform PLATFORM]
 
 Examples:
   asc builds test-notes list --build-id "BUILD_ID"
@@ -253,8 +253,8 @@ func BuildsTestNotesCreateCommand() *ffcli.Command {
 
 Build selector modes (one of):
   --build-id BUILD_ID
-  --app APP --latest [--version VER] [--platform IOS]
-  --app APP --build-number NUM [--platform IOS]
+  --app APP --latest [--version VER] [--platform PLATFORM]
+  --app APP --build-number NUM [--platform PLATFORM]
 
 Examples:
   asc builds test-notes create --build-id "BUILD_ID" --locale "en-US" --whats-new "Test instructions"
