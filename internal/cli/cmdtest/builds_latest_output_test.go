@@ -12,6 +12,18 @@ import (
 	"testing"
 )
 
+func assertOnlyBuildsLatestFetchWarning(t *testing.T, stderr string) {
+	t.Helper()
+	requireStderrContainsWarning(t, stderr, "Warning: `asc builds latest` is deprecated. Use `asc builds info --latest`.")
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
+}
+
+func assertOnlyBuildsLatestNextWarning(t *testing.T, stderr string) {
+	t.Helper()
+	requireStderrContainsWarning(t, stderr, "Warning: `asc builds latest --next` is deprecated. Use `asc builds next-number`.")
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
+}
+
 func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersions(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -111,9 +123,7 @@ func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersions(t *testing.T)
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -216,9 +226,7 @@ func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersionsWithTimezoneOf
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -478,9 +486,7 @@ func TestBuildsLatestTableOutput(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, "2026-03-01T00:00:00Z") {
 		t.Fatalf("expected table output to contain uploaded timestamp, got %q", stdout)
 	}
@@ -583,9 +589,7 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string  `json:"latestProcessedBuildNumber"`
@@ -675,9 +679,7 @@ func TestBuildsLatestNextProcessedOnly(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -753,9 +755,7 @@ func TestBuildsLatestNextUploadsOnly(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -831,9 +831,7 @@ func TestBuildsLatestNextNoHistoryUsesInitial(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -922,9 +920,7 @@ func TestBuildsLatestNextSupportsDotSeparatedBuildNumbers(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -1000,9 +996,7 @@ func TestBuildsLatestExcludeExpiredFiltersOutExpiredBuilds(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1084,9 +1078,7 @@ func TestBuildsLatestNextExcludeExpiredHonorsFilter(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -1154,9 +1146,7 @@ func TestBuildsLatestNotExpiredAliasHonorsExpiredFilter(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, `"id":"build-alias"`) {
 		t.Fatalf("expected build-alias in output, got %q", stdout)
 	}
@@ -1230,9 +1220,7 @@ func TestBuildsLatestNotExpiredAliasSinglePreReleasePath(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, `"id":"build-single"`) {
 		t.Fatalf("expected build-single in output, got %q", stdout)
 	}
@@ -1317,9 +1305,7 @@ func TestBuildsLatestNotExpiredAliasMultiPreReleasePath(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, `"id":"build-new"`) {
 		t.Fatalf("expected newest build from multi-pre-release path, got %q", stdout)
 	}
@@ -1385,9 +1371,7 @@ func TestBuildsLatestSelectsNewestUploadedDateWhenBuildNumberResets(t *testing.T
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1465,9 +1449,7 @@ func TestBuildsLatestIncludesExpiredByDefaultWhenItIsNewest(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1545,9 +1527,7 @@ func TestBuildsLatestExcludeExpiredSelectsNewestNonExpiredAcrossPages(t *testing
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1632,9 +1612,7 @@ func TestBuildsLatestDoesNotExhaustivelyPaginateWhenOrderingIsStable(t *testing.
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1720,9 +1698,7 @@ func TestBuildsLatestDoesNotTreatIDOnlyTieAsOrderingAnomaly(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1802,9 +1778,7 @@ func TestBuildsLatestReturnsFirstPageBestWhenProbePageFails(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -2012,9 +1986,7 @@ func TestBuildsLatestReturnsBestFetchedCandidateWhenLaterProbeFails(t *testing.T
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -2113,9 +2085,7 @@ func TestBuildsLatestKeepsScanningAfterAnomalyUntilPaginationExhausted(t *testin
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {

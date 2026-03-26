@@ -61,7 +61,7 @@ func TestBuildsSelectorAliasesWarnAndMatchCanonicalValidationPaths(t *testing.T)
 			canonicalArgs: []string{"builds", "dsyms", "--build-id", "BUILD_123", "--app", "APP_123"},
 			aliasArgs:     []string{"builds", "dsyms", "--build", "BUILD_123", "--app", "APP_123"},
 			warning:       buildsLegacyBuildWarning,
-			wantErr:       "Error: --build-id cannot be combined with --app, --latest, --build-number, --version, or --platform",
+			wantErr:       "Error: --build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, or --exclude-expired",
 		},
 	}
 

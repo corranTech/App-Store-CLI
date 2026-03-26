@@ -202,8 +202,8 @@ func TestBuildsInfoByLatestSuccess(t *testing.T) {
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 			}
-			if query.Get("limit") != "1" {
-				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			if query.Get("filter[version]") != "" {
 				t.Fatalf("expected no build-number filter, got %q", query.Get("filter[version]"))

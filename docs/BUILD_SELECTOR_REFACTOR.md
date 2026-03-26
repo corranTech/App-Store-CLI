@@ -119,7 +119,7 @@ Design note:
 
 ### PR 2: Make `builds info` Canonical
 
-Status: in progress
+Status: complete
 
 Scope:
 
@@ -165,12 +165,50 @@ Design note:
 
 ### PR 3: Replace `builds latest` With `builds next-number`
 
-Status: planned
+Status: in progress
 
 Scope:
 
 - move `--next` behavior into `asc builds next-number`
 - remove `asc builds latest` as a fetch command
+
+Design note:
+
+1. Command placement in taxonomy
+   Canonical "latest build details" lookup moves to `asc builds info --latest`.
+   Canonical next build number calculation moves to `asc builds next-number`.
+   `asc builds latest` stays only as a hidden deprecated compatibility shim
+   during the transition.
+
+2. OpenAPI / endpoint impact
+   Reuse the same `GET /v1/builds`, `GET /v1/preReleaseVersions`, and
+   `GET /v1/apps/{id}/buildUploads` calls already used by `builds latest`.
+   No new API surface is required; this PR only redistributes existing lookup
+   behavior across clearer CLI entry points.
+
+3. UX shape
+   Canonical commands become:
+   - `asc builds info --app APP --latest`
+   - `asc builds info --app APP --latest --version 1.2.3 --platform IOS`
+   - `asc builds next-number --app APP --version 1.2.3 --platform IOS`
+
+   `builds info --latest` should own latest-build fetch filters such as
+   `--version`, `--platform`, `--processing-state`, and
+   `--exclude-expired` / `--not-expired`.
+
+4. Backward-compatibility / deprecation impact
+   `asc builds latest` should stop being a canonical fetch command in help and
+   docs, but remain available as a hidden deprecated shim for one transition
+   cycle. Without `--next` it should warn toward `asc builds info --latest`;
+   with `--next` it should warn toward `asc builds next-number`.
+
+5. RED -> GREEN test plan
+   - move latest-fetch coverage to `builds info --latest`
+   - move next-number coverage to `builds next-number`
+   - add deprecated alias coverage for `builds latest`
+   - update workflow/docs/help text to use `builds info --latest` and
+     `builds next-number`
+   - run focused latest/next-number tests, then full required checks
 
 ### PR 4: Redesign `builds test-notes`
 

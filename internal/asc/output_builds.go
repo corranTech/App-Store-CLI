@@ -50,8 +50,8 @@ func buildsCountRows(result *BuildsCountResult) ([]string, [][]string) {
 	return headers, rows
 }
 
-// BuildsLatestNextResult represents CLI output for next build number selection.
-type BuildsLatestNextResult struct {
+// BuildsNextNumberResult represents CLI output for next build number selection.
+type BuildsNextNumberResult struct {
 	LatestProcessedBuildNumber *string  `json:"latestProcessedBuildNumber"`
 	LatestUploadBuildNumber    *string  `json:"latestUploadBuildNumber"`
 	LatestObservedBuildNumber  *string  `json:"latestObservedBuildNumber"`
@@ -355,7 +355,7 @@ func buildsLatestNextSources(sources []string) string {
 	return strings.Join(sources, ", ")
 }
 
-func buildsLatestNextRows(result *BuildsLatestNextResult) ([]string, [][]string) {
+func buildsNextNumberRows(result *BuildsNextNumberResult) ([]string, [][]string) {
 	headers := []string{"Latest Processed", "Latest Upload", "Latest Observed", "Next", "Sources"}
 	rows := [][]string{{
 		buildsLatestNextValue(result.LatestProcessedBuildNumber),
