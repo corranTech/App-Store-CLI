@@ -274,7 +274,7 @@ func resolveBuildForAppWait(
 		return nil, err
 	}
 
-	return applyWaitSinceConstraint(buildResp, selector.Since)
+	return buildResp, nil
 }
 
 func applyWaitSinceConstraint(buildResp *asc.BuildResponse, since *time.Time) (*asc.BuildResponse, error) {
