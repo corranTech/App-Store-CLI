@@ -1,0 +1,142 @@
+# builds
+
+> Manage builds, uploads, and TestFlight distribution
+
+The `builds` command manages app builds, including uploads, listing, and TestFlight distribution.
+
+## Usage
+
+```bash  theme={null}
+asc builds <subcommand> [flags]
+```
+
+## Subcommands
+
+### Upload builds
+
+Upload IPA files to App Store Connect:
+
+```bash  theme={null}
+asc builds upload --app APP_ID --file /path/to/MyApp.ipa
+```
+
+### List builds
+
+List all builds for an app:
+
+```bash  theme={null}
+asc builds list --app APP_ID
+asc builds list --app APP_ID --sort -uploadedDate
+asc builds list --app APP_ID --filter "processingState==VALID"
+```
+
+### Get build details
+
+Retrieve details for a specific build:
+
+```bash  theme={null}
+asc builds get --build BUILD_ID
+asc builds latest --app APP_ID
+```
+
+### Distribute to TestFlight
+
+Add builds to beta groups:
+
+```bash  theme={null}
+asc builds add-groups --build BUILD_ID --group "External Testers"
+asc builds add-groups --build BUILD_ID --group "GROUP1,GROUP2"
+```
+
+### Expire builds
+
+Expire builds from TestFlight:
+
+```bash  theme={null}
+asc builds expire --build BUILD_ID
+asc builds expire-all --app APP_ID --version 1.2.0
+```
+
+## Common workflows
+
+### Upload and distribute to TestFlight
+
+```bash  theme={null}
+# Upload build
+asc builds upload --app 123456789 --file MyApp.ipa
+
+# Wait for processing
+asc builds wait --app 123456789
+
+# Distribute to beta group
+asc builds add-groups --build BUILD_ID --group "External Testers"
+```
+
+### Find latest build for a version
+
+```bash  theme={null}
+asc builds latest --app 123456789 --version 1.2.0
+```
+
+## Upload flags
+
+<ParamField path="--app" type="string" required>
+  App ID for the build
+</ParamField>
+
+<ParamField path="--file" type="string" required>
+  Path to IPA file to upload
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Platform: `IOS`, `MAC_OS`, `TV_OS`
+
+  Default: auto-detected from IPA
+</ParamField>
+
+## List flags
+
+<ParamField path="--app" type="string" required>
+  App ID to list builds for
+</ParamField>
+
+<ParamField path="--filter" type="string">
+  Filter builds by criteria
+
+  Example: `processingState==VALID`
+</ParamField>
+
+<ParamField path="--sort" type="string">
+  Sort order: `uploadedDate`, `-uploadedDate`, `version`
+</ParamField>
+
+<ParamField path="--limit" type="number">
+  Maximum number of results
+</ParamField>
+
+<ParamField path="--paginate" type="boolean">
+  Fetch all pages automatically
+</ParamField>
+
+## Processing states
+
+Builds go through several processing states:
+
+| State        | Description                   |
+| ------------ | ----------------------------- |
+| `PROCESSING` | Build is being processed      |
+| `FAILED`     | Processing failed             |
+| `INVALID`    | Build is invalid              |
+| `VALID`      | Build is ready for TestFlight |
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TestFlight command" icon="plane" href="/commands/testflight">
+    Manage TestFlight resources
+  </Card>
+
+  <Card title="TestFlight guide" icon="book-open" href="/guides/testflight">
+    Complete TestFlight distribution guide
+  </Card>
+</CardGroup>

@@ -1,0 +1,94 @@
+# crashes
+
+> List and analyze TestFlight crash reports
+
+The `crashes` command retrieves crash reports from TestFlight beta testing.
+
+## Usage
+
+```bash  theme={null}
+asc crashes [flags]
+```
+
+## List crashes
+
+Retrieve crash reports for an app:
+
+```bash  theme={null}
+asc crashes --app APP_ID
+asc crashes --app APP_ID --sort -createdDate
+asc crashes --app APP_ID --limit 10
+```
+
+## Output example
+
+```json  theme={null}
+{
+  "data": [
+    {
+      "id": "crash-id",
+      "type": "betaCrashReports",
+      "attributes": {
+        "crashCount": 5,
+        "createdDate": "2024-03-04T09:15:00Z",
+        "exceptionType": "NSInvalidArgumentException",
+        "symbolicated": true
+      }
+    }
+  ]
+}
+```
+
+## Flags
+
+<ParamField path="--app" type="string" required>
+  App ID to retrieve crashes for
+</ParamField>
+
+<ParamField path="--sort" type="string">
+  Sort order: `createdDate`, `-createdDate`, `crashCount`
+</ParamField>
+
+<ParamField path="--limit" type="number">
+  Maximum number of results
+</ParamField>
+
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, or `markdown`
+</ParamField>
+
+<ParamField path="--paginate" type="boolean">
+  Fetch all pages automatically
+</ParamField>
+
+## Example workflows
+
+### View recent crashes
+
+```bash  theme={null}
+asc crashes --app 123456789 --sort -createdDate --limit 10 --output table
+```
+
+### Export all crashes
+
+```bash  theme={null}
+asc crashes --app 123456789 --paginate > crashes.json
+```
+
+### Count total crashes
+
+```bash  theme={null}
+asc crashes --app 123456789 --output json | jq '[.data[].attributes.crashCount] | add'
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Feedback command" icon="comment" href="/commands/feedback">
+    View beta tester feedback
+  </Card>
+
+  <Card title="TestFlight guide" icon="plane" href="/guides/testflight">
+    Complete TestFlight guide
+  </Card>
+</CardGroup>

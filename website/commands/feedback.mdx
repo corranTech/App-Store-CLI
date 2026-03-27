@@ -1,0 +1,89 @@
+# feedback
+
+> List and manage TestFlight feedback from beta testers
+
+The `feedback` command retrieves feedback submitted by beta testers through TestFlight.
+
+## Usage
+
+```bash  theme={null}
+asc feedback [flags]
+```
+
+## List feedback
+
+Retrieve feedback for an app:
+
+```bash  theme={null}
+asc feedback --app APP_ID
+asc feedback --app APP_ID --output table
+asc feedback --app APP_ID --paginate
+```
+
+## Output example
+
+```json  theme={null}
+{
+  "data": [
+    {
+      "id": "feedback-id",
+      "type": "betaFeedbacks",
+      "attributes": {
+        "comment": "Great app, but the login screen is slow",
+        "timestamp": "2024-03-04T10:30:00Z",
+        "email": "tester@example.com"
+      }
+    }
+  ]
+}
+```
+
+## Flags
+
+<ParamField path="--app" type="string" required>
+  App ID to retrieve feedback for
+</ParamField>
+
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, or `markdown`
+</ParamField>
+
+<ParamField path="--limit" type="number">
+  Maximum number of results
+</ParamField>
+
+<ParamField path="--paginate" type="boolean">
+  Fetch all pages automatically
+</ParamField>
+
+## Example workflows
+
+### View all feedback in table format
+
+```bash  theme={null}
+asc feedback --app 123456789 --output table --paginate
+```
+
+### Export feedback to file
+
+```bash  theme={null}
+asc feedback --app 123456789 --paginate > feedback.json
+```
+
+### Filter recent feedback
+
+```bash  theme={null}
+asc feedback --app 123456789 --output json | jq '.data[] | select(.attributes.timestamp > "2024-03-01")'
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Crashes command" icon="bug" href="/commands/crashes">
+    View crash reports
+  </Card>
+
+  <Card title="TestFlight guide" icon="plane" href="/guides/testflight">
+    Complete TestFlight guide
+  </Card>
+</CardGroup>

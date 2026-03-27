@@ -1,0 +1,124 @@
+# sandbox
+
+> Manage sandbox testers for testing in-app purchases and subscriptions
+
+The `sandbox` command manages sandbox testers used for testing in-app purchases and subscriptions.
+
+## Usage
+
+```bash  theme={null}
+asc sandbox <subcommand> [flags]
+```
+
+## Subcommands
+
+### List sandbox testers
+
+```bash  theme={null}
+asc sandbox list
+asc sandbox list --output table
+```
+
+### Get sandbox tester
+
+```bash  theme={null}
+asc sandbox get --tester-id TESTER_ID
+```
+
+### Create sandbox tester
+
+```bash  theme={null}
+asc sandbox create \
+  --email tester@example.com \
+  --first-name John \
+  --last-name Doe \
+  --territory US
+```
+
+### Update sandbox tester
+
+```bash  theme={null}
+asc sandbox update --tester-id TESTER_ID --first-name Jane
+```
+
+### Delete sandbox tester
+
+```bash  theme={null}
+asc sandbox delete --tester-id TESTER_ID
+```
+
+## Create flags
+
+<ParamField path="--email" type="string" required>
+  Email address for the sandbox tester
+
+  Must be unique and not used for any Apple ID.
+</ParamField>
+
+<ParamField path="--first-name" type="string" required>
+  First name of the tester
+</ParamField>
+
+<ParamField path="--last-name" type="string" required>
+  Last name of the tester
+</ParamField>
+
+<ParamField path="--territory" type="string" required>
+  Two-letter territory code (e.g., `US`, `GB`, `JP`)
+</ParamField>
+
+## List flags
+
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, or `markdown`
+</ParamField>
+
+<ParamField path="--limit" type="number">
+  Maximum number of results
+</ParamField>
+
+<ParamField path="--paginate" type="boolean">
+  Fetch all pages automatically
+</ParamField>
+
+## Example workflows
+
+### Create multiple sandbox testers
+
+```bash  theme={null}
+for i in {1..5}; do
+  asc sandbox create \
+    --email "tester$i@example.com" \
+    --first-name "Tester" \
+    --last-name "$i" \
+    --territory US
+done
+```
+
+### List all testers
+
+```bash  theme={null}
+asc sandbox list --output table --paginate
+```
+
+### Delete a tester
+
+```bash  theme={null}
+asc sandbox delete --tester-id TESTER_ID
+```
+
+<Note>
+  Sandbox testers are used for testing in-app purchases in development and TestFlight builds. They do not incur real charges.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="IAP command" icon="dollar-sign" href="/commands/iap">
+    Manage in-app purchases
+  </Card>
+
+  <Card title="Subscriptions command" icon="repeat" href="/commands/subscriptions">
+    Manage subscriptions
+  </Card>
+</CardGroup>

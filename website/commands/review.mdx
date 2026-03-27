@@ -1,0 +1,140 @@
+# review
+
+> Manage App Store review details, attachments, and submissions
+
+The `review` command manages App Store review submissions, including review details and attachments.
+
+## Usage
+
+```bash  theme={null}
+asc review <subcommand> [flags]
+```
+
+## Subcommands
+
+### List submissions
+
+List App Store review submissions:
+
+```bash  theme={null}
+asc review list --app APP_ID
+asc review list --app APP_ID --filter "state==IN_REVIEW"
+```
+
+### Get submission
+
+Get details for a specific submission:
+
+```bash  theme={null}
+asc review get --submission-id SUBMISSION_ID
+```
+
+### Cancel submission
+
+Cancel a pending submission:
+
+```bash  theme={null}
+asc review cancel --submission-id SUBMISSION_ID
+```
+
+### Manage review details
+
+Update review information:
+
+```bash  theme={null}
+asc review details update \
+  --version-id VERSION_ID \
+  --contact-email support@example.com \
+  --contact-phone "+1-555-0100"
+```
+
+### Manage attachments
+
+Add attachments to review submissions:
+
+```bash  theme={null}
+asc review attachments create \
+  --submission-id SUBMISSION_ID \
+  --file /path/to/demo-video.mp4
+```
+
+## List flags
+
+<ParamField path="--app" type="string" required>
+  App ID to list submissions for
+</ParamField>
+
+<ParamField path="--filter" type="string">
+  Filter submissions by state
+
+  States: `WAITING_FOR_REVIEW`, `IN_REVIEW`, `PENDING_DEVELOPER_RELEASE`, `APPROVED`, `REJECTED`
+</ParamField>
+
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, or `markdown`
+</ParamField>
+
+## Review states
+
+| State                       | Description                             |
+| --------------------------- | --------------------------------------- |
+| `WAITING_FOR_REVIEW`        | Submission is queued for review         |
+| `IN_REVIEW`                 | App is currently being reviewed         |
+| `PENDING_DEVELOPER_RELEASE` | Approved, waiting for developer release |
+| `APPROVED`                  | Approved and released                   |
+| `REJECTED`                  | Rejected by App Review                  |
+
+## Example workflows
+
+### Check review status
+
+```bash  theme={null}
+asc review list --app 123456789 --filter "state==IN_REVIEW"
+```
+
+### Cancel a submission
+
+```bash  theme={null}
+# List submissions
+asc review list --app 123456789
+
+# Cancel specific submission
+asc review cancel --submission-id SUBMISSION_ID
+```
+
+### Update review contact info
+
+```bash  theme={null}
+asc review details update \
+  --version-id VERSION_ID \
+  --contact-email support@example.com \
+  --contact-phone "+1-555-0100" \
+  --demo-account-name "demo@example.com" \
+  --demo-account-password "password123"
+```
+
+### Monitor review progress
+
+```bash  theme={null}
+# Check every hour
+while true; do
+  asc review list --app 123456789 --output table
+  sleep 3600
+done
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Submit command" icon="paper-plane" href="/commands/submit">
+    Submit for App Store review
+  </Card>
+
+  <Card title="Reviews command" icon="star" href="/commands/reviews">
+    Manage customer reviews
+  </Card>
+
+  <Card title="Submission guide" icon="book-open" href="/guides/app-store-submission">
+    Complete submission guide
+  </Card>
+</CardGroup>

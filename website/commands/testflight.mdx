@@ -1,0 +1,108 @@
+# testflight
+
+> Manage TestFlight resources including beta groups, testers, feedback, and crash logs
+
+The `testflight` command provides comprehensive management of TestFlight resources.
+
+## Usage
+
+```bash  theme={null}
+asc testflight <subcommand> [flags]
+```
+
+## Subcommands
+
+### Beta groups
+
+Manage beta testing groups:
+
+```bash  theme={null}
+asc testflight beta-groups list --app APP_ID
+asc testflight beta-groups get --group-id GROUP_ID
+asc testflight beta-groups create --app APP_ID --name "External Testers"
+asc testflight beta-groups update --group-id GROUP_ID --name "Updated Name"
+asc testflight beta-groups delete --group-id GROUP_ID
+```
+
+### Beta testers
+
+Manage individual beta testers:
+
+```bash  theme={null}
+asc testflight beta-testers list --app APP_ID
+asc testflight beta-testers get --tester-id TESTER_ID
+asc testflight beta-testers create --app APP_ID --email user@example.com
+asc testflight beta-testers delete --tester-id TESTER_ID
+```
+
+### Feedback and crashes
+
+View beta tester feedback and crash logs:
+
+```bash  theme={null}
+asc testflight beta-feedback list --app APP_ID
+asc testflight beta-crash-logs list --build BUILD_ID
+asc testflight beta-crash-logs get --id CRASH_LOG_ID
+```
+
+### Metrics
+
+Access TestFlight metrics:
+
+```bash  theme={null}
+asc testflight metrics beta-tester-usages --app APP_ID
+```
+
+## Common workflows
+
+### Create a beta group and add testers
+
+```bash  theme={null}
+# Create a new beta group
+asc testflight beta-groups create \
+  --app 123456789 \
+  --name "External Testers" \
+  --is-internal-group false
+
+# Add testers to the group
+asc testflight beta-testers create \
+  --app 123456789 \
+  --email tester@example.com \
+  --group-id GROUP_ID
+```
+
+### View feedback from beta testers
+
+```bash  theme={null}
+asc testflight beta-feedback list --app 123456789 --output table
+```
+
+## Flags
+
+<ParamField path="--app" type="string" required>
+  App ID for TestFlight operations
+</ParamField>
+
+<ParamField path="--group-id" type="string">
+  Beta group ID
+</ParamField>
+
+<ParamField path="--tester-id" type="string">
+  Beta tester ID
+</ParamField>
+
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, or `markdown`
+</ParamField>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TestFlight guide" icon="plane" href="/guides/testflight">
+    Complete TestFlight distribution guide
+  </Card>
+
+  <Card title="Builds command" icon="box" href="/commands/builds">
+    Manage builds and uploads
+  </Card>
+</CardGroup>
