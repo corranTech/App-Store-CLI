@@ -32,7 +32,7 @@ Before submitting, ensure you have:
     Create an App Store version if it doesn't exist:
 
     ```bash  theme={null}
-    asc app-versions create \
+    asc versions create \
       --app "YOUR_APP_ID" \
       --version "1.0.0" \
       --platform IOS
@@ -41,7 +41,7 @@ Before submitting, ensure you have:
     Or list existing versions:
 
     ```bash  theme={null}
-    asc app-versions list --app "YOUR_APP_ID" --platform IOS
+    asc versions list --app "YOUR_APP_ID" --platform IOS
     ```
   </Step>
 
@@ -56,7 +56,7 @@ Before submitting, ensure you have:
     Update missing localizations:
 
     ```bash  theme={null}
-    asc app-info set \
+    asc app-setup info set \
       --app "YOUR_APP_ID" \
       --locale "en-US" \
       --name "My App" \
@@ -152,7 +152,7 @@ Before submitting, ensure you have:
     View detailed version information:
 
     ```bash  theme={null}
-    asc app-versions get --id "VERSION_ID"
+    asc versions view --version-id "VERSION_ID"
     ```
 
     The version state indicates the current stage:
@@ -227,7 +227,7 @@ PLATFORM="IOS"
 
 # 1. Find or create the app version
 echo "Creating version $VERSION..."
-VERSION_RESPONSE=$(asc app-versions create \
+VERSION_RESPONSE=$(asc versions create \
   --app "$ASC_APP_ID" \
   --version "$VERSION" \
   --platform "$PLATFORM" \
@@ -238,7 +238,7 @@ VERSION_ID=$(echo "$VERSION_RESPONSE" | jq -r '.data.id')
 
 if [ -z "$VERSION_ID" ]; then
   echo "Version already exists, fetching ID..."
-  VERSION_ID=$(asc app-versions list \
+  VERSION_ID=$(asc versions list \
     --app "$ASC_APP_ID" \
     --platform "$PLATFORM" \
     --output json | jq -r '.data[] | select(.attributes.versionString == "'$VERSION'") | .id' | head -1)
@@ -298,7 +298,7 @@ If any fields are missing, the submission will fail with a detailed error:
 Submit preflight failed: submission-blocking localization fields are missing:
   - en-US: description, keywords
   - es-ES: whats-new
-Fix these with `asc app-info set` (optionally using --copy-from-locale) before retrying submit create.
+Fix these with `asc apps info edit` (optionally using `--copy-from-locale`) before retrying `asc submit create`.
 ```
 
 ### Fixing Validation Errors
@@ -306,7 +306,7 @@ Fix these with `asc app-info set` (optionally using --copy-from-locale) before r
 Copy complete localization from one locale to another:
 
 ```bash  theme={null}
-asc app-info set \
+asc apps info edit \
   --app "YOUR_APP_ID" \
   --locale "es-ES" \
   --copy-from-locale "en-US"

@@ -8,19 +8,11 @@ import re
 import sys
 from pathlib import Path
 
-
-LINK_RE = re.compile(r'(?<![\w`])!?\[[^\]]*\]\(([^)]+)\)|href="([^"]+)"')
-IGNORED_PREFIXES = ("http://", "https://", "mailto:", "tel:", "data:", "javascript:")
+from doc_links import extract_targets, normalize_target
 
 
 def load_docs_json(website_root: Path) -> dict:
     return json.loads((website_root / "docs.json").read_text())
-
-
-def page_id_for_file(path: Path) -> str:
-    return path.relative_to(path.parents[1]).with_suffix("").as_posix()
-
-
 def route_for_path(path_str: str) -> str:
     path_str = re.sub(r"\.mdx?$", "", path_str.strip("/"))
     if path_str == "index":
@@ -39,29 +31,6 @@ def collect_site_state(website_root: Path) -> tuple[set[str], set[str]]:
         page_ids.add(page_id)
         routes.add(route_for_path(page_id))
     return page_ids, routes
-
-
-def extract_targets(text: str) -> list[str]:
-    targets = []
-    for match in LINK_RE.finditer(text):
-        target = match.group(1) or match.group(2)
-        if target:
-            targets.append(target.strip())
-    return targets
-
-
-def normalize_target(target: str) -> str | None:
-    target = target.strip()
-    if not target or target.startswith("#"):
-        return None
-    if target.startswith(IGNORED_PREFIXES):
-        return None
-    if target.startswith("<") and target.endswith(">"):
-        target = target[1:-1]
-    target = target.split("#", 1)[0].split("?", 1)[0]
-    return target or None
-
-
 def iter_navigation_pages(node: object) -> list[str]:
     pages: list[str] = []
     if isinstance(node, dict):
@@ -70,6 +39,8 @@ def iter_navigation_pages(node: object) -> list[str]:
                 for page in value:
                     if isinstance(page, str):
                         pages.append(page)
+                    else:
+                        pages.extend(iter_navigation_pages(page))
             else:
                 pages.extend(iter_navigation_pages(value))
     elif isinstance(node, list):
@@ -133,7 +104,7 @@ def check_internal_links(website_root: Path, routes: set[str]) -> list[str]:
         rel = file.relative_to(website_root)
         source_page_id = rel.with_suffix("").as_posix()
         for target in extract_targets(file.read_text()):
-            normalized = normalize_target(target)
+            normalized = normalize_target(target, allow_root_relative=True)
             if normalized is None:
                 continue
             kind, resolved = resolve_route(source_page_id, normalized)

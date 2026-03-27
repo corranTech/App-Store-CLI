@@ -61,6 +61,39 @@ class WebsiteDocsChecksTest(unittest.TestCase):
             self.assertEqual(check_website_docs.check_redirects(website, routes), [])
             self.assertEqual(check_website_docs.check_internal_links(website, routes), [])
 
+    def test_website_docs_accept_nested_navigation_groups(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "guides").mkdir()
+            (website / "docs.json").write_text(
+                json.dumps(
+                    {
+                        "navigation": {
+                            "tabs": [
+                                {
+                                    "groups": [
+                                        {
+                                            "group": "Guides",
+                                            "pages": [
+                                                {
+                                                    "group": "Advanced",
+                                                    "pages": ["guides/test"],
+                                                }
+                                            ],
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                )
+            )
+            (website / "index.mdx").write_text("# Home\n")
+            (website / "guides" / "test.mdx").write_text("# Test\n")
+
+            page_ids, _ = check_website_docs.collect_site_state(website)
+            self.assertEqual(check_website_docs.check_navigation(website, page_ids), [])
+
     def test_website_docs_report_missing_navigation_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)

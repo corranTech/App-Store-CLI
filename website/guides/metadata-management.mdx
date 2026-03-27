@@ -296,7 +296,7 @@ export ASC_APP_ID="YOUR_APP_ID"
 VERSION="1.0.0"
 
 # 1. Get version ID
-VERSION_ID=$(asc app-versions list \
+VERSION_ID=$(asc versions list \
   --app "$ASC_APP_ID" \
   --output json | \
   jq -r '.data[] | select(.attributes.versionString == "'$VERSION'") | .id' | head -1)

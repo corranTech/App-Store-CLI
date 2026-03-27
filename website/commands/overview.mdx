@@ -168,7 +168,7 @@ asc apps get --app "123456789" --output json
 
 # Validate and submit an App Store version
 asc validate --app "123456789" --version "1.2.3"
-asc submit --app "123456789" --version "1.2.3"
+asc submit create --app "123456789" --version "1.2.3"
 
 # Run a local automation workflow
 asc workflow run --file .asc/workflow.json --workflow release

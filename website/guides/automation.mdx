@@ -322,11 +322,11 @@ asc workflow run submit VERSION:1.0.0 VERSION_ID:abc123
       "steps": [
         {
           "name": "create_version",
-          "run": "asc app-versions create --app $APP_ID --version $VERSION --platform $PLATFORM"
+          "run": "asc versions create --app $APP_ID --version $VERSION --platform $PLATFORM"
         },
         {
           "name": "get_version_id",
-          "run": "VERSION_ID=$(asc app-versions list --app $APP_ID --output json | jq -r '.data[] | select(.attributes.versionString == \"'$VERSION'\") | .id') && echo VERSION_ID=$VERSION_ID"
+          "run": "VERSION_ID=$(asc versions list --app $APP_ID --output json | jq -r '.data[] | select(.attributes.versionString == \"'$VERSION'\") | .id') && echo VERSION_ID=$VERSION_ID"
         }
       ]
     },

@@ -201,7 +201,7 @@
   Update metadata using PATCH operations:
 
   ```bash  theme={null}
-  asc app-info update --app "123456789" --locale en-US --name "New App Name"
+  asc app-setup info set --app "123456789" --locale en-US --name "New App Name"
   ```
 </Accordion>
 
@@ -293,13 +293,13 @@
   Sales reports use calendar dates:
 
   ```bash  theme={null}
-  asc sales get --date 2024-01-15
+  asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequency DAILY --date "2024-01-15"
   ```
 
   Finance reports use Apple fiscal months (`YYYY-MM`):
 
   ```bash  theme={null}
-  asc finance get --report-type FINANCIAL --region ZZ --period 2024-01
+  asc finance reports --vendor "12345678" --report-type FINANCIAL --region ZZ --date "2024-01"
   ```
 
   See [API Notes](/resources/api-notes) for detailed quirks.
@@ -309,25 +309,23 @@
   Yes. List sandbox testers:
 
   ```bash  theme={null}
-  asc sandbox-testers list
+  asc sandbox list
   ```
 
-  Create new testers:
+  View a specific tester:
 
   ```bash  theme={null}
-  asc sandbox-testers create \
-    --email "test@example.com" \
-    --first-name "Test" \
-    --last-name "User" \
-    --password "SecurePass123" \
-    --territory USA
+  asc sandbox view --email "test@example.com"
   ```
 
-  **Requirements**:
+  Update an existing tester:
 
-  * Password must include uppercase, lowercase, and a number (8+ chars)
-  * Territory uses 3-letter codes (e.g., `USA`, `JPN`)
-  * Secret question and answer required
+  ```bash  theme={null}
+  asc sandbox update --id "SANDBOX_TESTER_ID" --territory USA
+  ```
+
+  The current CLI supports `list`, `view`, `update`, and `clear-history` for sandbox testers.
+  Territory uses 3-letter codes such as `USA` and `JPN`.
 </Accordion>
 
 <Accordion title="How do I work with Game Center?">

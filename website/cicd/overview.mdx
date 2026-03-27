@@ -177,7 +177,7 @@ asc validate \
   --version "1.2.3"
 
 # Submit for review
-asc submit \
+asc submit create \
   --app "123456789" \
   --version "1.2.3"
 ```
@@ -186,7 +186,7 @@ asc submit \
 
 ```bash  theme={null}
 # Update app description
-asc app-info update \
+asc apps info edit \
   --app "123456789" \
   --description "New description" \
   --locale en-US
@@ -335,7 +335,7 @@ Detailed integration guides for each platform:
 
     ```bash  theme={null}
     asc validate --app "$APP_ID" --version "$VERSION" || exit 1
-    asc submit --app "$APP_ID" --version "$VERSION"
+    asc submit create --app "$APP_ID" --version "$VERSION"
     ```
   </Accordion>
 </AccordionGroup>

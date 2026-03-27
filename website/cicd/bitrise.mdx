@@ -167,7 +167,7 @@ workflows:
                 VERSION="$BITRISE_GIT_TAG"
                 
                 echo "Submitting version $VERSION for review..."
-                asc submit \
+                asc submit create \
                   --app "$APP_ID" \
                   --version "$VERSION"
                 
@@ -196,7 +196,7 @@ workflows:
                 
                 DESCRIPTION=$(cat metadata/en-US/description.txt)
                 
-                asc app-info update \
+                asc apps info edit \
                   --app "$APP_ID" \
                   --locale en-US \
                   --description "$DESCRIPTION"
@@ -342,7 +342,7 @@ workflows:
           inputs:
             - mode: run
             - command: |
-                asc submit --app "$PROD_APP_ID" --version "$VERSION"
+                asc submit create --app "$PROD_APP_ID" --version "$VERSION"
 
   deploy_staging:
     steps:
@@ -444,7 +444,7 @@ workflows:
       - git::https://github.com/rudrankriyam/steps-setup-asc.git@main:
           inputs:
             - mode: run
-            - command: asc app-info update --app "$APP_ID" --locale en-US
+            - command: asc apps info edit --app "$APP_ID" --locale en-US
 ```
 
 ## Debugging

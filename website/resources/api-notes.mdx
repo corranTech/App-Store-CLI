@@ -70,10 +70,10 @@ API `--report-type` values map to App Store Connect UI options:
 
 ```bash  theme={null}
 # Consolidated report
-asc finance get --report-type FINANCIAL --region ZZ --period 2024-01
+asc finance reports --vendor "12345678" --report-type FINANCIAL --region ZZ --date "2024-01"
 
 # Detailed report (requires Z1)
-asc finance get --report-type FINANCE_DETAIL --region Z1 --period 2024-01
+asc finance reports --vendor "12345678" --report-type FINANCE_DETAIL --region Z1 --date "2024-01"
 ```
 
 ### Important Notes
@@ -90,33 +90,15 @@ asc finance regions
 
 ## Sandbox Testers
 
-### Required Fields
-
-* Email
-* First and last name
-* Password + password confirmation
-* Secret question and answer
-* Birth date
-* Territory (3-letter App Store territory code)
-
-### Password Requirements
-
-Password must include:
-
-* Uppercase letter
-* Lowercase letter
-* Number
-* Minimum 8 characters
+The current CLI supports these sandbox tester operations:
 
 **Example**:
 
 ```bash  theme={null}
-asc sandbox-testers create \
-  --email "test@example.com" \
-  --first-name "Test" \
-  --last-name "User" \
-  --password "SecurePass123" \
-  --territory USA
+asc sandbox list
+asc sandbox view --email "test@example.com"
+asc sandbox update --id "SANDBOX_TESTER_ID" --territory USA
+asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 ```
 
 ### Territory Codes
@@ -131,11 +113,8 @@ Territory uses 3-letter App Store territory codes:
 
 ### API Version Differences
 
-* **List/get**: Use v2 API
-* **Create/delete**: Use v1 endpoints (may be unavailable on some accounts)
-* **Update/clear-history**: Use v2 API
-
-If create/delete operations fail, your API key role may lack v1 endpoint access.
+* **List/view/update/clear-history**: Use the current CLI surface under `asc sandbox ...`
+* Historical create/delete endpoints used older API coverage and are not exposed by the current CLI
 
 ## Game Center
 

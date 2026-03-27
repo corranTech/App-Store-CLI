@@ -155,7 +155,7 @@ check:run:
       job_prefix: release
       asc_version: latest
       command: |
-        asc submit \
+        asc submit create \
           --app "$APP_ID" \
           --version "$CI_COMMIT_TAG"
 
@@ -202,7 +202,7 @@ include:
       job_prefix: description
       asc_version: latest
       command: |
-        asc app-info update \
+        asc apps info edit \
           --app "$APP_ID" \
           --locale en-US \
           --description "$(cat $METADATA_PATH/en-US/description.txt)"
@@ -403,7 +403,7 @@ include:
       asc_version: latest
       command: |
         echo "Submitting version $VERSION"
-        asc submit --app "$APP_ID" --version "$VERSION"
+        asc submit create --app "$APP_ID" --version "$VERSION"
 
 release:run:
   needs:
@@ -470,7 +470,7 @@ staging:run:
       job_prefix: production
       asc_version: latest
       command: |
-        asc submit \
+        asc submit create \
           --app "$PRODUCTION_APP_ID" \
           --version "$CI_COMMIT_TAG"
 

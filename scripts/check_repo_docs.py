@@ -2,13 +2,10 @@
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
-
-LINK_RE = re.compile(r'(?<![\w`])!?\[[^\]]*\]\(([^)]+)\)|href="([^"]+)"')
-IGNORED_PREFIXES = ("http://", "https://", "mailto:", "tel:", "data:", "javascript:")
+from doc_links import extract_targets, normalize_target
 DEFAULT_DOC_GLOBS = (
     "README.md",
     "CONTRIBUTING.md",
@@ -31,34 +28,11 @@ def iter_doc_files(repo_root: Path, explicit_paths: list[str]) -> list[Path]:
     for pattern in DEFAULT_DOC_GLOBS:
         files.update(path for path in repo_root.glob(pattern) if path.is_file())
     return sorted(files)
-
-
-def extract_targets(text: str) -> list[str]:
-    targets = []
-    for match in LINK_RE.finditer(text):
-        target = match.group(1) or match.group(2)
-        if target:
-            targets.append(target.strip())
-    return targets
-
-
-def normalize_target(target: str) -> str | None:
-    target = target.strip()
-    if not target or target.startswith("#") or target.startswith("/"):
-        return None
-    if target.startswith(IGNORED_PREFIXES):
-        return None
-    if target.startswith("<") and target.endswith(">"):
-        target = target[1:-1]
-    target = target.split("#", 1)[0].split("?", 1)[0]
-    return target or None
-
-
 def check_files(repo_root: Path, files: list[Path]) -> list[str]:
     errors: list[str] = []
     for path in files:
         for target in extract_targets(path.read_text()):
-            normalized = normalize_target(target)
+            normalized = normalize_target(target, allow_root_relative=False)
             if normalized is None:
                 continue
             resolved = (path.parent / normalized).resolve()
