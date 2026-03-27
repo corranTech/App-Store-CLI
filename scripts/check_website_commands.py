@@ -416,12 +416,13 @@ def validate_example(example: Example, index: dict[tuple[str, ...], CommandSpec]
                     f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
                     f"global flag {flag!r} must appear before the top-level command in {example.raw!r}"
                 )
+                pending_value = "=" not in token and not root.flags.get(flag, False)
             elif flag not in current.flags:
                 errors.append(
                     f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
                     f"unknown flag {flag!r} for {' '.join(current.path)!r} in {example.raw!r}"
                 )
-            pending_value = "=" not in token and not current.flags.get(flag, False)
+                pending_value = "=" not in token and not current.flags.get(flag, False)
             i += 1
             continue
 

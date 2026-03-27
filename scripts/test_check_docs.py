@@ -244,6 +244,35 @@ class WebsiteCommandChecksTest(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertIn("must appear before", errors[0])
 
+    def test_website_command_checks_do_not_swallow_token_after_boolean_root_flag(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={"--debug": True},
+                subcommands={"apps"},
+            ),
+            ("apps",): check_website_commands.CommandSpec(
+                path=("apps",),
+                usage="asc apps list [flags]",
+                flags={},
+                subcommands={"list"},
+            ),
+            ("apps", "list"): check_website_commands.CommandSpec(
+                path=("apps", "list"),
+                usage="asc apps list [flags]",
+                flags={},
+                subcommands=set(),
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text("```bash\nasc apps list --debug bogus\n```\n")
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(len(errors), 2)
+            self.assertIn("must appear before", errors[0])
+            self.assertIn("unexpected positional argument", errors[1])
+
     def test_website_command_checks_reject_flags_after_positionals(self) -> None:
         index = {
             (): check_website_commands.CommandSpec(
