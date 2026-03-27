@@ -132,12 +132,14 @@ asc analytics requests --request-id "abc-123-def"
 asc analytics requests --app "123456789" --paginate
 ```
 
-### Get Reports
+### View Reports
 
 Retrieve available analytics reports and instances for a request.
 
+`asc analytics get` still works as a deprecated compatibility alias, but `asc analytics view` is the canonical command.
+
 ```bash  theme={null}
-asc analytics get --request-id "REQUEST_ID"
+asc analytics view --request-id "REQUEST_ID"
 ```
 
 **Required Flags:**
@@ -157,21 +159,21 @@ asc analytics get --request-id "REQUEST_ID"
 
 ```bash  theme={null}
 # Get all reports for a request
-asc analytics get --request-id "REQUEST_ID"
+asc analytics view --request-id "REQUEST_ID"
 
 # Get reports with download URLs
-asc analytics get \
+asc analytics view \
   --request-id "REQUEST_ID" \
   --include-segments
 
 # Filter by date and paginate
-asc analytics get \
+asc analytics view \
   --request-id "REQUEST_ID" \
   --date "2024-01-20" \
   --paginate
 
 # Get specific instance
-asc analytics get \
+asc analytics view \
   --request-id "REQUEST_ID" \
   --instance-id "INSTANCE_ID"
 ```

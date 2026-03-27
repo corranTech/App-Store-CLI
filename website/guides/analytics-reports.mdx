@@ -105,7 +105,7 @@ Request custom analytics reports for detailed app metrics.
     Get detailed status of a request:
 
     ```bash  theme={null}
-    asc analytics get --request-id "REQUEST_ID"
+    asc analytics view --request-id "REQUEST_ID"
     ```
   </Step>
 
@@ -113,7 +113,7 @@ Request custom analytics reports for detailed app metrics.
     Once the request is processed, inspect the available reports and instances:
 
     ```bash  theme={null}
-    asc analytics get --request-id "REQUEST_ID"
+    asc analytics view --request-id "REQUEST_ID"
     ```
   </Step>
 </Steps>
@@ -231,7 +231,7 @@ fi
 REQUEST_ID=$(echo $REQUESTS | jq -r '.data[0].id')
 if [ -n "$REQUEST_ID" ]; then
   echo "Downloading analytics instances..."
-  REPORTS=$(asc analytics get --request-id "$REQUEST_ID" --output json)
+  REPORTS=$(asc analytics view --request-id "$REQUEST_ID" --output json)
   
   echo $REPORTS | jq -r '.data[]?.instances[]?.id' | while read INSTANCE_ID; do
     echo "Downloading instance $INSTANCE_ID..."
@@ -376,7 +376,7 @@ export ASC_VENDOR_NUMBER="YOUR_VENDOR_NUMBER"
 **Solution**: Check request status:
 
 ```bash  theme={null}
-asc analytics get --request-id "REQUEST_ID"
+asc analytics view --request-id "REQUEST_ID"
 ```
 
 Wait for the state to change to `COMPLETED` before downloading instances.
