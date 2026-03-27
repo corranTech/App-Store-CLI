@@ -477,6 +477,9 @@ func TestBuildsWaitByBuildNumberSinceFiltersBeforeUniqueness(t *testing.T) {
 	if waitResult.ProcessingState != "VALID" {
 		t.Fatalf("expected processingState=VALID, got %q", waitResult.ProcessingState)
 	}
+	if !strings.Contains(stderr, deprecatedImplicitIOSBuildNumberPlatformWarning) {
+		t.Fatalf("expected implicit IOS deprecation warning, got %q", stderr)
+	}
 	if !strings.Contains(stderr, "Waiting for build build-new... (VALID") {
 		t.Fatalf("expected wait progress output, got %q", stderr)
 	}
@@ -590,8 +593,8 @@ func TestBuildsWaitByBuildNumberRequiresUniqueMatch(t *testing.T) {
 		if query.Get("filter[version]") != "42" {
 			t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
 		}
-		if query.Get("filter[preReleaseVersion.platform]") != "" {
-			t.Fatalf("expected no implicit platform filter, got %q", query.Get("filter[preReleaseVersion.platform]"))
+		if query.Get("filter[preReleaseVersion.platform]") != "IOS" {
+			t.Fatalf("expected implicit IOS platform filter, got %q", query.Get("filter[preReleaseVersion.platform]"))
 		}
 		if query.Get("filter[processingState]") != "PROCESSING,FAILED,INVALID,VALID" {
 			t.Fatalf("expected wait processing-state filter, got %q", query.Get("filter[processingState]"))
@@ -639,14 +642,14 @@ func TestBuildsWaitByBuildNumberRequiresUniqueMatch(t *testing.T) {
 	if !strings.Contains(runErr.Error(), `multiple builds found for app 123456789 with build number "42"`) {
 		t.Fatalf("expected ambiguity error, got %v", runErr)
 	}
-	if !strings.Contains(runErr.Error(), "add --version and/or --platform, or use --build-id") {
+	if !strings.Contains(runErr.Error(), "add --version, or use --build-id") {
 		t.Fatalf("expected actionable ambiguity hint, got %v", runErr)
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout on ambiguity error, got %q", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr on runtime ambiguity error, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedImplicitIOSBuildNumberPlatformWarning) {
+		t.Fatalf("expected implicit IOS deprecation warning, got %q", stderr)
 	}
 }
 
