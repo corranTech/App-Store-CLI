@@ -15,9 +15,15 @@ needs_code=0
 needs_repo_docs=0
 needs_website_docs=0
 needs_command_docs=0
+needs_wall_of_apps=0
 
 while IFS= read -r path; do
   [ -z "$path" ] && continue
+
+  if [ "$path" = "docs/wall-of-apps.json" ]; then
+    needs_wall_of_apps=1
+    continue
+  fi
 
   case "$path" in
     website/*)
@@ -46,6 +52,11 @@ done <<EOF
 $staged_files
 EOF
 
+if [ "$needs_wall_of_apps" -eq 1 ]; then
+  echo "Running Wall of Apps checks..."
+  make check-wall-of-apps
+fi
+
 if [ "$needs_repo_docs" -eq 1 ]; then
   echo "Running repository docs checks..."
   make check-repo-docs
@@ -62,7 +73,7 @@ if [ "$needs_command_docs" -eq 1 ]; then
 fi
 
 if [ "$needs_code" -eq 0 ]; then
-  echo "Docs-only staged changes detected. Skipping Go format, lint, and tests."
+  echo "Docs-only or Wall-only staged changes detected. Skipping Go format, lint, and tests."
   exit 0
 fi
 

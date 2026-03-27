@@ -24,6 +24,12 @@ ASC_BYPASS_KEYCHAIN=1 make test  # Run all tests without keychain prompts
 git diff        # Review changes before staging
 ```
 
+If `docs/wall-of-apps.json` is the only staged change, the local hook skips the full Go pipeline and only runs:
+
+```bash
+make check-wall-of-apps
+```
+
 ## CLI Structure
 
 - Command implementations live in `internal/cli/<domain>` packages

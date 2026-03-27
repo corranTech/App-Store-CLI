@@ -138,6 +138,7 @@ To add your app:
 
 The command uses your authenticated `gh` session to fork the repo, create a branch, update `docs/wall-of-apps.json`, and open a pull request automatically.
 It resolves the public App Store name, URL, and icon from the app ID automatically. For entries that are not on the public App Store yet, use `--link` with `--name`.
+When `docs/wall-of-apps.json` is the only changed file, the local hook and PR/main CI use the Wall-specific fast path and only run `make check-wall-of-apps`.
 
 Format:
 ```json
