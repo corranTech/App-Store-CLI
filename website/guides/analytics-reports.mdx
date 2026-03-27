@@ -110,10 +110,10 @@ Request custom analytics reports for detailed app metrics.
   </Step>
 
   <Step title="List available report instances">
-    Once the request is processed, list available report instances:
+    Once the request is processed, inspect the available reports and instances:
 
     ```bash  theme={null}
-    asc analytics instances list --request-id "REQUEST_ID"
+    asc analytics get --request-id "REQUEST_ID"
     ```
   </Step>
 </Steps>
@@ -154,11 +154,11 @@ Access payment and financial information:
 ### Download Financial Report
 
 ```bash  theme={null}
-asc analytics sales \
+asc finance reports \
   --vendor "YOUR_VENDOR_NUMBER" \
-  --type FINANCIAL \
-  --frequency MONTHLY \
-  --date "2024-01-01"
+  --report-type FINANCIAL \
+  --region "ZZ" \
+  --date "2024-01"
 ```
 
 ### Report Regions
@@ -166,12 +166,11 @@ asc analytics sales \
 Financial reports are organized by region:
 
 ```bash  theme={null}
-asc analytics sales \
+asc finance reports \
   --vendor "YOUR_VENDOR_NUMBER" \
-  --type FINANCIAL \
-  --frequency MONTHLY \
-  --date "2024-01-01" \
-  --region-code "US"
+  --report-type FINANCIAL \
+  --region "US" \
+  --date "2024-01"
 ```
 
 Common region codes:
@@ -232,9 +231,9 @@ fi
 REQUEST_ID=$(echo $REQUESTS | jq -r '.data[0].id')
 if [ -n "$REQUEST_ID" ]; then
   echo "Downloading analytics instances..."
-  INSTANCES=$(asc analytics instances list --request-id "$REQUEST_ID" --output json)
+  REPORTS=$(asc analytics get --request-id "$REQUEST_ID" --output json)
   
-  echo $INSTANCES | jq -r '.data[] | .id' | while read INSTANCE_ID; do
+  echo $REPORTS | jq -r '.data[]?.instances[]?.id' | while read INSTANCE_ID; do
     echo "Downloading instance $INSTANCE_ID..."
     asc analytics download \
       --request-id "$REQUEST_ID" \

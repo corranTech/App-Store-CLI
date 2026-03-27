@@ -22,50 +22,22 @@ asc sandbox list --output table
 ### Get sandbox tester
 
 ```bash  theme={null}
-asc sandbox get --tester-id TESTER_ID
-```
-
-### Create sandbox tester
-
-```bash  theme={null}
-asc sandbox create \
-  --email tester@example.com \
-  --first-name John \
-  --last-name Doe \
-  --territory US
+asc sandbox view --id "SANDBOX_TESTER_ID"
+asc sandbox view --email "tester@example.com"
 ```
 
 ### Update sandbox tester
 
 ```bash  theme={null}
-asc sandbox update --tester-id TESTER_ID --first-name Jane
+asc sandbox update --id "SANDBOX_TESTER_ID" --territory USA
+asc sandbox update --email "tester@example.com" --interrupt-purchases
 ```
 
-### Delete sandbox tester
+### Clear sandbox tester history
 
 ```bash  theme={null}
-asc sandbox delete --tester-id TESTER_ID
+asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 ```
-
-## Create flags
-
-<ParamField path="--email" type="string" required>
-  Email address for the sandbox tester
-
-  Must be unique and not used for any Apple ID.
-</ParamField>
-
-<ParamField path="--first-name" type="string" required>
-  First name of the tester
-</ParamField>
-
-<ParamField path="--last-name" type="string" required>
-  Last name of the tester
-</ParamField>
-
-<ParamField path="--territory" type="string" required>
-  Two-letter territory code (e.g., `US`, `GB`, `JP`)
-</ParamField>
 
 ## List flags
 
@@ -81,30 +53,43 @@ asc sandbox delete --tester-id TESTER_ID
   Fetch all pages automatically
 </ParamField>
 
+## View and update flags
+
+<ParamField path="--id" type="string">
+  Sandbox tester ID
+</ParamField>
+
+<ParamField path="--email" type="string">
+  Tester email address
+</ParamField>
+
+<ParamField path="--territory" type="string">
+  App Store territory code (for updates), such as `USA` or `JPN`
+</ParamField>
+
+<ParamField path="--interrupt-purchases" type="boolean">
+  Interrupt purchases during testing
+</ParamField>
+
 ## Example workflows
 
-### Create multiple sandbox testers
-
-```bash  theme={null}
-for i in {1..5}; do
-  asc sandbox create \
-    --email "tester$i@example.com" \
-    --first-name "Tester" \
-    --last-name "$i" \
-    --territory US
-done
-```
-
-### List all testers
+### Review sandbox testers
 
 ```bash  theme={null}
 asc sandbox list --output table --paginate
+asc sandbox view --email "tester@example.com"
 ```
 
-### Delete a tester
+### Update a tester
 
 ```bash  theme={null}
-asc sandbox delete --tester-id TESTER_ID
+asc sandbox update --id "SANDBOX_TESTER_ID" --territory USA
+```
+
+### Reset purchase history
+
+```bash  theme={null}
+asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 ```
 
 <Note>
