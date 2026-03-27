@@ -46,6 +46,20 @@ class RepoDocsChecksTest(unittest.TestCase):
             errors = check_repo_docs.check_files(root, [source])
             self.assertEqual(errors, [])
 
+    def test_repo_docs_reject_targets_outside_repo_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            root = tmp / "repo"
+            root.mkdir()
+            outside = tmp / "outside.md"
+            outside.write_text("# Outside\n")
+            source = root / "README.md"
+            source.write_text("[Outside](../outside.md)\n")
+
+            errors = check_repo_docs.check_files(root, [source])
+            self.assertEqual(len(errors), 1)
+            self.assertIn("escapes repository root", errors[0])
+
 
 class WebsiteDocsChecksTest(unittest.TestCase):
     def test_website_docs_accept_valid_navigation_and_links(self) -> None:
@@ -163,6 +177,22 @@ class WebsiteDocsChecksTest(unittest.TestCase):
             errors = check_website_docs.check_internal_links(website, routes)
             self.assertEqual(errors, [])
 
+    def test_website_docs_reject_asset_targets_outside_website_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            website = tmp / "website"
+            website.mkdir()
+            (tmp / "shared.png").write_text("png\n")
+            (website / "docs.json").write_text(
+                json.dumps({"navigation": {"tabs": [{"groups": [{"pages": ["index"]}]}]}})
+            )
+            (website / "index.mdx").write_text("![Shared](../shared.png)\n")
+
+            _, routes = check_website_docs.collect_site_state(website)
+            errors = check_website_docs.check_internal_links(website, routes)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("escapes website root", errors[0])
+
 
 class WebsiteCommandChecksTest(unittest.TestCase):
     def test_website_command_checks_accept_valid_examples(self) -> None:
@@ -272,6 +302,33 @@ class WebsiteCommandChecksTest(unittest.TestCase):
             self.assertEqual(len(errors), 2)
             self.assertIn("must appear before", errors[0])
             self.assertIn("unexpected positional argument", errors[1])
+
+    def test_website_command_checks_accept_root_flags_without_top_level_command(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={"--profile": False, "--debug": True},
+                subcommands={"apps"},
+            ),
+            ("apps",): check_website_commands.CommandSpec(
+                path=("apps",),
+                usage="asc apps list [flags]",
+                flags={},
+                subcommands={"list"},
+            ),
+            ("apps", "list"): check_website_commands.CommandSpec(
+                path=("apps", "list"),
+                usage="asc apps list [flags]",
+                flags={},
+                subcommands=set(),
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text("```bash\nasc --profile prod --debug\n```\n")
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(errors, [])
 
     def test_website_command_checks_reject_flags_after_positionals(self) -> None:
         index = {

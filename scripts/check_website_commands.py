@@ -364,7 +364,7 @@ def validate_example(example: Example, index: dict[tuple[str, ...], CommandSpec]
         return errors
 
     if top_level_index is None:
-        if all(token == "--help" or token.split("=", 1)[0] in root.flags for token in tokens[1:]):
+        if tokens_are_root_only_invocation(tokens[1:], root.flags):
             return errors
         errors.append(
             f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
@@ -441,6 +441,26 @@ def validate_example(example: Example, index: dict[tuple[str, ...], CommandSpec]
         i += 1
 
     return errors
+
+
+def tokens_are_root_only_invocation(
+    tokens: tuple[str, ...],
+    root_flags: dict[str, bool],
+) -> bool:
+    pending_value = False
+    for token in tokens:
+        if pending_value:
+            pending_value = False
+            continue
+        if token == "--help":
+            continue
+        if not token.startswith("--"):
+            return False
+        flag = token.split("=", 1)[0]
+        if flag not in root_flags:
+            return False
+        pending_value = "=" not in token and not root_flags[flag]
+    return not pending_value
 
 
 def validate_not_deprecated(example: Example, binary_path: Path) -> list[str]:

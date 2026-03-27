@@ -5,7 +5,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from doc_links import extract_targets, normalize_target
+from doc_links import extract_targets, is_within_root, normalize_target
+
+
 DEFAULT_DOC_GLOBS = (
     "README.md",
     "CONTRIBUTING.md",
@@ -28,16 +30,25 @@ def iter_doc_files(repo_root: Path, explicit_paths: list[str]) -> list[Path]:
     for pattern in DEFAULT_DOC_GLOBS:
         files.update(path for path in repo_root.glob(pattern) if path.is_file())
     return sorted(files)
+
+
 def check_files(repo_root: Path, files: list[Path]) -> list[str]:
     errors: list[str] = []
+    repo_root = repo_root.resolve()
     for path in files:
+        path = path.resolve()
         for target in extract_targets(path.read_text()):
             normalized = normalize_target(target, allow_root_relative=False)
             if normalized is None:
                 continue
             resolved = (path.parent / normalized).resolve()
+            rel_source = path.relative_to(repo_root)
+            if not is_within_root(repo_root, resolved):
+                errors.append(
+                    f"{rel_source}: local docs target {normalized!r} escapes repository root"
+                )
+                continue
             if not resolved.exists():
-                rel_source = path.relative_to(repo_root)
                 errors.append(
                     f"{rel_source}: missing local docs target {normalized!r}"
                 )

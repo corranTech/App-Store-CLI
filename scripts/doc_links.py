@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 
 LINK_RE = re.compile(r'(?<![\w`])!?\[[^\]]*\]\(([^)]+)\)|href="([^"]+)"')
@@ -28,3 +29,11 @@ def normalize_target(target: str, *, allow_root_relative: bool) -> str | None:
         return None
     target = target.split("#", 1)[0].split("?", 1)[0]
     return target or None
+
+
+def is_within_root(root: Path, candidate: Path) -> bool:
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return False
+    return True

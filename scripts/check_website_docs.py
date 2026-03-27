@@ -8,11 +8,13 @@ import re
 import sys
 from pathlib import Path
 
-from doc_links import extract_targets, normalize_target
+from doc_links import extract_targets, is_within_root, normalize_target
 
 
 def load_docs_json(website_root: Path) -> dict:
     return json.loads((website_root / "docs.json").read_text())
+
+
 def route_for_path(path_str: str) -> str:
     path_str = re.sub(r"\.mdx?$", "", path_str.strip("/"))
     if path_str == "index":
@@ -31,6 +33,8 @@ def collect_site_state(website_root: Path) -> tuple[set[str], set[str]]:
         page_ids.add(page_id)
         routes.add(route_for_path(page_id))
     return page_ids, routes
+
+
 def iter_navigation_pages(node: object) -> list[str]:
     pages: list[str] = []
     if isinstance(node, dict):
@@ -100,6 +104,7 @@ def check_redirects(website_root: Path, routes: set[str]) -> list[str]:
 
 def check_internal_links(website_root: Path, routes: set[str]) -> list[str]:
     errors: list[str] = []
+    website_root = website_root.resolve()
     for file in website_root.rglob("*.mdx"):
         rel = file.relative_to(website_root)
         source_page_id = rel.with_suffix("").as_posix()
@@ -109,7 +114,11 @@ def check_internal_links(website_root: Path, routes: set[str]) -> list[str]:
                 continue
             kind, resolved = resolve_route(source_page_id, normalized)
             if kind == "asset":
-                if not (website_root / resolved).exists():
+                asset_path = (website_root / resolved).resolve()
+                if not is_within_root(website_root, asset_path):
+                    errors.append(f"{rel}: website asset {normalized!r} escapes website root")
+                    continue
+                if not asset_path.exists():
                     errors.append(f"{rel}: missing website asset {normalized!r}")
                 continue
             if resolved not in routes:
