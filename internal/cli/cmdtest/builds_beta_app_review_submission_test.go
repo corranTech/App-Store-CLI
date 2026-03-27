@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestBuildsBetaAppReviewSubmissionViewReturnsNotFoundWhenAPIDataIsNull(t *testing.T) {
@@ -43,6 +46,12 @@ func TestBuildsBetaAppReviewSubmissionViewReturnsNotFoundWhenAPIDataIsNull(t *te
 	}
 	if errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected runtime not-found error, got usage error: %v", runErr)
+	}
+	if !errors.Is(runErr, asc.ErrNotFound) {
+		t.Fatalf("expected asc.ErrNotFound, got %v", runErr)
+	}
+	if got := cmd.ExitCodeFromError(runErr); got != cmd.ExitNotFound {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitNotFound, got)
 	}
 	if !strings.Contains(runErr.Error(), `builds beta-app-review-submission view: no beta app review submission found for build "build-1"`) {
 		t.Fatalf("expected not-found message, got %v", runErr)
