@@ -340,6 +340,9 @@ Examples:
 
 			resp, err := client.GetBuildBetaAppReviewSubmission(requestCtx, buildID)
 			if err != nil {
+				if asc.IsNotFound(err) {
+					return fmt.Errorf("builds beta-app-review-submission view: no beta app review submission found for build %q", buildID)
+				}
 				return fmt.Errorf("builds beta-app-review-submission view: failed to fetch: %w", err)
 			}
 

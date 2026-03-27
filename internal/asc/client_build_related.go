@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -39,6 +40,17 @@ func (c *Client) GetBuildBetaAppReviewSubmission(ctx context.Context, buildID st
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	var envelope struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	// ASC returns HTTP 200 with {"data":null} when a build has no beta review submission yet.
+	if bytes.Equal(bytes.TrimSpace(envelope.Data), []byte("null")) {
+		return nil, ErrNotFound
 	}
 
 	var response BetaAppReviewSubmissionResponse
