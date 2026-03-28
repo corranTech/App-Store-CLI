@@ -35,6 +35,17 @@ type NextBuildNumberOptions struct {
 	InitialBuildNumber          int
 }
 
+// ResolveLatestBuild finds the latest processed build matching the provided
+// app/version/platform filters. When allowEmpty is true, nil is returned when
+// no matching build exists.
+func ResolveLatestBuild(ctx context.Context, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*asc.BuildResponse, error) {
+	selection, err := resolveLatestBuildSelection(ctx, client, opts, allowEmpty)
+	if err != nil {
+		return nil, err
+	}
+	return selection.LatestBuild, nil
+}
+
 // NormalizeLatestBuildSelectionOptions validates and normalizes the common
 // version/platform filters shared by latest-build selection workflows.
 func NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
@@ -159,7 +170,7 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts L
 
 	var preReleaseVersionIDs []string
 	if hasPreReleaseFilters {
-		preReleaseVersionIDs, err = findPreReleaseVersionIDs(ctx, client, resolvedAppID, opts.Version, opts.Platform)
+		preReleaseVersionIDs, err = FindPreReleaseVersionIDs(ctx, client, resolvedAppID, opts.Version, opts.Platform)
 		if err != nil {
 			return nil, err
 		}
@@ -267,7 +278,9 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts L
 	}, nil
 }
 
-func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
+// FindPreReleaseVersionIDs returns the exact-matching pre-release version IDs
+// for the provided app/version/platform filters.
+func FindPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	opts := []asc.PreReleaseVersionsOption{}
 	exactVersion := strings.TrimSpace(version)
 
