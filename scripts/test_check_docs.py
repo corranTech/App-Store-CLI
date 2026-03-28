@@ -604,10 +604,11 @@ class HookChecksTest(unittest.TestCase):
         hook = (
             Path(__file__).resolve().parents[1] / ".githooks" / "pre-commit"
         ).read_text()
-        docs_case = hook.index(
+        needs_code_case = hook.split('case "$path" in')[4]
+        docs_case = needs_code_case.index(
             'website/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)'
         )
-        go_case = hook.index("*.go|go.mod|go.sum|Makefile)")
+        go_case = needs_code_case.index("*.go|go.mod|go.sum|Makefile)")
         self.assertLess(go_case, docs_case)
 
 
