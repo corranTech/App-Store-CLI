@@ -467,6 +467,88 @@ USAGE
             self.assertEqual(len(errors), 1)
             self.assertIn("unknown subcommand", errors[0])
 
+    def test_website_command_checks_validate_inline_command_references(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"submit"},
+            ),
+            ("submit",): check_website_commands.CommandSpec(
+                path=("submit",),
+                usage="asc submit <subcommand> [flags]",
+                flags={},
+                subcommands={"create"},
+            ),
+            ("submit", "create"): check_website_commands.CommandSpec(
+                path=("submit", "create"),
+                usage="asc submit create [flags]",
+                flags={"--app": False, "--version": False, "--build": False, "--confirm": True},
+                subcommands=set(),
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "When you run `asc submit create`, the CLI starts a submission.\n"
+            )
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("missing required flag", errors[0])
+
+    def test_website_command_checks_ignore_deprecated_inline_alias_notes(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"versions"},
+            ),
+            ("versions",): check_website_commands.CommandSpec(
+                path=("versions",),
+                usage="asc versions <subcommand> [flags]",
+                flags={},
+                subcommands={"view"},
+            ),
+            ("versions", "view"): check_website_commands.CommandSpec(
+                path=("versions", "view"),
+                usage="asc versions view [flags]",
+                flags={},
+                subcommands=set(),
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "`asc versions get` still works as a deprecated compatibility alias.\n"
+            )
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(errors, [])
+
+    def test_website_command_checks_ignore_ellipsis_inline_references(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"sandbox"},
+            ),
+            ("sandbox",): check_website_commands.CommandSpec(
+                path=("sandbox",),
+                usage="asc sandbox <subcommand> [flags]",
+                flags={},
+                subcommands={"list"},
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "Use the current CLI surface under `asc sandbox ...`.\n"
+            )
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(errors, [])
+
     def test_website_command_checks_require_submit_create_build_and_confirm(self) -> None:
         index = {
             (): check_website_commands.CommandSpec(

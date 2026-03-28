@@ -24,6 +24,7 @@ PLACEHOLDER_PATTERNS = (
 META_TOKEN_RE = re.compile(r"^<[^>]+>$|^\[[^\]]+\]$")
 GENERIC_TOKENS = {"command", "subcommand", "subcmd"}
 SHELL_OPERATORS = {"|", ";", ">", "<"}
+ELLIPSIS_TOKENS = {"...", "…"}
 REQUIRED_FLAGS_BY_COMMAND: dict[tuple[str, ...], set[str]] = {
     ("submit", "create"): {"--build", "--confirm"},
 }
@@ -44,6 +45,7 @@ class Example:
     line_number: int
     raw: str
     tokens: tuple[str, ...]
+    source: str = "fenced"
 
 
 def parse_help_text(help_text: str, *, is_root: bool) -> CommandSpec:
@@ -284,6 +286,8 @@ def is_command_prefix(prefix: str) -> bool:
 def should_skip_tokens(tokens: tuple[str, ...]) -> bool:
     if any(META_TOKEN_RE.match(token) for token in tokens):
         return True
+    if any(token in ELLIPSIS_TOKENS for token in tokens):
+        return True
     if any(token.lower().startswith("[flags") for token in tokens):
         return True
     lowered = {token.lower() for token in tokens}
@@ -292,27 +296,73 @@ def should_skip_tokens(tokens: tuple[str, ...]) -> bool:
     return False
 
 
+def extract_fenced_examples(path: Path, text: str) -> list[Example]:
+    examples: list[Example] = []
+    for block_start, block_lines in iter_fenced_blocks(text):
+        for line_number, logical_line in iter_logical_lines(block_start, block_lines):
+            if "asc" not in logical_line:
+                continue
+            for match in re.finditer(r"\basc\b", logical_line):
+                if not is_command_prefix(logical_line[: match.start()]):
+                    continue
+                candidate = clean_command_fragment(logical_line[match.start() :])
+                if not candidate or "`" in candidate:
+                    continue
+                try:
+                    tokens = tuple(shlex.split(candidate))
+                except ValueError:
+                    continue
+                if not tokens or tokens[0] != "asc" or should_skip_tokens(tokens):
+                    continue
+                examples.append(Example(path=path, line_number=line_number, raw=candidate, tokens=tokens))
+    return examples
+
+
+def strip_fenced_blocks(text: str) -> list[str]:
+    lines: list[str] = []
+    in_block = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            in_block = not in_block
+            lines.append("")
+            continue
+        lines.append("" if in_block else line)
+    return lines
+
+
+def extract_inline_examples(path: Path, text: str) -> list[Example]:
+    examples: list[Example] = []
+    for line_number, line in enumerate(strip_fenced_blocks(text), start=1):
+        if "asc" not in line or "deprecated" in line.lower():
+            continue
+        for match in re.finditer(r"`([^`]*\basc\b[^`]*)`", line):
+            candidate = clean_command_fragment(match.group(1))
+            if not candidate:
+                continue
+            try:
+                tokens = tuple(shlex.split(candidate))
+            except ValueError:
+                continue
+            if not tokens or tokens[0] != "asc" or should_skip_tokens(tokens):
+                continue
+            examples.append(
+                Example(
+                    path=path,
+                    line_number=line_number,
+                    raw=candidate,
+                    tokens=tokens,
+                    source="inline",
+                )
+            )
+    return examples
+
+
 def extract_examples(website_root: Path) -> list[Example]:
     examples: list[Example] = []
     for path in sorted(website_root.rglob("*.mdx")):
         text = path.read_text()
-        for block_start, block_lines in iter_fenced_blocks(text):
-            for line_number, logical_line in iter_logical_lines(block_start, block_lines):
-                if "asc" not in logical_line:
-                    continue
-                for match in re.finditer(r"\basc\b", logical_line):
-                    if not is_command_prefix(logical_line[: match.start()]):
-                        continue
-                    candidate = clean_command_fragment(logical_line[match.start() :])
-                    if not candidate or "`" in candidate:
-                        continue
-                    try:
-                        tokens = tuple(shlex.split(candidate))
-                    except ValueError:
-                        continue
-                    if not tokens or tokens[0] != "asc" or should_skip_tokens(tokens):
-                        continue
-                    examples.append(Example(path=path, line_number=line_number, raw=candidate, tokens=tokens))
+        examples.extend(extract_fenced_examples(path, text))
+        examples.extend(extract_inline_examples(path, text))
     return examples
 
 
@@ -541,6 +591,8 @@ def collect_errors(
         example_errors = validate_example(example, index)
         errors.extend(example_errors)
         if example_errors or binary_path is None:
+            continue
+        if example.source != "fenced":
             continue
         errors.extend(validate_not_deprecated(example, binary_path))
     return errors
