@@ -376,6 +376,34 @@ USAGE
                 ("asc", "app-events", "get", "--event-id", "EVENT_ID"),
             )
 
+    def test_website_command_checks_parse_indented_fenced_blocks(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"apps"},
+            ),
+            ("apps",): check_website_commands.CommandSpec(
+                path=("apps",),
+                usage="asc apps list [flags]",
+                flags={},
+                subcommands={"list"},
+            ),
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "<Accordion>\n"
+                "    ```bash\n"
+                "    asc apps nope\n"
+                "    ```\n"
+                "</Accordion>\n"
+            )
+            errors = check_website_commands.collect_errors(website, index)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("unknown subcommand", errors[0])
+
 
 class DocLinksTest(unittest.TestCase):
     def test_normalize_target_strips_angle_brackets_before_prefix_check(self) -> None:

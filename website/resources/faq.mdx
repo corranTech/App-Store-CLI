@@ -178,10 +178,10 @@
   asc testflight crashes list --app "123456789" --sort -createdDate --limit 10
   ```
 
-  For detailed crash information, use filters:
+  For detailed crash information, filter by build:
 
   ```bash  theme={null}
-  asc testflight crashes list --app "123456789" --filter "version=1.2.3"
+  asc testflight crashes list --app "123456789" --build "BUILD_ID"
   ```
 </Accordion>
 
@@ -246,7 +246,7 @@
   Run the workflow:
 
   ```bash  theme={null}
-  asc workflow run --file .asc/workflow.json --workflow release
+  asc workflow run --file .asc/workflow.json release
   ```
 </Accordion>
 

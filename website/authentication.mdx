@@ -342,7 +342,7 @@ If you see "keychain access denied" errors:
 2. Bypass keychain temporarily:
    ```bash  theme={null}
    export ASC_BYPASS_KEYCHAIN=1
-   asc auth login --bypass-keychain ...
+   asc auth login --bypass-keychain --local --name "MyKey" --key-id "ABC123" --issuer-id "12345678-abcd-1234-abcd-123456789012" --private-key "/path/to/AuthKey.p8"
    ```
 
 ### Invalid private key format

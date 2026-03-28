@@ -92,7 +92,7 @@ asc signing fetch \
     Verify it exists:
 
     ```bash  theme={null}
-    asc bundle-ids list --identifier "com.example.myapp"
+    asc bundle-ids list --paginate
     ```
   </Step>
 
@@ -129,8 +129,8 @@ asc signing fetch \
 
     ```bash  theme={null}
     asc certificates create \
-      --type IOS_DISTRIBUTION \
-      --csr-path ./CertificateSigningRequest.certSigningRequest
+      --certificate-type IOS_DISTRIBUTION \
+      --csr ./CertificateSigningRequest.certSigningRequest
     ```
 
     List existing certificates:
@@ -409,7 +409,7 @@ The CLI will validate that the bundle ID is associated with the specified app.
 1. Generate CSR in Keychain Access
 2. Create certificate:
    ```bash  theme={null}
-   asc certificates create --type IOS_DISTRIBUTION --csr-path ./CertificateSigningRequest.certSigningRequest
+   asc certificates create --certificate-type IOS_DISTRIBUTION --csr ./CertificateSigningRequest.certSigningRequest
    ```
 
 ### "Bundle ID not found"

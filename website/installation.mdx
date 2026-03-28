@@ -186,15 +186,15 @@ ASC_BYPASS_KEYCHAIN=1 make test
 
 <CodeGroup>
   ```bash bash theme={null}
-  asc completion bash > /usr/local/etc/bash_completion.d/asc
+  asc completion --shell bash > /usr/local/etc/bash_completion.d/asc
   ```
 
   ```bash zsh theme={null}
-  asc completion zsh > "${fpath[1]}/_asc"
+  asc completion --shell zsh > "${fpath[1]}/_asc"
   ```
 
   ```bash fish theme={null}
-  asc completion fish > ~/.config/fish/completions/asc.fish
+  asc completion --shell fish > ~/.config/fish/completions/asc.fish
   ```
 </CodeGroup>
 

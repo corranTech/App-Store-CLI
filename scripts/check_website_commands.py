@@ -151,7 +151,7 @@ def iter_fenced_blocks(text: str) -> list[tuple[int, list[str]]]:
     block_start = 0
 
     for line_number, line in enumerate(text.splitlines(), start=1):
-        if line.startswith("```"):
+        if line.lstrip().startswith("```"):
             if in_block:
                 blocks.append((block_start, block_lines))
                 in_block = False
