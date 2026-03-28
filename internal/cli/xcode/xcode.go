@@ -42,24 +42,6 @@ const (
 	xcodeExportWaitDefaultTimeout = 15 * time.Minute
 )
 
-type multiStringFlag []string
-
-func (m *multiStringFlag) String() string {
-	if m == nil {
-		return ""
-	}
-	return strings.Join(*m, ",")
-}
-
-func (m *multiStringFlag) Set(value string) error {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return fmt.Errorf("value cannot be empty")
-	}
-	*m = append(*m, trimmed)
-	return nil
-}
-
 // XcodeCommand returns the local Xcode command group.
 func XcodeCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("xcode", flag.ExitOnError)
@@ -107,7 +89,7 @@ func XcodeArchiveCommand() *ffcli.Command {
 	archivePath := fs.String("archive-path", "", "Destination path for the .xcarchive output (required)")
 	clean := fs.Bool("clean", false, "Run clean before archive")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing archive at --archive-path")
-	var xcodebuildFlags multiStringFlag
+	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
 	output := shared.BindOutputFlags(fs)
 
@@ -190,7 +172,7 @@ func XcodeExportCommand() *ffcli.Command {
 	overwrite := fs.Bool("overwrite", false, "Replace an existing IPA at --ipa-path")
 	wait := fs.Bool("wait", false, "Wait for App Store Connect build discovery and processing when export uploads directly")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait when waiting for uploaded builds")
-	var xcodebuildFlags multiStringFlag
+	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
 	output := shared.BindOutputFlags(fs)
 

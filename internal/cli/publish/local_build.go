@@ -34,24 +34,6 @@ var (
 	}
 )
 
-type multiStringFlag []string
-
-func (m *multiStringFlag) String() string {
-	if m == nil {
-		return ""
-	}
-	return strings.Join(*m, ",")
-}
-
-func (m *multiStringFlag) Set(value string) error {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return fmt.Errorf("value cannot be empty")
-	}
-	*m = append(*m, trimmed)
-	return nil
-}
-
 type publishLocalBuildFlagValues struct {
 	workspacePath        *string
 	projectPath          *string
@@ -62,8 +44,8 @@ type publishLocalBuildFlagValues struct {
 	ipaPath              *string
 	clean                *bool
 	initialBuildNumber   *int
-	archiveXcodebuildArg multiStringFlag
-	exportXcodebuildArg  multiStringFlag
+	archiveXcodebuildArg shared.MultiStringFlag
+	exportXcodebuildArg  shared.MultiStringFlag
 }
 
 type publishLocalBuildConfig struct {
