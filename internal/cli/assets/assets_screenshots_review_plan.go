@@ -350,9 +350,10 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 		appendScreenshotReviewIssue(result, "error", "", "", "", "no approved ready screenshots were found in the review artifacts", "Run `asc screenshots review-approve` to approve ready screenshots before planning uploads.")
 	}
 
+	focusedDisplayTypes := focusedScreenshotDisplayTypesForPlatform(resolvedPlatform)
 	for _, locale := range remoteLocales {
 		covered := coverageByLocale[locale]
-		for _, displayType := range focusedScreenshotDisplayTypes {
+		for _, displayType := range focusedDisplayTypes {
 			if covered != nil && covered[displayType] {
 				continue
 			}

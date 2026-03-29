@@ -20,6 +20,13 @@ var focusedScreenshotDisplayTypes = []string{
 	"APP_IPAD_PRO_3GEN_129",
 }
 
+var focusedScreenshotDisplayTypesByPlatform = map[string][]string{
+	"IOS":       focusedScreenshotDisplayTypes,
+	"MAC_OS":    {"APP_DESKTOP"},
+	"TV_OS":     {"APP_APPLE_TV"},
+	"VISION_OS": {"APP_APPLE_VISION_PRO"},
+}
+
 var screenshotFileChecksumFunc = computeFileChecksum
 
 func focusedScreenshotSizeCatalog() []asc.ScreenshotSizeEntry {
@@ -35,6 +42,14 @@ func focusedScreenshotSizeCatalog() []asc.ScreenshotSizeEntry {
 		return asc.ScreenshotSizeCatalog()
 	}
 	return focused
+}
+
+func focusedScreenshotDisplayTypesForPlatform(platform string) []string {
+	normalized := strings.ToUpper(strings.TrimSpace(platform))
+	if focused, ok := focusedScreenshotDisplayTypesByPlatform[normalized]; ok {
+		return append([]string(nil), focused...)
+	}
+	return append([]string(nil), focusedScreenshotDisplayTypes...)
 }
 
 // AssetsScreenshotsListCommand returns the screenshots list subcommand.

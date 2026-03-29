@@ -8,6 +8,9 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -131,6 +134,106 @@ func TestExecuteScreenshotReviewPlanPlanModeReturnsBeforeUploadWhenBlockingIssue
 	}
 }
 
+func TestExecuteScreenshotReviewPlanUsesPlatformSpecificCoverageWarnings(t *testing.T) {
+	setupAssetsPlanAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	outputDir := t.TempDir()
+	filePath := writeAssetsTestPNGWithSize(t, outputDir, "01-desktop.png", 2880, 1800)
+
+	manifestPath := filepath.Join(outputDir, defaultReviewManifestFile)
+	manifest := reviewshots.ReviewManifest{
+		GeneratedAt: "2026-03-16T00:00:00Z",
+		FramedDir:   outputDir,
+		OutputDir:   outputDir,
+		Entries: []reviewshots.ReviewEntry{
+			{
+				Key:               "desktop-entry",
+				ScreenshotID:      "desktop-home",
+				Locale:            "en-US",
+				FramedPath:        filePath,
+				FramedRelative:    "01-desktop.png",
+				DisplayTypes:      []string{"APP_DESKTOP"},
+				ValidAppStoreSize: true,
+				Status:            "ready",
+			},
+		},
+	}
+	writeAssetsReviewManifest(t, manifestPath, manifest)
+	if err := reviewshots.SaveApprovals(filepath.Join(outputDir, defaultReviewApprovalFile), map[string]bool{
+		"desktop-entry": true,
+	}); err != nil {
+		t.Fatalf("SaveApprovals() error: %v", err)
+	}
+
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			return assetsJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {
+						"versionString": "1.2.3",
+						"platform": "MAC_OS"
+					},
+					"relationships": {
+						"app": {
+							"data": {
+								"type": "apps",
+								"id": "123456789"
+							}
+						}
+					}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionLocalizations":
+			return assetsJSONResponse(http.StatusOK, `{
+				"data": [
+					{
+						"type": "appStoreVersionLocalizations",
+						"id": "loc-en",
+						"attributes": {
+							"locale": "en-US"
+						}
+					}
+				],
+				"links": {}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":
+			return assetsJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	result, err := executeScreenshotReviewPlan(context.Background(), screenshotReviewPlanOptions{
+		AppID:           "123456789",
+		VersionID:       "version-123",
+		Platform:        "MAC_OS",
+		ReviewOutputDir: outputDir,
+	})
+	if err != nil {
+		t.Fatalf("executeScreenshotReviewPlan() error: %v", err)
+	}
+
+	if result.ErrorCount != 0 {
+		t.Fatalf("expected no blocking issues, got %d", result.ErrorCount)
+	}
+	if result.WarningCount != 0 {
+		t.Fatalf("expected no iOS-focused coverage warnings for MAC_OS, got %d with issues %+v", result.WarningCount, result.Issues)
+	}
+	if result.PlannedGroups != 1 {
+		t.Fatalf("expected one planned group, got %d", result.PlannedGroups)
+	}
+}
+
 func setupAssetsPlanAuth(t *testing.T) {
 	t.Helper()
 
@@ -166,4 +269,26 @@ func writeAssetsReviewManifest(t *testing.T, path string, manifest reviewshots.R
 	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
+}
+
+func writeAssetsTestPNGWithSize(t *testing.T, dir, name string, width, height int) string {
+	t.Helper()
+
+	path := filepath.Join(dir, name)
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create png: %v", err)
+	}
+	defer file.Close()
+
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{R: 10, G: 20, B: 30, A: 255})
+		}
+	}
+	if err := png.Encode(file, img); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+	return path
 }
