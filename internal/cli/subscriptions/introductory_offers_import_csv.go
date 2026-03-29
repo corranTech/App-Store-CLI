@@ -70,7 +70,11 @@ func readSubscriptionIntroductoryOffersImportCSV(path string) ([]subscriptionInt
 			continue
 		}
 		dataRowNumber++
-		rows = append(rows, parseSubscriptionIntroductoryOffersImportCSVRow(record, columnIdx, dataRowNumber))
+		row, err := parseSubscriptionIntroductoryOffersImportCSVRow(record, columnIdx, dataRowNumber)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, row)
 	}
 
 	return rows, nil
@@ -103,7 +107,7 @@ func parseSubscriptionIntroductoryOffersImportCSVHeader(header []string) (map[st
 	return columnIdx, nil
 }
 
-func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx map[string]int, rowNumber int) subscriptionIntroductoryOfferImportCSVRow {
+func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx map[string]int, rowNumber int) (subscriptionIntroductoryOfferImportCSVRow, error) {
 	get := func(column string) string {
 		idx, ok := columnIdx[column]
 		if !ok || idx < 0 || idx >= len(record) {
@@ -112,16 +116,34 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 		return strings.TrimSpace(record[idx])
 	}
 
+	startDate := get("start_date")
+	if startDate != "" {
+		normalized, err := shared.NormalizeDate(startDate, "--start-date")
+		if err != nil {
+			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+		}
+		startDate = normalized
+	}
+
+	endDate := get("end_date")
+	if endDate != "" {
+		normalized, err := shared.NormalizeDate(endDate, "--end-date")
+		if err != nil {
+			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+		}
+		endDate = normalized
+	}
+
 	return subscriptionIntroductoryOfferImportCSVRow{
 		row:             rowNumber,
 		territory:       get("territory"),
 		offerMode:       get("offer_mode"),
 		offerDuration:   get("offer_duration"),
 		numberOfPeriods: get("number_of_periods"),
-		startDate:       get("start_date"),
-		endDate:         get("end_date"),
+		startDate:       startDate,
+		endDate:         endDate,
 		pricePointID:    get("price_point_id"),
-	}
+	}, nil
 }
 
 func normalizeSubscriptionIntroductoryOffersImportHeader(value string) string {
