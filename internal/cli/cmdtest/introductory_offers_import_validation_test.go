@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -28,6 +29,70 @@ func TestSubscriptionsIntroductoryOffersImport_MissingRequiredFlagsReturnUsage(t
 			name:    "missing input",
 			args:    []string{"subscriptions", "offers", "introductory", "import", "--subscription-id", "SUB_ID"},
 			wantErr: "Error: --input is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestSubscriptionsIntroductoryOffersImport_InvalidDefaultDatesReturnUsage(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "invalid start date",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", "offers.csv",
+				"--start-date", "2026-99-99",
+			},
+			wantErr: "--start-date must be in YYYY-MM-DD format",
+		},
+		{
+			name: "invalid end date",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", "offers.csv",
+				"--end-date", "2026-13-01",
+			},
+			wantErr: "--end-date must be in YYYY-MM-DD format",
 		},
 	}
 

@@ -21,8 +21,8 @@ func SubscriptionsIntroductoryOffersImportCommand() *ffcli.Command {
 	_ = fs.String("offer-duration", "", "Default offer duration")
 	_ = fs.String("offer-mode", "", "Default offer mode")
 	_ = fs.Int("number-of-periods", 0, "Default number of periods")
-	_ = fs.String("start-date", "", "Default start date (YYYY-MM-DD)")
-	_ = fs.String("end-date", "", "Default end date (YYYY-MM-DD)")
+	startDate := fs.String("start-date", "", "Default start date (YYYY-MM-DD)")
+	endDate := fs.String("end-date", "", "Default end date (YYYY-MM-DD)")
 	_ = fs.Bool("dry-run", false, "Validate input and print summary without creating offers")
 	_ = fs.Bool("continue-on-error", true, "Continue processing rows after runtime failures (default true)")
 	output := shared.BindOutputFlags(fs)
@@ -49,6 +49,18 @@ Examples:
 			if strings.TrimSpace(*inputPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --input is required")
 				return flag.ErrHelp
+			}
+			if strings.TrimSpace(*startDate) != "" {
+				if _, err := shared.NormalizeDate(*startDate, "--start-date"); err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+			}
+			if strings.TrimSpace(*endDate) != "" {
+				if _, err := shared.NormalizeDate(*endDate, "--end-date"); err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
 			}
 
 			return shared.UsageError("introductory-offers import is not implemented yet")
