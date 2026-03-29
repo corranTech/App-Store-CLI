@@ -120,3 +120,77 @@ func TestSubscriptionsIntroductoryOffersImport_InvalidDefaultDatesReturnUsage(t 
 		})
 	}
 }
+
+func TestSubscriptionsIntroductoryOffersImport_InvalidDefaultOfferFlagsReturnUsage(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "invalid offer duration",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", "offers.csv",
+				"--offer-duration", "bad",
+			},
+			wantErr: "--offer-duration must be one of:",
+		},
+		{
+			name: "invalid offer mode",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", "offers.csv",
+				"--offer-mode", "bad",
+			},
+			wantErr: "--offer-mode must be one of:",
+		},
+		{
+			name: "negative number of periods",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", "offers.csv",
+				"--number-of-periods", "-1",
+			},
+			wantErr: "--number-of-periods must be greater than or equal to 0",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}

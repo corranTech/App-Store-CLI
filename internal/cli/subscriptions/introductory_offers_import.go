@@ -18,9 +18,9 @@ func SubscriptionsIntroductoryOffersImportCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	inputPath := fs.String("input", "", "Input CSV file path (required)")
-	_ = fs.String("offer-duration", "", "Default offer duration")
-	_ = fs.String("offer-mode", "", "Default offer mode")
-	_ = fs.Int("number-of-periods", 0, "Default number of periods")
+	offerDuration := fs.String("offer-duration", "", "Default offer duration")
+	offerMode := fs.String("offer-mode", "", "Default offer mode")
+	numberOfPeriods := fs.Int("number-of-periods", 0, "Default number of periods")
 	startDate := fs.String("start-date", "", "Default start date (YYYY-MM-DD)")
 	endDate := fs.String("end-date", "", "Default end date (YYYY-MM-DD)")
 	_ = fs.Bool("dry-run", false, "Validate input and print summary without creating offers")
@@ -48,6 +48,22 @@ Examples:
 			}
 			if strings.TrimSpace(*inputPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --input is required")
+				return flag.ErrHelp
+			}
+			if strings.TrimSpace(*offerDuration) != "" {
+				if _, err := normalizeSubscriptionOfferDuration(*offerDuration); err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+			}
+			if strings.TrimSpace(*offerMode) != "" {
+				if _, err := normalizeSubscriptionOfferMode(*offerMode); err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+			}
+			if *numberOfPeriods < 0 {
+				fmt.Fprintln(os.Stderr, "Error: --number-of-periods must be greater than or equal to 0")
 				return flag.ErrHelp
 			}
 			if strings.TrimSpace(*startDate) != "" {
