@@ -3837,7 +3837,10 @@ func TestPublishRejectsSymlinkIPAPath(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
+			if test.name == "publish appstore rejects symlink" {
+				requireStderrContainsWarning(t, stderr, "Warning: `asc publish appstore` is deprecated. Use `asc release run` for the canonical App Store publish flow.")
+				assertOnlyDeprecatedCommandWarnings(t, stderr)
+			} else if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})

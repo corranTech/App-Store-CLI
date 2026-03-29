@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	publishDefaultTimeout         = 30 * time.Minute
+	publishDefaultTimeout        = 30 * time.Minute
 	deprecatedPublishAppStoreMsg = "Warning: `asc publish appstore` is deprecated. Use `asc release run` for the canonical App Store publish flow."
 )
 
