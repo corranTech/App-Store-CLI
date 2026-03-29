@@ -212,6 +212,65 @@ func TestSubscriptionsPricingPricesListResolvedTable(t *testing.T) {
 	}
 }
 
+func TestSubscriptionsPricingPricesListResolvedNext(t *testing.T) {
+	setupAuth(t)
+
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/prices?cursor=Mg"
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.String() != nextURL {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+
+		body := `{
+			"data":[
+				{
+					"type":"subscriptionPrices",
+					"id":"price-current-usa",
+					"attributes":{"startDate":"2025-01-01","preserved":false},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-current-usa"}}
+					}
+				}
+			],
+			"included":[
+				{"type":"subscriptionPricePoints","id":"pp-current-usa","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "prices", "list",
+			"--next", nextURL,
+			"--resolved",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"territory":"USA"`) || !strings.Contains(stdout, `"customerPrice":"9.99"`) {
+		t.Fatalf("expected resolved next output, got %q", stdout)
+	}
+}
+
 func TestSubscriptionsPricingPricesListRawOutputUnchanged(t *testing.T) {
 	setupAuth(t)
 
