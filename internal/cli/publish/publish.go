@@ -176,7 +176,7 @@ Examples:
 					return fmt.Errorf("publish testflight: %w", err)
 				}
 
-				uploadVersionValue, uploadBuildNumberValue, err = resolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
+				uploadVersionValue, uploadBuildNumberValue, err = shared.ResolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
 				}
@@ -209,9 +209,11 @@ Examples:
 				}
 			}
 
-			groupLookupCtx := requestCtx
+			var groupLookupCtx context.Context
 			if localBuildMode {
 				groupLookupCtx = preflightCtx
+			} else {
+				groupLookupCtx = requestCtx
 			}
 			resolvedGroups, err := resolvePublishBetaGroups(groupLookupCtx, client, resolvedPublishAppID, parsedGroupIDs)
 			if err != nil {
@@ -443,7 +445,7 @@ Examples:
 					return fmt.Errorf("publish appstore: %w", err)
 				}
 
-				versionValue, buildNumberValue, err = resolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
+				versionValue, buildNumberValue, err = shared.ResolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
@@ -676,8 +678,4 @@ func wrapPublishTestFlightAddGroupsError(err error) error {
 		return fmt.Errorf("publish testflight: %w", err)
 	}
 	return fmt.Errorf("publish testflight: failed to add groups: %w", err)
-}
-
-func resolveBundleInfoForIPA(ipaPath, version, buildNumber string) (string, string, error) {
-	return shared.ResolveBundleInfoForIPA(ipaPath, version, buildNumber)
 }
