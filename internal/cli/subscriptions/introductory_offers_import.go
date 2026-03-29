@@ -182,13 +182,13 @@ Examples:
 }
 
 type subscriptionIntroductoryOfferImportSummary struct {
-	SubscriptionID  string                                             `json:"subscriptionId"`
-	InputFile       string                                             `json:"inputFile"`
-	DryRun          bool                                               `json:"dryRun"`
-	ContinueOnError bool                                               `json:"continueOnError"`
-	Total           int                                                `json:"total"`
-	Created         int                                                `json:"created"`
-	Failed          int                                                `json:"failed"`
+	SubscriptionID  string                                              `json:"subscriptionId"`
+	InputFile       string                                              `json:"inputFile"`
+	DryRun          bool                                                `json:"dryRun"`
+	ContinueOnError bool                                                `json:"continueOnError"`
+	Total           int                                                 `json:"total"`
+	Created         int                                                 `json:"created"`
+	Failed          int                                                 `json:"failed"`
 	Failures        []subscriptionIntroductoryOfferImportSummaryFailure `json:"failures,omitempty"`
 }
 
