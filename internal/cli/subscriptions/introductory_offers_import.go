@@ -114,7 +114,41 @@ Examples:
 				)
 			}
 
-			return shared.UsageError("introductory-offers import is not implemented yet")
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("subscriptions introductory-offers import: %w", err)
+			}
+
+			for _, row := range resolvedRows {
+				attrs := asc.SubscriptionIntroductoryOfferCreateAttributes{
+					Duration:        asc.SubscriptionOfferDuration(row.offerDuration),
+					OfferMode:       asc.SubscriptionOfferMode(row.offerMode),
+					NumberOfPeriods: row.numberOfPeriods,
+				}
+				if row.startDate != "" {
+					attrs.StartDate = row.startDate
+				}
+				if row.endDate != "" {
+					attrs.EndDate = row.endDate
+				}
+
+				createCtx, createCancel := shared.ContextWithTimeout(ctx)
+				_, err := client.CreateSubscriptionIntroductoryOffer(createCtx, summary.SubscriptionID, attrs, row.territory, row.pricePointID)
+				createCancel()
+				if err != nil {
+					return fmt.Errorf("subscriptions introductory-offers import: failed to create: %w", err)
+				}
+
+				summary.Created++
+			}
+
+			return shared.PrintOutputWithRenderers(
+				summary,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderSubscriptionIntroductoryOfferImportSummary(summary, false) },
+				func() error { return renderSubscriptionIntroductoryOfferImportSummary(summary, true) },
+			)
 		},
 	}
 }
