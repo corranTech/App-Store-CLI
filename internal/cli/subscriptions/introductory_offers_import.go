@@ -70,44 +70,56 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --input is required")
 				return flag.ErrHelp
 			}
+			normalizedOfferDuration := ""
 			if strings.TrimSpace(*offerDuration) != "" {
-				if _, err := normalizeSubscriptionOfferDuration(*offerDuration); err != nil {
+				duration, err := normalizeSubscriptionOfferDuration(*offerDuration)
+				if err != nil {
 					fmt.Fprintln(os.Stderr, "Error:", err.Error())
 					return flag.ErrHelp
 				}
+				normalizedOfferDuration = string(duration)
 			}
+			normalizedOfferMode := ""
 			if strings.TrimSpace(*offerMode) != "" {
-				if _, err := normalizeSubscriptionOfferMode(*offerMode); err != nil {
+				mode, err := normalizeSubscriptionOfferMode(*offerMode)
+				if err != nil {
 					fmt.Fprintln(os.Stderr, "Error:", err.Error())
 					return flag.ErrHelp
 				}
+				normalizedOfferMode = string(mode)
 			}
 			if *numberOfPeriods < 0 {
 				fmt.Fprintln(os.Stderr, "Error: --number-of-periods must be greater than or equal to 0")
 				return flag.ErrHelp
 			}
+			normalizedStartDate := ""
 			if strings.TrimSpace(*startDate) != "" {
-				if _, err := shared.NormalizeDate(*startDate, "--start-date"); err != nil {
+				date, err := shared.NormalizeDate(*startDate, "--start-date")
+				if err != nil {
 					fmt.Fprintln(os.Stderr, "Error:", err.Error())
 					return flag.ErrHelp
 				}
+				normalizedStartDate = date
 			}
+			normalizedEndDate := ""
 			if strings.TrimSpace(*endDate) != "" {
-				if _, err := shared.NormalizeDate(*endDate, "--end-date"); err != nil {
+				date, err := shared.NormalizeDate(*endDate, "--end-date")
+				if err != nil {
 					fmt.Fprintln(os.Stderr, "Error:", err.Error())
 					return flag.ErrHelp
 				}
+				normalizedEndDate = date
 			}
 			rows, err := readSubscriptionIntroductoryOffersImportCSV(*inputPath)
 			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers import: %w", err)
 			}
 			defaults := buildSubscriptionIntroductoryOfferImportDefaults(
-				strings.TrimSpace(*offerDuration),
-				strings.TrimSpace(*offerMode),
+				normalizedOfferDuration,
+				normalizedOfferMode,
 				*numberOfPeriods,
-				strings.TrimSpace(*startDate),
-				strings.TrimSpace(*endDate),
+				normalizedStartDate,
+				normalizedEndDate,
 			)
 			resolvedRows, err := resolveSubscriptionIntroductoryOfferImportRows(rows, defaults)
 			if err != nil {

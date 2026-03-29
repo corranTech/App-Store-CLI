@@ -377,3 +377,68 @@ func TestSubscriptionsIntroductoryOffersImport_RowValuesOverrideDefaults(t *test
 		t.Fatalf("expected created summary in stdout, got %q", stdout)
 	}
 }
+
+func TestSubscriptionsIntroductoryOffersImport_NormalizesInheritedDefaultEnums(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionIntroductoryOffers" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+
+		var payload map[string]any
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		data := payload["data"].(map[string]any)
+		attrs := data["attributes"].(map[string]any)
+
+		if attrs["duration"] != "ONE_WEEK" {
+			t.Fatalf("expected normalized duration ONE_WEEK, got %#v", attrs["duration"])
+		}
+		if attrs["offerMode"] != "FREE_TRIAL" {
+			t.Fatalf("expected normalized offerMode FREE_TRIAL, got %#v", attrs["offerMode"])
+		}
+
+		body := `{"data":{"type":"subscriptionIntroductoryOffers","id":"offer-1"}}`
+		return &http.Response{
+			StatusCode: http.StatusCreated,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	csvPath := writeTempIntroOffersCSV(t, "territory\nUSA\n")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "offers", "introductory", "import",
+			"--subscription-id", "SUB_ID",
+			"--input", csvPath,
+			"--offer-duration", "one_week",
+			"--offer-mode", "free_trial",
+			"--number-of-periods", "1",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"created":1`) {
+		t.Fatalf("expected created summary in stdout, got %q", stdout)
+	}
+}
