@@ -63,3 +63,24 @@ func TestShouldPreferLatestReviewSubmissionBreaksTiesByID(t *testing.T) {
 		t.Fatal("expected larger ID to win deterministic tie-break")
 	}
 }
+
+func TestShouldPreferLatestReviewSubmissionTreatsCompletingAsActive(t *testing.T) {
+	t.Parallel()
+
+	current := asc.ReviewSubmissionResource{
+		ID: "sub-2",
+		Attributes: asc.ReviewSubmissionAttributes{
+			SubmissionState: asc.ReviewSubmissionStateCompleting,
+		},
+	}
+	best := asc.ReviewSubmissionResource{
+		ID: "sub-1",
+		Attributes: asc.ReviewSubmissionAttributes{
+			SubmissionState: asc.ReviewSubmissionStateReadyForReview,
+		},
+	}
+
+	if !ShouldPreferLatestReviewSubmission(current, best) {
+		t.Fatal("expected COMPLETING submission to stay in the active priority tier")
+	}
+}
