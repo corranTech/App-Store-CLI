@@ -47,10 +47,11 @@ Do not memorize flags. Always use `--help` for the current interface.
 | List TestFlight groups | `asc testflight groups list --app "APP_ID"` |
 | List internal TestFlight groups | `asc testflight groups list --app "APP_ID" --internal` |
 | Stage a release (pre-submit) | `asc release stage --app "APP_ID" --version "VERSION" --build "BUILD_ID" --copy-metadata-from "PREVIOUS_VERSION" --dry-run` |
-| Release (full pipeline) | `asc release run --app "APP_ID" --version "VERSION" --build "BUILD_ID" --metadata-dir "./metadata/version/VERSION" --dry-run` |
+| Publish to App Store | `asc release run --app "APP_ID" --version "VERSION" --build "BUILD_ID" --metadata-dir "./metadata/version/VERSION" --dry-run` |
+| Publish to TestFlight | `asc publish testflight --app "APP_ID" --ipa "./App.ipa" --group "GROUP_ID" --wait` |
 | Review status | `asc review status --app "APP_ID"` |
 | Review blockers | `asc review doctor --app "APP_ID"` |
-| Submit for review (low-level) | `asc submit create --app "APP_ID" --version "VERSION" --build "BUILD_ID" --confirm` |
+| Check submission readiness | `asc submit preflight --app "APP_ID" --version "VERSION" --build "BUILD_ID"` |
 | Apply metadata | `asc metadata apply --app "APP_ID" --version "VERSION" --dir "./metadata" --dry-run` |
 | Weekly insights summary | `asc insights weekly --app "APP_ID" --source analytics --week "YYYY-MM-DD"` |
 | Download localizations | `asc localizations download --version "VERSION_ID" --path "./localizations"` |
@@ -74,7 +75,7 @@ asc release stage --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --copy-met
 asc release stage --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --copy-metadata-from "0.9.0" --confirm
 ```
 
-### Release (high-level: ensure version + apply metadata + attach + validate + submit)
+### Publish to App Store (canonical: ensure version + apply metadata + attach + validate + submit)
 
 ```bash
 # Dry-run first to preview all planned steps
@@ -87,16 +88,18 @@ asc release run --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --metadata-d
 asc status --app "APP_ID" --watch
 ```
 
-Lower-level alternatives for scripting or partial workflows:
+Low-level release operations (use when you intentionally do not want the full publish pipeline):
 
 ```bash
 asc versions list --app "APP_ID"
 asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
 asc validate --app "APP_ID" --version "1.0.0"
-asc submit create --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --confirm
+asc submit preflight --app "APP_ID" --version "1.0.0" --build "BUILD_ID"
+asc submit status --version-id "VERSION_ID"
+asc submit cancel --version-id "VERSION_ID" --app "APP_ID" --confirm
 ```
 
-### Distribute to TestFlight Group
+### Publish to TestFlight (canonical)
 
 ```bash
 asc testflight groups list --app "APP_ID"
@@ -158,8 +161,8 @@ Use `asc <command> --help` for subcommands and flags.
 - `testflight` - Manage TestFlight workflows.
 - `builds` - Manage builds (TestFlight/App Store).
 - `build-bundles` - Manage build bundles and App Clip data.
-- `publish` - End-to-end publish workflows for TestFlight and App Store.
-- `release` - Run high-level App Store release workflows.
+- `publish` - Canonical high-level TestFlight publishing workflow.
+- `release` - Canonical high-level App Store publishing workflow.
 - `workflow` - Run multi-step automation workflows.
 - `xcode` - Produce deterministic `.xcarchive` and `.ipa` artifacts with local Xcode build/export helpers (macOS only).
 - `versions` - Manage App Store versions.
@@ -181,7 +184,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `iap` - Manage in-app purchases.
 - `app-events` - Manage App Store in-app events.
 - `subscriptions` - Manage subscription groups and subscriptions.
-- `submit` - Submit builds for App Store review.
+- `submit` - Submission preflight, status, and cancel operations; `asc submit create` remains deprecated during transition.
 - `xcode-cloud` - Trigger and monitor Xcode Cloud workflows.
 - `categories` - Manage App Store categories.
 - `age-rating` - Manage App Store age rating declarations.

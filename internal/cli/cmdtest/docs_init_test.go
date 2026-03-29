@@ -107,7 +107,7 @@ func runInitCreatesReferenceAndLinks(t *testing.T, args []string) {
 	if !strings.Contains(string(ascData), "# asc cli reference") {
 		t.Fatalf("expected ASC.md to contain header, got %q", string(ascData))
 	}
-	if !strings.Contains(string(ascData), "Release (full pipeline)") || !strings.Contains(string(ascData), "asc release run") {
+	if !strings.Contains(string(ascData), "Publish to App Store") || !strings.Contains(string(ascData), "asc release run") {
 		t.Fatalf("expected ASC.md to contain release-first guidance, got %q", string(ascData))
 	}
 	if !strings.Contains(string(ascData), "Stage a release (pre-submit)") || !strings.Contains(string(ascData), "asc release stage") {
@@ -116,8 +116,8 @@ func runInitCreatesReferenceAndLinks(t *testing.T, args []string) {
 	if !strings.Contains(string(ascData), `asc status --app "APP_ID"`) {
 		t.Fatalf("expected ASC.md to mention release status monitoring, got %q", string(ascData))
 	}
-	if !strings.Contains(string(ascData), "Submit for review (low-level)") || !strings.Contains(string(ascData), "asc submit create") {
-		t.Fatalf("expected ASC.md to retain low-level submit guidance, got %q", string(ascData))
+	if !strings.Contains(string(ascData), "Check submission readiness") || !strings.Contains(string(ascData), "asc submit preflight") {
+		t.Fatalf("expected ASC.md to retain low-level submit guidance via submit preflight, got %q", string(ascData))
 	}
 
 	agentsData, err := os.ReadFile(agentsPath)

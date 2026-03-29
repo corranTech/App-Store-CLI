@@ -23,13 +23,23 @@ import (
 
 var submitReadinessReportBuilder = validatecli.BuildReadinessReport
 
+const deprecatedSubmitCreateMsg = "Warning: `asc submit create` is deprecated. Use `asc release run` for the canonical App Store publish flow."
+
 func SubmitCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "submit",
 		ShortUsage: "asc submit <subcommand> [flags]",
-		ShortHelp:  "Submit builds for App Store review.",
-		LongHelp:   `Submit builds for App Store review.`,
-		UsageFunc:  shared.DefaultUsageFunc,
+		ShortHelp:  "App Store submission operations; publishing uses `asc release run`.",
+		LongHelp: `App Store submission operations.
+
+Use these canonical paths:
+  - App Store publish: asc release run
+  - App Store stage without submission: asc release stage
+  - Submission checks/status: asc submit preflight|status|cancel
+
+The older ` + "`asc submit create`" + ` path remains available as a deprecated
+compatibility command for low-level submission-only flows.`,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubmitCreateCommand(),
 			SubmitStatusCommand(),
@@ -56,15 +66,22 @@ func SubmitCreateCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc submit create [flags]",
-		ShortHelp:  "Submit a build for App Store review.",
-		LongHelp: `Submit a build for App Store review.
+		ShortHelp:  "DEPRECATED: use `asc release run`.",
+		LongHelp: `DEPRECATED: use ` + "`asc release run`" + `.
 
-Examples:
-  asc submit create --app "123456789" --version "1.0.0" --build "BUILD_ID" --confirm
-  asc submit create --app "123456789" --version-id "VERSION_ID" --build "BUILD_ID" --confirm`,
+This compatibility command preserves the lower-level "attach build + create
+review submission" path while the canonical App Store publish workflow moves to
+` + "`asc release run`" + `.
+
+Canonical App Store publish:
+  asc release run --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --metadata-dir "./metadata/version/1.0.0" --confirm
+
+Low-level validation without submission:
+  asc submit preflight --app "APP_ID" --version "1.0.0" --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			fmt.Fprintln(os.Stderr, deprecatedSubmitCreateMsg)
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit for review")
 				return flag.ErrHelp

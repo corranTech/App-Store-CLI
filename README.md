@@ -201,7 +201,7 @@ asc builds list --app "123456789" --output table
 asc testflight groups list --app "123456789" --output table
 ```
 
-### Release (high-level: validate + attach + submit)
+### Release (canonical App Store publish flow)
 
 ```bash
 # Dry-run first to preview steps
@@ -214,11 +214,17 @@ asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadat
 asc status --app "123456789" --watch
 ```
 
-Lower-level alternatives (for scripting or partial workflows):
+Use this mental model:
+
+- `asc release run`: canonical App Store publish command
+- `asc release stage`: same App Store preparation without submission
+- `asc submit preflight|status|cancel`: submission operations, not the main publish path
+
+Lower-level alternatives (for validation or partial workflows):
 
 ```bash
 asc validate --app "123456789" --version "1.2.3"
-asc submit create --app "123456789" --version "1.2.3" --build "BUILD_ID" --confirm
+asc submit preflight --app "123456789" --version "1.2.3" --build "BUILD_ID"
 ```
 
 ### Review status and blockers

@@ -49,8 +49,8 @@ func TestPublishAppStoreWarnsDeprecatedPath(t *testing.T) {
 	})
 
 	requireStderrContainsWarning(t, stderr, "Warning: `asc publish appstore` is deprecated. Use `asc release run` for the canonical App Store publish flow.")
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected normal validation error after deprecation warning, got %q", stderr)
+	if !strings.Contains(stderr, "Error: --ipa is required") {
+		t.Fatalf("expected validation error after deprecation warning, got %q", stderr)
 	}
 }
 

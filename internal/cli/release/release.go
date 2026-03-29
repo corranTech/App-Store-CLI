@@ -37,7 +37,8 @@ After submission, monitor progress with:
 
 For lower-level control, use:
   asc validate --app "APP_ID" --version "VERSION"
-  asc submit create --app "APP_ID" --version "VERSION" --build "BUILD_ID" --confirm
+  asc submit preflight --app "APP_ID" --version "VERSION" --build "BUILD_ID"
+  asc submit status --version-id "VERSION_ID"
 
 Examples:
   asc release stage --app "APP_ID" --version "2.4.0" --build "BUILD_ID" --copy-metadata-from "2.3.2" --dry-run
