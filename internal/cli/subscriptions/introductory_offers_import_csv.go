@@ -23,6 +23,26 @@ type subscriptionIntroductoryOfferImportCSVRow struct {
 	pricePointID    string
 }
 
+type subscriptionIntroductoryOfferImportDefaults struct {
+	offerMode       string
+	offerDuration   string
+	numberOfPeriods int
+	hasPeriods      bool
+	startDate       string
+	endDate         string
+}
+
+type subscriptionIntroductoryOfferImportResolvedRow struct {
+	row             int
+	territory       string
+	offerMode       string
+	offerDuration   string
+	numberOfPeriods int
+	startDate       string
+	endDate         string
+	pricePointID    string
+}
+
 var subscriptionIntroductoryOffersImportKnownColumns = map[string]string{
 	"territory":         "territory",
 	"offer_mode":        "offer_mode",
@@ -200,4 +220,74 @@ func isSubscriptionIntroductoryOffersImportRecordEmpty(record []string) bool {
 		}
 	}
 	return true
+}
+
+func buildSubscriptionIntroductoryOfferImportDefaults(offerDuration, offerMode string, numberOfPeriods int, startDate, endDate string) subscriptionIntroductoryOfferImportDefaults {
+	defaults := subscriptionIntroductoryOfferImportDefaults{
+		offerDuration: strings.TrimSpace(offerDuration),
+		offerMode:     strings.TrimSpace(offerMode),
+		startDate:     strings.TrimSpace(startDate),
+		endDate:       strings.TrimSpace(endDate),
+	}
+	if numberOfPeriods > 0 {
+		defaults.numberOfPeriods = numberOfPeriods
+		defaults.hasPeriods = true
+	}
+	return defaults
+}
+
+func resolveSubscriptionIntroductoryOfferImportRows(
+	rows []subscriptionIntroductoryOfferImportCSVRow,
+	defaults subscriptionIntroductoryOfferImportDefaults,
+) ([]subscriptionIntroductoryOfferImportResolvedRow, error) {
+	resolved := make([]subscriptionIntroductoryOfferImportResolvedRow, 0, len(rows))
+	for _, row := range rows {
+		offerMode := row.offerMode
+		if offerMode == "" {
+			offerMode = defaults.offerMode
+		}
+		if offerMode == "" {
+			return nil, shared.UsageErrorf("row %d: offer_mode is required", row.row)
+		}
+
+		offerDuration := row.offerDuration
+		if offerDuration == "" {
+			offerDuration = defaults.offerDuration
+		}
+		if offerDuration == "" {
+			return nil, shared.UsageErrorf("row %d: offer_duration is required", row.row)
+		}
+
+		numberOfPeriods := row.numberOfPeriods
+		hasPeriods := row.hasPeriods
+		if !hasPeriods && defaults.hasPeriods {
+			numberOfPeriods = defaults.numberOfPeriods
+			hasPeriods = true
+		}
+		if !hasPeriods {
+			return nil, shared.UsageErrorf("row %d: number_of_periods is required", row.row)
+		}
+
+		startDate := row.startDate
+		if startDate == "" {
+			startDate = defaults.startDate
+		}
+
+		endDate := row.endDate
+		if endDate == "" {
+			endDate = defaults.endDate
+		}
+
+		resolved = append(resolved, subscriptionIntroductoryOfferImportResolvedRow{
+			row:             row.row,
+			territory:       row.territory,
+			offerMode:       offerMode,
+			offerDuration:   offerDuration,
+			numberOfPeriods: numberOfPeriods,
+			startDate:       startDate,
+			endDate:         endDate,
+			pricePointID:    row.pricePointID,
+		})
+	}
+	return resolved, nil
 }

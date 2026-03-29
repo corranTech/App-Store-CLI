@@ -78,7 +78,18 @@ Examples:
 					return flag.ErrHelp
 				}
 			}
-			if _, err := readSubscriptionIntroductoryOffersImportCSV(*inputPath); err != nil {
+			rows, err := readSubscriptionIntroductoryOffersImportCSV(*inputPath)
+			if err != nil {
+				return fmt.Errorf("subscriptions introductory-offers import: %w", err)
+			}
+			defaults := buildSubscriptionIntroductoryOfferImportDefaults(
+				strings.TrimSpace(*offerDuration),
+				strings.TrimSpace(*offerMode),
+				*numberOfPeriods,
+				strings.TrimSpace(*startDate),
+				strings.TrimSpace(*endDate),
+			)
+			if _, err := resolveSubscriptionIntroductoryOfferImportRows(rows, defaults); err != nil {
 				return fmt.Errorf("subscriptions introductory-offers import: %w", err)
 			}
 

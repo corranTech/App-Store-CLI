@@ -552,3 +552,84 @@ func TestSubscriptionsIntroductoryOffersImport_InvalidRowTerritoryReturnsUsage(t
 		})
 	}
 }
+
+func TestSubscriptionsIntroductoryOffersImport_MissingRequiredOfferFieldsReturnUsage(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "missing offer mode after fallback",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", writeTempIntroOffersCSV(t, "territory\nUSA\n"),
+			},
+			wantErr: "row 1: offer_mode is required",
+		},
+		{
+			name: "missing offer duration after fallback",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", writeTempIntroOffersCSV(t, "territory,offer_mode\nUSA,FREE_TRIAL\n"),
+			},
+			wantErr: "row 1: offer_duration is required",
+		},
+		{
+			name: "missing periods after fallback",
+			args: []string{
+				"subscriptions", "offers", "introductory", "import",
+				"--subscription-id", "SUB_ID",
+				"--input", writeTempIntroOffersCSV(t, "territory,offer_mode,offer_duration\nUSA,FREE_TRIAL,ONE_WEEK\n"),
+			},
+			wantErr: "row 1: number_of_periods is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected %q in stderr, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func writeTempIntroOffersCSV(t *testing.T, body string) string {
+	t.Helper()
+
+	csvPath := filepath.Join(t.TempDir(), "offers.csv")
+	if err := os.WriteFile(csvPath, []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	return csvPath
+}
