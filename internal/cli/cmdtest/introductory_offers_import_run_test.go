@@ -292,3 +292,88 @@ func TestSubscriptionsIntroductoryOffersImport_StopOnFirstFailureWhenRequested(t
 		t.Fatalf("expected 2 requests before stop, got %d", requestCount)
 	}
 }
+
+func TestSubscriptionsIntroductoryOffersImport_RowValuesOverrideDefaults(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionIntroductoryOffers" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+
+		var payload map[string]any
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		data := payload["data"].(map[string]any)
+		attrs := data["attributes"].(map[string]any)
+		relationships := data["relationships"].(map[string]any)
+		territory := relationships["territory"].(map[string]any)["data"].(map[string]any)
+		pricePoint := relationships["subscriptionPricePoint"].(map[string]any)["data"].(map[string]any)
+
+		if attrs["duration"] != "ONE_MONTH" {
+			t.Fatalf("expected row duration ONE_MONTH, got %#v", attrs["duration"])
+		}
+		if attrs["offerMode"] != "PAY_AS_YOU_GO" {
+			t.Fatalf("expected row offerMode PAY_AS_YOU_GO, got %#v", attrs["offerMode"])
+		}
+		if attrs["numberOfPeriods"] != float64(3) {
+			t.Fatalf("expected row numberOfPeriods 3, got %#v", attrs["numberOfPeriods"])
+		}
+		if attrs["startDate"] != "2026-04-01" {
+			t.Fatalf("expected row startDate 2026-04-01, got %#v", attrs["startDate"])
+		}
+		if attrs["endDate"] != "2026-05-01" {
+			t.Fatalf("expected row endDate 2026-05-01, got %#v", attrs["endDate"])
+		}
+		if territory["id"] != "CAN" {
+			t.Fatalf("expected CAN territory, got %#v", territory["id"])
+		}
+		if pricePoint["id"] != "pp-can-1" {
+			t.Fatalf("expected row price point pp-can-1, got %#v", pricePoint["id"])
+		}
+
+		body := `{"data":{"type":"subscriptionIntroductoryOffers","id":"offer-1"}}`
+		return &http.Response{
+			StatusCode: http.StatusCreated,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	csvPath := writeTempIntroOffersCSV(t, "territory,offer_mode,offer_duration,number_of_periods,start_date,end_date,price_point_id\nCAN,PAY_AS_YOU_GO,ONE_MONTH,3,2026-04-01,2026-05-01,pp-can-1\n")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "offers", "introductory", "import",
+			"--subscription-id", "SUB_ID",
+			"--input", csvPath,
+			"--offer-duration", "ONE_WEEK",
+			"--offer-mode", "FREE_TRIAL",
+			"--number-of-periods", "1",
+			"--start-date", "2026-03-01",
+			"--end-date", "2026-03-15",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"created":1`) {
+		t.Fatalf("expected created summary in stdout, got %q", stdout)
+	}
+}
