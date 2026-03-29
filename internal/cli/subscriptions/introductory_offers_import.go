@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -23,8 +25,8 @@ func SubscriptionsIntroductoryOffersImportCommand() *ffcli.Command {
 	numberOfPeriods := fs.Int("number-of-periods", 0, "Default number of periods")
 	startDate := fs.String("start-date", "", "Default start date (YYYY-MM-DD)")
 	endDate := fs.String("end-date", "", "Default end date (YYYY-MM-DD)")
-	_ = fs.Bool("dry-run", false, "Validate input and print summary without creating offers")
-	_ = fs.Bool("continue-on-error", true, "Continue processing rows after runtime failures (default true)")
+	dryRun := fs.Bool("dry-run", false, "Validate input and print summary without creating offers")
+	continueOnError := fs.Bool("continue-on-error", true, "Continue processing rows after runtime failures (default true)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -89,11 +91,84 @@ Examples:
 				strings.TrimSpace(*startDate),
 				strings.TrimSpace(*endDate),
 			)
-			if _, err := resolveSubscriptionIntroductoryOfferImportRows(rows, defaults); err != nil {
+			resolvedRows, err := resolveSubscriptionIntroductoryOfferImportRows(rows, defaults)
+			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers import: %w", err)
+			}
+			summary := &subscriptionIntroductoryOfferImportSummary{
+				SubscriptionID:  strings.TrimSpace(*subscriptionID),
+				InputFile:       filepath.Clean(strings.TrimSpace(*inputPath)),
+				DryRun:          *dryRun,
+				ContinueOnError: *continueOnError,
+				Total:           len(resolvedRows),
+			}
+
+			if *dryRun {
+				summary.Created = len(resolvedRows)
+				return shared.PrintOutputWithRenderers(
+					summary,
+					*output.Output,
+					*output.Pretty,
+					func() error { return renderSubscriptionIntroductoryOfferImportSummary(summary, false) },
+					func() error { return renderSubscriptionIntroductoryOfferImportSummary(summary, true) },
+				)
 			}
 
 			return shared.UsageError("introductory-offers import is not implemented yet")
 		},
 	}
+}
+
+type subscriptionIntroductoryOfferImportSummary struct {
+	SubscriptionID  string                                             `json:"subscriptionId"`
+	InputFile       string                                             `json:"inputFile"`
+	DryRun          bool                                               `json:"dryRun"`
+	ContinueOnError bool                                               `json:"continueOnError"`
+	Total           int                                                `json:"total"`
+	Created         int                                                `json:"created"`
+	Failed          int                                                `json:"failed"`
+	Failures        []subscriptionIntroductoryOfferImportSummaryFailure `json:"failures,omitempty"`
+}
+
+type subscriptionIntroductoryOfferImportSummaryFailure struct {
+	Row       int    `json:"row"`
+	Territory string `json:"territory,omitempty"`
+	Error     string `json:"error"`
+}
+
+func renderSubscriptionIntroductoryOfferImportSummary(summary *subscriptionIntroductoryOfferImportSummary, markdown bool) error {
+	if summary == nil {
+		return fmt.Errorf("summary is nil")
+	}
+
+	render := asc.RenderTable
+	if markdown {
+		render = asc.RenderMarkdown
+	}
+
+	render(
+		[]string{"Subscription ID", "Input File", "Dry Run", "Total", "Created", "Failed"},
+		[][]string{{
+			summary.SubscriptionID,
+			summary.InputFile,
+			fmt.Sprintf("%t", summary.DryRun),
+			fmt.Sprintf("%d", summary.Total),
+			fmt.Sprintf("%d", summary.Created),
+			fmt.Sprintf("%d", summary.Failed),
+		}},
+	)
+
+	if len(summary.Failures) > 0 {
+		rows := make([][]string, 0, len(summary.Failures))
+		for _, failure := range summary.Failures {
+			rows = append(rows, []string{
+				fmt.Sprintf("%d", failure.Row),
+				failure.Territory,
+				failure.Error,
+			})
+		}
+		render([]string{"Row", "Territory", "Error"}, rows)
+	}
+
+	return nil
 }
