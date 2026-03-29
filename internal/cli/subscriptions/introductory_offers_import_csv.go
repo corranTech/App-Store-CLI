@@ -169,9 +169,14 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 		hasPeriods = true
 	}
 
+	territoryID, err := normalizeSubscriptionIntroductoryOfferImportTerritoryID(get("territory"))
+	if err != nil {
+		return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+	}
+
 	return subscriptionIntroductoryOfferImportCSVRow{
 		row:             rowNumber,
-		territory:       get("territory"),
+		territory:       territoryID,
 		offerMode:       offerMode,
 		offerDuration:   offerDuration,
 		numberOfPeriods: numberOfPeriods,
