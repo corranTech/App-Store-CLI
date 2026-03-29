@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -421,6 +422,7 @@ func PricingScheduleManualPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -431,7 +433,8 @@ func PricingScheduleManualPricesCommand() *ffcli.Command {
 
 Examples:
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
-  asc pricing schedule manual-prices --schedule "SCHEDULE_ID" --paginate`,
+  asc pricing schedule manual-prices --schedule "SCHEDULE_ID" --paginate
+  asc pricing schedule manual-prices --schedule "SCHEDULE_ID" --resolved`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -456,6 +459,14 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
+
+			if *resolved {
+				resp, err := fetchResolvedAppSchedulePrices(requestCtx, client, trimmedScheduleID, "manual", *limit, *next, time.Now().UTC())
+				if err != nil {
+					return fmt.Errorf("pricing schedule manual-prices: failed to resolve: %w", err)
+				}
+				return shared.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
+			}
 
 			opts := []asc.AppPriceSchedulePricesOption{
 				asc.WithAppPriceSchedulePricesLimit(*limit),
@@ -497,6 +508,7 @@ func PricingScheduleAutomaticPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -507,7 +519,8 @@ func PricingScheduleAutomaticPricesCommand() *ffcli.Command {
 
 Examples:
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"
-  asc pricing schedule automatic-prices --schedule "SCHEDULE_ID" --paginate`,
+  asc pricing schedule automatic-prices --schedule "SCHEDULE_ID" --paginate
+  asc pricing schedule automatic-prices --schedule "SCHEDULE_ID" --resolved`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -532,6 +545,14 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
+
+			if *resolved {
+				resp, err := fetchResolvedAppSchedulePrices(requestCtx, client, trimmedScheduleID, "automatic", *limit, *next, time.Now().UTC())
+				if err != nil {
+					return fmt.Errorf("pricing schedule automatic-prices: failed to resolve: %w", err)
+				}
+				return shared.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
+			}
 
 			opts := []asc.AppPriceSchedulePricesOption{
 				asc.WithAppPriceSchedulePricesLimit(*limit),
