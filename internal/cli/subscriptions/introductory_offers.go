@@ -32,6 +32,7 @@ Examples:
 			SubscriptionsIntroductoryOffersListCommand(),
 			SubscriptionsIntroductoryOffersGetCommand(),
 			SubscriptionsIntroductoryOffersCreateCommand(),
+			SubscriptionsIntroductoryOffersImportCommand(),
 			SubscriptionsIntroductoryOffersUpdateCommand(),
 			SubscriptionsIntroductoryOffersDeleteCommand(),
 		},
