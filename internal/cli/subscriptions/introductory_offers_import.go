@@ -136,19 +136,29 @@ Examples:
 				_, err := client.CreateSubscriptionIntroductoryOffer(createCtx, summary.SubscriptionID, attrs, row.territory, row.pricePointID)
 				createCancel()
 				if err != nil {
-					return fmt.Errorf("subscriptions introductory-offers import: failed to create: %w", err)
+					appendSubscriptionIntroductoryOfferImportFailure(summary, row, err)
+					if !*continueOnError {
+						break
+					}
+					continue
 				}
 
 				summary.Created++
 			}
 
-			return shared.PrintOutputWithRenderers(
+			if err := shared.PrintOutputWithRenderers(
 				summary,
 				*output.Output,
 				*output.Pretty,
 				func() error { return renderSubscriptionIntroductoryOfferImportSummary(summary, false) },
 				func() error { return renderSubscriptionIntroductoryOfferImportSummary(summary, true) },
-			)
+			); err != nil {
+				return err
+			}
+			if summary.Failed > 0 {
+				return shared.NewReportedError(fmt.Errorf("subscriptions introductory-offers import: %d row(s) failed", summary.Failed))
+			}
+			return nil
 		},
 	}
 }
@@ -205,4 +215,16 @@ func renderSubscriptionIntroductoryOfferImportSummary(summary *subscriptionIntro
 	}
 
 	return nil
+}
+
+func appendSubscriptionIntroductoryOfferImportFailure(summary *subscriptionIntroductoryOfferImportSummary, row subscriptionIntroductoryOfferImportResolvedRow, err error) {
+	if summary == nil || err == nil {
+		return
+	}
+	summary.Failed++
+	summary.Failures = append(summary.Failures, subscriptionIntroductoryOfferImportSummaryFailure{
+		Row:       row.row,
+		Territory: row.territory,
+		Error:     err.Error(),
+	})
 }
