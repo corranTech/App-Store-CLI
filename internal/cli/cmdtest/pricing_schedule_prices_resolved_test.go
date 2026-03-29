@@ -232,6 +232,65 @@ func TestPricingScheduleAutomaticPricesResolvedTable(t *testing.T) {
 	}
 }
 
+func TestPricingScheduleManualPricesResolvedNext(t *testing.T) {
+	setupAuth(t)
+
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/schedule-1/manualPrices?cursor=Mg"
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.String() != nextURL {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+
+		body := `{
+			"data":[
+				{
+					"type":"appPrices",
+					"id":"manual-price-usa",
+					"attributes":{"startDate":"2025-01-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-manual-usa"}}
+					}
+				}
+			],
+			"included":[
+				{"type":"appPricePoints","id":"pp-manual-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"pricing", "schedule", "manual-prices",
+			"--next", nextURL,
+			"--resolved",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"territory":"USA"`) || !strings.Contains(stdout, `"customerPrice":"9.99"`) {
+		t.Fatalf("expected resolved next output, got %q", stdout)
+	}
+}
+
 func TestPricingScheduleManualPricesRawOutputUnchanged(t *testing.T) {
 	setupAuth(t)
 
