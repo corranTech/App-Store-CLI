@@ -524,6 +524,101 @@ func TestPublishTestFlightLocalBuildUsesDefaultExportOptionsPath(t *testing.T) {
 	}
 }
 
+func TestPublishTestFlightLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.T) {
+	restore := overridePublishCommandTestHooks(t)
+	defer restore()
+
+	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
+		return "app-123", nil
+	}
+	resolvePublishNextBuildNumberFn = func(_ context.Context, _ *asc.Client, _ shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
+		return &asc.BuildsNextBuildNumberResult{NextBuildNumber: "42"}, nil
+	}
+	runPublishArchiveFn = func(_ context.Context, _ localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+		time.Sleep(150 * time.Millisecond)
+		return &localxcode.ArchiveResult{
+			ArchivePath:   ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive",
+			BundleID:      "com.example.demo",
+			Version:       "1.2.3",
+			BuildNumber:   "42",
+			Scheme:        "Demo",
+			Configuration: "Release",
+		}, nil
+	}
+	runPublishExportFn = func(_ context.Context, _ localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+		return &localxcode.ExportResult{
+			ArchivePath: ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive",
+			IPAPath:     ".asc/artifacts/Demo-IOS-1.2.3-42.ipa",
+			BundleID:    "com.example.demo",
+			Version:     "1.2.3",
+			BuildNumber: "42",
+		}, nil
+	}
+	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
+		return newPublishTestFileInfo(t)
+	}
+	uploadBuildAndWaitForIDFn = func(ctx context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, timeout time.Duration, timeoutOverride bool) (*publishUploadResult, error) {
+		if !timeoutOverride {
+			t.Fatal("expected timeout override for local-build upload")
+		}
+		if timeout != 100*time.Millisecond {
+			t.Fatalf("expected upload timeout 100ms, got %s", timeout)
+		}
+		if err := ctx.Err(); err != nil {
+			t.Fatalf("expected fresh upload context after archive/export, got %v", err)
+		}
+		return &publishUploadResult{
+			Build: &asc.BuildResponse{
+				Data: asc.Resource[asc.BuildAttributes]{
+					ID: "build-123",
+					Attributes: asc.BuildAttributes{
+						Version:         buildNumber,
+						ProcessingState: asc.BuildProcessingStateValid,
+					},
+				},
+			},
+			Version:     version,
+			BuildNumber: buildNumber,
+		}, nil
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-123/betaGroups":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"group-1","isInternalGroup":false}}]}`)
+		case "/v1/builds/build-123/relationships/betaGroups":
+			return publishCommandJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	cmd := PublishTestFlightCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "friendly-app",
+		"--workspace", "Demo.xcworkspace",
+		"--scheme", "Demo",
+		"--version", "1.2.3",
+		"--group", "group-1",
+		"--export-options", "ExportOptions.plist",
+		"--timeout", "100ms",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("Exec() error: %v", err)
+	}
+}
+
 func TestPublishAppStoreLocalBuildRequiresExportOptionsWhenDefaultMissing(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
@@ -613,6 +708,100 @@ func TestPublishAppStoreLocalBuildRejectsDirectUploadExportOptions(t *testing.T)
 	}
 	if !strings.Contains(stderr, "--export-options with destination=upload is not supported by publish") {
 		t.Fatalf("expected direct-upload rejection, got %q", stderr)
+	}
+}
+
+func TestPublishAppStoreLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.T) {
+	restore := overridePublishCommandTestHooks(t)
+	defer restore()
+
+	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
+		return "app-123", nil
+	}
+	resolvePublishNextBuildNumberFn = func(_ context.Context, _ *asc.Client, _ shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
+		return &asc.BuildsNextBuildNumberResult{NextBuildNumber: "42"}, nil
+	}
+	runPublishArchiveFn = func(_ context.Context, _ localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+		time.Sleep(150 * time.Millisecond)
+		return &localxcode.ArchiveResult{
+			ArchivePath:   ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive",
+			BundleID:      "com.example.demo",
+			Version:       "1.2.3",
+			BuildNumber:   "42",
+			Scheme:        "Demo",
+			Configuration: "Release",
+		}, nil
+	}
+	runPublishExportFn = func(_ context.Context, _ localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+		return &localxcode.ExportResult{
+			ArchivePath: ".asc/artifacts/Demo-IOS-1.2.3-42.xcarchive",
+			IPAPath:     ".asc/artifacts/Demo-IOS-1.2.3-42.ipa",
+			BundleID:    "com.example.demo",
+			Version:     "1.2.3",
+			BuildNumber: "42",
+		}, nil
+	}
+	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
+		return newPublishTestFileInfo(t)
+	}
+	uploadBuildAndWaitForIDFn = func(ctx context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, timeout time.Duration, timeoutOverride bool) (*publishUploadResult, error) {
+		if !timeoutOverride {
+			t.Fatal("expected timeout override for local-build upload")
+		}
+		if timeout != 100*time.Millisecond {
+			t.Fatalf("expected upload timeout 100ms, got %s", timeout)
+		}
+		if err := ctx.Err(); err != nil {
+			t.Fatalf("expected fresh upload context after archive/export, got %v", err)
+		}
+		return &publishUploadResult{
+			Build: &asc.BuildResponse{
+				Data: asc.Resource[asc.BuildAttributes]{
+					ID: "build-123",
+					Attributes: asc.BuildAttributes{
+						Version:         buildNumber,
+						ProcessingState: asc.BuildProcessingStateValid,
+					},
+				},
+			},
+			Version:     version,
+			BuildNumber: buildNumber,
+		}, nil
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-123/appStoreVersions":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case "/v1/appStoreVersions/version-1/relationships/build":
+			return publishCommandJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	cmd := PublishAppStoreCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "friendly-app",
+		"--workspace", "Demo.xcworkspace",
+		"--scheme", "Demo",
+		"--version", "1.2.3",
+		"--export-options", "ExportOptions.plist",
+		"--timeout", "100ms",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("Exec() error: %v", err)
 	}
 }
 

@@ -208,7 +208,7 @@ func resolvePublishBuildNumber(ctx context.Context, client *asc.Client, appID, v
 	return strings.TrimSpace(result.NextBuildNumber), nil
 }
 
-func runPublishLocalBuild(ctx context.Context, requestCtx context.Context, client *asc.Client, appID, platform, version, buildNumber string, pollInterval, timeout time.Duration, timeoutOverride bool, config publishLocalBuildConfig) (*publishLocalBuildExecutionResult, error) {
+func runPublishLocalBuild(ctx context.Context, client *asc.Client, appID, platform, version, buildNumber string, pollInterval, timeout time.Duration, timeoutOverride bool, config publishLocalBuildConfig) (*publishLocalBuildExecutionResult, error) {
 	archiveResult, err := runPublishArchiveFn(ctx, localxcode.ArchiveOptions{
 		WorkspacePath:  config.WorkspacePath,
 		ProjectPath:    config.ProjectPath,
@@ -266,8 +266,10 @@ func runPublishLocalBuild(ctx context.Context, requestCtx context.Context, clien
 	if err != nil {
 		return nil, fmt.Errorf("validate exported IPA: %w", err)
 	}
+	uploadRequestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeout)
+	defer cancel()
 	uploadResult, err := uploadBuildAndWaitForIDFn(
-		requestCtx,
+		uploadRequestCtx,
 		client,
 		appID,
 		exportResult.IPAPath,

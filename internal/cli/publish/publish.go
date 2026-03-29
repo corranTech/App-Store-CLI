@@ -188,18 +188,32 @@ Examples:
 			}
 
 			timeoutValue := resolvePublishTimeout(*timeout)
-			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
-			defer cancel()
+			newPublishRequestCtx := func() (context.Context, context.CancelFunc) {
+				return shared.ContextWithTimeoutDuration(ctx, timeoutValue)
+			}
+			requestCtx, cancel := newPublishRequestCtx()
+			if !localBuildMode {
+				defer cancel()
+			}
 
 			resolvedPublishAppID := resolvedAppInput
+			preflightCtx := requestCtx
 			if localBuildMode {
-				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(requestCtx, client, resolvedPublishAppID)
+				cancel()
+				var preflightCancel context.CancelFunc
+				preflightCtx, preflightCancel = newPublishRequestCtx()
+				defer preflightCancel()
+				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
 				if err != nil {
 					return fmt.Errorf("publish testflight: resolve app: %w", err)
 				}
 			}
 
-			resolvedGroups, err := resolvePublishBetaGroups(requestCtx, client, resolvedPublishAppID, parsedGroupIDs)
+			groupLookupCtx := requestCtx
+			if localBuildMode {
+				groupLookupCtx = preflightCtx
+			}
+			resolvedGroups, err := resolvePublishBetaGroups(groupLookupCtx, client, resolvedPublishAppID, parsedGroupIDs)
 			if err != nil {
 				return fmt.Errorf("publish testflight: %w", err)
 			}
@@ -214,7 +228,7 @@ Examples:
 
 			var buildResp *asc.BuildResponse
 			if localBuildMode {
-				buildNumberValue, err = resolvePublishBuildNumber(requestCtx, client, resolvedPublishAppID, versionValue, normalizedPlatform, localBuild, buildNumberValue)
+				buildNumberValue, err = resolvePublishBuildNumber(preflightCtx, client, resolvedPublishAppID, versionValue, normalizedPlatform, localBuild, buildNumberValue)
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
 				}
@@ -222,10 +236,12 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
 				}
-				localBuildResult, err = runPublishLocalBuild(ctx, requestCtx, client, resolvedPublishAppID, normalizedPlatform, versionValue, buildNumberValue, *pollInterval, timeoutValue, timeoutOverride, localBuildConfig)
+				localBuildResult, err = runPublishLocalBuild(ctx, client, resolvedPublishAppID, normalizedPlatform, versionValue, buildNumberValue, *pollInterval, timeoutValue, timeoutOverride, localBuildConfig)
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
 				}
+				requestCtx, cancel = newPublishRequestCtx()
+				defer cancel()
 				buildResp = localBuildResult.Build
 				uploaded = localBuildResult.Uploaded
 				resolvedVersionValue = localBuildResult.Version
@@ -439,12 +455,22 @@ Examples:
 			}
 
 			timeoutValue := resolvePublishTimeout(*timeout)
-			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
-			defer cancel()
+			newPublishRequestCtx := func() (context.Context, context.CancelFunc) {
+				return shared.ContextWithTimeoutDuration(ctx, timeoutValue)
+			}
+			requestCtx, cancel := newPublishRequestCtx()
+			if !localBuildMode {
+				defer cancel()
+			}
 
 			resolvedPublishAppID := resolvedAppInput
+			preflightCtx := requestCtx
 			if localBuildMode {
-				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(requestCtx, client, resolvedPublishAppID)
+				cancel()
+				var preflightCancel context.CancelFunc
+				preflightCtx, preflightCancel = newPublishRequestCtx()
+				defer preflightCancel()
+				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
 				if err != nil {
 					return fmt.Errorf("publish appstore: resolve app: %w", err)
 				}
@@ -458,7 +484,7 @@ Examples:
 			var localBuildResult *publishLocalBuildExecutionResult
 
 			if localBuildMode {
-				buildNumberValue, err = resolvePublishBuildNumber(requestCtx, client, resolvedPublishAppID, versionValue, normalizedPlatform, localBuild, buildNumberValue)
+				buildNumberValue, err = resolvePublishBuildNumber(preflightCtx, client, resolvedPublishAppID, versionValue, normalizedPlatform, localBuild, buildNumberValue)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
@@ -466,10 +492,12 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
-				localBuildResult, err = runPublishLocalBuild(ctx, requestCtx, client, resolvedPublishAppID, normalizedPlatform, versionValue, buildNumberValue, *pollInterval, timeoutValue, timeoutOverride, localBuildConfig)
+				localBuildResult, err = runPublishLocalBuild(ctx, client, resolvedPublishAppID, normalizedPlatform, versionValue, buildNumberValue, *pollInterval, timeoutValue, timeoutOverride, localBuildConfig)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
+				requestCtx, cancel = newPublishRequestCtx()
+				defer cancel()
 				buildResp = localBuildResult.Build
 				versionValue = localBuildResult.Version
 				uploaded = localBuildResult.Uploaded
