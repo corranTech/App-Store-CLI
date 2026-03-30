@@ -372,11 +372,7 @@ textarea {
   gap: 10px;
 }
 
-.context-app-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
+
 
 .context-badge {
   font-size: 11px;
@@ -645,23 +641,7 @@ textarea {
   padding: 4px 8px 6px 12px;
 }
 
-.composer-meta {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 
-.composer-meta span {
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: default;
-}
-
-.composer-meta span:hover {
-  background: var(--composer-meta-hover);
-}
 
 .send-btn {
   width: 28px;

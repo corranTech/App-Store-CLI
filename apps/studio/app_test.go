@@ -94,6 +94,18 @@ func TestParseASCCommandArgsRejectsUnterminatedQuotes(t *testing.T) {
 	}
 }
 
+func TestRunASCCommandRejectsDisallowedPaths(t *testing.T) {
+	app := &App{}
+
+	got, err := app.RunASCCommand("publish appstore --app 123 --output json")
+	if err != nil {
+		t.Fatalf("RunASCCommand() error = %v", err)
+	}
+	if got.Error != "Command is not allowed in ASC Studio" {
+		t.Fatalf("RunASCCommand().Error = %q, want command rejection", got.Error)
+	}
+}
+
 func TestBundledASCPathPrefersAppBundleResources(t *testing.T) {
 	tmp := t.TempDir()
 	resourceDir := filepath.Join(tmp, "ASC Studio.app", "Contents", "Resources", "bin")

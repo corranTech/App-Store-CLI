@@ -55,6 +55,60 @@ type App struct {
 	cachedPrivateKeyPath string
 }
 
+var allowedStudioCommandPaths = map[string]struct{}{
+	"accessibility list":                        {},
+	"account status":                            {},
+	"age-rating view":                           {},
+	"agreements list":                           {},
+	"alternative-distribution domains list":     {},
+	"analytics requests":                        {},
+	"android-ios-mapping list":                  {},
+	"app-clips list":                            {},
+	"app-events list":                           {},
+	"app-setup info list":                       {},
+	"app-tags list":                             {},
+	"background-assets list":                    {},
+	"build-bundles list":                        {},
+	"build-localizations list":                  {},
+	"builds list":                               {},
+	"bundle-ids create":                         {},
+	"bundle-ids list":                           {},
+	"categories list":                           {},
+	"certificates list":                         {},
+	"devices list":                              {},
+	"devices register":                          {},
+	"encryption list":                           {},
+	"eula list":                                 {},
+	"game-center achievements list":             {},
+	"iap list":                                  {},
+	"insights weekly":                           {},
+	"localizations list":                        {},
+	"localizations preview-sets list":           {},
+	"marketplace search-details view":           {},
+	"merchant-ids list":                         {},
+	"metadata pull":                             {},
+	"nominations list":                          {},
+	"pass-type-ids list":                        {},
+	"performance diagnostics list":              {},
+	"performance metrics list":                  {},
+	"pre-orders view":                           {},
+	"pricing view":                              {},
+	"product-pages custom-pages list":           {},
+	"product-pages experiments list":            {},
+	"profiles list":                             {},
+	"review submissions-list":                   {},
+	"reviews list":                              {},
+	"routing-coverage list":                     {},
+	"sandbox list":                              {},
+	"schema index":                              {},
+	"status":                                    {},
+	"users list":                                {},
+	"versions list":                             {},
+	"webhooks list":                             {},
+	"workflow list":                             {},
+	"xcode-cloud workflows list":                {},
+}
+
 type threadSession struct {
 	client    agentClient
 	sessionID string
@@ -1202,6 +1256,14 @@ func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 		return ASCCommandResponse{Error: "args required"}, nil
 	}
 
+	parts, err := parseASCCommandArgs(args)
+	if err != nil {
+		return ASCCommandResponse{Error: "Invalid command arguments: " + err.Error()}, nil
+	}
+	if !isAllowedStudioCommand(parts) {
+		return ASCCommandResponse{Error: "Command is not allowed in ASC Studio"}, nil
+	}
+
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return ASCCommandResponse{Error: "Could not find asc binary: " + err.Error()}, nil
@@ -1209,11 +1271,6 @@ func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
-
-	parts, err := parseASCCommandArgs(args)
-	if err != nil {
-		return ASCCommandResponse{Error: "Invalid command arguments: " + err.Error()}, nil
-	}
 	cmd := a.newASCCommand(ctx, ascPath, parts...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1694,6 +1751,26 @@ func parseAppPricePointLookup(out []byte, territoryID, wantedPricePoint string) 
 
 func parseASCCommandArgs(args string) ([]string, error) {
 	return shellquote.Split(strings.TrimSpace(args))
+}
+
+func isAllowedStudioCommand(parts []string) bool {
+	path := studioCommandPath(parts)
+	if path == "" {
+		return false
+	}
+	_, ok := allowedStudioCommandPaths[path]
+	return ok
+}
+
+func studioCommandPath(parts []string) string {
+	path := make([]string, 0, 4)
+	for _, part := range parts {
+		if strings.HasPrefix(part, "-") {
+			break
+		}
+		path = append(path, part)
+	}
+	return strings.Join(path, " ")
 }
 
 func (a *App) newASCCommand(ctx context.Context, ascPath string, args ...string) *exec.Cmd {

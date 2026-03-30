@@ -176,7 +176,6 @@ const sectionCommands: Record<string, string> = {
   "app-review": "review submissions-list --app APP_ID --output json",
   "history": "versions list --app APP_ID --output json",
   "builds": "builds list --app APP_ID --limit 20 --output json",
-  "app-privacy": "age-rating view --app APP_ID --output json",
   "app-accessibility": "accessibility list --app APP_ID --output json",
   "in-app-events": "app-events list --app APP_ID --output json",
   "custom-product-pages": "product-pages custom-pages list --app APP_ID --output json",

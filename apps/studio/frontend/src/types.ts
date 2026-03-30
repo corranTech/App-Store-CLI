@@ -11,10 +11,3 @@ export type ChatMessage = {
   timestamp: string;
 };
 
-export type ApprovalCard = {
-  id: string;
-  title: string;
-  summary: string;
-  commandPreview: string[];
-  status: "pending" | "approved" | "rejected";
-};
