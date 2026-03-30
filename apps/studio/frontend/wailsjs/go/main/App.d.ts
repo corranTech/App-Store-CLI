@@ -17,6 +17,8 @@ export function GetSettings():Promise<settings.StudioSettings>;
 
 export function ListApprovals():Promise<Array<approvals.Action>>;
 
+export function ListApps():Promise<main.ListAppsResponse>;
+
 export function ListThreads():Promise<Array<threads.Thread>>;
 
 export function QueueMutation(arg1:main.ApprovalRequest):Promise<approvals.Action>;

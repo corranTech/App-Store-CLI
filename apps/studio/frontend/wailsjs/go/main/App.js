@@ -26,6 +26,10 @@ export function ListApprovals() {
   return window['go']['main']['App']['ListApprovals']();
 }
 
+export function ListApps() {
+  return window['go']['main']['App']['ListApps']();
+}
+
 export function ListThreads() {
   return window['go']['main']['App']['ListThreads']();
 }

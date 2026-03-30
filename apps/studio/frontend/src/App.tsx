@@ -2,10 +2,11 @@ import { FormEvent, useEffect, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
-import { Bootstrap, CheckAuthStatus, GetSettings, SaveSettings } from "../wailsjs/go/main/App";
+import { Bootstrap, CheckAuthStatus, GetSettings, ListApps, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 const sections: NavSection[] = [
+  { id: "apps", label: "Apps", description: "Your apps" },
   { id: "overview", label: "Overview", description: "Release cockpit" },
   { id: "builds", label: "Builds", description: "TestFlight and processing" },
   { id: "submission", label: "Submission", description: "Validation and publish" },
@@ -13,6 +14,7 @@ const sections: NavSection[] = [
 ];
 
 const sectionIcons: Record<string, string> = {
+  apps: "□",
   overview: "◎",
   builds: "⏣",
   submission: "↗",
@@ -71,6 +73,8 @@ export default function App() {
   const [authStatus, setAuthStatus] = useState<{ authenticated: boolean; storage: string; profile: string; rawOutput: string }>({
     authenticated: false, storage: "", profile: "", rawOutput: "",
   });
+  const [appList, setAppList] = useState<{ id: string; name: string; subtitle: string }[]>([]);
+  const [appsLoading, setAppsLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([Bootstrap(), CheckAuthStatus()])
@@ -103,6 +107,17 @@ export default function App() {
             profile: auth.profile || "",
             rawOutput: auth.rawOutput || "",
           });
+          if (auth.authenticated) {
+            setAppsLoading(true);
+            ListApps()
+              .then((res) => {
+                if (res.apps) setAppList(res.apps.map((a: { id: string; name: string; subtitle: string }) => ({
+                  id: a.id, name: a.name, subtitle: a.subtitle,
+                })));
+              })
+              .catch(() => {})
+              .finally(() => setAppsLoading(false));
+          }
         }
         setLoading(false);
       })
@@ -181,20 +196,6 @@ export default function App() {
         </div>
 
         <div className="sidebar-spacer" />
-
-        <div className="thread-section">
-          <p className="sidebar-section-label">Threads</p>
-          {messages.length > 0 ? (
-            <div className="thread-row is-selected">
-              <strong>Current session</strong>
-              <small>now</small>
-            </div>
-          ) : (
-            <div className="thread-row">
-              <span className="empty-hint">No threads yet</span>
-            </div>
-          )}
-        </div>
       </aside>
 
       <div className="shell-separator" />
@@ -280,9 +281,6 @@ export default function App() {
                 <p className="settings-hint">
                   Run <code>asc auth login</code> in your terminal to set up credentials, then relaunch Studio.
                 </p>
-              )}
-              {authStatus.rawOutput && (
-                <pre className="command-preview">{authStatus.rawOutput}</pre>
               )}
             </div>
 
@@ -392,6 +390,26 @@ export default function App() {
               Open Settings
             </button>
           </div>
+        ) : activeSection.id === "apps" ? (
+          <div className="apps-view">
+            <div className="workspace-section">
+              <h3 className="section-label">Apps</h3>
+              {appsLoading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : appList.length > 0 ? (
+                <div className="app-list">
+                  {appList.map((app) => (
+                    <div key={app.id} className="app-list-row">
+                      <span className="app-list-name">{app.name}</span>
+                      {app.subtitle && <span className="app-list-subtitle">{app.subtitle}</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="empty-hint">No apps found</p>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="empty-state">
             <p className="empty-title">
@@ -403,8 +421,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Chat dock */}
-        <section className={`dock ${dockExpanded ? "dock-expanded" : ""}`}>
+        {/* Chat dock — hidden on settings */}
+        {activeSection.id !== "settings" && <section className={`dock ${dockExpanded ? "dock-expanded" : ""}`}>
           {dockExpanded && (
             <div className="dock-header">
               <span className="dock-title">ACP Chat</span>
@@ -450,7 +468,7 @@ export default function App() {
               </div>
             </div>
           </form>
-        </section>
+        </section>}
       </div>
     </div>
   );

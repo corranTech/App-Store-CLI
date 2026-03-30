@@ -193,12 +193,44 @@ textarea {
   white-space: nowrap;
 }
 
+.app-sidebar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: default;
+}
+
+.app-sidebar-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.app-sidebar-row strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-sidebar-row small {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Main area ──────────────────────────────────── */
 
 .main-area {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.82);
 }
@@ -418,6 +450,29 @@ textarea {
 .app-list {
   display: flex;
   flex-direction: column;
+}
+
+.app-list-row {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+  border-top: 1px solid var(--separator);
+  gap: 2px;
+}
+
+.app-list-row:first-child {
+  border-top: none;
+}
+
+.app-list-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.app-list-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .app-row {
@@ -783,6 +838,7 @@ textarea {
 
 .empty-state {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -874,6 +930,14 @@ textarea {
 
 .settings-view {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+.apps-view {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   background: var(--surface);
 }

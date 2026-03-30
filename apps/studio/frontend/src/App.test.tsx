@@ -3,6 +3,11 @@ import { vi } from "vitest";
 
 // Mock the Wails bindings since they don't exist in test environment
 vi.mock("../wailsjs/go/main/App", () => ({
+  ListApps: vi.fn().mockResolvedValue({
+    apps: [
+      { id: "1", name: "Test App", subtitle: "A great app" },
+    ],
+  }),
   CheckAuthStatus: vi.fn().mockResolvedValue({
     authenticated: true,
     storage: "System Keychain",

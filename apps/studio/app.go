@@ -87,6 +87,20 @@ type AuthStatus struct {
 	RawOutput     string `json:"rawOutput"`
 }
 
+type AppInfo struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Subtitle string `json:"subtitle"`
+	BundleID string `json:"bundleId"`
+	Platform string `json:"platform"`
+	SKU      string `json:"sku"`
+}
+
+type ListAppsResponse struct {
+	Apps  []AppInfo `json:"apps"`
+	Error string    `json:"error,omitempty"`
+}
+
 func NewApp() (*App, error) {
 	rootDir, err := settings.DefaultRoot()
 	if err != nil {
@@ -207,6 +221,102 @@ func (a *App) CheckAuthStatus() (AuthStatus, error) {
 	}
 
 	return status, nil
+}
+
+func (a *App) ListApps() (ListAppsResponse, error) {
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return ListAppsResponse{Error: "Could not find asc binary: " + err.Error()}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, ascPath, "apps", "list", "--output", "json")
+	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return ListAppsResponse{Error: strings.TrimSpace(string(out))}, nil
+	}
+
+	// asc apps list --output json returns {"data":[...]} or a bare array
+	type rawApp struct {
+		Type       string `json:"type"`
+		ID         string `json:"id"`
+		Attributes struct {
+			Name     string `json:"name"`
+			BundleID string `json:"bundleId"`
+			SKU      string `json:"sku"`
+		} `json:"attributes"`
+	}
+
+	var rawApps []rawApp
+
+	// Try {"data":[...]} envelope first
+	var envelope struct {
+		Data []rawApp `json:"data"`
+	}
+	if err := json.Unmarshal(out, &envelope); err == nil && len(envelope.Data) > 0 {
+		rawApps = envelope.Data
+	} else if err := json.Unmarshal(out, &rawApps); err != nil {
+		return ListAppsResponse{Error: "Failed to parse apps list: " + err.Error()}, nil
+	}
+
+	apps := make([]AppInfo, len(rawApps))
+	for i, raw := range rawApps {
+		apps[i] = AppInfo{
+			ID:       raw.ID,
+			Name:     raw.Attributes.Name,
+			BundleID: raw.Attributes.BundleID,
+			SKU:      raw.Attributes.SKU,
+		}
+	}
+
+	// Fetch subtitles concurrently (best-effort; failures are silently skipped)
+	subtitleCtx, subtitleCancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
+	defer subtitleCancel()
+
+	type subtitleResult struct {
+		index    int
+		subtitle string
+	}
+	results := make(chan subtitleResult, len(apps))
+	for i, app := range apps {
+		go func(idx int, appID string) {
+			subtitle := a.fetchSubtitle(subtitleCtx, ascPath, appID)
+			results <- subtitleResult{index: idx, subtitle: subtitle}
+		}(i, app.ID)
+	}
+	for range apps {
+		r := <-results
+		apps[r.index].Subtitle = r.subtitle
+	}
+
+	return ListAppsResponse{Apps: apps}, nil
+}
+
+func (a *App) fetchSubtitle(ctx context.Context, ascPath, appID string) string {
+	cmd := exec.CommandContext(ctx, ascPath, "localizations", "list",
+		"--app", appID, "--type", "app-info", "--locale", "en-US", "--output", "json")
+	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+
+	type locAttrs struct {
+		Subtitle string `json:"subtitle"`
+	}
+	type locItem struct {
+		Attributes locAttrs `json:"attributes"`
+	}
+	var envelope struct {
+		Data []locItem `json:"data"`
+	}
+	if json.Unmarshal(out, &envelope) != nil || len(envelope.Data) == 0 {
+		return ""
+	}
+	return envelope.Data[0].Attributes.Subtitle
 }
 
 func (a *App) resolveASCPath() (string, error) {

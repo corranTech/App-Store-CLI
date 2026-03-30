@@ -80,6 +80,28 @@ export namespace environment {
 
 export namespace main {
 	
+	export class AppInfo {
+	    id: string;
+	    name: string;
+	    subtitle: string;
+	    bundleId: string;
+	    platform: string;
+	    sku: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.subtitle = source["subtitle"];
+	        this.bundleId = source["bundleId"];
+	        this.platform = source["platform"];
+	        this.sku = source["sku"];
+	    }
+	}
 	export class ApprovalRequest {
 	    threadId: string;
 	    title: string;
@@ -163,6 +185,38 @@ export namespace main {
 	        this.threads = this.convertValues(source["threads"], threads.Thread);
 	        this.approvals = this.convertValues(source["approvals"], approvals.Action);
 	        this.windowFlavor = source["windowFlavor"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ListAppsResponse {
+	    apps: AppInfo[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ListAppsResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.apps = this.convertValues(source["apps"], AppInfo);
+	        this.error = source["error"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
