@@ -221,7 +221,6 @@ const sectionCommands: Record<string, string> = {
   "metadata": "metadata pull --app APP_ID --dry-run --output json",
   "agreements": "agreements list --output json",
   "build-bundles": "build-bundles list --app APP_ID --output json",
-  "actors": "actors list --output json",
   "workflow": "workflow list --output json",
   "analytics": "analytics requests --app APP_ID --output json",
   "crashes": "performance diagnostics list --app APP_ID --output json",
@@ -1958,6 +1957,18 @@ export default function App() {
               </p>
               <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
                 Use the ACP chat to run: <code>asc diff metadata --app {selectedAppId || "APP_ID"}</code>
+              </p>
+            </div>
+          </div>
+        ) : activeSection.id === "actors" ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Actors</h3>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                Actors are users and API keys that appear in audit fields (e.g. submittedByActor). Look up an actor by ID:
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
+                <code>asc actors view --id ACTOR_ID</code>
               </p>
             </div>
           </div>
