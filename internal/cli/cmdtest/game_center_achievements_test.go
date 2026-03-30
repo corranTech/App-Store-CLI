@@ -39,15 +39,9 @@ func TestGameCenterAchievementsListNoDetailReturnsEmptyList(t *testing.T) {
 
 	expectedURL := "https://api.appstoreconnect.apple.com/v1/apps/APP_ID/gameCenterDetail"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		if callCount > 1 {
+	callCount := &lockedCounter{}
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if callCount.Inc() > 1 {
 			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
 		}
 		if req.Method != http.MethodGet {
@@ -63,7 +57,7 @@ func TestGameCenterAchievementsListNoDetailReturnsEmptyList(t *testing.T) {
 			Body:       io.NopCloser(strings.NewReader(body)),
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
 		}, nil
-	})
+	}))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
