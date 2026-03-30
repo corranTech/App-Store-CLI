@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
-import { Bootstrap, CheckAuthStatus, GetAppDetail, GetSettings, GetVersionMetadata, ListApps, SaveSettings } from "../wailsjs/go/main/App";
+import { Bootstrap, CheckAuthStatus, GetAppDetail, GetScreenshots, GetSettings, GetVersionMetadata, ListApps, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 const sections: NavSection[] = [
@@ -82,11 +82,16 @@ export default function App() {
   } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [allLocalizations, setAllLocalizations] = useState<{
-    locale: string; description: string; keywords: string; whatsNew: string;
-    promotionalText: string; supportUrl: string; marketingUrl: string;
+    localizationId: string; locale: string; description: string; keywords: string;
+    whatsNew: string; promotionalText: string; supportUrl: string; marketingUrl: string;
   }[]>([]);
   const [selectedLocale, setSelectedLocale] = useState<string>("");
   const [metadataLoading, setMetadataLoading] = useState(false);
+  const [screenshotSets, setScreenshotSets] = useState<{
+    displayType: string;
+    screenshots: { thumbnailUrl: string; width: number; height: number }[];
+  }[]>([]);
+  const [screenshotsLoading, setScreenshotsLoading] = useState(false);
   const [appsLoading, setAppsLoading] = useState(false);
 
   useEffect(() => {
@@ -168,6 +173,7 @@ export default function App() {
     setAppDetail(null);
     setAllLocalizations([]);
     setSelectedLocale("");
+    setScreenshotSets([]);
     setDetailLoading(true);
     GetAppDetail(id)
       .then((d) => {
@@ -185,11 +191,18 @@ export default function App() {
             .then((meta) => {
               if (meta.localizations?.length) {
                 setAllLocalizations(meta.localizations);
-                // Default to primaryLocale, fall back to first available
-                const defaultLocale = meta.localizations.find(
+                const defaultLoc = meta.localizations.find(
                   (l: { locale: string }) => l.locale === d.primaryLocale
-                )?.locale ?? meta.localizations[0].locale;
-                setSelectedLocale(defaultLocale);
+                ) ?? meta.localizations[0];
+                setSelectedLocale(defaultLoc.locale);
+                // Fetch screenshots for the default locale in parallel
+                if (defaultLoc.localizationId) {
+                  setScreenshotsLoading(true);
+                  GetScreenshots(defaultLoc.localizationId)
+                    .then((res) => setScreenshotSets(res.sets ?? []))
+                    .catch(() => {})
+                    .finally(() => setScreenshotsLoading(false));
+                }
               }
             })
             .catch(() => {})
@@ -198,6 +211,19 @@ export default function App() {
       })
       .catch((e) => setAppDetail({ id, name: "", subtitle: "", bundleId: "", sku: "", primaryLocale: "", versions: [], error: String(e) }))
       .finally(() => setDetailLoading(false));
+  }
+
+  function handleLocaleChange(locale: string) {
+    setSelectedLocale(locale);
+    const loc = allLocalizations.find((l) => l.locale === locale);
+    if (loc?.localizationId) {
+      setScreenshotsLoading(true);
+      setScreenshotSets([]);
+      GetScreenshots(loc.localizationId)
+        .then((res) => setScreenshotSets(res.sets ?? []))
+        .catch(() => {})
+        .finally(() => setScreenshotsLoading(false));
+    }
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -541,13 +567,46 @@ export default function App() {
                           <select
                             className="locale-picker"
                             value={selectedLocale}
-                            onChange={(e) => setSelectedLocale(e.target.value)}
+                            onChange={(e) => handleLocaleChange(e.target.value)}
                           >
                             {allLocalizations.map((l) => (
                               <option key={l.locale} value={l.locale}>{l.locale}</option>
                             ))}
                           </select>
                         </div>
+
+                        {/* Screenshots */}
+                        {screenshotsLoading ? (
+                          <div className="metadata-field">
+                            <p className="metadata-label">Screenshots</p>
+                            <p className="empty-hint" style={{ margin: 0 }}>Loading…</p>
+                          </div>
+                        ) : screenshotSets.length > 0 ? (
+                          <div className="metadata-field">
+                            <p className="metadata-label">Screenshots</p>
+                            {screenshotSets.map((set) => {
+                              const label = set.displayType
+                                .replace(/^APP_/, "")
+                                .replace(/_/g, " ")
+                                .replace(/\b\w/g, (c) => c.toUpperCase());
+                              return (
+                                <div key={set.displayType} className="screenshot-set">
+                                  <p className="screenshot-set-label">{label}</p>
+                                  <div className="screenshot-row">
+                                    {set.screenshots.map((s, i) => (
+                                      <img
+                                        key={i}
+                                        src={s.thumbnailUrl}
+                                        alt={`Screenshot ${i + 1}`}
+                                        className={`screenshot-thumb ${s.width > s.height ? "landscape" : ""}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : null}
 
                         {loc.promotionalText && (
                           <div className="metadata-field">

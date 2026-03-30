@@ -1231,3 +1231,41 @@ textarea {
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/* ── Screenshots ─────────────────────────────────── */
+
+.screenshot-set {
+  margin-bottom: 12px;
+}
+
+.screenshot-set:last-child {
+  margin-bottom: 0;
+}
+
+.screenshot-set-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.screenshot-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.screenshot-thumb {
+  flex-shrink: 0;
+  height: 120px;
+  width: auto;
+  border-radius: 6px;
+  border: 1px solid var(--separator);
+  object-fit: cover;
+  background: var(--surface-secondary);
+}
+
+.screenshot-thumb.landscape {
+  height: 80px;
+}
