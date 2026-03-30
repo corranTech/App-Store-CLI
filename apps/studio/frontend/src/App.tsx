@@ -81,6 +81,19 @@ const fieldLabels: Record<string, string> = {
   advertisingIdDeclaration: "Ad ID Declaration", advertising: "Advertising",
   gambling: "Gambling", lootBox: "Loot Box",
   subscriptionGroupId: "Group ID", groupLevel: "Group Level",
+  healthOrWellnessTopics: "Health or Wellness", messagingAndChat: "Messaging & Chat",
+  parentalControls: "Parental Controls", ageAssurance: "Age Assurance",
+  unrestrictedWebAccess: "Unrestricted Web Access", userGeneratedContent: "User Generated Content",
+  alcoholTobaccoOrDrugUseOrReferences: "Alcohol/Tobacco/Drug References",
+  contests: "Contests", gamblingSimulated: "Simulated Gambling",
+  gunsOrOtherWeapons: "Guns or Weapons", medicalOrTreatmentInformation: "Medical Information",
+  profanityOrCrudeHumor: "Profanity or Crude Humor",
+  sexualContentGraphicAndNudity: "Sexual Content (Graphic)", sexualContentOrNudity: "Sexual Content",
+  horrorOrFearThemes: "Horror or Fear", matureOrSuggestiveThemes: "Mature Themes",
+  violenceCartoonOrFantasy: "Violence (Cartoon)", violenceRealistic: "Violence (Realistic)",
+  violenceRealisticProlongedGraphicOrSadistic: "Violence (Graphic/Sadistic)",
+  copyright: "Copyright", releaseType: "Release Type",
+  appStoreAgeRating: "Age Rating", kidsAgeBand: "Kids Age Band",
 };
 
 // Format raw API enum values for display
@@ -951,14 +964,22 @@ export default function App() {
               <div className="app-detail-view">
                 <div className="app-detail-section">
                   <h3 className="section-label">{activeSection.label}</h3>
-                  <div className="env-grid">
-                    {columns.map((key) => (
-                      <div key={key} className="env-row">
-                        <span className="env-key">{fieldLabels[key] ?? key}</span>
-                        <span className="env-value">{fmt(String(item[key] ?? ""))}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Setting</th>
+                        <th>Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {columns.map((key) => (
+                        <tr key={key}>
+                          <td>{fieldLabels[key] ?? key}</td>
+                          <td>{fmt(String(item[key] ?? ""))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             );
