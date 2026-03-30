@@ -91,7 +91,7 @@ func consumeResolvedAppSchedulePrices(
 	}
 
 	return asc.PaginateEach(ctx, firstPage, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-		nextURL, err := shared.MergeNextURLQuery(next, resolvedAppSchedulePricesQuery(limit))
+		nextURL, err := shared.MergeNextURLQuery(next, appSchedulePricesQuery(limit))
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func consumeResolvedAppSchedulePrices(
 	})
 }
 
-func resolvedAppSchedulePricesQuery(limit int) url.Values {
+func appSchedulePricesQuery(limit int) url.Values {
 	values := url.Values{}
 	values.Set("include", "appPricePoint,territory")
 	values.Set("fields[appPrices]", "manual,startDate,endDate,appPricePoint,territory")

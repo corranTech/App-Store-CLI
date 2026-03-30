@@ -174,6 +174,130 @@ func TestPricingCurrentBaseTerritoryJSONUsesDecodedPricePointMatch(t *testing.T)
 	}
 }
 
+func TestPricingCurrentPaginationPreservesIncludeFields(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	futureManualID := mustEncodeAppPricingResource(t, map[string]any{
+		"s":  "app-1",
+		"t":  "USA",
+		"p":  "future-price",
+		"sd": 1893456000.0,
+		"ed": 0.0,
+	})
+	currentManualID := mustEncodeAppPricingResource(t, map[string]any{
+		"s":  "app-1",
+		"t":  "USA",
+		"p":  "current-price",
+		"sd": 1704067200.0,
+		"ed": 0.0,
+	})
+	currentPricePointID := mustEncodeAppPricingResource(t, map[string]any{
+		"s": "app-1",
+		"t": "USA",
+		"p": "current-price",
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1/appPriceSchedule":
+			return pricingCurrentJSONResponse(`{"data":{"type":"appPriceSchedules","id":"schedule-1","attributes":{}}}`), nil
+
+		case "/v1/appPriceSchedules/schedule-1/baseTerritory":
+			return pricingCurrentJSONResponse(`{"data":{"type":"territories","id":"USA","attributes":{"currency":"USD"}}}`), nil
+
+		case "/v1/appPriceSchedules/schedule-1/manualPrices":
+			query := req.URL.Query()
+			if query.Get("include") != "appPricePoint,territory" {
+				t.Fatalf("expected include on paginated request, got %q", query.Get("include"))
+			}
+			if query.Get("fields[appPrices]") != "manual,startDate,endDate,appPricePoint,territory" {
+				t.Fatalf("unexpected fields[appPrices]: %q", query.Get("fields[appPrices]"))
+			}
+			if query.Get("fields[appPricePoints]") != "customerPrice,proceeds,territory" {
+				t.Fatalf("unexpected fields[appPricePoints]: %q", query.Get("fields[appPricePoints]"))
+			}
+			if query.Get("fields[territories]") != "currency" {
+				t.Fatalf("unexpected fields[territories]: %q", query.Get("fields[territories]"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("unexpected limit: %q", query.Get("limit"))
+			}
+
+			if query.Get("cursor") == "" {
+				body := `{
+					"data":[
+						{
+							"type":"appPrices",
+							"id":"` + futureManualID + `",
+							"attributes":{"startDate":"2030-01-01","manual":true}
+						}
+					],
+					"included":[],
+					"links":{"next":"https://api.appstoreconnect.apple.com/v1/appPriceSchedules/schedule-1/manualPrices?cursor=abc"}
+				}`
+				return pricingCurrentJSONResponse(body), nil
+			}
+
+			if query.Get("cursor") != "abc" {
+				t.Fatalf("expected cursor=abc, got %q", query.Get("cursor"))
+			}
+
+			body := `{
+				"data":[
+					{
+						"type":"appPrices",
+						"id":"` + currentManualID + `",
+						"attributes":{"startDate":"2024-01-01","manual":true}
+					}
+				],
+				"included":[
+					{
+						"type":"appPricePoints",
+						"id":"` + currentPricePointID + `",
+						"attributes":{"customerPrice":"2.99","proceeds":"2.09"}
+					},
+					{
+						"type":"territories",
+						"id":"USA",
+						"attributes":{"currency":"USD"}
+					}
+				],
+				"links":{"next":""}
+			}`
+			return pricingCurrentJSONResponse(body), nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"pricing", "current", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"customerPrice":"2.99"`) {
+		t.Fatalf("expected paginated current customerPrice in output, got %q", stdout)
+	}
+	if !strings.Contains(stdout, `"currency":"USD"`) {
+		t.Fatalf("expected USD currency in output, got %q", stdout)
+	}
+}
+
 func TestPricingCurrentAllTerritoriesJSON(t *testing.T) {
 	setupAuth(t)
 

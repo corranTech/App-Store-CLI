@@ -173,12 +173,18 @@ func fetchAppSchedulePriceEntries(
 	ctx context.Context,
 	fetch appSchedulePricePageFetcher,
 ) ([]appPriceEntry, map[string]appPricePointValue, map[string]string, error) {
+	const limit = 200
+
 	fetchPage := func(nextURL string) (*asc.AppPricesResponse, error) {
 		callCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
 
 		if strings.TrimSpace(nextURL) != "" {
-			return fetch(callCtx, asc.WithAppPriceSchedulePricesNextURL(nextURL))
+			mergedNextURL, err := shared.MergeNextURLQuery(nextURL, appSchedulePricesQuery(limit))
+			if err != nil {
+				return nil, err
+			}
+			return fetch(callCtx, asc.WithAppPriceSchedulePricesNextURL(mergedNextURL))
 		}
 
 		return fetch(
@@ -187,7 +193,7 @@ func fetchAppSchedulePriceEntries(
 			asc.WithAppPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "appPricePoint", "territory"}),
 			asc.WithAppPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
 			asc.WithAppPriceSchedulePricesTerritoryFields([]string{"currency"}),
-			asc.WithAppPriceSchedulePricesLimit(200),
+			asc.WithAppPriceSchedulePricesLimit(limit),
 		)
 	}
 
