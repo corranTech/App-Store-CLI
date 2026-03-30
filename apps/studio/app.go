@@ -224,19 +224,26 @@ type FinanceRegion struct {
 	Countries string `json:"countriesOrRegions"`
 }
 
+type FeedbackScreenshot struct {
+	URL    string `json:"url"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+}
+
 type FeedbackItem struct {
-	ID             string `json:"id"`
-	Comment        string `json:"comment"`
-	Email          string `json:"email"`
-	DeviceModel    string `json:"deviceModel"`
-	DeviceFamily   string `json:"deviceFamily"`
-	OSVersion      string `json:"osVersion"`
-	AppPlatform    string `json:"appPlatform"`
-	CreatedDate    string `json:"createdDate"`
-	Locale         string `json:"locale"`
-	TimeZone       string `json:"timeZone"`
-	ConnectionType string `json:"connectionType"`
-	Battery        int    `json:"batteryPercentage"`
+	ID             string               `json:"id"`
+	Comment        string               `json:"comment"`
+	Email          string               `json:"email"`
+	DeviceModel    string               `json:"deviceModel"`
+	DeviceFamily   string               `json:"deviceFamily"`
+	OSVersion      string               `json:"osVersion"`
+	AppPlatform    string               `json:"appPlatform"`
+	CreatedDate    string               `json:"createdDate"`
+	Locale         string               `json:"locale"`
+	TimeZone       string               `json:"timeZone"`
+	ConnectionType string               `json:"connectionType"`
+	Battery        int                  `json:"batteryPercentage"`
+	Screenshots    []FeedbackScreenshot `json:"screenshots"`
 }
 
 type FeedbackResponse struct {
@@ -972,24 +979,30 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 60*time.Second)
 	defer cancel()
 
-	// Fetch feedback list
+	// Fetch feedback list with screenshots
 	cmd := a.newASCCommand(ctx, ascPath, "testflight", "feedback", "list",
-		"--app", appID, "--sort", "-createdDate", "--paginate", "--output", "json")
+		"--app", appID, "--include-screenshots", "--sort", "-createdDate", "--paginate", "--output", "json")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return FeedbackResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
 
+	type rawScreenshot struct {
+		URL    string `json:"url"`
+		Width  int    `json:"width"`
+		Height int    `json:"height"`
+	}
 	type rawFeedback struct {
 		ID         string `json:"id"`
 		Attributes struct {
-			Comment      string `json:"comment"`
-			Email        string `json:"email"`
-			DeviceModel  string `json:"deviceModel"`
-			OSVersion    string `json:"osVersion"`
-			AppPlatform  string `json:"appPlatform"`
-			CreatedDate  string `json:"createdDate"`
-			DeviceFamily string `json:"deviceFamily"`
+			Comment      string          `json:"comment"`
+			Email        string          `json:"email"`
+			DeviceModel  string          `json:"deviceModel"`
+			OSVersion    string          `json:"osVersion"`
+			AppPlatform  string          `json:"appPlatform"`
+			CreatedDate  string          `json:"createdDate"`
+			DeviceFamily string          `json:"deviceFamily"`
+			Screenshots  []rawScreenshot `json:"screenshots"`
 		} `json:"attributes"`
 	}
 	var listEnv struct {
@@ -1048,6 +1061,10 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 
 	items := make([]FeedbackItem, len(listEnv.Data))
 	for i, fb := range listEnv.Data {
+		var shots []FeedbackScreenshot
+		for _, s := range fb.Attributes.Screenshots {
+			shots = append(shots, FeedbackScreenshot{URL: s.URL, Width: s.Width, Height: s.Height})
+		}
 		items[i] = FeedbackItem{
 			ID:           fb.ID,
 			Comment:      fb.Attributes.Comment,
@@ -1057,6 +1074,7 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 			OSVersion:    fb.Attributes.OSVersion,
 			AppPlatform:  fb.Attributes.AppPlatform,
 			CreatedDate:  fb.Attributes.CreatedDate,
+			Screenshots:  shots,
 		}
 	}
 	for range listEnv.Data {

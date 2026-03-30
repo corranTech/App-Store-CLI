@@ -518,7 +518,7 @@ export default function App() {
   const [bundleIDCreating, setBundleIDCreating] = useState(false);
   const [financeRegions, setFinanceRegions] = useState<{ loading: boolean; error?: string; regions: { reportRegion: string; reportCurrency: string; regionCode: string; countriesOrRegions: string }[] }>({ loading: false, regions: [] });
   const [offerCodes, setOfferCodes] = useState<{ loading: boolean; error?: string; codes: { subscriptionName: string; subscriptionId: string; name: string; offerEligibility: string; customerEligibilities: string[]; duration: string; offerMode: string; numberOfPeriods: number; totalNumberOfCodes: number; productionCodeCount: number }[] }>({ loading: false, codes: [] });
-  const [feedbackData, setFeedbackData] = useState<{ loading: boolean; error?: string; total: number; items: { id: string; comment: string; email: string; deviceModel: string; deviceFamily: string; osVersion: string; appPlatform: string; createdDate: string; locale: string; timeZone: string; connectionType: string; batteryPercentage: number }[] }>({ loading: false, total: 0, items: [] });
+  const [feedbackData, setFeedbackData] = useState<{ loading: boolean; error?: string; total: number; items: { id: string; comment: string; email: string; deviceModel: string; deviceFamily: string; osVersion: string; appPlatform: string; createdDate: string; locale: string; timeZone: string; connectionType: string; batteryPercentage: number; screenshots: { url: string; width: number; height: number }[] }[] }>({ loading: false, total: 0, items: [] });
   const appSelectionRequestRef = useRef(0);
   const screenshotRequestRef = useRef(0);
   const groupTesterRequestRef = useRef(0);
@@ -2033,6 +2033,18 @@ export default function App() {
                         <div className="feedback-device">
                           {family} · {device} · {fmt(fb.appPlatform)} {fb.osVersion}
                         </div>
+                        {fb.screenshots && fb.screenshots.length > 0 && (
+                          <div className="feedback-screenshots">
+                            {fb.screenshots.map((s, si) => (
+                              <img
+                                key={si}
+                                src={s.url}
+                                alt={`Feedback screenshot ${si + 1}`}
+                                className={`feedback-screenshot ${s.width > s.height ? "landscape" : ""}`}
+                              />
+                            ))}
+                          </div>
+                        )}
                         {fb.comment && (
                           <p className="feedback-comment">{fb.comment}</p>
                         )}

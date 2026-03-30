@@ -402,6 +402,22 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class FeedbackScreenshot {
+	    url: string;
+	    width: number;
+	    height: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FeedbackScreenshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.width = source["width"];
+	        this.height = source["height"];
+	    }
+	}
 	export class FeedbackItem {
 	    id: string;
 	    comment: string;
@@ -415,6 +431,7 @@ export namespace main {
 	    timeZone: string;
 	    connectionType: string;
 	    batteryPercentage: number;
+	    screenshots: FeedbackScreenshot[];
 	
 	    static createFrom(source: any = {}) {
 	        return new FeedbackItem(source);
@@ -434,7 +451,26 @@ export namespace main {
 	        this.timeZone = source["timeZone"];
 	        this.connectionType = source["connectionType"];
 	        this.batteryPercentage = source["batteryPercentage"];
+	        this.screenshots = this.convertValues(source["screenshots"], FeedbackScreenshot);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class FeedbackResponse {
 	    feedback: FeedbackItem[];
@@ -470,6 +506,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	export class FinanceRegion {
 	    reportRegion: string;
 	    reportCurrency: string;

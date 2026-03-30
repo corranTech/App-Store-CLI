@@ -1494,3 +1494,26 @@ textarea {
   color: var(--text-tertiary);
   margin-top: 4px;
 }
+
+/* ── Feedback screenshots ────────────────────────── */
+
+.feedback-screenshots {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.feedback-screenshot {
+  height: 160px;
+  width: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--separator);
+  object-fit: cover;
+  background: var(--surface-secondary);
+  flex-shrink: 0;
+}
+
+.feedback-screenshot.landscape {
+  height: 100px;
+}
