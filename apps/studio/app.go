@@ -1777,7 +1777,10 @@ func (a *App) newASCCommand(ctx context.Context, ascPath string, args ...string)
 	cmd := exec.CommandContext(ctx, ascPath, args...)
 	// Inject auth env vars so we're immune to config.json wipes.
 	// Read credentials once from config and pass them via env every time.
-	env := append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	baseEnv := os.Environ()
+	env := make([]string, 0, len(baseEnv)+4)
+	env = append(env, baseEnv...)
+	env = append(env, "ASC_BYPASS_KEYCHAIN=1")
 	if a.cachedKeyID != "" {
 		env = append(env,
 			"ASC_KEY_ID="+a.cachedKeyID,

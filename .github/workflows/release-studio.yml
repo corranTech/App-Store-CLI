@@ -22,6 +22,7 @@ jobs:
             exit 1
           fi
           VERSION="${TAG#studio/}"
+          VERSION="${VERSION#v}"
           printf 'VERSION=%s\n' "$VERSION" >> "$GITHUB_ENV"
 
       - name: Set up Node
