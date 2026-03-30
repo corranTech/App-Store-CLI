@@ -38,6 +38,14 @@ export function GetSubscriptions(arg1) {
   return window['go']['main']['App']['GetSubscriptions'](arg1);
 }
 
+export function GetTestFlight(arg1) {
+  return window['go']['main']['App']['GetTestFlight'](arg1);
+}
+
+export function GetTestFlightTesters(arg1) {
+  return window['go']['main']['App']['GetTestFlightTesters'](arg1);
+}
+
 export function GetVersionMetadata(arg1) {
   return window['go']['main']['App']['GetVersionMetadata'](arg1);
 }

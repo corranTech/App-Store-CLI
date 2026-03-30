@@ -23,6 +23,10 @@ export function GetSettings():Promise<settings.StudioSettings>;
 
 export function GetSubscriptions(arg1:string):Promise<main.SubscriptionsResponse>;
 
+export function GetTestFlight(arg1:string):Promise<main.TestFlightResponse>;
+
+export function GetTestFlightTesters(arg1:string):Promise<main.TestFlightResponse>;
+
 export function GetVersionMetadata(arg1:string):Promise<main.VersionMetadataResponse>;
 
 export function ListApprovals():Promise<Array<approvals.Action>>;

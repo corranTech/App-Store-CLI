@@ -259,6 +259,50 @@ export namespace main {
 	        this.rawOutput = source["rawOutput"];
 	    }
 	}
+	export class BetaGroup {
+	    id: string;
+	    name: string;
+	    isInternal: boolean;
+	    publicLink: string;
+	    feedbackEnabled: boolean;
+	    createdDate: string;
+	    testerCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BetaGroup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.isInternal = source["isInternal"];
+	        this.publicLink = source["publicLink"];
+	        this.feedbackEnabled = source["feedbackEnabled"];
+	        this.createdDate = source["createdDate"];
+	        this.testerCount = source["testerCount"];
+	    }
+	}
+	export class BetaTester {
+	    email: string;
+	    firstName: string;
+	    lastName: string;
+	    inviteType: string;
+	    state: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BetaTester(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.email = source["email"];
+	        this.firstName = source["firstName"];
+	        this.lastName = source["lastName"];
+	        this.inviteType = source["inviteType"];
+	        this.state = source["state"];
+	    }
+	}
 	export class WorkspaceSection {
 	    id: string;
 	    label: string;
@@ -646,6 +690,40 @@ export namespace main {
 		}
 	}
 	
+	export class TestFlightResponse {
+	    groups: BetaGroup[];
+	    testers: BetaTester[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TestFlightResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groups = this.convertValues(source["groups"], BetaGroup);
+	        this.testers = this.convertValues(source["testers"], BetaTester);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class VersionMetadataResponse {
 	    localizations: AppLocalization[];
 	    error?: string;

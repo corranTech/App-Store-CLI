@@ -37,6 +37,28 @@ func TestParseAvailabilityViewOutputReturnsResourceID(t *testing.T) {
 	}
 }
 
+func TestParseASCCommandArgsSupportsQuotedValues(t *testing.T) {
+	args, err := parseASCCommandArgs(`status --app "123 456" --output json`)
+	if err != nil {
+		t.Fatalf("parseASCCommandArgs() error = %v", err)
+	}
+	want := []string{"status", "--app", "123 456", "--output", "json"}
+	if len(args) != len(want) {
+		t.Fatalf("len(args) = %d, want %d", len(args), len(want))
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("args[%d] = %q, want %q", i, args[i], want[i])
+		}
+	}
+}
+
+func TestParseASCCommandArgsRejectsUnterminatedQuotes(t *testing.T) {
+	if _, err := parseASCCommandArgs(`status --app "123`); err == nil {
+		t.Fatal("parseASCCommandArgs() error = nil, want error")
+	}
+}
+
 func TestBundledASCPathPrefersAppBundleResources(t *testing.T) {
 	tmp := t.TempDir()
 	resourceDir := filepath.Join(tmp, "ASC Studio.app", "Contents", "Resources", "bin")

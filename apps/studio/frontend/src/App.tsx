@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
-import { Bootstrap, CheckAuthStatus, GetAppDetail, GetPricingOverview, GetScreenshots, GetSettings, GetSubscriptions, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
+import { Bootstrap, CheckAuthStatus, GetAppDetail, GetPricingOverview, GetScreenshots, GetSettings, GetSubscriptions, GetTestFlight, GetTestFlightTesters, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 type SidebarGroup = { label: string; items: NavSection[] };
@@ -505,6 +505,7 @@ export default function App() {
           )}
         </div>
 
+        <div className="sidebar-scroll">
         {/* Version badges when an app is selected */}
         {appDetail && appDetail.versions.length > 0 && (
           <div className="sidebar-section">
@@ -555,6 +556,7 @@ export default function App() {
         </div>
 
         <div className="sidebar-spacer" />
+        </div>
       </aside>
 
       <div className="shell-separator" />

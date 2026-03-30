@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kballard/go-shellquote"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/acp"
@@ -127,6 +128,30 @@ type AppDetail struct {
 	PrimaryLocale string       `json:"primaryLocale"`
 	Versions      []AppVersion `json:"versions"`
 	Error         string       `json:"error,omitempty"`
+}
+
+type BetaGroup struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	IsInternal      bool   `json:"isInternal"`
+	PublicLink      string `json:"publicLink"`
+	FeedbackEnabled bool   `json:"feedbackEnabled"`
+	CreatedDate     string `json:"createdDate"`
+	TesterCount     int    `json:"testerCount"`
+}
+
+type BetaTester struct {
+	Email      string `json:"email"`
+	FirstName  string `json:"firstName"`
+	LastName   string `json:"lastName"`
+	InviteType string `json:"inviteType"`
+	State      string `json:"state"`
+}
+
+type TestFlightResponse struct {
+	Groups  []BetaGroup  `json:"groups"`
+	Testers []BetaTester `json:"testers"`
+	Error   string       `json:"error,omitempty"`
 }
 
 type ASCCommandResponse struct {
@@ -423,6 +448,149 @@ func (a *App) fetchSubtitle(ctx context.Context, ascPath, appID string) string {
 // RunASCCommand runs an arbitrary asc CLI command and returns the raw JSON output.
 // args is a space-separated command string, e.g. "reviews list --app 123 --limit 10 --output json".
 // GetSubscriptions fetches subscription groups, then subscriptions for each group concurrently.
+// GetTestFlight fetches beta groups and tester counts concurrently.
+func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
+	if strings.TrimSpace(appID) == "" {
+		return TestFlightResponse{Error: "app ID is required"}, nil
+	}
+	defer configGuard()()
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return TestFlightResponse{Error: err.Error()}, nil
+	}
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	defer cancel()
+
+	// 1. Fetch groups
+	cmd := a.newASCCommand(ctx, ascPath, "testflight", "groups", "list", "--app", appID, "--output", "json")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return TestFlightResponse{Error: strings.TrimSpace(string(out))}, nil
+	}
+
+	type rawGroup struct {
+		ID         string `json:"id"`
+		Attributes struct {
+			Name            string `json:"name"`
+			IsInternalGroup bool   `json:"isInternalGroup"`
+			PublicLink      string `json:"publicLink"`
+			FeedbackEnabled bool   `json:"feedbackEnabled"`
+			CreatedDate     string `json:"createdDate"`
+		} `json:"attributes"`
+		Relationships struct {
+			BetaTesters struct {
+				Links struct {
+					Related string `json:"related"`
+				} `json:"links"`
+			} `json:"betaTesters"`
+		} `json:"relationships"`
+	}
+	var groupEnv struct {
+		Data []rawGroup `json:"data"`
+	}
+	if json.Unmarshal(out, &groupEnv) != nil {
+		return TestFlightResponse{Error: "failed to parse groups"}, nil
+	}
+
+	// 2. Fetch tester count per group concurrently (just need meta.paging.total)
+	type countResult struct {
+		idx   int
+		count int
+	}
+	countCh := make(chan countResult, len(groupEnv.Data))
+	for i, g := range groupEnv.Data {
+		go func(idx int, groupID string) {
+			cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
+				"--group", groupID, "--limit", "1", "--output", "json")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				countCh <- countResult{idx: idx, count: 0}
+				return
+			}
+			var env struct {
+				Meta struct {
+					Paging struct {
+						Total int `json:"total"`
+					} `json:"paging"`
+				} `json:"meta"`
+			}
+			if json.Unmarshal(out, &env) == nil {
+				countCh <- countResult{idx: idx, count: env.Meta.Paging.Total}
+			} else {
+				countCh <- countResult{idx: idx, count: 0}
+			}
+		}(i, g.ID)
+	}
+
+	groups := make([]BetaGroup, len(groupEnv.Data))
+	for i, g := range groupEnv.Data {
+		groups[i] = BetaGroup{
+			ID:              g.ID,
+			Name:            g.Attributes.Name,
+			IsInternal:      g.Attributes.IsInternalGroup,
+			PublicLink:      g.Attributes.PublicLink,
+			FeedbackEnabled: g.Attributes.FeedbackEnabled,
+			CreatedDate:     g.Attributes.CreatedDate,
+		}
+	}
+
+	for range groupEnv.Data {
+		r := <-countCh
+		groups[r.idx].TesterCount = r.count
+	}
+
+	return TestFlightResponse{Groups: groups}, nil
+}
+
+// GetTestFlightTesters fetches testers for a specific group.
+func (a *App) GetTestFlightTesters(groupID string) (TestFlightResponse, error) {
+	if strings.TrimSpace(groupID) == "" {
+		return TestFlightResponse{Error: "group ID is required"}, nil
+	}
+	defer configGuard()()
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return TestFlightResponse{Error: err.Error()}, nil
+	}
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	defer cancel()
+
+	cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
+		"--group", groupID, "--limit", "200", "--output", "json")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return TestFlightResponse{Error: strings.TrimSpace(string(out))}, nil
+	}
+
+	type rawTester struct {
+		Attributes struct {
+			Email      string `json:"email"`
+			FirstName  string `json:"firstName"`
+			LastName   string `json:"lastName"`
+			InviteType string `json:"inviteType"`
+			State      string `json:"state"`
+		} `json:"attributes"`
+	}
+	var env struct {
+		Data []rawTester `json:"data"`
+	}
+	if json.Unmarshal(out, &env) != nil {
+		return TestFlightResponse{Error: "failed to parse testers"}, nil
+	}
+
+	testers := make([]BetaTester, 0, len(env.Data))
+	for _, t := range env.Data {
+		testers = append(testers, BetaTester{
+			Email:      t.Attributes.Email,
+			FirstName:  t.Attributes.FirstName,
+			LastName:   t.Attributes.LastName,
+			InviteType: t.Attributes.InviteType,
+			State:      t.Attributes.State,
+		})
+	}
+	return TestFlightResponse{Testers: testers}, nil
+}
+
 func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 	defer configGuard()()
 	if strings.TrimSpace(appID) == "" {
@@ -750,7 +918,10 @@ func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
 
-	parts := strings.Fields(args)
+	parts, err := parseASCCommandArgs(args)
+	if err != nil {
+		return ASCCommandResponse{Error: "Invalid command arguments: " + err.Error()}, nil
+	}
 	cmd := a.newASCCommand(ctx, ascPath, parts...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1100,6 +1271,10 @@ func parseAvailabilityViewOutput(out []byte) (string, bool, error) {
 		return "", false, err
 	}
 	return strings.TrimSpace(envelope.Data.ID), envelope.Data.Attributes.AvailableInNewTerritories, nil
+}
+
+func parseASCCommandArgs(args string) ([]string, error) {
+	return shellquote.Split(strings.TrimSpace(args))
 }
 
 func (a *App) newASCCommand(ctx context.Context, ascPath string, args ...string) *exec.Cmd {
