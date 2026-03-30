@@ -143,3 +143,94 @@ func TestSetMedicalDeviceDeclarationPostsExpectedRequest(t *testing.T) {
 		t.Fatalf("expected countries EEA,GBR,USA, got %q", got)
 	}
 }
+
+func TestSetMedicalDeviceDeclarationPrefersExactContentIDRequirements(t *testing.T) {
+	requirementsCalls := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements":
+			requirementsCalls++
+			w.Header().Set("Content-Type", "application/json")
+			if requirementsCalls == 1 {
+				_, _ = w.Write([]byte(`{
+					"accountId":"account-123",
+					"requirementData":[
+						{
+							"contentId":"",
+							"requirements":[{
+								"id":"req-generic",
+								"name":"OTHER_REQUIREMENT",
+								"status":"PENDING_COLLECTION"
+							}]
+						},
+						{
+							"contentId":"app-123",
+							"requirements":[{
+								"id":"req-app",
+								"name":"MEDICAL_DEVICE",
+								"status":"PENDING_COLLECTION"
+							}]
+						}
+					]
+				}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{
+				"accountId":"account-123",
+				"requirementData":[
+					{
+						"contentId":"",
+						"requirements":[{
+							"id":"req-generic",
+							"name":"OTHER_REQUIREMENT",
+							"status":"PENDING_COLLECTION"
+						}]
+					},
+					{
+						"contentId":"app-123",
+						"requirements":[{
+							"id":"req-app",
+							"name":"MEDICAL_DEVICE",
+							"status":"COLLECTED",
+							"formId":"form-app"
+						}]
+					}
+				]
+			}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/requirements/req-app/forms":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{
+				"constraints":{
+					"$[*].countriesOrRegions":{
+						"attributeName":"countriesOrRegions",
+						"options":[
+							{"value":"USA"}
+						]
+					}
+				}
+			}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/contents/app-123/requirements/req-app/forms":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+	}))
+	defer server.Close()
+
+	client := testWebClient(server)
+	got, err := client.SetMedicalDeviceDeclaration(context.Background(), "account-123", "app-123", false)
+	if err != nil {
+		t.Fatalf("SetMedicalDeviceDeclaration() error = %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected result")
+	}
+	if got.RequirementID != "req-app" {
+		t.Fatalf("expected exact app requirement id req-app, got %q", got.RequirementID)
+	}
+	if got.Status != "COLLECTED" {
+		t.Fatalf("expected collected status, got %q", got.Status)
+	}
+}

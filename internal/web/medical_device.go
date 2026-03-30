@@ -65,6 +65,14 @@ func trimComplianceRequirement(req complianceRequirement) complianceRequirement 
 	return req
 }
 
+func trimComplianceRequirements(requirements []complianceRequirement) []complianceRequirement {
+	trimmed := make([]complianceRequirement, 0, len(requirements))
+	for _, requirement := range requirements {
+		trimmed = append(trimmed, trimComplianceRequirement(requirement))
+	}
+	return trimmed
+}
+
 func (c *Client) complianceFormBaseURL() string {
 	baseURL := strings.TrimRight(strings.TrimSpace(c.baseURL), "/")
 	switch {
@@ -170,15 +178,20 @@ func (c *Client) listComplianceRequirements(ctx context.Context, accountID, appI
 		return nil, fmt.Errorf("failed to parse compliance requirements response: %w", err)
 	}
 
+	var fallback []complianceRequirement
 	for _, item := range payload.RequirementData {
-		if strings.TrimSpace(item.ContentID) != "" && strings.TrimSpace(item.ContentID) != appID {
-			continue
+		switch strings.TrimSpace(item.ContentID) {
+		case appID:
+			return trimComplianceRequirements(item.Requirements), nil
+		case "":
+			if fallback == nil {
+				fallback = trimComplianceRequirements(item.Requirements)
+			}
 		}
-		requirements := make([]complianceRequirement, 0, len(item.Requirements))
-		for _, requirement := range item.Requirements {
-			requirements = append(requirements, trimComplianceRequirement(requirement))
-		}
-		return requirements, nil
+	}
+
+	if fallback != nil {
+		return fallback, nil
 	}
 
 	return nil, fmt.Errorf("no compliance requirements found for app %q", appID)
