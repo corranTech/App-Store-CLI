@@ -321,6 +321,10 @@ func (c *Client) GetAppPriceScheduleManualPrices(ctx context.Context, scheduleID
 	}
 
 	scheduleID = strings.TrimSpace(scheduleID)
+	if query.nextURL == "" && scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+
 	path := fmt.Sprintf("/v1/appPriceSchedules/%s/manualPrices", scheduleID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
@@ -387,6 +391,10 @@ func (c *Client) GetAppPriceScheduleAutomaticPrices(ctx context.Context, schedul
 	}
 
 	scheduleID = strings.TrimSpace(scheduleID)
+	if query.nextURL == "" && scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+
 	path := fmt.Sprintf("/v1/appPriceSchedules/%s/automaticPrices", scheduleID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {

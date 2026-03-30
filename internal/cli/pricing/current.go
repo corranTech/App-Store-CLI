@@ -179,11 +179,11 @@ Examples:
 	}
 }
 
-type appSchedulePriceFetcher func(context.Context, ...asc.AppPriceSchedulePricesOption) (*asc.AppPricesResponse, error)
+type appSchedulePricePageFetcher func(context.Context, ...asc.AppPriceSchedulePricesOption) (*asc.AppPricesResponse, error)
 
 func fetchAppSchedulePriceEntries(
 	ctx context.Context,
-	fetch appSchedulePriceFetcher,
+	fetch appSchedulePricePageFetcher,
 ) ([]appPriceEntry, map[string]appPricePointValue, map[string]string, error) {
 	fetchPage := func(nextURL string) (*asc.AppPricesResponse, error) {
 		callCtx, cancel := shared.ContextWithTimeout(ctx)

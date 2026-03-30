@@ -3236,6 +3236,33 @@ func WithAppPriceSchedulePricesNextURL(next string) AppPriceSchedulePricesOption
 	}
 }
 
+// WithAppPriceSchedulePricesStartDate filters schedule prices by inclusive start date.
+func WithAppPriceSchedulePricesStartDate(startDate string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		if strings.TrimSpace(startDate) != "" {
+			q.startDate = strings.TrimSpace(startDate)
+		}
+	}
+}
+
+// WithAppPriceSchedulePricesEndDate filters schedule prices by inclusive end date.
+func WithAppPriceSchedulePricesEndDate(endDate string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		if strings.TrimSpace(endDate) != "" {
+			q.endDate = strings.TrimSpace(endDate)
+		}
+	}
+}
+
+// WithAppPriceSchedulePricesTerritory filters schedule prices by territory code.
+func WithAppPriceSchedulePricesTerritory(territory string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		if strings.TrimSpace(territory) != "" {
+			q.territory = strings.ToUpper(strings.TrimSpace(territory))
+		}
+	}
+}
+
 // WithAppPriceSchedulePricesInclude sets include values for app schedule price responses.
 func WithAppPriceSchedulePricesInclude(include []string) AppPriceSchedulePricesOption {
 	return func(q *appPriceSchedulePricesQuery) {
