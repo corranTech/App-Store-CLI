@@ -167,9 +167,11 @@ Examples:
 				return fmt.Errorf("pricing current: no current price found for base territory %s", baseTerritory)
 			}
 
+			now := time.Now().UTC()
+
 			targetTerritories := requestedTerritories
 			if *allTerritories {
-				targetTerritories = territoriesFromEntries(entries)
+				targetTerritories = territoriesFromActiveEntries(entries, now)
 			}
 			if len(targetTerritories) == 0 {
 				targetTerritories = []string{baseTerritory}
@@ -178,7 +180,7 @@ Examples:
 			currentPrices := make([]appCurrentTerritoryPrice, 0, len(targetTerritories))
 			missingTerritories := make([]string, 0)
 			for _, territoryID := range targetTerritories {
-				price, found, err := resolveCurrentTerritoryPrice(entries, values, currencies, territoryID, time.Now().UTC())
+				price, found, err := resolveCurrentTerritoryPrice(entries, values, currencies, territoryID, now)
 				if err != nil {
 					return fmt.Errorf("pricing current: %w", err)
 				}
@@ -614,11 +616,14 @@ func uniqueUpperList(values []string) []string {
 	return unique
 }
 
-func territoriesFromEntries(entries []appPriceEntry) []string {
+func territoriesFromActiveEntries(entries []appPriceEntry, at time.Time) []string {
 	territories := make([]string, 0, len(entries))
 	seen := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
 		if entry.TerritoryID == "" {
+			continue
+		}
+		if !appPriceEntryActiveOn(entry, dateOnlyUTC(at)) {
 			continue
 		}
 		if _, exists := seen[entry.TerritoryID]; exists {

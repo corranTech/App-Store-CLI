@@ -302,6 +302,110 @@ func TestPricingCurrentAllTerritoriesJSON(t *testing.T) {
 	}
 }
 
+func TestPricingCurrentAllTerritoriesSkipsInactiveTerritories(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	baseManualID := mustEncodeAppPricingResource(t, map[string]any{
+		"s":  "app-1",
+		"t":  "USA",
+		"p":  "10001",
+		"sd": 0.0,
+		"ed": 0.0,
+	})
+	basePricePointID := mustEncodeAppPricingResource(t, map[string]any{
+		"s": "app-1",
+		"t": "USA",
+		"p": "10001",
+	})
+	futureGBRAutomaticID := mustEncodeAppPricingResource(t, map[string]any{
+		"s":  "app-1",
+		"t":  "GBR",
+		"p":  "10001",
+		"sd": 4102444800.0,
+		"ed": 0.0,
+	})
+	futureGBRPricePointID := mustEncodeAppPricingResource(t, map[string]any{
+		"s": "app-1",
+		"t": "GBR",
+		"p": "10001",
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1/appPriceSchedule":
+			body := `{"data":{"type":"appPriceSchedules","id":"schedule-1","attributes":{}}}`
+			return pricingCurrentJSONResponse(body), nil
+
+		case "/v1/appPriceSchedules/schedule-1/baseTerritory":
+			body := `{"data":{"type":"territories","id":"USA","attributes":{"currency":"USD"}}}`
+			return pricingCurrentJSONResponse(body), nil
+
+		case "/v1/appPriceSchedules/schedule-1/manualPrices":
+			body := `{
+				"data":[
+					{
+						"type":"appPrices",
+						"id":"` + baseManualID + `",
+						"attributes":{"startDate":"2024-01-01","manual":true}
+					}
+				],
+				"included":[
+					{"type":"appPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"1.99","proceeds":"1.39"}},
+					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+				],
+				"links":{"next":""}
+			}`
+			return pricingCurrentJSONResponse(body), nil
+
+		case "/v1/appPriceSchedules/schedule-1/automaticPrices":
+			body := `{
+				"data":[
+					{
+						"type":"appPrices",
+						"id":"` + futureGBRAutomaticID + `",
+						"attributes":{"startDate":"2100-01-01","manual":false}
+					}
+				],
+				"included":[
+					{"type":"appPricePoints","id":"` + futureGBRPricePointID + `","attributes":{"customerPrice":"1.79","proceeds":"1.25"}},
+					{"type":"territories","id":"GBR","attributes":{"currency":"GBP"}}
+				],
+				"links":{"next":""}
+			}`
+			return pricingCurrentJSONResponse(body), nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"pricing", "current", "--app", "app-1", "--all-territories"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"territory":"USA","customerPrice":"1.99","proceeds":"1.39","currency":"USD"`) {
+		t.Fatalf("expected USA current price in output, got %q", stdout)
+	}
+	if strings.Contains(stdout, `"territory":"GBR"`) {
+		t.Fatalf("did not expect future-only territory in output, got %q", stdout)
+	}
+}
+
 func TestPricingCurrentTerritoryFilterTableOutput(t *testing.T) {
 	setupAuth(t)
 
