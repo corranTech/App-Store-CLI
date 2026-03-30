@@ -152,10 +152,17 @@ type SubPricingItem struct {
 	Proceeds  string `json:"proceeds"`
 }
 
+type TerritoryAvailability struct {
+	Territory   string `json:"territory"`
+	Available   bool   `json:"available"`
+	ReleaseDate string `json:"releaseDate"`
+}
+
 type PricingOverview struct {
-	AvailableInNewTerritories bool             `json:"availableInNewTerritories"`
-	SubscriptionPricing       []SubPricingItem `json:"subscriptionPricing"`
-	Error                     string           `json:"error,omitempty"`
+	AvailableInNewTerritories bool                    `json:"availableInNewTerritories"`
+	Territories               []TerritoryAvailability `json:"territories"`
+	SubscriptionPricing       []SubPricingItem        `json:"subscriptionPricing"`
+	Error                     string                  `json:"error,omitempty"`
 }
 
 type AppLocalization struct {
@@ -517,8 +524,9 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 	defer cancel()
 
 	type availResult struct {
-		available bool
-		err       error
+		available   bool
+		territories []TerritoryAvailability
+		err         error
 	}
 	type pricingResult struct {
 		items []SubPricingItem
@@ -527,8 +535,9 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 	availCh := make(chan availResult, 1)
 	pricingCh := make(chan pricingResult, 1)
 
-	// Availability
+	// Availability + territories (sequential: need avail ID first, but it's the app ID)
 	go func() {
+		// 1. Get availability flag
 		cmd := exec.CommandContext(ctx, ascPath, "pricing", "availability", "view", "--app", appID, "--output", "json")
 		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
 		out, err := cmd.CombinedOutput()
@@ -544,7 +553,45 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 			} `json:"data"`
 		}
 		json.Unmarshal(out, &env)
-		availCh <- availResult{available: env.Data.Attributes.AvailableInNewTerritories}
+
+		// 2. Get territory availabilities
+		cmd2 := exec.CommandContext(ctx, ascPath, "pricing", "availability", "territory-availabilities",
+			"--availability", appID, "--paginate", "--output", "json")
+		cmd2.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		out2, err := cmd2.CombinedOutput()
+		var territories []TerritoryAvailability
+		if err == nil {
+			type rawTerrItem struct {
+				Attributes struct {
+					Available   bool   `json:"available"`
+					ReleaseDate string `json:"releaseDate"`
+				} `json:"attributes"`
+				Relationships struct {
+					Territory struct {
+						Data struct {
+							ID string `json:"id"`
+						} `json:"data"`
+					} `json:"territory"`
+				} `json:"relationships"`
+			}
+			var terrEnv struct {
+				Data []rawTerrItem `json:"data"`
+			}
+			if json.Unmarshal(out2, &terrEnv) == nil {
+				for _, t := range terrEnv.Data {
+					territories = append(territories, TerritoryAvailability{
+						Territory:   t.Relationships.Territory.Data.ID,
+						Available:   t.Attributes.Available,
+						ReleaseDate: t.Attributes.ReleaseDate,
+					})
+				}
+			}
+		}
+
+		availCh <- availResult{
+			available:   env.Data.Attributes.AvailableInNewTerritories,
+			territories: territories,
+		}
 	}()
 
 	// Subscription pricing summary
@@ -602,6 +649,7 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 
 	return PricingOverview{
 		AvailableInNewTerritories: avail.available,
+		Territories:               avail.territories,
 		SubscriptionPricing:       pricing.items,
 	}, nil
 }

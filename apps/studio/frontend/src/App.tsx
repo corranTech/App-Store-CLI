@@ -196,7 +196,7 @@ export default function App() {
   // Cache of section data keyed by section ID. Prefetched in parallel on app select.
   const [sectionCache, setSectionCache] = useState<Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }>>({});
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
-  const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, subscriptionPricing: [] });
+  const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
 
   useEffect(() => {
@@ -281,13 +281,13 @@ export default function App() {
     }
     setSectionCache(initial);
     // Pricing overview
-    setPricingOverview({ loading: true, availableInNewTerritories: false, subscriptionPricing: [] });
+    setPricingOverview({ loading: true, availableInNewTerritories: false, territories: [], subscriptionPricing: [] });
     GetPricingOverview(appId)
       .then((res) => {
-        if (res.error) setPricingOverview({ loading: false, error: res.error, availableInNewTerritories: false, subscriptionPricing: [] });
-        else setPricingOverview({ loading: false, availableInNewTerritories: res.availableInNewTerritories, subscriptionPricing: res.subscriptionPricing ?? [] });
+        if (res.error) setPricingOverview({ loading: false, error: res.error, availableInNewTerritories: false, territories: [], subscriptionPricing: [] });
+        else setPricingOverview({ loading: false, availableInNewTerritories: res.availableInNewTerritories, territories: res.territories ?? [], subscriptionPricing: res.subscriptionPricing ?? [] });
       })
-      .catch((e) => setPricingOverview({ loading: false, error: String(e), availableInNewTerritories: false, subscriptionPricing: [] }));
+      .catch((e) => setPricingOverview({ loading: false, error: String(e), availableInNewTerritories: false, territories: [], subscriptionPricing: [] }));
 
     // Subscriptions: dedicated two-phase fetch
     setSubscriptions({ loading: true, items: [] });
@@ -851,8 +851,36 @@ export default function App() {
                         <td className="vcard-label">Available in New Territories</td>
                         <td>{pricingOverview.availableInNewTerritories ? "Yes" : "No"}</td>
                       </tr>
+                      <tr>
+                        <td className="vcard-label">Territories</td>
+                        <td>{pricingOverview.territories.filter((t) => t.available).length} available / {pricingOverview.territories.length} total</td>
+                      </tr>
                     </tbody>
                   </table>
+
+                  {pricingOverview.territories.length > 0 && (
+                    <>
+                      <h3 className="section-label">Territory Availability</h3>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Territory</th>
+                            <th>Available</th>
+                            <th>Release Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pricingOverview.territories.map((t) => (
+                            <tr key={t.territory}>
+                              <td>{t.territory}</td>
+                              <td>{t.available ? "Yes" : "No"}</td>
+                              <td>{t.releaseDate || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
 
                   {pricingOverview.subscriptionPricing.length > 0 && (
                     <>

@@ -382,8 +382,25 @@ export namespace main {
 	        this.proceeds = source["proceeds"];
 	    }
 	}
+	export class TerritoryAvailability {
+	    territory: string;
+	    available: boolean;
+	    releaseDate: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TerritoryAvailability(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.territory = source["territory"];
+	        this.available = source["available"];
+	        this.releaseDate = source["releaseDate"];
+	    }
+	}
 	export class PricingOverview {
 	    availableInNewTerritories: boolean;
+	    territories: TerritoryAvailability[];
 	    subscriptionPricing: SubPricingItem[];
 	    error?: string;
 	
@@ -394,6 +411,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.availableInNewTerritories = source["availableInNewTerritories"];
+	        this.territories = this.convertValues(source["territories"], TerritoryAvailability);
 	        this.subscriptionPricing = this.convertValues(source["subscriptionPricing"], SubPricingItem);
 	        this.error = source["error"];
 	    }
@@ -621,6 +639,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	export class VersionMetadataResponse {
 	    localizations: AppLocalization[];
 	    error?: string;
