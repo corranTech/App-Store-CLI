@@ -77,6 +77,7 @@ const scopes: Scope[] = [
           { id: "age-rating", label: "Age Rating", description: "Age rating declarations" },
           { id: "app-accessibility", label: "Accessibility", description: "Accessibility declarations" },
           { id: "encryption", label: "Encryption", description: "Export compliance" },
+          { id: "eula", label: "EULA", description: "License agreements" },
         ],
       },
       {
@@ -175,6 +176,7 @@ const sectionCommands: Record<string, string> = {
   "marketplace": "marketplace search-details view --app APP_ID --output json",
   "alt-distribution": "alternative-distribution domains list --output json",
   "routing-coverage": "routing-coverage list --app APP_ID --output json",
+  "eula": "eula list --app APP_ID --output json",
 };
 
 // Human-readable field labels for known attribute keys
