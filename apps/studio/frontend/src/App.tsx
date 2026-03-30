@@ -395,6 +395,8 @@ export default function App() {
     // TestFlight groups with tester counts
     setTestflightData({ loading: true, groups: [] });
     setSelectedGroup(null);
+    setGroupTesters({ loading: false, testers: [] });
+    groupTesterRequestRef.current += 1;
     GetTestFlight(appId)
       .then((res) => {
         if (isStale()) return;
@@ -483,6 +485,7 @@ export default function App() {
     const requestID = appSelectionRequestRef.current + 1;
     appSelectionRequestRef.current = requestID;
     screenshotRequestRef.current += 1;
+    groupTesterRequestRef.current += 1;
     startTransition(() => {
       setSelectedAppId(id);
       setAppDetail(null);
@@ -491,6 +494,7 @@ export default function App() {
       setScreenshotSets([]);
       setSectionCache({});
       setSelectedGroup(null);
+      setGroupTesters({ loading: false, testers: [] });
       setSelectedSub(null);
       setDetailLoading(true);
     });
@@ -1176,11 +1180,19 @@ export default function App() {
                     <tbody>
                       {testflightData.groups.map((g) => (
                         <tr key={g.id} className="clickable-row" onClick={() => {
+                          const testerRequestID = groupTesterRequestRef.current + 1;
+                          groupTesterRequestRef.current = testerRequestID;
                           setSelectedGroup(g.id);
                           setGroupTesters({ loading: true, testers: [] });
                           GetTestFlightTesters(g.id)
-                            .then((res) => setGroupTesters({ loading: false, testers: res.testers ?? [] }))
-                            .catch(() => setGroupTesters({ loading: false, testers: [] }));
+                            .then((res) => {
+                              if (groupTesterRequestRef.current !== testerRequestID) return;
+                              setGroupTesters({ loading: false, testers: res.testers ?? [] });
+                            })
+                            .catch(() => {
+                              if (groupTesterRequestRef.current !== testerRequestID) return;
+                              setGroupTesters({ loading: false, testers: [] });
+                            });
                         }}>
                           <td style={{ fontWeight: 500 }}>{g.name}</td>
                           <td>{g.isInternal ? "Internal" : "External"}</td>

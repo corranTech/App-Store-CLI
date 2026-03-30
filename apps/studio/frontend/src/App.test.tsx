@@ -15,6 +15,8 @@ const {
   mockGetTestFlightTesters,
   mockGetPricingOverview,
   mockGetSubscriptions,
+  mockGetFinanceRegions,
+  mockGetOfferCodes,
 } = vi.hoisted(() => ({
   mockListApps: vi.fn(),
   mockCheckAuthStatus: vi.fn(),
@@ -29,6 +31,8 @@ const {
   mockGetTestFlightTesters: vi.fn(),
   mockGetPricingOverview: vi.fn(),
   mockGetSubscriptions: vi.fn(),
+  mockGetFinanceRegions: vi.fn(),
+  mockGetOfferCodes: vi.fn(),
 }));
 
 // Mock the Wails bindings since they don't exist in test environment
@@ -46,6 +50,8 @@ vi.mock("../wailsjs/go/main/App", () => ({
   GetTestFlightTesters: mockGetTestFlightTesters,
   GetPricingOverview: mockGetPricingOverview,
   GetSubscriptions: mockGetSubscriptions,
+  GetFinanceRegions: mockGetFinanceRegions,
+  GetOfferCodes: mockGetOfferCodes,
 }));
 
 vi.mock("../wailsjs/go/models", () => ({
@@ -128,6 +134,8 @@ describe("App", () => {
       subscriptionPricing: [],
     });
     mockGetSubscriptions.mockResolvedValue({ subscriptions: [] });
+    mockGetFinanceRegions.mockResolvedValue({ regions: [] });
+    mockGetOfferCodes.mockResolvedValue({ offerCodes: [] });
   });
 
   it("renders and calls Bootstrap on mount", async () => {
@@ -271,5 +279,47 @@ describe("App", () => {
         "nominations list --status DRAFT,SUBMITTED,ARCHIVED --output json",
       );
     });
+  });
+
+  it("ignores stale tester responses after switching groups", async () => {
+    let resolveFirstGroup: ((value: { testers: { email: string; firstName: string; lastName: string; inviteType: string; state: string }[] }) => void) | undefined;
+
+    mockGetTestFlight.mockResolvedValue({
+      groups: [
+        { id: "group-1", name: "Internal", isInternal: true, publicLink: "", feedbackEnabled: false, createdDate: "2026-03-30T00:00:00Z", testerCount: 1 },
+        { id: "group-2", name: "External", isInternal: false, publicLink: "", feedbackEnabled: true, createdDate: "2026-03-30T00:00:00Z", testerCount: 1 },
+      ],
+    });
+    mockGetTestFlightTesters.mockImplementation((groupID: string) => {
+      if (groupID === "group-1") {
+        return new Promise((resolve) => {
+          resolveFirstGroup = resolve;
+        });
+      }
+      return Promise.resolve({
+        testers: [{ email: "second@example.com", firstName: "Second", lastName: "Tester", inviteType: "EMAIL", state: "ACCEPTED" }],
+      });
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "1" } });
+    fireEvent.click(await screen.findByRole("button", { name: "TestFlight" }));
+
+    fireEvent.click((await screen.findAllByText("Internal"))[0].closest("tr")!);
+    fireEvent.click(await screen.findByRole("button", { name: "← TestFlight" }));
+    fireEvent.click((await screen.findAllByText("External"))[0].closest("tr")!);
+
+    expect(await screen.findByText("second@example.com")).toBeInTheDocument();
+
+    resolveFirstGroup?.({
+      testers: [{ email: "first@example.com", firstName: "First", lastName: "Tester", inviteType: "EMAIL", state: "INVITED" }],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("second@example.com")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("first@example.com")).not.toBeInTheDocument();
   });
 });

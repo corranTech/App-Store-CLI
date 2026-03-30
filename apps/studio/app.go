@@ -1737,8 +1737,9 @@ var startACPClient = func(ctx context.Context, spec acp.LaunchSpec) (agentClient
 }
 
 var (
-	osExecutableFunc = os.Executable
-	getwdFunc        = os.Getwd
+	osExecutableFunc   = os.Executable
+	getwdFunc          = os.Getwd
+	sessionInitTimeout = 15 * time.Second
 )
 
 func (a *App) startThreadSession(thread threads.Thread) (*threadSession, error) {
@@ -1766,7 +1767,10 @@ func (a *App) startThreadSession(thread threads.Thread) (*threadSession, error) 
 		workspaceRoot, _ = getwdFunc()
 	}
 
-	sessionID, err := client.Bootstrap(a.contextOrBackground(), acp.SessionConfig{
+	bootstrapCtx, cancel := context.WithTimeout(a.contextOrBackground(), sessionInitTimeout)
+	defer cancel()
+
+	sessionID, err := client.Bootstrap(bootstrapCtx, acp.SessionConfig{
 		CWD:       workspaceRoot,
 		SessionID: thread.SessionID,
 	})

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -270,6 +271,48 @@ func TestEnsureSessionSingleFlightsConcurrentCalls(t *testing.T) {
 	}
 	if len(sessions) != 2 || sessions[0] != sessions[1] {
 		t.Fatal("ensureSession() did not reuse the same session for concurrent callers")
+	}
+}
+
+func TestStartThreadSessionTimesOutBootstrap(t *testing.T) {
+	tmp := t.TempDir()
+	settingsStore := settings.NewStore(tmp)
+	if err := settingsStore.Save(settings.StudioSettings{
+		AgentCommand:     "fake-agent",
+		WorkspaceRoot:    "/tmp/workspace",
+		PreferBundledASC: true,
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	originalTimeout := sessionInitTimeout
+	sessionInitTimeout = 20 * time.Millisecond
+	t.Cleanup(func() {
+		sessionInitTimeout = originalTimeout
+	})
+
+	client := &fakeAgentClient{
+		bootstrapFn: func(ctx context.Context, cfg acp.SessionConfig) (string, error) {
+			<-ctx.Done()
+			return "", ctx.Err()
+		},
+	}
+
+	app := &App{
+		rootDir:      tmp,
+		settings:     settingsStore,
+		threads:      threads.NewStore(tmp),
+		approvals:    approvals.NewQueue(),
+		sessions:     make(map[string]*threadSession),
+		sessionInits: make(map[string]chan struct{}),
+		startAgent: func(context.Context, acp.LaunchSpec) (agentClient, error) {
+			return client, nil
+		},
+	}
+
+	_, err := app.startThreadSession(threads.Thread{ID: "thread-timeout"})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("startThreadSession() error = %v, want deadline exceeded", err)
 	}
 }
 
