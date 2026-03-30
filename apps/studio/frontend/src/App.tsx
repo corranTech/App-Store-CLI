@@ -36,7 +36,11 @@ const scopes: Scope[] = [
           { id: "localizations", label: "Localizations", description: "Locale metadata" },
           { id: "screenshots", label: "Screenshots", description: "App Store screenshots" },
           { id: "video-previews", label: "Video Previews", description: "App preview videos" },
+          { id: "background-assets", label: "Background Assets", description: "Background download assets" },
           { id: "categories", label: "Categories", description: "App categories" },
+          { id: "pre-orders", label: "Pre-orders", description: "Pre-order configuration" },
+          { id: "app-tags", label: "App Tags", description: "App tags" },
+          { id: "app-setup", label: "App Setup", description: "App configuration" },
         ],
       },
       {
@@ -157,6 +161,10 @@ const sectionCommands: Record<string, string> = {
   "profiles": "profiles list --output json",
   "xcode-cloud": "xcode-cloud workflows list --app APP_ID --output json",
   "webhooks": "webhooks list --app APP_ID --output json",
+  "background-assets": "background-assets list --app APP_ID --output json",
+  "pre-orders": "pre-orders view --app APP_ID --output json",
+  "app-tags": "app-tags list --app APP_ID --output json",
+  "app-setup": "app-setup info list --app APP_ID --output json",
 };
 
 // Human-readable field labels for known attribute keys
