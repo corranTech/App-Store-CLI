@@ -366,6 +366,51 @@ describe("App", () => {
     });
   });
 
+  it("creates a bundle ID from the signing sheet", async () => {
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "bundle-ids list --paginate --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: [
+              { id: "bundle-1", type: "bundleIds", attributes: { identifier: "com.example.existing", platform: "IOS", seedId: "AAA" } },
+            ],
+          }),
+        });
+      }
+      if (cmd === "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform IOS --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: {
+              id: "bundle-2",
+              type: "bundleIds",
+              attributes: { identifier: "com.example.newapp", name: "New App", platform: "IOS", seedId: "BBB" },
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    fireEvent.click(screen.getByRole("button", { name: "Signing" }));
+    await screen.findByText("com.example.existing");
+
+    fireEvent.click(screen.getByRole("button", { name: /New Bundle ID/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New App" } });
+    fireEvent.change(screen.getByLabelText("Identifier"), { target: { value: "com.example.newapp" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(mockRunASCCommand).toHaveBeenCalledWith(
+        "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform IOS --output json",
+      );
+    });
+  });
+
   it("preserves agent env when saving settings", async () => {
     mockBootstrap.mockResolvedValue({
       appName: "ASC Studio",

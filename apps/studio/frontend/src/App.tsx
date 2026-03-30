@@ -27,14 +27,19 @@ const scopes: Scope[] = [
           { id: "testflight", label: "TestFlight", description: "Beta groups and testers" },
           { id: "submit", label: "Submit", description: "Submit for review" },
           { id: "validate", label: "Validate", description: "Pre-submission validation" },
+          { id: "publish", label: "Publish", description: "Release workflows" },
+          { id: "release", label: "Release", description: "Release management" },
           { id: "release-notes", label: "Release Notes", description: "What's new" },
           { id: "build-localizations", label: "Build Localizations", description: "Build release notes" },
+          { id: "build-bundles", label: "Build Bundles", description: "Build bundle info" },
           { id: "sandbox", label: "Sandbox", description: "Sandbox testers" },
+          { id: "feedback", label: "Feedback", description: "Beta feedback" },
         ],
       },
       {
         label: "Metadata",
         items: [
+          { id: "metadata", label: "Metadata", description: "Metadata sync" },
           { id: "localizations", label: "Localizations", description: "Locale metadata" },
           { id: "screenshots", label: "Screenshots", description: "App Store screenshots" },
           { id: "video-previews", label: "Video Previews", description: "App preview videos" },
@@ -69,7 +74,9 @@ const scopes: Scope[] = [
         items: [
           { id: "performance", label: "Performance", description: "Metrics and diagnostics" },
           { id: "insights", label: "Insights", description: "Weekly analytics" },
+          { id: "analytics", label: "Analytics", description: "Analytics reports" },
           { id: "finance", label: "Finance", description: "Financial reports" },
+          { id: "crashes", label: "Crashes", description: "Crash diagnostics" },
         ],
       },
       {
@@ -80,6 +87,7 @@ const scopes: Scope[] = [
           { id: "app-accessibility", label: "Accessibility", description: "Accessibility declarations" },
           { id: "encryption", label: "Encryption", description: "Export compliance" },
           { id: "eula", label: "EULA", description: "License agreements" },
+          { id: "agreements", label: "Agreements", description: "Territory agreements" },
         ],
       },
       {
@@ -103,6 +111,7 @@ const scopes: Scope[] = [
         items: [
           { id: "account-status", label: "Account", description: "Account health" },
           { id: "users", label: "Users", description: "Team members" },
+          { id: "actors", label: "Actors", description: "API key actors" },
           { id: "devices", label: "Devices", description: "Registered devices" },
         ],
       },
@@ -142,6 +151,8 @@ const scopes: Scope[] = [
         items: [
           { id: "xcode-cloud", label: "Xcode Cloud", description: "CI/CD workflows" },
           { id: "webhooks", label: "Webhooks", description: "Webhook management" },
+          { id: "workflow", label: "Workflow", description: "Workflow orchestration" },
+          { id: "notify", label: "Notifications", description: "Slack/webhook notifications" },
         ],
       },
       {
@@ -149,6 +160,7 @@ const scopes: Scope[] = [
         items: [
           { id: "schema", label: "Schema", description: "API schema browser" },
           { id: "diff", label: "Diff", description: "Version diff" },
+          { id: "migrate", label: "Migrate", description: "Fastlane migration" },
         ],
       },
     ],
@@ -204,6 +216,16 @@ const sectionCommands: Record<string, string> = {
   "merchant-ids": "merchant-ids list --output json",
   "pass-type-ids": "pass-type-ids list --output json",
   "schema": "schema index --output json",
+  "publish": "publish --help",
+  "release": "release --app APP_ID --output json",
+  "metadata": "metadata pull --app APP_ID --dry-run --output json",
+  "agreements": "agreements list --output json",
+  "build-bundles": "build-bundles list --app APP_ID --output json",
+  "actors": "actors list --output json",
+  "workflow": "workflow list --output json",
+  "analytics": "analytics requests --app APP_ID --output json",
+  "crashes": "performance diagnostics list --app APP_ID --output json",
+  "feedback": "testflight feedback list --app APP_ID --output json",
 };
 
 function sectionRequiresApp(sectionId: string): boolean {
@@ -425,6 +447,10 @@ function mapAppList(apps?: { id: string; name: string; subtitle: string }[]) {
   }));
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 export default function App() {
   const [activeScope, setActiveScope] = useState<string>("app");
   const [activeSection, setActiveSection] = useState<NavSection>(allSections[0]);
@@ -481,6 +507,12 @@ export default function App() {
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [bundleIDsPlatformSort, setBundleIDsPlatformSort] = useState<"asc" | "desc">("asc");
+  const [showBundleIDSheet, setShowBundleIDSheet] = useState(false);
+  const [bundleIDName, setBundleIDName] = useState("");
+  const [bundleIDIdentifier, setBundleIDIdentifier] = useState("");
+  const [bundleIDPlatform, setBundleIDPlatform] = useState("IOS");
+  const [bundleIDCreateError, setBundleIDCreateError] = useState("");
+  const [bundleIDCreating, setBundleIDCreating] = useState(false);
   const [financeRegions, setFinanceRegions] = useState<{ loading: boolean; error?: string; regions: { reportRegion: string; reportCurrency: string; regionCode: string; countriesOrRegions: string }[] }>({ loading: false, regions: [] });
   const [offerCodes, setOfferCodes] = useState<{ loading: boolean; error?: string; codes: { subscriptionName: string; subscriptionId: string; name: string; offerEligibility: string; customerEligibilities: string[]; duration: string; offerMode: string; numberOfPeriods: number; totalNumberOfCodes: number; productionCodeCount: number }[] }>({ loading: false, codes: [] });
   const appSelectionRequestRef = useRef(0);
@@ -726,13 +758,13 @@ export default function App() {
     }
   }
 
-  function loadStandaloneSection(sectionId: string) {
+  function loadStandaloneSection(sectionId: string, force = false) {
     const cmd = sectionCommands[sectionId];
     if (!cmd || sectionRequiresApp(sectionId)) return;
 
     setSectionCache((prev) => {
       const existing = prev[sectionId];
-      if (existing) return prev;
+      if (existing && !force) return prev;
       return { ...prev, [sectionId]: { loading: true, items: [] } };
     });
 
@@ -759,6 +791,59 @@ export default function App() {
       })
       .catch((e) => {
         setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: false, error: String(e), items: [] } }));
+      });
+  }
+
+  const bundleIDCreateCommand =
+    `bundle-ids create --identifier ${shellQuote(bundleIDIdentifier.trim())} --name ${shellQuote(bundleIDName.trim())} --platform ${bundleIDPlatform} --output json`;
+
+  function closeBundleIDSheet() {
+    setShowBundleIDSheet(false);
+    setBundleIDCreateError("");
+    setBundleIDCreating(false);
+  }
+
+  function resetBundleIDForm() {
+    setBundleIDName("");
+    setBundleIDIdentifier("");
+    setBundleIDPlatform("IOS");
+    setBundleIDCreateError("");
+    setBundleIDCreating(false);
+  }
+
+  function openBundleIDSheet() {
+    resetBundleIDForm();
+    setShowBundleIDSheet(true);
+  }
+
+  function handleCreateBundleID() {
+    const trimmedName = bundleIDName.trim();
+    const trimmedIdentifier = bundleIDIdentifier.trim();
+    if (!trimmedName || !trimmedIdentifier) {
+      setBundleIDCreateError("Name and identifier are required.");
+      return;
+    }
+
+    setBundleIDCreating(true);
+    setBundleIDCreateError("");
+
+    RunASCCommand(
+      `bundle-ids create --identifier ${shellQuote(trimmedIdentifier)} --name ${shellQuote(trimmedName)} --platform ${bundleIDPlatform} --output json`,
+    )
+      .then((res) => {
+        if (res.error) {
+          setBundleIDCreateError(res.error);
+          return;
+        }
+        closeBundleIDSheet();
+        resetBundleIDForm();
+        loadStandaloneSection("bundle-ids", true);
+      })
+      .catch((err) => {
+        setBundleIDCreateError(String(err));
+      })
+      .finally(() => {
+        setBundleIDCreating(false);
       });
   }
 
@@ -1866,6 +1951,22 @@ export default function App() {
               </p>
             </div>
           </div>
+        ) : activeSection.id === "migrate" ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Migrate</h3>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Migrate from Fastlane to asc.</p>
+              <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>Use ACP chat: <code>asc migrate import --fastfile ./Fastfile</code></p>
+            </div>
+          </div>
+        ) : activeSection.id === "notify" ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Notifications</h3>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>Send notifications via Slack or webhooks.</p>
+              <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>Use ACP chat: <code>asc notify slack --webhook $WEBHOOK --message "Build ready"</code></p>
+            </div>
+          </div>
         ) : activeSection.id === "notarization" ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
@@ -1975,7 +2076,21 @@ export default function App() {
             return (
               <div className="app-detail-view">
                 <div className="app-detail-section">
-                  <h3 className="section-label">{activeSection.label}</h3>
+                  <div className="section-header-row">
+                    <div className="section-header-meta">
+                      <h3 className="section-label">{activeSection.label}</h3>
+                    </div>
+                    {activeSection.id === "bundle-ids" && (
+                      <button
+                        type="button"
+                        className="toolbar-btn section-create-btn"
+                        onClick={openBundleIDSheet}
+                      >
+                        <span aria-hidden="true">+</span>
+                        <span>New Bundle ID</span>
+                      </button>
+                    )}
+                  </div>
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -2002,8 +2117,20 @@ export default function App() {
               <div className="app-detail-view">
                 <div className="app-detail-section">
                   <div className="section-header-row">
-                    <h3 className="section-label">{activeSection.label}</h3>
-                    <span className="section-count">{cache.items.length} items</span>
+                    <div className="section-header-meta">
+                      <h3 className="section-label">{activeSection.label}</h3>
+                      <span className="section-count">{displayItems.length} items</span>
+                    </div>
+                    {activeSection.id === "bundle-ids" && (
+                      <button
+                        type="button"
+                        className="toolbar-btn section-create-btn"
+                        onClick={openBundleIDSheet}
+                      >
+                        <span aria-hidden="true">+</span>
+                        <span>New Bundle ID</span>
+                      </button>
+                    )}
                   </div>
                   {displayItems.map((item, idx) => (
                     <div key={item.id as string ?? idx} className="vertical-card">
@@ -2032,8 +2159,20 @@ export default function App() {
             <div className="app-detail-view">
               <div className="app-detail-section">
                 <div className="section-header-row">
-                  <h3 className="section-label">{activeSection.label}</h3>
-                  <span className="section-count">{displayItems.length} items</span>
+                  <div className="section-header-meta">
+                    <h3 className="section-label">{activeSection.label}</h3>
+                    <span className="section-count">{displayItems.length} items</span>
+                  </div>
+                  {activeSection.id === "bundle-ids" && (
+                    <button
+                      type="button"
+                      className="toolbar-btn section-create-btn"
+                      onClick={openBundleIDSheet}
+                    >
+                      <span aria-hidden="true">+</span>
+                      <span>New Bundle ID</span>
+                    </button>
+                  )}
                 </div>
                 <table className="data-table">
                   <thead>
@@ -2145,6 +2284,81 @@ export default function App() {
           </form>
         </section>}
       </div>
+
+      {showBundleIDSheet && (
+        <div className="sheet-backdrop" role="presentation" onClick={closeBundleIDSheet}>
+          <section
+            className="sheet-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bundle-id-sheet-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sheet-header">
+              <div>
+                <p className="sheet-eyebrow">Signing</p>
+                <h2 id="bundle-id-sheet-title" className="sheet-title">Create Bundle ID</h2>
+              </div>
+              <button type="button" className="sheet-close" onClick={closeBundleIDSheet} aria-label="Close create bundle ID sheet">
+                ×
+              </button>
+            </div>
+
+            <div className="sheet-body">
+              <label className="sheet-field">
+                <span className="sheet-label">Name</span>
+                <input
+                  type="text"
+                  value={bundleIDName}
+                  onChange={(event) => setBundleIDName(event.target.value)}
+                  placeholder="Example App"
+                />
+              </label>
+
+              <label className="sheet-field">
+                <span className="sheet-label">Identifier</span>
+                <input
+                  type="text"
+                  value={bundleIDIdentifier}
+                  onChange={(event) => setBundleIDIdentifier(event.target.value)}
+                  placeholder="com.example.app"
+                />
+              </label>
+
+              <label className="sheet-field">
+                <span className="sheet-label">Platform</span>
+                <select value={bundleIDPlatform} onChange={(event) => setBundleIDPlatform(event.target.value)}>
+                  <option value="IOS">iOS</option>
+                  <option value="MAC_OS">macOS</option>
+                  <option value="TV_OS">tvOS</option>
+                  <option value="VISION_OS">visionOS</option>
+                </select>
+              </label>
+
+              <div className="sheet-preview">
+                <p className="sheet-label">Command preview</p>
+                <code>{bundleIDCreateCommand}</code>
+              </div>
+
+              {bundleIDCreateError && <p className="sheet-error">{bundleIDCreateError}</p>}
+            </div>
+
+            <div className="sheet-footer">
+              <button type="button" className="toolbar-btn" onClick={closeBundleIDSheet}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="toolbar-btn toolbar-btn-primary"
+                onClick={handleCreateBundleID}
+                disabled={bundleIDCreating}
+              >
+                {bundleIDCreating ? "Creating…" : "Create"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

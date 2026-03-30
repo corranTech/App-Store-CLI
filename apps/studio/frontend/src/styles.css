@@ -407,6 +407,21 @@ textarea {
   background: var(--surface-secondary);
 }
 
+.toolbar-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.toolbar-btn-primary {
+  background: rgba(10, 132, 255, 0.14);
+  border-color: rgba(10, 132, 255, 0.2);
+  color: var(--accent);
+}
+
+.toolbar-btn-primary:hover:not(:disabled) {
+  background: rgba(10, 132, 255, 0.18);
+}
+
 /* ── Workspace sections ─────────────────────────── */
 
 .workspace-section {
@@ -1002,6 +1017,125 @@ textarea {
   color: var(--text-secondary);
 }
 
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(18, 18, 24, 0.18);
+  backdrop-filter: blur(18px);
+  z-index: 40;
+}
+
+.sheet-panel {
+  width: min(520px, calc(100vw - 48px));
+  border-radius: 22px;
+  border: 1px solid var(--separator);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.sheet-header,
+.sheet-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.sheet-header {
+  border-bottom: 1px solid var(--separator);
+}
+
+.sheet-footer {
+  border-top: 1px solid var(--separator);
+}
+
+.sheet-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px 20px;
+}
+
+.sheet-eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sheet-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--separator);
+  border-radius: 999px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sheet-field {
+  display: grid;
+  gap: 6px;
+}
+
+.sheet-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.sheet-field input,
+.sheet-field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--separator);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.sheet-preview {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--separator);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-secondary) 92%, transparent);
+}
+
+.sheet-preview code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sheet-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--red);
+}
+
 .data-table td {
   padding: 8px 10px;
   color: var(--text-primary);
@@ -1022,12 +1156,25 @@ textarea {
 .section-header-row {
   display: flex;
   align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
 }
 
 .section-header-row .section-label {
   margin: 0;
+}
+
+.section-header-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.section-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .section-count {
