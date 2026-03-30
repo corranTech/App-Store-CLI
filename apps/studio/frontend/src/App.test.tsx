@@ -1,47 +1,51 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
+
+const {
+  mockListApps,
+  mockCheckAuthStatus,
+  mockBootstrap,
+  mockGetSettings,
+  mockSaveSettings,
+  mockRunASCCommand,
+  mockGetAppDetail,
+  mockGetVersionMetadata,
+  mockGetScreenshots,
+  mockGetTestFlight,
+  mockGetTestFlightTesters,
+  mockGetPricingOverview,
+  mockGetSubscriptions,
+} = vi.hoisted(() => ({
+  mockListApps: vi.fn(),
+  mockCheckAuthStatus: vi.fn(),
+  mockBootstrap: vi.fn(),
+  mockGetSettings: vi.fn(),
+  mockSaveSettings: vi.fn(),
+  mockRunASCCommand: vi.fn(),
+  mockGetAppDetail: vi.fn(),
+  mockGetVersionMetadata: vi.fn(),
+  mockGetScreenshots: vi.fn(),
+  mockGetTestFlight: vi.fn(),
+  mockGetTestFlightTesters: vi.fn(),
+  mockGetPricingOverview: vi.fn(),
+  mockGetSubscriptions: vi.fn(),
+}));
 
 // Mock the Wails bindings since they don't exist in test environment
 vi.mock("../wailsjs/go/main/App", () => ({
-  ListApps: vi.fn().mockResolvedValue({
-    apps: [
-      { id: "1", name: "Test App", subtitle: "A great app" },
-    ],
-  }),
-  CheckAuthStatus: vi.fn().mockResolvedValue({
-    authenticated: true,
-    storage: "System Keychain",
-    profile: "default",
-    rawOutput: "Credential storage: System Keychain\nActive profile: default",
-  }),
-  Bootstrap: vi.fn().mockResolvedValue({
-    appName: "ASC Studio",
-    environment: {
-      configPath: "/Users/test/.asc/config.json",
-      configPresent: true,
-      defaultAppId: "123456",
-      keychainAvailable: true,
-      keychainBypassed: false,
-      workflowPath: "",
-    },
-    settings: {
-      preferredPreset: "codex",
-      agentCommand: "",
-      agentArgs: [],
-      agentEnv: {},
-      preferBundledASC: true,
-      systemASCPath: "",
-      workspaceRoot: "",
-      theme: "glass-light",
-      windowMaterial: "translucent",
-      showCommandPreviews: true,
-    },
-    presets: [],
-    threads: [],
-    approvals: [],
-  }),
-  GetSettings: vi.fn().mockResolvedValue({}),
-  SaveSettings: vi.fn().mockResolvedValue({}),
+  ListApps: mockListApps,
+  CheckAuthStatus: mockCheckAuthStatus,
+  Bootstrap: mockBootstrap,
+  GetSettings: mockGetSettings,
+  SaveSettings: mockSaveSettings,
+  RunASCCommand: mockRunASCCommand,
+  GetAppDetail: mockGetAppDetail,
+  GetVersionMetadata: mockGetVersionMetadata,
+  GetScreenshots: mockGetScreenshots,
+  GetTestFlight: mockGetTestFlight,
+  GetTestFlightTesters: mockGetTestFlightTesters,
+  GetPricingOverview: mockGetPricingOverview,
+  GetSubscriptions: mockGetSubscriptions,
 }));
 
 vi.mock("../wailsjs/go/models", () => ({
@@ -59,6 +63,73 @@ vi.mock("../wailsjs/go/models", () => ({
 import App from "./App";
 
 describe("App", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockListApps.mockResolvedValue({
+      apps: [
+        { id: "1", name: "Test App", subtitle: "A great app" },
+      ],
+    });
+    mockCheckAuthStatus.mockResolvedValue({
+      authenticated: true,
+      storage: "System Keychain",
+      profile: "default",
+      rawOutput: "Credential storage: System Keychain\nActive profile: default",
+    });
+    mockBootstrap.mockResolvedValue({
+      appName: "ASC Studio",
+      environment: {
+        configPath: "/Users/test/.asc/config.json",
+        configPresent: true,
+        defaultAppId: "123456",
+        keychainAvailable: true,
+        keychainBypassed: false,
+        workflowPath: "",
+      },
+      settings: {
+        preferredPreset: "codex",
+        agentCommand: "",
+        agentArgs: [],
+        agentEnv: {},
+        preferBundledASC: true,
+        systemASCPath: "",
+        workspaceRoot: "",
+        theme: "glass-light",
+        windowMaterial: "translucent",
+        showCommandPreviews: true,
+      },
+      presets: [],
+      threads: [],
+      approvals: [],
+    });
+    mockGetSettings.mockResolvedValue({});
+    mockSaveSettings.mockResolvedValue({});
+    mockRunASCCommand.mockResolvedValue({ error: "", data: "{\"data\":[]}" });
+    mockGetAppDetail.mockResolvedValue({
+      id: "1",
+      name: "Test App",
+      subtitle: "A great app",
+      bundleId: "com.example.test",
+      sku: "TESTSKU",
+      primaryLocale: "en-US",
+      versions: [{ id: "version-1", platform: "IOS", version: "1.0", state: "READY_FOR_SALE" }],
+    });
+    mockGetVersionMetadata.mockResolvedValue({ localizations: [] });
+    mockGetScreenshots.mockResolvedValue({ sets: [] });
+    mockGetTestFlight.mockResolvedValue({ groups: [] });
+    mockGetTestFlightTesters.mockResolvedValue({ testers: [] });
+    mockGetPricingOverview.mockResolvedValue({
+      availableInNewTerritories: false,
+      currentPrice: "",
+      currentProceeds: "",
+      baseCurrency: "",
+      territories: [],
+      subscriptionPricing: [],
+    });
+    mockGetSubscriptions.mockResolvedValue({ subscriptions: [] });
+  });
+
   it("renders and calls Bootstrap on mount", async () => {
     render(<App />);
 
@@ -105,5 +176,25 @@ describe("App", () => {
     fireEvent.click(screen.getByLabelText("Collapse chat"));
 
     expect(screen.queryByText("ACP Chat")).not.toBeInTheDocument();
+  });
+
+  it("shows a loading state in TestFlight while beta groups are still fetching", async () => {
+    mockGetTestFlight.mockImplementation(
+      () => new Promise(() => {})
+    );
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "1" } });
+
+    await screen.findByRole("button", { name: "TestFlight" });
+    fireEvent.click(screen.getByRole("button", { name: "TestFlight" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Loading…")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("No beta groups found.")).not.toBeInTheDocument();
   });
 });

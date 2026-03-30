@@ -71,7 +71,6 @@ const sectionCommands: Record<string, string> = {
   "builds": "builds list --app APP_ID --limit 20 --output json",
   "app-privacy": "age-rating view --app APP_ID --output json",
   "app-accessibility": "accessibility list --app APP_ID --output json",
-  "ratings-reviews": "reviews list --app APP_ID --limit 20 --output json",
   "in-app-events": "app-events list --app APP_ID --output json",
   "custom-product-pages": "product-pages custom-pages list --app APP_ID --output json",
   "ppo": "product-pages experiments list --v2 --app APP_ID --output json",
@@ -111,7 +110,9 @@ const fieldLabels: Record<string, string> = {
   supportsSwitchControl: "Switch Control", supportsAssistiveTouch: "Assistive Touch",
   supportsReduceMotion: "Reduce Motion", supportsGuidedAccess: "Guided Access",
   availableInNewTerritories: "Available in New Territories", customerPrice: "Customer Price",
-  proceeds: "Proceeds",
+  proceeds: "Proceeds", version: "Build", uploadedDate: "Uploaded", expirationDate: "Expires",
+  processingState: "Processing", minOsVersion: "Min OS", usesNonExemptEncryption: "Encryption",
+  submittedDate: "Submitted",
 };
 
 // Format raw API enum values for display
@@ -134,7 +135,12 @@ const displayValue: Record<string, string> = {
   INSTALLED: "Installed", INVITED: "Invited", ACCEPTED: "Accepted",
   PUBLIC_LINK: "Public Link", EMAIL: "Email",
 };
-function fmt(val: string): string { return displayValue[val] ?? val; }
+function fmt(val: string): string {
+  if (displayValue[val]) return displayValue[val];
+  // Format ISO dates like "2026-03-28T08:32:01-07:00" → "2026-03-28"
+  if (/^\d{4}-\d{2}-\d{2}T/.test(val)) return val.split("T")[0];
+  return val;
+}
 
 type EnvSnapshot = {
   configPath: string;
@@ -215,6 +221,7 @@ export default function App() {
   const [testflightData, setTestflightData] = useState<{ loading: boolean; error?: string; groups: { id: string; name: string; isInternal: boolean; publicLink: string; feedbackEnabled: boolean; createdDate: string; testerCount: number }[] }>({ loading: false, groups: [] });
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [groupTesters, setGroupTesters] = useState<{ loading: boolean; testers: { email: string; firstName: string; lastName: string; inviteType: string; state: string }[] }>({ loading: false, testers: [] });
+  const [reviews, setReviews] = useState<{ loading: boolean; error?: string; items: { rating: number; title: string; body: string; reviewerNickname: string; createdDate: string; territory: string }[] }>({ loading: false, items: [] });
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
@@ -319,6 +326,18 @@ export default function App() {
         else setTestflightData({ loading: false, groups: res.groups ?? [] });
       })
       .catch((e) => setTestflightData({ loading: false, error: String(e), groups: [] }));
+
+    // Reviews
+    setReviews({ loading: true, items: [] });
+    RunASCCommand(`reviews list --app ${appId} --limit 25 --output json`)
+      .then((res) => {
+        if (res.error) { setReviews({ loading: false, error: res.error, items: [] }); return; }
+        try {
+          const d = JSON.parse(res.data);
+          setReviews({ loading: false, items: (d.data ?? []).map((i: { attributes: Record<string, unknown> }) => i.attributes) });
+        } catch { setReviews({ loading: false, error: "Failed to parse", items: [] }); }
+      })
+      .catch((e) => setReviews({ loading: false, error: String(e), items: [] }));
 
     // Pricing overview
     setPricingOverview({ loading: true, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
@@ -1203,7 +1222,36 @@ export default function App() {
               </div>
             </div>
           );
-        })() : activeSection.id === "promo-codes" && selectedAppId ? (
+        })() : activeSection.id === "ratings-reviews" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <div className="section-header-row">
+                <h3 className="section-label">Ratings and Reviews</h3>
+                {reviews.items.length > 0 && <span className="section-count">{reviews.items.length} reviews</span>}
+              </div>
+              {reviews.loading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : reviews.error ? (
+                <p className="empty-hint">{reviews.error}</p>
+              ) : reviews.items.length === 0 ? (
+                <p className="empty-hint">No reviews found.</p>
+              ) : (
+                <div className="reviews-list">
+                  {reviews.items.map((r, i) => (
+                    <div key={i} className="review-card">
+                      <div className="review-header">
+                        <span className="review-stars">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                        <span className="review-meta">{r.reviewerNickname} · {r.territory} · {fmt(r.createdDate)}</span>
+                      </div>
+                      {r.title && <p className="review-title">{r.title}</p>}
+                      {r.body && <p className="review-body">{r.body}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeSection.id === "promo-codes" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
               <h3 className="section-label">Promo Codes</h3>
