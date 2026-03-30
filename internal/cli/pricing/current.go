@@ -19,8 +19,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-const appPricingCurrentDateLayout = "2006-01-02"
-
 type appCurrentPricingResult struct {
 	AppID         string                     `json:"appId"`
 	BaseTerritory string                     `json:"baseTerritory"`
@@ -37,16 +35,6 @@ type appCurrentTerritoryPrice struct {
 	CustomerPrice string `json:"customerPrice,omitempty"`
 	Proceeds      string `json:"proceeds,omitempty"`
 	Currency      string `json:"currency,omitempty"`
-}
-
-type appPriceEntry struct {
-	TerritoryID  string
-	PricePointID string
-	StartDate    string
-	EndDate      string
-	Manual       bool
-	StartAt      *time.Time
-	EndAt        *time.Time
 }
 
 type appPricePointValue struct {
@@ -246,13 +234,13 @@ func parseAppPriceEntries(resources []asc.Resource[asc.AppPriceAttributes]) []ap
 	for _, item := range resources {
 		decodedMeta, decodedOK := decodeAppPriceResourceMetadata(item.ID)
 
-		territoryID, err := relationshipID(item.Relationships, "territory")
-		if err != nil || strings.TrimSpace(territoryID) == "" {
+		territoryID := strings.ToUpper(strings.TrimSpace(appPriceRelationshipID(item.Relationships, "territory")))
+		if territoryID == "" {
 			territoryID = decodedMeta.TerritoryID
 		}
 
-		pricePointID, err := relationshipID(item.Relationships, "appPricePoint")
-		if err != nil || strings.TrimSpace(pricePointID) == "" {
+		pricePointID := strings.TrimSpace(appPriceRelationshipID(item.Relationships, "appPricePoint"))
+		if pricePointID == "" {
 			pricePointID = decodedMeta.PricePointID
 		} else if strings.TrimSpace(decodedMeta.PricePointID) != "" {
 			pricePointID = decodedMeta.PricePointID
@@ -466,58 +454,6 @@ func findActiveAppPriceEntry(entries []appPriceEntry, territoryID string, at tim
 	return best, found
 }
 
-func appPriceEntryActiveOn(entry appPriceEntry, at time.Time) bool {
-	if entry.StartAt != nil && entry.StartAt.After(at) {
-		return false
-	}
-	if entry.EndAt != nil && entry.EndAt.Before(at) {
-		return false
-	}
-	return true
-}
-
-func appPriceEntryIsNewer(candidate, existing appPriceEntry) bool {
-	switch {
-	case candidate.StartAt == nil && existing.StartAt != nil:
-		return false
-	case candidate.StartAt != nil && existing.StartAt == nil:
-		return true
-	case candidate.StartAt != nil && existing.StartAt != nil:
-		if !candidate.StartAt.Equal(*existing.StartAt) {
-			return candidate.StartAt.After(*existing.StartAt)
-		}
-	}
-	if candidate.Manual != existing.Manual {
-		return candidate.Manual && !existing.Manual
-	}
-	return candidate.PricePointID > existing.PricePointID
-}
-
-func newAppPriceEntry(territoryID, pricePointID, startDate, endDate string, manual bool) appPriceEntry {
-	return appPriceEntry{
-		TerritoryID:  strings.ToUpper(strings.TrimSpace(territoryID)),
-		PricePointID: strings.TrimSpace(pricePointID),
-		StartDate:    strings.TrimSpace(startDate),
-		EndDate:      strings.TrimSpace(endDate),
-		Manual:       manual,
-		StartAt:      parseAppPricingDate(startDate),
-		EndAt:        parseAppPricingDate(endDate),
-	}
-}
-
-func parseAppPricingDate(value string) *time.Time {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	parsed, err := time.Parse(appPricingCurrentDateLayout, value)
-	if err != nil {
-		return nil
-	}
-	normalized := parsed.UTC()
-	return &normalized
-}
-
 func decodeAppPriceResourceID(resourceID string) (string, string, bool) {
 	decodedMeta, ok := decodeAppPriceResourceMetadata(resourceID)
 	if decodedMeta.TerritoryID == "" || decodedMeta.PricePointID == "" {
@@ -562,39 +498,7 @@ func scheduleDateFromUnixSeconds(seconds float64) string {
 	if seconds <= 0 {
 		return ""
 	}
-	return time.Unix(int64(seconds), 0).UTC().Format(appPricingCurrentDateLayout)
-}
-
-func relationshipID(relationships json.RawMessage, key string) (string, error) {
-	if len(relationships) == 0 {
-		return "", fmt.Errorf("missing relationships")
-	}
-
-	var references map[string]json.RawMessage
-	if err := json.Unmarshal(relationships, &references); err != nil {
-		return "", fmt.Errorf("parse relationships: %w", err)
-	}
-	rawReference, ok := references[key]
-	if !ok {
-		return "", fmt.Errorf("missing %s relationship", key)
-	}
-
-	var reference struct {
-		Data asc.ResourceData `json:"data"`
-	}
-	if err := json.Unmarshal(rawReference, &reference); err != nil {
-		return "", fmt.Errorf("parse %s relationship: %w", key, err)
-	}
-
-	id := strings.TrimSpace(reference.Data.ID)
-	if id == "" {
-		return "", fmt.Errorf("missing %s relationship id", key)
-	}
-	return id, nil
-}
-
-func dateOnlyUTC(value time.Time) time.Time {
-	return time.Date(value.UTC().Year(), value.UTC().Month(), value.UTC().Day(), 0, 0, 0, 0, time.UTC)
+	return time.Unix(int64(seconds), 0).UTC().Format(appPriceDateLayout)
 }
 
 func dedupeAppPriceEntries(entries []appPriceEntry) []appPriceEntry {
