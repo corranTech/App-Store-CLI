@@ -612,8 +612,8 @@ func (a *App) GetScreenshots(localizationID string) (ScreenshotsResponse, error)
 			if ia.TemplateURL == "" {
 				continue
 			}
-			// Build a ~200px-wide thumbnail URL from the template.
-			thumbW := 200
+			// Build a ~400px-wide thumbnail URL from the template.
+			thumbW := 400
 			thumbH := thumbW
 			if ia.Width > 0 && ia.Height > 0 {
 				thumbH = thumbW * ia.Height / ia.Width

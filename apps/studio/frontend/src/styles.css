@@ -1258,14 +1258,14 @@ textarea {
 
 .screenshot-thumb {
   flex-shrink: 0;
-  height: 120px;
+  height: 220px;
   width: auto;
-  border-radius: 6px;
+  border-radius: 10px;
   border: 1px solid var(--separator);
   object-fit: cover;
   background: var(--surface-secondary);
 }
 
 .screenshot-thumb.landscape {
-  height: 80px;
+  height: 140px;
 }
