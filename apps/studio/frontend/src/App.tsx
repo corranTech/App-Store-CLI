@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
-import { Bootstrap, CheckAuthStatus, GetSettings, ListApps, SaveSettings } from "../wailsjs/go/main/App";
+import { Bootstrap, CheckAuthStatus, GetAppDetail, GetSettings, ListApps, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 const sections: NavSection[] = [
@@ -74,6 +74,13 @@ export default function App() {
     authenticated: false, storage: "", profile: "", rawOutput: "",
   });
   const [appList, setAppList] = useState<{ id: string; name: string; subtitle: string }[]>([]);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [appDetail, setAppDetail] = useState<{
+    id: string; name: string; subtitle: string; bundleId: string; sku: string; primaryLocale: string;
+    versions: { id: string; platform: string; version: string; state: string }[];
+    error?: string;
+  } | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [appsLoading, setAppsLoading] = useState(false);
 
   useEffect(() => {
@@ -148,6 +155,19 @@ export default function App() {
     SaveSettings(payload)
       .then(() => setSettingsSaved(true))
       .catch((err) => console.error("save settings:", err));
+  }
+
+  function handleSelectApp(id: string) {
+    setSelectedAppId(id);
+    setAppDetail(null);
+    setDetailLoading(true);
+    GetAppDetail(id)
+      .then((d) => setAppDetail({
+        id: d.id, name: d.name, subtitle: d.subtitle, bundleId: d.bundleId,
+        sku: d.sku, primaryLocale: d.primaryLocale, versions: d.versions ?? [], error: d.error,
+      }))
+      .catch((e) => setAppDetail({ id, name: "", subtitle: "", bundleId: "", sku: "", primaryLocale: "", versions: [], error: String(e) }))
+      .finally(() => setDetailLoading(false));
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -392,22 +412,92 @@ export default function App() {
           </div>
         ) : activeSection.id === "apps" ? (
           <div className="apps-view">
-            <div className="workspace-section">
-              <h3 className="section-label">Apps</h3>
-              {appsLoading ? (
-                <p className="empty-hint">Loading…</p>
-              ) : appList.length > 0 ? (
-                <div className="app-list">
-                  {appList.map((app) => (
-                    <div key={app.id} className="app-list-row">
-                      <span className="app-list-name">{app.name}</span>
-                      {app.subtitle && <span className="app-list-subtitle">{app.subtitle}</span>}
-                    </div>
-                  ))}
+            {/* Left: app list */}
+            <div className="apps-list-pane">
+              <div className="workspace-section">
+                <h3 className="section-label">Apps</h3>
+                {appsLoading ? (
+                  <p className="empty-hint">Loading…</p>
+                ) : appList.length > 0 ? (
+                  <div className="app-list">
+                    {appList.map((app) => (
+                      <button
+                        key={app.id}
+                        type="button"
+                        className={`app-list-row${selectedAppId === app.id ? " is-selected" : ""}`}
+                        onClick={() => handleSelectApp(app.id)}
+                      >
+                        <span className="app-list-name">{app.name}</span>
+                        {app.subtitle && <span className="app-list-subtitle">{app.subtitle}</span>}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-hint">No apps found</p>
+                )}
+              </div>
+            </div>
+
+            {/* Right: app detail */}
+            <div className="apps-detail-pane">
+              {!selectedAppId ? (
+                <div className="apps-detail-empty">
+                  <p className="empty-hint">Select an app to view details</p>
                 </div>
-              ) : (
-                <p className="empty-hint">No apps found</p>
-              )}
+              ) : detailLoading ? (
+                <div className="apps-detail-empty">
+                  <p className="empty-hint">Loading…</p>
+                </div>
+              ) : appDetail?.error ? (
+                <div className="apps-detail-empty">
+                  <p className="empty-hint">{appDetail.error}</p>
+                </div>
+              ) : appDetail ? (
+                <div className="app-detail-content">
+                  {/* Header */}
+                  <div className="app-detail-header">
+                    <p className="app-detail-name">{appDetail.name}</p>
+                    {appDetail.subtitle && <p className="app-detail-subtitle">{appDetail.subtitle}</p>}
+                  </div>
+
+                  {/* Latest version per platform */}
+                  {(["IOS", "MAC_OS", "VISION_OS"] as const).map((platform) => {
+                    const latest = appDetail.versions.find((v) => v.platform === platform);
+                    if (!latest) return null;
+                    const platformLabel = platform === "IOS" ? "iOS App" : platform === "MAC_OS" ? "macOS App" : "visionOS App";
+                    return (
+                      <div key={platform} className="app-detail-section">
+                        <h3 className="section-label">{platformLabel}</h3>
+                        <div className="app-version-row">
+                          <span className="app-version-string">{latest.version}</span>
+                          <span className={`app-version-state state-${latest.state.toLowerCase().replace(/_/g, "-")}`}>
+                            {latest.state.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* General info */}
+                  <div className="app-detail-section">
+                    <h3 className="section-label">General</h3>
+                    <div className="env-grid">
+                      <div className="env-row">
+                        <span className="env-key">Bundle ID</span>
+                        <span className="env-value mono">{appDetail.bundleId}</span>
+                      </div>
+                      <div className="env-row">
+                        <span className="env-key">SKU</span>
+                        <span className="env-value mono">{appDetail.sku}</span>
+                      </div>
+                      <div className="env-row">
+                        <span className="env-key">Primary locale</span>
+                        <span className="env-value">{appDetail.primaryLocale}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : (

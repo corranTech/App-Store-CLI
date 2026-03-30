@@ -18,8 +18,16 @@ export function CreateThread(arg1) {
   return window['go']['main']['App']['CreateThread'](arg1);
 }
 
+export function GetAppDetail(arg1) {
+  return window['go']['main']['App']['GetAppDetail'](arg1);
+}
+
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
+}
+
+export function GetVersionMetadata(arg1) {
+  return window['go']['main']['App']['GetVersionMetadata'](arg1);
 }
 
 export function ListApprovals() {

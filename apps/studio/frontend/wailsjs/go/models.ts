@@ -80,6 +80,68 @@ export namespace environment {
 
 export namespace main {
 	
+	export class AppVersion {
+	    id: string;
+	    platform: string;
+	    version: string;
+	    state: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppVersion(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.platform = source["platform"];
+	        this.version = source["version"];
+	        this.state = source["state"];
+	    }
+	}
+	export class AppDetail {
+	    id: string;
+	    name: string;
+	    subtitle: string;
+	    bundleId: string;
+	    sku: string;
+	    primaryLocale: string;
+	    versions: AppVersion[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.subtitle = source["subtitle"];
+	        this.bundleId = source["bundleId"];
+	        this.sku = source["sku"];
+	        this.primaryLocale = source["primaryLocale"];
+	        this.versions = this.convertValues(source["versions"], AppVersion);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class AppInfo {
 	    id: string;
 	    name: string;
@@ -102,6 +164,31 @@ export namespace main {
 	        this.sku = source["sku"];
 	    }
 	}
+	export class AppLocalization {
+	    locale: string;
+	    description: string;
+	    keywords: string;
+	    whatsNew: string;
+	    promotionalText: string;
+	    supportUrl: string;
+	    marketingUrl: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppLocalization(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.locale = source["locale"];
+	        this.description = source["description"];
+	        this.keywords = source["keywords"];
+	        this.whatsNew = source["whatsNew"];
+	        this.promotionalText = source["promotionalText"];
+	        this.supportUrl = source["supportUrl"];
+	        this.marketingUrl = source["marketingUrl"];
+	    }
+	}
+	
 	export class ApprovalRequest {
 	    threadId: string;
 	    title: string;
@@ -299,6 +386,38 @@ export namespace main {
 	        this.checked = source["checked"];
 	        this.bundledEligible = source["bundledEligible"];
 	        this.availablePresets = this.convertValues(source["availablePresets"], settings.ProviderPreset);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class VersionMetadataResponse {
+	    localizations: AppLocalization[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new VersionMetadataResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.localizations = this.convertValues(source["localizations"], AppLocalization);
+	        this.error = source["error"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

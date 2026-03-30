@@ -445,34 +445,11 @@ textarea {
   font-size: 12px;
 }
 
-/* ── App rows ───────────────────────────────────── */
+/* ── App rows (see apps-list-pane section below) ── */
 
 .app-list {
   display: flex;
   flex-direction: column;
-}
-
-.app-list-row {
-  display: flex;
-  flex-direction: column;
-  padding: 10px 0;
-  border-top: 1px solid var(--separator);
-  gap: 2px;
-}
-
-.app-list-row:first-child {
-  border-top: none;
-}
-
-.app-list-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.app-list-subtitle {
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 
 .app-row {
@@ -938,8 +915,154 @@ textarea {
 .apps-view {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  overflow: hidden;
   background: var(--surface);
+}
+
+.apps-list-pane {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--separator);
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.012);
+}
+
+.apps-detail-pane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.apps-detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+}
+
+.app-detail-content {
+  padding-bottom: 40px;
+}
+
+.app-detail-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.app-detail-name {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.app-detail-subtitle {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.app-detail-section {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.app-detail-section:last-child {
+  border-bottom: none;
+}
+
+.app-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-top: 1px solid var(--separator);
+}
+
+.app-version-row:first-of-type {
+  border-top: none;
+}
+
+.app-version-string {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.app-version-state {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.app-version-state.state-ready-for-distribution {
+  background: rgba(52, 199, 89, 0.12);
+  color: #1a9a3a;
+}
+
+.app-version-state.state-pending-developer-release {
+  background: rgba(255, 159, 10, 0.12);
+  color: #b86e00;
+}
+
+.app-version-state.state-prepare-for-submission,
+.app-version-state.state-waiting-for-review {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--accent);
+}
+
+.app-version-state.state-in-review,
+.app-version-state.state-pending-contract {
+  background: rgba(88, 86, 214, 0.1);
+  color: #5856d6;
+}
+
+.app-version-state.state-rejected,
+.app-version-state.state-removed-from-sale,
+.app-version-state.state-developer-rejected {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--red);
+}
+
+/* app list row as button */
+.app-list-row {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border: none;
+  border-top: 1px solid var(--separator);
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  gap: 2px;
+  border-radius: 0;
+}
+
+.app-list-row:first-child {
+  border-top: none;
+}
+
+.app-list-row:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.app-list-row.is-selected {
+  background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+  padding-left: 9px;
+}
+
+.app-list-row.is-selected .app-list-name {
+  color: var(--accent);
+}
+
+.env-value.mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .settings-field {

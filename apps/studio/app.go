@@ -101,6 +101,39 @@ type ListAppsResponse struct {
 	Error string    `json:"error,omitempty"`
 }
 
+type AppVersion struct {
+	ID       string `json:"id"`
+	Platform string `json:"platform"`
+	Version  string `json:"version"`
+	State    string `json:"state"`
+}
+
+type AppDetail struct {
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	Subtitle      string       `json:"subtitle"`
+	BundleID      string       `json:"bundleId"`
+	SKU           string       `json:"sku"`
+	PrimaryLocale string       `json:"primaryLocale"`
+	Versions      []AppVersion `json:"versions"`
+	Error         string       `json:"error,omitempty"`
+}
+
+type AppLocalization struct {
+	Locale          string `json:"locale"`
+	Description     string `json:"description"`
+	Keywords        string `json:"keywords"`
+	WhatsNew        string `json:"whatsNew"`
+	PromotionalText string `json:"promotionalText"`
+	SupportURL      string `json:"supportUrl"`
+	MarketingURL    string `json:"marketingUrl"`
+}
+
+type VersionMetadataResponse struct {
+	Localizations []AppLocalization `json:"localizations"`
+	Error         string            `json:"error,omitempty"`
+}
+
 func NewApp() (*App, error) {
 	rootDir, err := settings.DefaultRoot()
 	if err != nil {
@@ -317,6 +350,187 @@ func (a *App) fetchSubtitle(ctx context.Context, ascPath, appID string) string {
 		return ""
 	}
 	return envelope.Data[0].Attributes.Subtitle
+}
+
+func (a *App) GetAppDetail(appID string) (AppDetail, error) {
+	if strings.TrimSpace(appID) == "" {
+		return AppDetail{Error: "app ID is required"}, nil
+	}
+
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return AppDetail{Error: "Could not find asc binary: " + err.Error()}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	defer cancel()
+
+	// Fetch app attrs and versions concurrently
+	type attrsResult struct {
+		name          string
+		bundleID      string
+		sku           string
+		primaryLocale string
+		err           error
+	}
+	type versionsResult struct {
+		versions []AppVersion
+		err      error
+	}
+	type subtitleRes struct {
+		subtitle string
+	}
+
+	attrsCh := make(chan attrsResult, 1)
+	versionsCh := make(chan versionsResult, 1)
+	subtitleCh := make(chan subtitleRes, 1)
+
+	go func() {
+		cmd := exec.CommandContext(ctx, ascPath, "apps", "view", "--id", appID, "--output", "json")
+		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			attrsCh <- attrsResult{err: err}
+			return
+		}
+		var env struct {
+			Data struct {
+				Attributes struct {
+					Name          string `json:"name"`
+					BundleID      string `json:"bundleId"`
+					SKU           string `json:"sku"`
+					PrimaryLocale string `json:"primaryLocale"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(out, &env) != nil {
+			attrsCh <- attrsResult{err: errors.New("failed to parse app view")}
+			return
+		}
+		a := env.Data.Attributes
+		attrsCh <- attrsResult{name: a.Name, bundleID: a.BundleID, sku: a.SKU, primaryLocale: a.PrimaryLocale}
+	}()
+
+	go func() {
+		cmd := exec.CommandContext(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
+		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			versionsCh <- versionsResult{err: err}
+			return
+		}
+		type rawVersion struct {
+			ID         string `json:"id"`
+			Attributes struct {
+				Platform        string `json:"platform"`
+				VersionString   string `json:"versionString"`
+				AppVersionState string `json:"appVersionState"`
+				AppStoreState   string `json:"appStoreState"`
+			} `json:"attributes"`
+		}
+		var env struct {
+			Data []rawVersion `json:"data"`
+		}
+		if json.Unmarshal(out, &env) != nil {
+			versionsCh <- versionsResult{}
+			return
+		}
+		vs := make([]AppVersion, 0, len(env.Data))
+		for _, rv := range env.Data {
+			state := rv.Attributes.AppVersionState
+			if state == "" {
+				state = rv.Attributes.AppStoreState
+			}
+			vs = append(vs, AppVersion{
+				ID:       rv.ID,
+				Platform: rv.Attributes.Platform,
+				Version:  rv.Attributes.VersionString,
+				State:    state,
+			})
+		}
+		versionsCh <- versionsResult{versions: vs}
+	}()
+
+	go func() {
+		subtitleCh <- subtitleRes{subtitle: a.fetchSubtitle(ctx, ascPath, appID)}
+	}()
+
+	attrs := <-attrsCh
+	vers := <-versionsCh
+	sub := <-subtitleCh
+
+	if attrs.err != nil {
+		return AppDetail{Error: attrs.err.Error()}, nil
+	}
+
+	return AppDetail{
+		ID:            appID,
+		Name:          attrs.name,
+		Subtitle:      sub.subtitle,
+		BundleID:      attrs.bundleID,
+		SKU:           attrs.sku,
+		PrimaryLocale: attrs.primaryLocale,
+		Versions:      vers.versions,
+	}, nil
+}
+
+// GetVersionMetadata returns all localizations for a given App Store version.
+// Pass versionID from AppVersion.ID. Returns all locales so the frontend can
+// render a picker without an extra round-trip.
+func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, error) {
+	if strings.TrimSpace(versionID) == "" {
+		return VersionMetadataResponse{Error: "version ID is required"}, nil
+	}
+
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return VersionMetadataResponse{Error: "Could not find asc binary: " + err.Error()}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, ascPath, "localizations", "list",
+		"--version", versionID, "--output", "json")
+	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return VersionMetadataResponse{Error: strings.TrimSpace(string(out))}, nil
+	}
+
+	type rawAttrs struct {
+		Locale          string `json:"locale"`
+		Description     string `json:"description"`
+		Keywords        string `json:"keywords"`
+		WhatsNew        string `json:"whatsNew"`
+		PromotionalText string `json:"promotionalText"`
+		SupportURL      string `json:"supportUrl"`
+		MarketingURL    string `json:"marketingUrl"`
+	}
+	type rawItem struct {
+		Attributes rawAttrs `json:"attributes"`
+	}
+	var envelope struct {
+		Data []rawItem `json:"data"`
+	}
+	if json.Unmarshal(out, &envelope) != nil {
+		return VersionMetadataResponse{Error: "failed to parse localizations"}, nil
+	}
+
+	locs := make([]AppLocalization, 0, len(envelope.Data))
+	for _, item := range envelope.Data {
+		a := item.Attributes
+		locs = append(locs, AppLocalization{
+			Locale:          a.Locale,
+			Description:     a.Description,
+			Keywords:        a.Keywords,
+			WhatsNew:        a.WhatsNew,
+			PromotionalText: a.PromotionalText,
+			SupportURL:      a.SupportURL,
+			MarketingURL:    a.MarketingURL,
+		})
+	}
+	return VersionMetadataResponse{Localizations: locs}, nil
 }
 
 func (a *App) resolveASCPath() (string, error) {

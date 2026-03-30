@@ -13,7 +13,11 @@ export function CheckAuthStatus():Promise<main.AuthStatus>;
 
 export function CreateThread(arg1:string):Promise<threads.Thread>;
 
+export function GetAppDetail(arg1:string):Promise<main.AppDetail>;
+
 export function GetSettings():Promise<settings.StudioSettings>;
+
+export function GetVersionMetadata(arg1:string):Promise<main.VersionMetadataResponse>;
 
 export function ListApprovals():Promise<Array<approvals.Action>>;
 
