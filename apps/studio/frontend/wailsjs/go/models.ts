@@ -356,6 +356,66 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class SubPricingItem {
+	    name: string;
+	    productId: string;
+	    subscriptionPeriod: string;
+	    state: string;
+	    groupName: string;
+	    price: string;
+	    currency: string;
+	    proceeds: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SubPricingItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.productId = source["productId"];
+	        this.subscriptionPeriod = source["subscriptionPeriod"];
+	        this.state = source["state"];
+	        this.groupName = source["groupName"];
+	        this.price = source["price"];
+	        this.currency = source["currency"];
+	        this.proceeds = source["proceeds"];
+	    }
+	}
+	export class PricingOverview {
+	    availableInNewTerritories: boolean;
+	    subscriptionPricing: SubPricingItem[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PricingOverview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.availableInNewTerritories = source["availableInNewTerritories"];
+	        this.subscriptionPricing = this.convertValues(source["subscriptionPricing"], SubPricingItem);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class PromptRequest {
 	    threadId: string;
 	    prompt: string;
@@ -502,6 +562,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	export class SubscriptionItem {
 	    id: string;
 	    groupName: string;

@@ -141,6 +141,23 @@ type SubscriptionsResponse struct {
 	Error         string             `json:"error,omitempty"`
 }
 
+type SubPricingItem struct {
+	Name      string `json:"name"`
+	ProductID string `json:"productId"`
+	Period    string `json:"subscriptionPeriod"`
+	State     string `json:"state"`
+	GroupName string `json:"groupName"`
+	Price     string `json:"price"`
+	Currency  string `json:"currency"`
+	Proceeds  string `json:"proceeds"`
+}
+
+type PricingOverview struct {
+	AvailableInNewTerritories bool             `json:"availableInNewTerritories"`
+	SubscriptionPricing       []SubPricingItem `json:"subscriptionPricing"`
+	Error                     string           `json:"error,omitempty"`
+}
+
 type AppLocalization struct {
 	LocalizationID  string `json:"localizationId"`
 	Locale          string `json:"locale"`
@@ -484,6 +501,109 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 		all = append(all, r.subs...)
 	}
 	return SubscriptionsResponse{Subscriptions: all}, nil
+}
+
+// GetPricingOverview fetches availability + subscription pricing summary in parallel.
+func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
+	if strings.TrimSpace(appID) == "" {
+		return PricingOverview{Error: "app ID is required"}, nil
+	}
+	defer configGuard()()
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return PricingOverview{Error: err.Error()}, nil
+	}
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	defer cancel()
+
+	type availResult struct {
+		available bool
+		err       error
+	}
+	type pricingResult struct {
+		items []SubPricingItem
+		err   error
+	}
+	availCh := make(chan availResult, 1)
+	pricingCh := make(chan pricingResult, 1)
+
+	// Availability
+	go func() {
+		cmd := exec.CommandContext(ctx, ascPath, "pricing", "availability", "view", "--app", appID, "--output", "json")
+		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			availCh <- availResult{err: fmt.Errorf("%s", strings.TrimSpace(string(out)))}
+			return
+		}
+		var env struct {
+			Data struct {
+				Attributes struct {
+					AvailableInNewTerritories bool `json:"availableInNewTerritories"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		json.Unmarshal(out, &env)
+		availCh <- availResult{available: env.Data.Attributes.AvailableInNewTerritories}
+	}()
+
+	// Subscription pricing summary
+	go func() {
+		cmd := exec.CommandContext(ctx, ascPath, "subscriptions", "pricing", "summary", "--app", appID, "--output", "json")
+		cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			pricingCh <- pricingResult{} // not an error — app may have no subscriptions
+			return
+		}
+		type rawSub struct {
+			Name         string `json:"name"`
+			ProductID    string `json:"productId"`
+			Period       string `json:"subscriptionPeriod"`
+			State        string `json:"state"`
+			GroupName    string `json:"groupName"`
+			CurrentPrice struct {
+				Amount   string `json:"amount"`
+				Currency string `json:"currency"`
+			} `json:"currentPrice"`
+			Proceeds struct {
+				Amount string `json:"amount"`
+			} `json:"proceeds"`
+		}
+		var env struct {
+			Subscriptions []rawSub `json:"subscriptions"`
+		}
+		if json.Unmarshal(out, &env) != nil {
+			pricingCh <- pricingResult{}
+			return
+		}
+		items := make([]SubPricingItem, 0, len(env.Subscriptions))
+		for _, s := range env.Subscriptions {
+			items = append(items, SubPricingItem{
+				Name:      s.Name,
+				ProductID: s.ProductID,
+				Period:    s.Period,
+				State:     s.State,
+				GroupName: s.GroupName,
+				Price:     s.CurrentPrice.Amount,
+				Currency:  s.CurrentPrice.Currency,
+				Proceeds:  s.Proceeds.Amount,
+			})
+		}
+		pricingCh <- pricingResult{items: items}
+	}()
+
+	avail := <-availCh
+	pricing := <-pricingCh
+
+	if avail.err != nil {
+		return PricingOverview{Error: avail.err.Error()}, nil
+	}
+
+	return PricingOverview{
+		AvailableInNewTerritories: avail.available,
+		SubscriptionPricing:       pricing.items,
+	}, nil
 }
 
 func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {

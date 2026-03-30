@@ -22,6 +22,10 @@ export function GetAppDetail(arg1) {
   return window['go']['main']['App']['GetAppDetail'](arg1);
 }
 
+export function GetPricingOverview(arg1) {
+  return window['go']['main']['App']['GetPricingOverview'](arg1);
+}
+
 export function GetScreenshots(arg1) {
   return window['go']['main']['App']['GetScreenshots'](arg1);
 }

@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
-import { Bootstrap, CheckAuthStatus, GetAppDetail, GetScreenshots, GetSettings, GetSubscriptions, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
+import { Bootstrap, CheckAuthStatus, GetAppDetail, GetPricingOverview, GetScreenshots, GetSettings, GetSubscriptions, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 type SidebarGroup = { label: string; items: NavSection[] };
@@ -65,7 +65,6 @@ const sectionCommands: Record<string, string> = {
   "custom-product-pages": "product-pages custom-pages list --app APP_ID --output json",
   "ppo": "product-pages experiments list --v2 --app APP_ID --output json",
   "game-center": "game-center achievements list --app APP_ID --output json",
-  "pricing": "pricing availability view --app APP_ID --output json",
   "iap": "iap list --app APP_ID --output json",
   "nominations": "nominations list --output json",
 };
@@ -197,6 +196,7 @@ export default function App() {
   // Cache of section data keyed by section ID. Prefetched in parallel on app select.
   const [sectionCache, setSectionCache] = useState<Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }>>({});
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
+  const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
 
   useEffect(() => {
@@ -280,6 +280,15 @@ export default function App() {
       initial[sectionId] = { loading: true, items: [] };
     }
     setSectionCache(initial);
+    // Pricing overview
+    setPricingOverview({ loading: true, availableInNewTerritories: false, subscriptionPricing: [] });
+    GetPricingOverview(appId)
+      .then((res) => {
+        if (res.error) setPricingOverview({ loading: false, error: res.error, availableInNewTerritories: false, subscriptionPricing: [] });
+        else setPricingOverview({ loading: false, availableInNewTerritories: res.availableInNewTerritories, subscriptionPricing: res.subscriptionPricing ?? [] });
+      })
+      .catch((e) => setPricingOverview({ loading: false, error: String(e), availableInNewTerritories: false, subscriptionPricing: [] }));
+
     // Subscriptions: dedicated two-phase fetch
     setSubscriptions({ loading: true, items: [] });
     GetSubscriptions(appId)
@@ -825,6 +834,58 @@ export default function App() {
                 </div>
               );
             })() : null}
+          </div>
+        ) : activeSection.id === "pricing" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Pricing and Availability</h3>
+              {pricingOverview.loading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : pricingOverview.error ? (
+                <p className="empty-hint">{pricingOverview.error}</p>
+              ) : (
+                <>
+                  <table className="data-table" style={{ marginBottom: 20 }}>
+                    <tbody>
+                      <tr>
+                        <td className="vcard-label">Available in New Territories</td>
+                        <td>{pricingOverview.availableInNewTerritories ? "Yes" : "No"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {pricingOverview.subscriptionPricing.length > 0 && (
+                    <>
+                      <h3 className="section-label">Subscription Prices</h3>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Group</th>
+                            <th>Name</th>
+                            <th>Period</th>
+                            <th>Price</th>
+                            <th>Proceeds</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pricingOverview.subscriptionPricing.map((s) => (
+                            <tr key={s.productId}>
+                              <td>{s.groupName}</td>
+                              <td>{s.name}</td>
+                              <td>{fmt(s.subscriptionPeriod)}</td>
+                              <td>{s.currency} {s.price}</td>
+                              <td>{s.currency} {s.proceeds}</td>
+                              <td><span className={`status-pill status-${s.state.toLowerCase()}`}>{fmt(s.state)}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         ) : activeSection.id === "subscriptions" && selectedAppId ? (() => {
           const sub = selectedSub ? subscriptions.items.find((s) => s.id === selectedSub) : null;

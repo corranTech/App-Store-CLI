@@ -15,6 +15,8 @@ export function CreateThread(arg1:string):Promise<threads.Thread>;
 
 export function GetAppDetail(arg1:string):Promise<main.AppDetail>;
 
+export function GetPricingOverview(arg1:string):Promise<main.PricingOverview>;
+
 export function GetScreenshots(arg1:string):Promise<main.ScreenshotsResponse>;
 
 export function GetSettings():Promise<settings.StudioSettings>;
