@@ -328,7 +328,7 @@ textarea {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.65);
+  background: transparent;
 }
 
 /* ── Context bar ────────────────────────────────── */
@@ -722,13 +722,19 @@ textarea {
 /* ── Chat dock ──────────────────────────────────── */
 
 .dock {
-  border-top: 1px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  margin: 12px 16px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 18px;
+  background: rgba(248, 248, 250, 0.24);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .dock-header {
@@ -737,6 +743,7 @@ textarea {
   justify-content: space-between;
   padding: 6px 20px;
   border-bottom: 1px solid var(--separator);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .dock-title {
@@ -826,13 +833,14 @@ textarea {
 
 .composer {
   padding: 10px 20px 14px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .composer-card {
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 16px;
-  background: transparent;
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   overflow: hidden;
   cursor: text;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;

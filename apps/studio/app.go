@@ -247,6 +247,7 @@ func (a *App) SaveSettings(next settings.StudioSettings) (settings.StudioSetting
 }
 
 func (a *App) CheckAuthStatus() (AuthStatus, error) {
+	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return AuthStatus{RawOutput: "Could not find asc binary: " + err.Error()}, nil
@@ -296,6 +297,7 @@ func (a *App) CheckAuthStatus() (AuthStatus, error) {
 }
 
 func (a *App) ListApps() (ListAppsResponse, error) {
+	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return ListAppsResponse{Error: "Could not find asc binary: " + err.Error()}, nil
@@ -395,6 +397,7 @@ func (a *App) fetchSubtitle(ctx context.Context, ascPath, appID string) string {
 // args is a space-separated command string, e.g. "reviews list --app 123 --limit 10 --output json".
 // GetSubscriptions fetches subscription groups, then subscriptions for each group concurrently.
 func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
+	defer configGuard()()
 	if strings.TrimSpace(appID) == "" {
 		return SubscriptionsResponse{Error: "app ID is required"}, nil
 	}
@@ -484,6 +487,7 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 }
 
 func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
+	defer configGuard()()
 	if strings.TrimSpace(args) == "" {
 		return ASCCommandResponse{Error: "args required"}, nil
 	}
@@ -507,6 +511,7 @@ func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 }
 
 func (a *App) GetAppDetail(appID string) (AppDetail, error) {
+	defer configGuard()()
 	if strings.TrimSpace(appID) == "" {
 		return AppDetail{Error: "app ID is required"}, nil
 	}
@@ -632,6 +637,7 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 // Pass versionID from AppVersion.ID. Returns all locales so the frontend can
 // render a picker without an extra round-trip.
 func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, error) {
+	defer configGuard()()
 	if strings.TrimSpace(versionID) == "" {
 		return VersionMetadataResponse{Error: "version ID is required"}, nil
 	}
@@ -692,6 +698,7 @@ func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, err
 // GetScreenshots returns screenshot sets for a version localization.
 // Pass LocalizationID from AppLocalization.
 func (a *App) GetScreenshots(localizationID string) (ScreenshotsResponse, error) {
+	defer configGuard()()
 	if strings.TrimSpace(localizationID) == "" {
 		return ScreenshotsResponse{Error: "localization ID is required"}, nil
 	}
@@ -773,6 +780,30 @@ func (a *App) GetScreenshots(localizationID string) (ScreenshotsResponse, error)
 		}
 	}
 	return ScreenshotsResponse{Sets: sets}, nil
+}
+
+// configGuard saves a snapshot of ~/.asc/config.json before running an asc
+// command and restores it afterwards if the command mutated the file.
+// This defends against CLI auth codepaths that accidentally wipe credentials
+// during read-only operations (a known issue in the auth resolver).
+func configGuard() func() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return func() {}
+	}
+	path := filepath.Join(home, ".asc", "config.json")
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return func() {}
+	}
+	return func() {
+		current, err := os.ReadFile(path)
+		if err != nil || string(current) == string(original) {
+			return
+		}
+		// Config was changed — restore the original
+		_ = os.WriteFile(path, original, 0o600)
+	}
 }
 
 func (a *App) resolveASCPath() (string, error) {

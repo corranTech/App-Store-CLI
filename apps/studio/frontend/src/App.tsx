@@ -378,6 +378,9 @@ export default function App() {
   const handleRefresh = useCallback(() => {
     if (selectedAppId) {
       handleSelectApp(selectedAppId);
+    } else {
+      // Reload app list
+      window.location.reload();
     }
   }, [selectedAppId]);
 
@@ -504,16 +507,14 @@ export default function App() {
             )}
           </div>
           <div className="toolbar-right">
-            {selectedAppId && (
-              <button
-                className="toolbar-btn"
-                type="button"
-                onClick={handleRefresh}
-                title="Refresh (⌘R)"
-              >
-                ↻
-              </button>
-            )}
+            <button
+              className="toolbar-btn"
+              type="button"
+              onClick={handleRefresh}
+              title="Refresh (⌘R)"
+            >
+              ↻
+            </button>
             {!authConfigured && (
               <button
                 className="toolbar-btn"
