@@ -694,7 +694,11 @@ func TestBuildBetaTestersQuery(t *testing.T) {
 		opt(query)
 	}
 
-	values, err := url.ParseQuery(buildBetaTestersQuery("APP_ID", query))
+	qs, qerr := buildBetaTestersQuery("APP_ID", query)
+	if qerr != nil {
+		t.Fatalf("unexpected error: %v", qerr)
+	}
+	values, err := url.ParseQuery(qs)
 	if err != nil {
 		t.Fatalf("failed to parse query: %v", err)
 	}
@@ -721,7 +725,11 @@ func TestBuildBetaTestersQueryPrefersGroupFilterOverAppFilter(t *testing.T) {
 		opt(query)
 	}
 
-	values, err := url.ParseQuery(buildBetaTestersQuery("APP_ID", query))
+	qs, qerr := buildBetaTestersQuery("APP_ID", query)
+	if qerr != nil {
+		t.Fatalf("unexpected error: %v", qerr)
+	}
+	values, err := url.ParseQuery(qs)
 	if err != nil {
 		t.Fatalf("failed to parse query: %v", err)
 	}
@@ -730,6 +738,25 @@ func TestBuildBetaTestersQueryPrefersGroupFilterOverAppFilter(t *testing.T) {
 	}
 	if got := values.Get("filter[betaGroups]"); got != "group-1" {
 		t.Fatalf("expected filter[betaGroups]=group-1, got %q", got)
+	}
+}
+
+func TestBuildBetaTestersQueryRejectsGroupAndBuild(t *testing.T) {
+	query := &betaTestersQuery{}
+	opts := []BetaTestersOption{
+		WithBetaTestersGroupIDs([]string{"group-1"}),
+		WithBetaTestersBuildID("build-1"),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	_, err := buildBetaTestersQuery("APP_ID", query)
+	if err == nil {
+		t.Fatal("expected error when both group and build filters are set, got nil")
+	}
+	if !strings.Contains(err.Error(), "--group cannot be combined with --build-id") {
+		t.Fatalf("expected conflicting filter error, got %q", err.Error())
 	}
 }
 

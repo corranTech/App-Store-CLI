@@ -799,10 +799,15 @@ func buildBetaGroupTestersQuery(query *betaGroupTestersQuery) string {
 	return values.Encode()
 }
 
-func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
+func buildBetaTestersQuery(appID string, query *betaTestersQuery) (string, error) {
+	// The API allows only one relationship filter at a time. Reject conflicting
+	// combinations up front so every call site gets a consistent error instead of
+	// silently dropping a filter.
+	if strings.TrimSpace(query.filterBuilds) != "" && len(query.groupIDs) > 0 {
+		return "", fmt.Errorf("--group cannot be combined with --build-id (API supports only one relationship filter)")
+	}
+
 	values := url.Values{}
-	// API allows only one relationship filter, so use the most specific supported
-	// selector from the CLI and avoid sending multiple relationship filters.
 	if strings.TrimSpace(query.filterBuilds) != "" {
 		values.Set("filter[builds]", strings.TrimSpace(query.filterBuilds))
 	} else if len(query.groupIDs) > 0 {
@@ -814,7 +819,7 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
 		values.Set("filter[email]", strings.TrimSpace(query.email))
 	}
 	addLimit(values, query.limit)
-	return values.Encode()
+	return values.Encode(), nil
 }
 
 func buildBundleIDsQuery(query *bundleIDsQuery) string {

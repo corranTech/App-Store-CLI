@@ -261,6 +261,29 @@ func TestTestFlightBetaTestersListRejectsGroupAndBuildID(t *testing.T) {
 	}
 }
 
+func TestTestFlightBetaTestersExportRejectsGroupAndBuildID(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "testers", "export", "--app", "app-1", "--group", "group-1", "--build-id", "build-1", "--output", "/tmp/testers.csv"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --group cannot be combined with --build-id") {
+		t.Fatalf("expected conflicting filter error, got %q", stderr)
+	}
+}
+
 func TestTestFlightBetaTestersAddGroupsOutput(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

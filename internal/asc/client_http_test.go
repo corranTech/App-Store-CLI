@@ -2023,7 +2023,7 @@ func TestGetBetaTesters_WithAppFilter(t *testing.T) {
 }
 
 func TestGetBetaTesters_WithBuildFilter(t *testing.T) {
-	// API only allows one relationship filter, so builds takes precedence over apps
+	// API only allows one relationship filter; build filter takes precedence over apps.
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"1","attributes":{"email":"tester@example.com"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
@@ -2036,9 +2036,6 @@ func TestGetBetaTesters_WithBuildFilter(t *testing.T) {
 		// When build filter is provided, apps filter should NOT be present
 		if values.Get("filter[apps]") != "" {
 			t.Fatalf("expected no filter[apps] when filter[builds] is set, got %q", values.Get("filter[apps]"))
-		}
-		if values.Get("filter[betaGroups]") != "" {
-			t.Fatalf("expected no filter[betaGroups] when filter[builds] is set, got %q", values.Get("filter[betaGroups]"))
 		}
 		if values.Get("filter[builds]") != "build-1" {
 			t.Fatalf("expected filter[builds]=build-1, got %q", values.Get("filter[builds]"))
@@ -2053,10 +2050,30 @@ func TestGetBetaTesters_WithBuildFilter(t *testing.T) {
 		context.Background(),
 		"123", // appID provided but should be ignored when build filter is set
 		WithBetaTestersEmail("tester@example.com"),
-		WithBetaTestersGroupIDs([]string{"group-1"}),
 		WithBetaTestersBuildID("build-1"),
 	); err != nil {
 		t.Fatalf("GetBetaTesters() error: %v", err)
+	}
+}
+
+func TestGetBetaTesters_RejectsGroupAndBuildConflict(t *testing.T) {
+	// API only allows one relationship filter; group + build must be rejected.
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatal("request should not be made when conflicting filters are provided")
+	}, response)
+
+	_, err := client.GetBetaTesters(
+		context.Background(),
+		"123",
+		WithBetaTestersGroupIDs([]string{"group-1"}),
+		WithBetaTestersBuildID("build-1"),
+	)
+	if err == nil {
+		t.Fatal("expected error when both group and build filters are set, got nil")
+	}
+	if !strings.Contains(err.Error(), "--group cannot be combined with --build-id") {
+		t.Fatalf("expected conflicting filter error, got %q", err.Error())
 	}
 }
 
