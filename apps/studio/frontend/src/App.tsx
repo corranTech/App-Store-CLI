@@ -131,6 +131,8 @@ const displayValue: Record<string, string> = {
   APPROVED: "Approved", VALID: "Valid", COMPLETE: "Complete",
   READY_FOR_REVIEW: "Ready for Review", WAITING_FOR_EXPORT_COMPLIANCE: "Waiting for Export Compliance",
   PROCESSING: "Processing", FAILED: "Failed", INVALID: "Invalid",
+  INSTALLED: "Installed", INVITED: "Invited", ACCEPTED: "Accepted",
+  PUBLIC_LINK: "Public Link", EMAIL: "Email",
 };
 function fmt(val: string): string { return displayValue[val] ?? val; }
 
@@ -210,7 +212,9 @@ export default function App() {
   const [sectionCache, setSectionCache] = useState<Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }>>({});
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [appStatus, setAppStatus] = useState<{ loading: boolean; error?: string; data: any | null }>({ loading: false, data: null });
-  const [testflightGroups, setTestflightGroups] = useState<{ loading: boolean; error?: string; items: Record<string, unknown>[] }>({ loading: false, items: [] });
+  const [testflightData, setTestflightData] = useState<{ loading: boolean; error?: string; groups: { id: string; name: string; isInternal: boolean; publicLink: string; feedbackEnabled: boolean; createdDate: string; testerCount: number }[] }>({ loading: false, groups: [] });
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [groupTesters, setGroupTesters] = useState<{ loading: boolean; testers: { email: string; firstName: string; lastName: string; inviteType: string; state: string }[] }>({ loading: false, testers: [] });
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
@@ -306,18 +310,15 @@ export default function App() {
       })
       .catch((e) => setAppStatus({ loading: false, error: String(e), data: null }));
 
-    // TestFlight groups
-    setTestflightGroups({ loading: false, items: [] });
-    RunASCCommand(`testflight groups list --app ${appId} --output json`)
+    // TestFlight groups with tester counts
+    setTestflightData({ loading: true, groups: [] });
+    setSelectedGroup(null);
+    GetTestFlight(appId)
       .then((res) => {
-        if (res.error) { setTestflightGroups({ loading: false, error: res.error, items: [] }); return; }
-        try {
-          const d = JSON.parse(res.data);
-          const items = (d.data ?? []).map((i: { id: string; attributes: Record<string, unknown> }) => ({ id: i.id, ...i.attributes }));
-          setTestflightGroups({ loading: false, items });
-        } catch { setTestflightGroups({ loading: false, error: "Failed to parse", items: [] }); }
+        if (res.error) setTestflightData({ loading: false, error: res.error, groups: [] });
+        else setTestflightData({ loading: false, groups: res.groups ?? [] });
       })
-      .catch((e) => setTestflightGroups({ loading: false, error: String(e), items: [] }));
+      .catch((e) => setTestflightData({ loading: false, error: String(e), groups: [] }));
 
     // Pricing overview
     setPricingOverview({ loading: true, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
@@ -913,43 +914,92 @@ export default function App() {
               })() : null}
             </div>
           </div>
-        ) : activeSection.id === "testflight" && selectedAppId ? (
-          <div className="app-detail-view">
-            <div className="app-detail-section">
-              <h3 className="section-label">TestFlight</h3>
-              {testflightGroups.loading ? (
-                <p className="empty-hint">Loading…</p>
-              ) : testflightGroups.error ? (
-                <p className="empty-hint">{testflightGroups.error}</p>
-              ) : testflightGroups.items.length === 0 ? (
-                <p className="empty-hint">No beta groups found.</p>
-              ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Group</th>
-                      <th>Type</th>
-                      <th>Public Link</th>
-                      <th>Feedback</th>
-                      <th>Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {testflightGroups.items.map((g, idx) => (
-                      <tr key={g.id as string ?? idx}>
-                        <td style={{ fontWeight: 500 }}>{String(g.name ?? "")}</td>
-                        <td>{g.isInternalGroup ? "Internal" : "External"}</td>
-                        <td>{g.publicLink ? <a href={String(g.publicLink)} target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>{String(g.publicLink).replace("https://testflight.apple.com/join/", "")}</a> : "—"}</td>
-                        <td>{g.feedbackEnabled ? "On" : "Off"}</td>
-                        <td>{String(g.createdDate ?? "").split("T")[0]}</td>
+        ) : activeSection.id === "testflight" && selectedAppId ? (() => {
+          // Detail view for a group's testers
+          if (selectedGroup) {
+            const group = testflightData.groups.find((g) => g.id === selectedGroup);
+            return (
+              <div className="app-detail-view">
+                <div className="app-detail-section">
+                  <button className="back-link" type="button" onClick={() => setSelectedGroup(null)}>← TestFlight</button>
+                  <p className="app-detail-name" style={{ marginTop: 8 }}>{group?.name ?? "Group"}</p>
+                  {groupTesters.loading ? (
+                    <p className="empty-hint">Loading testers…</p>
+                  ) : groupTesters.testers.length === 0 ? (
+                    <p className="empty-hint">No testers in this group.</p>
+                  ) : (
+                    <table className="data-table" style={{ marginTop: 12 }}>
+                      <thead>
+                        <tr>
+                          <th>Email</th>
+                          <th>Name</th>
+                          <th>Invite</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {groupTesters.testers.map((t, i) => (
+                          <tr key={i}>
+                            <td className="mono">{t.email || "—"}</td>
+                            <td>{[t.firstName, t.lastName].filter(Boolean).join(" ") || "—"}</td>
+                            <td>{fmt(t.inviteType)}</td>
+                            <td><span className={`status-pill status-${t.state.toLowerCase()}`}>{fmt(t.state)}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            );
+          }
+          // Groups list
+          return (
+            <div className="app-detail-view">
+              <div className="app-detail-section">
+                <h3 className="section-label">TestFlight</h3>
+                {testflightData.loading ? (
+                  <p className="empty-hint">Loading…</p>
+                ) : testflightData.error ? (
+                  <p className="empty-hint">{testflightData.error}</p>
+                ) : testflightData.groups.length === 0 ? (
+                  <p className="empty-hint">No beta groups found.</p>
+                ) : (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Group</th>
+                        <th>Type</th>
+                        <th>Testers</th>
+                        <th>Public Link</th>
+                        <th>Feedback</th>
+                        <th>Created</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody>
+                      {testflightData.groups.map((g) => (
+                        <tr key={g.id} className="clickable-row" onClick={() => {
+                          setSelectedGroup(g.id);
+                          setGroupTesters({ loading: true, testers: [] });
+                          GetTestFlightTesters(g.id)
+                            .then((res) => setGroupTesters({ loading: false, testers: res.testers ?? [] }))
+                            .catch(() => setGroupTesters({ loading: false, testers: [] }));
+                        }}>
+                          <td style={{ fontWeight: 500 }}>{g.name}</td>
+                          <td>{g.isInternal ? "Internal" : "External"}</td>
+                          <td>{g.testerCount}</td>
+                          <td>{g.publicLink ? <a href={g.publicLink} target="_blank" rel="noopener" style={{ color: "var(--accent)" }} onClick={(e) => e.stopPropagation()}>{g.publicLink.replace("https://testflight.apple.com/join/", "")}</a> : "—"}</td>
+                          <td>{g.feedbackEnabled ? "On" : "Off"}</td>
+                          <td>{g.createdDate.split("T")[0]}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
-          </div>
-        ) : activeSection.id === "performance" && selectedAppId ? (
+          );
+        })() : activeSection.id === "performance" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
               <h3 className="section-label">Performance</h3>
