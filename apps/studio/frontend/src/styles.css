@@ -1602,3 +1602,32 @@ textarea {
 .submit-review-btn:hover {
   opacity: 0.85;
 }
+
+/* ── Provider buttons (below composer) ───────────── */
+
+.provider-buttons {
+  display: flex;
+  gap: 6px;
+  padding: 8px 20px 12px;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.provider-btn {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: rgba(128, 128, 128, 0.08);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.provider-btn:hover {
+  color: var(--text-primary);
+  background: rgba(128, 128, 128, 0.14);
+  border-color: rgba(128, 128, 128, 0.2);
+}

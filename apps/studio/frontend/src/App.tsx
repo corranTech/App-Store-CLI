@@ -225,6 +225,8 @@ function sectionRequiresApp(sectionId: string): boolean {
   return sectionCommands[sectionId]?.includes("APP_ID") ?? false;
 }
 
+const appScopedSectionIDs = Object.keys(sectionCommands).filter(sectionRequiresApp);
+
 const bundleIDPlatformOrder: Record<string, number> = {
   IOS: 0,
   UNIVERSAL: 1,
@@ -480,6 +482,10 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+function commandForApp(cmdTemplate: string, appId: string): string {
+  return cmdTemplate.replace(/APP_ID/g, shellQuote(appId));
+}
+
 export default function App() {
   const [activeScope, setActiveScope] = useState<string>("app");
   const [activeSection, setActiveSection] = useState<NavSection>(allSections[0]);
@@ -551,11 +557,13 @@ export default function App() {
   const [deviceCreateError, setDeviceCreateError] = useState("");
   const [deviceCreating, setDeviceCreating] = useState(false);
   const [financeRegions, setFinanceRegions] = useState<{ loading: boolean; error?: string; regions: { reportRegion: string; reportCurrency: string; regionCode: string; countriesOrRegions: string }[] }>({ loading: false, regions: [] });
-  const [offerCodes, setOfferCodes] = useState<{ loading: boolean; error?: string; codes: { subscriptionName: string; subscriptionId: string; name: string; offerEligibility: string; customerEligibilities: string[]; duration: string; offerMode: string; numberOfPeriods: number; totalNumberOfCodes: number; productionCodeCount: number }[] }>({ loading: false, codes: [] });
+  const [offerCodes, setOfferCodes] = useState<{ loading: boolean; error?: string; loadedAppId?: string; codes: { subscriptionName: string; subscriptionId: string; name: string; offerEligibility: string; customerEligibilities: string[]; duration: string; offerMode: string; numberOfPeriods: number; totalNumberOfCodes: number; productionCodeCount: number }[] }>({ loading: false, codes: [] });
   const [feedbackData, setFeedbackData] = useState<{ loading: boolean; error?: string; total: number; items: { id: string; comment: string; email: string; deviceModel: string; deviceFamily: string; osVersion: string; appPlatform: string; createdDate: string; locale: string; timeZone: string; connectionType: string; batteryPercentage: number; screenshots: { url: string; width: number; height: number }[] }[] }>({ loading: false, total: 0, items: [] });
   const appSelectionRequestRef = useRef(0);
   const screenshotRequestRef = useRef(0);
   const groupTesterRequestRef = useRef(0);
+  const insightsRequestRef = useRef(0);
+  const offerCodesRequestRef = useRef(0);
 
   const loadStudioShell = useEffectEvent(async (options?: {
     clearApps?: boolean;
@@ -668,14 +676,18 @@ export default function App() {
   // Prefetch all section data in parallel for an app
   function prefetchSections(appId: string, requestID: number) {
     const isStale = () => appSelectionRequestRef.current !== requestID;
-    const initial: Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }> = {};
-    for (const sectionId of Object.keys(sectionCommands)) {
-      initial[sectionId] = { loading: true, items: [] };
-    }
-    setSectionCache(initial);
+    const quotedAppID = shellQuote(appId);
+    setSectionCache((prev) => {
+      const next = { ...prev };
+      delete next.insights;
+      for (const sectionId of appScopedSectionIDs) {
+        next[sectionId] = { loading: true, items: [] };
+      }
+      return next;
+    });
     // App status dashboard
     setAppStatus({ loading: true, data: null });
-    RunASCCommand(`status --app ${appId} --output json`)
+    RunASCCommand(`status --app ${quotedAppID} --output json`)
       .then((res) => {
         if (isStale()) return;
         if (res.error) { setAppStatus({ loading: false, error: res.error, data: null }); return; }
@@ -705,7 +717,7 @@ export default function App() {
 
     // Reviews
     setReviews({ loading: true, items: [] });
-    RunASCCommand(`reviews list --app ${appId} --limit 25 --output json`)
+    RunASCCommand(`reviews list --app ${quotedAppID} --limit 25 --output json`)
       .then((res) => {
         if (isStale()) return;
         if (res.error) { setReviews({ loading: false, error: res.error, items: [] }); return; }
@@ -765,18 +777,12 @@ export default function App() {
       })
       .catch((e) => { if (!isStale()) setFeedbackData({ loading: false, error: String(e), total: 0, items: [] }); });
 
-    // Offer codes for all subscriptions
-    setOfferCodes({ loading: true, codes: [] });
-    GetOfferCodes(appId)
-      .then((res) => {
-        if (isStale()) return;
-        if (res.error) setOfferCodes({ loading: false, error: res.error, codes: [] });
-        else setOfferCodes({ loading: false, codes: res.offerCodes ?? [] });
-      })
-      .catch((e) => { if (!isStale()) setOfferCodes({ loading: false, error: String(e), codes: [] }); });
+    // Offer codes are loaded lazily when the promo-codes section is opened.
+    setOfferCodes({ loading: false, loadedAppId: "", codes: [] });
 
     for (const [sectionId, cmdTemplate] of Object.entries(sectionCommands)) {
-      const cmd = cmdTemplate.replace(/APP_ID/g, appId);
+      if (!sectionRequiresApp(sectionId)) continue;
+      const cmd = commandForApp(cmdTemplate, appId);
       RunASCCommand(cmd)
         .then((res) => {
           if (isStale()) return;
@@ -1092,8 +1098,91 @@ export default function App() {
     loadStandaloneSection(activeSection.id);
   }, [activeSection, sectionCache]);
 
+  useEffect(() => {
+    if (activeSection.id !== "promo-codes" || !selectedAppId) return;
+    if (offerCodes.loading || offerCodes.loadedAppId === selectedAppId) return;
+
+    const appRequestID = appSelectionRequestRef.current;
+    const offerRequestID = offerCodesRequestRef.current + 1;
+    offerCodesRequestRef.current = offerRequestID;
+
+    setOfferCodes({ loading: true, loadedAppId: selectedAppId, codes: [] });
+    GetOfferCodes(selectedAppId)
+      .then((res) => {
+        if (
+          appSelectionRequestRef.current !== appRequestID ||
+          offerCodesRequestRef.current !== offerRequestID
+        ) {
+          return;
+        }
+        if (res.error) {
+          setOfferCodes({ loading: false, loadedAppId: selectedAppId, error: res.error, codes: [] });
+          return;
+        }
+        setOfferCodes({ loading: false, loadedAppId: selectedAppId, codes: res.offerCodes ?? [] });
+      })
+      .catch((error) => {
+        if (
+          appSelectionRequestRef.current !== appRequestID ||
+          offerCodesRequestRef.current !== offerRequestID
+        ) {
+          return;
+        }
+        setOfferCodes({ loading: false, loadedAppId: selectedAppId, error: String(error), codes: [] });
+      });
+  }, [activeSection.id, offerCodes.loadedAppId, offerCodes.loading, selectedAppId]);
+
+  useEffect(() => {
+    if (activeSection.id !== "insights" || !selectedAppId) return;
+    if (sectionCache.insights) return;
+
+    const weekStr = insightsWeekStart(new Date());
+    const appRequestID = appSelectionRequestRef.current;
+    const insightsRequestID = insightsRequestRef.current + 1;
+    insightsRequestRef.current = insightsRequestID;
+
+    setSectionCache((prev) => ({
+      ...prev,
+      insights: { loading: true, items: [] },
+    }));
+
+    void RunASCCommand(
+      `insights weekly --app ${shellQuote(selectedAppId)} --source analytics --week ${weekStr} --output json`,
+    )
+      .then((res) => {
+        if (
+          appSelectionRequestRef.current !== appRequestID ||
+          insightsRequestRef.current !== insightsRequestID
+        ) {
+          return;
+        }
+        if (res.error) {
+          setSectionCache((prev) => ({ ...prev, insights: { loading: false, error: res.error, items: [] } }));
+          return;
+        }
+        try {
+          const d = JSON.parse(res.data);
+          const metrics = (d.metrics ?? []).map((m: Record<string, unknown>) => m);
+          setSectionCache((prev) => ({ ...prev, insights: { loading: false, items: metrics } }));
+        } catch {
+          setSectionCache((prev) => ({ ...prev, insights: { loading: false, error: "Failed to parse", items: [] } }));
+        }
+      })
+      .catch((error) => {
+        if (
+          appSelectionRequestRef.current !== appRequestID ||
+          insightsRequestRef.current !== insightsRequestID
+        ) {
+          return;
+        }
+        setSectionCache((prev) => ({ ...prev, insights: { loading: false, error: String(error), items: [] } }));
+      });
+  }, [activeSection.id, sectionCache.insights, selectedAppId]);
+
   const authConfigured = authStatus.authenticated;
   const resolvedTheme = resolveTheme(studioSettings.theme, systemTheme);
+  const insightsWeek = insightsWeekStart(new Date());
+  const insightsCache = sectionCache.insights;
   const filteredApps = appList.filter((app) =>
     `${app.name} ${app.subtitle}`.toLowerCase().includes(appSearchTerm.trim().toLowerCase()),
   );
@@ -1430,9 +1519,9 @@ export default function App() {
                 <button
                   className="submit-review-btn"
                   type="button"
-                  onClick={() => {
-                    if (selectedAppId) {
-                      RunASCCommand(`review submissions-list --app ${selectedAppId} --output json`)
+                    onClick={() => {
+                      if (selectedAppId) {
+                      RunASCCommand(`review submissions-list --app ${shellQuote(selectedAppId)} --output json`)
                         .then((res) => {
                           if (res.error) { alert(res.error); return; }
                           try {
@@ -1746,45 +1835,24 @@ export default function App() {
               </div>
             </div>
           );
-        })() : activeSection.id === "insights" && selectedAppId ? (() => {
-          const today = new Date();
-          const weekStr = insightsWeekStart(today);
-          return (
+        })() : activeSection.id === "insights" && selectedAppId ? (
             <div className="app-detail-view">
               <div className="app-detail-section">
                 <h3 className="section-label">Weekly Insights</h3>
                 <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
-                  Week of {weekStr} — analytics source
+                  Week of {insightsWeek} — analytics source
                 </p>
-                {(() => {
-                  const cache = sectionCache["insights"];
-                  if (!cache) {
-                    // Fetch on first view
-                    RunASCCommand(`insights weekly --app ${selectedAppId} --source analytics --week ${weekStr} --output json`)
-                      .then((res) => {
-                        if (res.error) {
-                          setSectionCache((prev) => ({ ...prev, insights: { loading: false, error: res.error, items: [] } }));
-                        } else {
-                          try {
-                            const d = JSON.parse(res.data);
-                            const metrics = (d.metrics ?? []).map((m: Record<string, unknown>) => m);
-                            setSectionCache((prev) => ({ ...prev, insights: { loading: false, items: metrics } }));
-                          } catch {
-                            setSectionCache((prev) => ({ ...prev, insights: { loading: false, error: "Failed to parse", items: [] } }));
-                          }
-                        }
-                      });
-                    setSectionCache((prev) => ({ ...prev, insights: { loading: true, items: [] } }));
-                    return <p className="empty-hint">Loading…</p>;
-                  }
-                  if (cache.loading) return <p className="empty-hint">Loading…</p>;
-                  if (cache.error) return <p className="empty-hint">{cache.error}</p>;
-                  if (cache.items.length === 0) return <p className="empty-hint">No insights data.</p>;
-                  return (
+                {!insightsCache || insightsCache.loading ? (
+                  <p className="empty-hint">Loading…</p>
+                ) : insightsCache.error ? (
+                  <p className="empty-hint">{insightsCache.error}</p>
+                ) : insightsCache.items.length === 0 ? (
+                  <p className="empty-hint">No insights data.</p>
+                ) : (
                     <table className="data-table">
                       <thead><tr><th>Metric</th><th>Status</th><th>Value</th></tr></thead>
                       <tbody>
-                        {cache.items.map((m, i) => (
+                        {insightsCache.items.map((m, i) => (
                           <tr key={i}>
                             <td>{String(m.name ?? "").replace(/_/g, " ")}</td>
                             <td><span className={`status-pill status-${String(m.status ?? "").toLowerCase()}`}>{fmt(String(m.status ?? ""))}</span></td>
@@ -1793,12 +1861,10 @@ export default function App() {
                         ))}
                       </tbody>
                     </table>
-                  );
-                })()}
+                )}
               </div>
             </div>
-          );
-        })() : activeSection.id === "finance" && selectedAppId ? (
+        ) : activeSection.id === "finance" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
               <h3 className="section-label">Finance Regions</h3>
@@ -2604,16 +2670,17 @@ export default function App() {
                 rows={2}
               />
               <div className="composer-bar">
-                <div className="composer-meta">
-                  <span>Codex</span>
-                  <span>Cursor</span>
-                  <span>Custom ACP</span>
-                </div>
+                <div />
                 <button className="send-btn" type="submit" aria-label="Send">⬆</button>
               </div>
             </div>
           </form>
         </section>}
+        <div className="provider-buttons">
+          <button type="button" className="provider-btn">Codex</button>
+          <button type="button" className="provider-btn">Cursor</button>
+          <button type="button" className="provider-btn">Custom ACP</button>
+        </div>
       </div>
 
       {showBundleIDSheet && (

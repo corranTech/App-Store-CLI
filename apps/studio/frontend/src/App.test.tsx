@@ -284,7 +284,7 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(mockRunASCCommand.mock.calls.map(([cmd]) => cmd)).toContain(
-        "nominations list --app 1 --status DRAFT,SUBMITTED,ARCHIVED --output json",
+        "nominations list --app '1' --status DRAFT,SUBMITTED,ARCHIVED --output json",
       );
     });
   });
@@ -293,9 +293,7 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("Connected");
-
-    await pickApp("Test App");
-    await screen.findByText("Test App");
+    fireEvent.click(screen.getByRole("button", { name: "Signing" }));
 
     await waitFor(() => {
       expect(mockRunASCCommand.mock.calls.map(([cmd]) => cmd)).toContain(
@@ -308,9 +306,9 @@ describe("App", () => {
     render(<App />);
 
     await screen.findByText("Connected");
-
-    await pickApp("Test App");
-    await screen.findByText("Test App");
+    fireEvent.click(screen.getByRole("button", { name: "Signing" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Certificates" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Profiles" }));
 
     await waitFor(() => {
       const commands = mockRunASCCommand.mock.calls.map(([cmd]) => cmd);
@@ -350,6 +348,62 @@ describe("App", () => {
     });
 
     expect(screen.queryByText("Select an App")).not.toBeInTheDocument();
+  });
+
+  it("does not refetch standalone sections when switching apps", async () => {
+    mockListApps.mockResolvedValue({
+      apps: [
+        { id: "1", name: "First App", subtitle: "One" },
+        { id: "2", name: "Second App", subtitle: "Two" },
+      ],
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    fireEvent.click(screen.getByRole("button", { name: "Signing" }));
+
+    await waitFor(() => {
+      expect(
+        mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === "bundle-ids list --paginate --output json"),
+      ).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "App" }));
+    await pickApp("First App");
+    await pickApp("Second App");
+
+    expect(
+      mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === "bundle-ids list --paginate --output json"),
+    ).toHaveLength(1);
+  });
+
+  it("quotes app IDs when running app-scoped commands", async () => {
+    mockListApps.mockResolvedValue({
+      apps: [
+        { id: "1 2", name: "Quoted App", subtitle: "Spacing" },
+      ],
+    });
+    mockGetAppDetail.mockResolvedValue({
+      id: "1 2",
+      name: "Quoted App",
+      subtitle: "Spacing",
+      bundleId: "com.example.quoted",
+      sku: "QUOTEDSKU",
+      primaryLocale: "en-US",
+      versions: [{ id: "version-q", platform: "IOS", version: "1.0", state: "READY_FOR_SALE" }],
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    await pickApp("Quoted App");
+
+    await waitFor(() => {
+      const commands = mockRunASCCommand.mock.calls.map(([cmd]) => cmd);
+      expect(commands).toContain("status --app '1 2' --output json");
+      expect(commands).toContain("reviews list --app '1 2' --limit 25 --output json");
+    });
   });
 
   it("sorts bundle IDs by platform from the header control", async () => {
@@ -604,6 +658,99 @@ describe("App", () => {
 
   it("uses the current week's Monday for weekly insights on Sundays", () => {
     expect(insightsWeekStart(new Date("2026-03-29T12:00:00Z"))).toBe("2026-03-23");
+  });
+
+  it("loads offer codes only when the promo codes section is opened", async () => {
+    render(<App />);
+
+    await screen.findByText("Connected");
+    await pickApp("Test App");
+
+    expect(mockGetOfferCodes).not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Promo Codes" }));
+
+    await waitFor(() => {
+      expect(mockGetOfferCodes).toHaveBeenCalledWith("1");
+    });
+  });
+
+  it("ignores stale insights responses after switching apps", async () => {
+    let resolveFirstInsights: ((value: { error: string; data: string }) => void) | undefined;
+
+    mockListApps.mockResolvedValue({
+      apps: [
+        { id: "1", name: "First App", subtitle: "One" },
+        { id: "2", name: "Second App", subtitle: "Two" },
+      ],
+    });
+    mockGetAppDetail.mockImplementation((appID: string) => {
+      if (appID === "1") {
+        return Promise.resolve({
+          id: "1",
+          name: "First App",
+          subtitle: "One",
+          bundleId: "com.example.first",
+          sku: "FIRSTSKU",
+          primaryLocale: "en-US",
+          versions: [{ id: "version-1", platform: "IOS", version: "1.0", state: "READY_FOR_SALE" }],
+        });
+      }
+      return Promise.resolve({
+        id: "2",
+        name: "Second App",
+        subtitle: "Two",
+        bundleId: "com.example.second",
+        sku: "SECONDSKU",
+        primaryLocale: "en-US",
+        versions: [{ id: "version-2", platform: "IOS", version: "2.0", state: "READY_FOR_SALE" }],
+      });
+    });
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "insights weekly --app '1' --source analytics --week 2026-03-30 --output json") {
+        return new Promise((resolve) => {
+          resolveFirstInsights = resolve as (value: { error: string; data: string }) => void;
+        });
+      }
+      if (cmd === "insights weekly --app '2' --source analytics --week 2026-03-30 --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            metrics: [{ name: "second_metric", status: "VALID", thisWeek: 10 }],
+          }),
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    await pickApp("First App");
+    fireEvent.click(await screen.findByRole("button", { name: "Insights" }));
+
+    await waitFor(() => {
+      expect(mockRunASCCommand).toHaveBeenCalledWith(
+        "insights weekly --app '1' --source analytics --week 2026-03-30 --output json",
+      );
+    });
+
+    await pickApp("Second App");
+    fireEvent.click(await screen.findByRole("button", { name: "Insights" }));
+
+    expect(await screen.findByText("second metric")).toBeInTheDocument();
+
+    resolveFirstInsights?.({
+      error: "",
+      data: JSON.stringify({
+        metrics: [{ name: "first_metric", status: "VALID", thisWeek: 1 }],
+      }),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("second metric")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("first metric")).not.toBeInTheDocument();
   });
 
   it("ignores stale tester responses after switching groups", async () => {

@@ -720,7 +720,10 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 	}
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
+	return a.loadSubscriptions(ctx, ascPath, appID)
+}
 
+func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID string) (SubscriptionsResponse, error) {
 	// Step 1: get groups
 	cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--output", "json")
 	out, err := cmd.CombinedOutput()
@@ -1118,22 +1121,21 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 		return OfferCodesResponse{Error: "app ID is required"}, nil
 	}
 	defer configGuard()()
-
-	// First get subscriptions to know which sub IDs to query
-	subsResp, err := a.GetSubscriptions(appID)
-	if err != nil {
-		return OfferCodesResponse{Error: err.Error()}, nil
-	}
-	if subsResp.Error != "" {
-		return OfferCodesResponse{Error: subsResp.Error}, nil
-	}
-
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return OfferCodesResponse{Error: err.Error()}, nil
 	}
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
+
+	// First get subscriptions to know which sub IDs to query
+	subsResp, err := a.loadSubscriptions(ctx, ascPath, appID)
+	if err != nil {
+		return OfferCodesResponse{Error: err.Error()}, nil
+	}
+	if subsResp.Error != "" {
+		return OfferCodesResponse{Error: subsResp.Error}, nil
+	}
 
 	type offerResult struct {
 		codes []OfferCode
@@ -1274,13 +1276,13 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 				} `json:"attributes"`
 			} `json:"data"`
 		}
-		if json.Unmarshal(out, &env) != nil {
-			attrsCh <- attrsResult{err: errors.New("failed to parse app view")}
-			return
-		}
-		a := env.Data.Attributes
-		attrsCh <- attrsResult{name: a.Name, bundleID: a.BundleID, sku: a.SKU, primaryLocale: a.PrimaryLocale}
-	}()
+			if json.Unmarshal(out, &env) != nil {
+				attrsCh <- attrsResult{err: errors.New("failed to parse app view")}
+				return
+			}
+			attrs := env.Data.Attributes
+			attrsCh <- attrsResult{name: attrs.Name, bundleID: attrs.BundleID, sku: attrs.SKU, primaryLocale: attrs.PrimaryLocale}
+		}()
 
 	go func() {
 		cmd := a.newASCCommand(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
@@ -1398,16 +1400,16 @@ func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, err
 
 	locs := make([]AppLocalization, 0, len(envelope.Data))
 	for _, item := range envelope.Data {
-		a := item.Attributes
+		attrs := item.Attributes
 		locs = append(locs, AppLocalization{
 			LocalizationID:  item.ID,
-			Locale:          a.Locale,
-			Description:     a.Description,
-			Keywords:        a.Keywords,
-			WhatsNew:        a.WhatsNew,
-			PromotionalText: a.PromotionalText,
-			SupportURL:      a.SupportURL,
-			MarketingURL:    a.MarketingURL,
+			Locale:          attrs.Locale,
+			Description:     attrs.Description,
+			Keywords:        attrs.Keywords,
+			WhatsNew:        attrs.WhatsNew,
+			PromotionalText: attrs.PromotionalText,
+			SupportURL:      attrs.SupportURL,
+			MarketingURL:    attrs.MarketingURL,
 		})
 	}
 	return VersionMetadataResponse{Localizations: locs}, nil
