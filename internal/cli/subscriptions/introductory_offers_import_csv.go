@@ -208,9 +208,7 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 }
 
 func normalizeSubscriptionIntroductoryOffersImportHeader(value string) string {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	normalized = strings.ReplaceAll(normalized, " ", "_")
-	return normalized
+	return normalizeSubscriptionPricesImportHeader(value)
 }
 
 func isSubscriptionIntroductoryOffersImportRecordEmpty(record []string) bool {

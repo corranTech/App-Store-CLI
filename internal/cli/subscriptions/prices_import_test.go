@@ -94,3 +94,16 @@ func TestResolveSubscriptionPriceImportTerritoryID_RejectsUnknownThreeLetterCode
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func TestResolveSubscriptionPriceImportTerritoryID_RejectsTerritoriesOutsideASCSet(t *testing.T) {
+	tests := []string{"ATA", "AQ", "Antarctica"}
+
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			_, err := resolveSubscriptionPriceImportTerritoryID(input)
+			if err == nil {
+				t.Fatalf("expected error for %q, got nil", input)
+			}
+		})
+	}
+}

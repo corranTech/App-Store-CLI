@@ -21,6 +21,7 @@ import (
 	"golang.org/x/text/language/display"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	sandboxcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/sandbox"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -607,6 +608,9 @@ func subscriptionPriceImportTerritoryNameMap() map[string]territoryNameMapResult
 					if iso3 != code {
 						continue
 					}
+					if !isSupportedSubscriptionPriceImportTerritoryCode(iso3) {
+						continue
+					}
 					name := strings.TrimSpace(regionNamer.Name(region))
 					if name == "" || strings.EqualFold(name, code) || strings.EqualFold(name, "Unknown Region") {
 						continue
@@ -636,6 +640,9 @@ func subscriptionPriceImportTerritoryNameMap() map[string]territoryNameMapResult
 			if normalizedID == "" {
 				continue
 			}
+			if !isSupportedSubscriptionPriceImportTerritoryCode(normalizedID) {
+				continue
+			}
 			m[key] = territoryNameMapResult{id: normalizedID}
 			ids[normalizedID] = struct{}{}
 		}
@@ -651,6 +658,11 @@ func isKnownSubscriptionPriceImportTerritoryID(value string) bool {
 	subscriptionPriceImportTerritoryNameMap()
 	_, ok := subscriptionPriceImportTerritoryIDs[value]
 	return ok
+}
+
+func isSupportedSubscriptionPriceImportTerritoryCode(value string) bool {
+	_, err := sandboxcmd.NormalizeSandboxTerritoryCode(value)
+	return err == nil
 }
 
 func subscriptionPriceImportTerritoryAliases() map[string]string {
