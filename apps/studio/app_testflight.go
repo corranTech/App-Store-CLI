@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -60,10 +59,8 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 	countCh := make(chan countResult, len(groupEnv.Data))
 	for i, g := range groupEnv.Data {
 		go func(idx int, groupID string) {
-			// Workaround for CLI bug #1292: use relationship URL via --next
-			relationshipURL := fmt.Sprintf("https://api.appstoreconnect.apple.com/v1/betaGroups/%s/betaTesters?limit=1", groupID)
 			cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
-				"--next", relationshipURL, "--output", "json")
+				"--group", groupID, "--limit", "1", "--output", "json")
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				countCh <- countResult{idx: idx, count: 0}
@@ -117,11 +114,8 @@ func (a *App) GetTestFlightTesters(groupID string) (TestFlightResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 120*time.Second)
 	defer cancel()
 
-	// Workaround for CLI bug #1292: --group filter fails with "Only one relationship filter".
-	// Use --next with the betaTesters relationship URL and --paginate to fetch ALL testers.
-	relationshipURL := fmt.Sprintf("https://api.appstoreconnect.apple.com/v1/betaGroups/%s/betaTesters?limit=200", groupID)
 	cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
-		"--next", relationshipURL, "--paginate", "--output", "json")
+		"--group", groupID, "--paginate", "--output", "json")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return TestFlightResponse{Error: strings.TrimSpace(string(out))}, nil
