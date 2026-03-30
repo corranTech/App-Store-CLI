@@ -282,9 +282,12 @@ describe("App", () => {
     await pickApp("Test App");
     await screen.findByText("Test App");
 
+    // Nominations is standalone (no APP_ID) — loads lazily when clicked
+    fireEvent.click(await screen.findByRole("button", { name: "Nominations" }));
+
     await waitFor(() => {
       expect(mockRunASCCommand.mock.calls.map(([cmd]) => cmd)).toContain(
-        "nominations list --app '1' --status DRAFT,SUBMITTED,ARCHIVED --output json",
+        "nominations list --status DRAFT --output json",
       );
     });
   });

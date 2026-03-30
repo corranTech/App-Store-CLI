@@ -16,8 +16,6 @@ export const scopes: Scope[] = [
         label: "Release",
         items: [
           { id: "builds", label: "Builds", description: "Build processing and history" },
-          { id: "build-localizations", label: "Build Localizations", description: "Build release notes" },
-          { id: "build-bundles", label: "Build Bundles", description: "Build bundle info" },
         ],
       },
       {
@@ -31,15 +29,11 @@ export const scopes: Scope[] = [
       {
         label: "Metadata",
         items: [
-          { id: "metadata", label: "Metadata", description: "Metadata sync" },
           { id: "localizations", label: "Localizations", description: "Locale metadata" },
           { id: "screenshots", label: "Screenshots", description: "App Store screenshots" },
-          { id: "video-previews", label: "Video Previews", description: "App preview videos" },
-          { id: "background-assets", label: "Background Assets", description: "Background download assets" },
           { id: "categories", label: "Categories", description: "App categories" },
-          { id: "pre-orders", label: "Pre-orders", description: "Pre-order configuration" },
           { id: "app-tags", label: "App Tags", description: "App tags" },
-          { id: "app-setup", label: "App Setup", description: "App configuration" },
+          { id: "pre-orders", label: "Pre-orders", description: "Pre-order configuration" },
         ],
       },
       {
@@ -68,7 +62,6 @@ export const scopes: Scope[] = [
           { id: "insights", label: "Insights", description: "Weekly analytics" },
           { id: "analytics", label: "Analytics", description: "Analytics reports" },
           { id: "finance", label: "Finance", description: "Financial reports" },
-          { id: "crashes", label: "Crashes", description: "Crash diagnostics" },
         ],
       },
       {
@@ -79,7 +72,6 @@ export const scopes: Scope[] = [
           { id: "app-accessibility", label: "Accessibility", description: "Accessibility declarations" },
           { id: "encryption", label: "Encryption", description: "Export compliance" },
           { id: "eula", label: "EULA", description: "License agreements" },
-          { id: "agreements", label: "Agreements", description: "Territory agreements" },
         ],
       },
       {
@@ -90,7 +82,6 @@ export const scopes: Scope[] = [
           { id: "android-ios-mapping", label: "Android to iOS", description: "Android app mapping" },
           { id: "marketplace", label: "Marketplace", description: "Marketplace search" },
           { id: "alt-distribution", label: "Alternative Distribution", description: "Alt distribution keys" },
-          { id: "routing-coverage", label: "Routing Coverage", description: "Routing app coverage" },
         ],
       },
     ],
@@ -174,7 +165,7 @@ export const sectionCommands: Record<string, string> = {
   "ppo": "product-pages experiments list --v2 --app APP_ID --output json",
   "game-center": "game-center achievements list --app APP_ID --output json",
   "iap": "iap list --app APP_ID --output json",
-  "nominations": "nominations list --app APP_ID --status DRAFT,SUBMITTED,ARCHIVED --output json",
+  "nominations": "nominations list --status DRAFT --output json",
   "performance": "performance metrics list --app APP_ID --output json",
   "localizations": "localizations list --app APP_ID --type app-info --output json",
   "video-previews": "localizations preview-sets list --app APP_ID --output json",
@@ -189,27 +180,17 @@ export const sectionCommands: Record<string, string> = {
   "profiles": "profiles list --paginate --output json",
   "xcode-cloud": "xcode-cloud workflows list --app APP_ID --output json",
   "webhooks": "webhooks list --app APP_ID --output json",
-  "background-assets": "background-assets list --app APP_ID --output json",
   "pre-orders": "pre-orders view --app APP_ID --output json",
   "app-tags": "app-tags list --app APP_ID --output json",
-  "app-setup": "app-setup info list --app APP_ID --output json",
   "app-clips": "app-clips list --app APP_ID --output json",
   "android-ios-mapping": "android-ios-mapping list --app APP_ID --output json",
   "marketplace": "marketplace search-details view --app APP_ID --output json",
   "alt-distribution": "alternative-distribution domains list --output json",
-  "routing-coverage": "routing-coverage list --app APP_ID --output json",
-  "eula": "eula list --app APP_ID --output json",
-  "build-localizations": "build-localizations list --app APP_ID --output json",
+  "eula": "eula view --app APP_ID --output json",
   "sandbox": "sandbox list --output json",
   "merchant-ids": "merchant-ids list --output json",
   "pass-type-ids": "pass-type-ids list --output json",
-  "schema": "schema index --output json",
-  "metadata": "metadata pull --app APP_ID --dry-run --output json",
-  "agreements": "agreements list --output json",
-  "build-bundles": "build-bundles list --app APP_ID --output json",
-  "workflow": "workflow list --output json",
   "analytics": "analytics requests --app APP_ID --output json",
-  "crashes": "performance diagnostics list --app APP_ID --output json",
 };
 
 // Human-readable field labels for known attribute keys

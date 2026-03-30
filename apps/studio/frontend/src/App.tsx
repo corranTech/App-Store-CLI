@@ -742,6 +742,51 @@ export default function App() {
       description: "Submit macOS apps for Apple notarization.",
       commandHint: "Use the ACP chat to run: asc notarization submit --file ./MyApp.zip",
     },
+    crashes: {
+      title: "Crashes",
+      description: "Crash diagnostics are per-build. Select a build ID from the Builds section to view diagnostics.",
+      commandHint: `asc performance diagnostics list --build BUILD_ID --output json`,
+    },
+    "app-setup": {
+      title: "App Setup",
+      description: "Post-create app configuration: locale, categories, availability, pricing.",
+      commandHint: `asc app-setup info set --app ${selectedAppId || "APP_ID"} --primary-locale "en-US"`,
+    },
+    "routing-coverage": {
+      title: "Routing Coverage",
+      description: "Routing app coverage files require a version ID.",
+      commandHint: `asc routing-coverage view --version-id VERSION_ID`,
+    },
+    "build-localizations": {
+      title: "Build Localizations",
+      description: "Release notes per build. Requires a build ID.",
+      commandHint: `asc build-localizations list --build BUILD_ID --output json`,
+    },
+    "build-bundles": {
+      title: "Build Bundles",
+      description: "Build bundle information. Requires a build ID.",
+      commandHint: `asc build-bundles list --build BUILD_ID --output json`,
+    },
+    schema: {
+      title: "Schema",
+      description: "Browse the App Store Connect API schema.",
+      commandHint: "asc schema index --output json",
+    },
+    metadata: {
+      title: "Metadata",
+      description: "Pull and push app metadata.",
+      commandHint: `asc metadata pull --app ${selectedAppId || "APP_ID"} --dir ./metadata`,
+    },
+    agreements: {
+      title: "Agreements",
+      description: "Territory agreements for EULA. Requires an EULA ID.",
+      commandHint: "asc agreements territories list --id EULA_ID --output json",
+    },
+    workflow: {
+      title: "Workflow",
+      description: "List and run asc workflows.",
+      commandHint: "asc workflow list",
+    },
   };
 
   // Render the main content area
