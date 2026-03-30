@@ -39,7 +39,7 @@ func TestPublishAppStoreWarnsDeprecatedPath(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"publish", "appstore"}); err != nil {
+		if err := root.Parse([]string{"publish", "appstore", "--app", "app-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		err := root.Run(context.Background())
