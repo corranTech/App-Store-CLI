@@ -48,6 +48,11 @@ type App struct {
 	sessions     map[string]*threadSession
 	sessionInits map[string]chan struct{}
 	startAgent   func(context.Context, acp.LaunchSpec) (agentClient, error)
+
+	// Cached auth credentials — read once from config on startup, immune to wipes
+	cachedKeyID          string
+	cachedIssuerID       string
+	cachedPrivateKeyPath string
 }
 
 type threadSession struct {
@@ -366,6 +371,7 @@ func NewApp() (*App, error) {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.cacheAuthFromConfig()
 }
 
 func (a *App) shutdown(context.Context) {
@@ -1674,7 +1680,62 @@ func parseASCCommandArgs(args string) ([]string, error) {
 }
 
 func (a *App) newASCCommand(ctx context.Context, ascPath string, args ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, ascPath, args...)
+	cmd := exec.CommandContext(ctx, ascPath, args...)
+	// Inject auth env vars so we're immune to config.json wipes.
+	// Read credentials once from config and pass them via env every time.
+	env := append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	if a.cachedKeyID != "" {
+		env = append(env,
+			"ASC_KEY_ID="+a.cachedKeyID,
+			"ASC_ISSUER_ID="+a.cachedIssuerID,
+			"ASC_PRIVATE_KEY_PATH="+a.cachedPrivateKeyPath,
+		)
+	}
+	cmd.Env = env
+	return cmd
+}
+
+// cacheAuthFromConfig reads auth credentials from config once and caches them
+// so that subsequent asc commands don't depend on config.json staying intact.
+func (a *App) cacheAuthFromConfig() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".asc", "config.json"))
+	if err != nil {
+		return
+	}
+	var cfg struct {
+		KeyID          string `json:"key_id"`
+		IssuerID       string `json:"issuer_id"`
+		PrivateKeyPath string `json:"private_key_path"`
+		DefaultKeyName string `json:"default_key_name"`
+		Keys           []struct {
+			Name           string `json:"name"`
+			KeyID          string `json:"key_id"`
+			IssuerID       string `json:"issuer_id"`
+			PrivateKeyPath string `json:"private_key_path"`
+		} `json:"keys"`
+	}
+	if json.Unmarshal(data, &cfg) != nil {
+		return
+	}
+	// Prefer named key matching default_key_name
+	for _, k := range cfg.Keys {
+		if strings.TrimSpace(k.Name) == strings.TrimSpace(cfg.DefaultKeyName) && k.KeyID != "" {
+			a.cachedKeyID = k.KeyID
+			a.cachedIssuerID = k.IssuerID
+			a.cachedPrivateKeyPath = k.PrivateKeyPath
+			return
+		}
+	}
+	// Fallback to top-level fields
+	if cfg.KeyID != "" {
+		a.cachedKeyID = cfg.KeyID
+		a.cachedIssuerID = cfg.IssuerID
+		a.cachedPrivateKeyPath = cfg.PrivateKeyPath
+	}
 }
 
 func (a *App) fetchPricingScheduleID(ctx context.Context, ascPath, appID string) (string, error) {

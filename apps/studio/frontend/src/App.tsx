@@ -24,7 +24,6 @@ const scopes: Scope[] = [
         label: "Release",
         items: [
           { id: "builds", label: "Builds", description: "Build processing and history" },
-          { id: "testflight", label: "TestFlight", description: "Beta groups and testers" },
           { id: "submit", label: "Submit", description: "Submit for review" },
           { id: "validate", label: "Validate", description: "Pre-submission validation" },
           { id: "publish", label: "Publish", description: "Release workflows" },
@@ -32,8 +31,14 @@ const scopes: Scope[] = [
           { id: "release-notes", label: "Release Notes", description: "What's new" },
           { id: "build-localizations", label: "Build Localizations", description: "Build release notes" },
           { id: "build-bundles", label: "Build Bundles", description: "Build bundle info" },
+        ],
+      },
+      {
+        label: "TestFlight",
+        items: [
+          { id: "testflight", label: "Groups", description: "Beta groups and testers" },
+          { id: "feedback", label: "Feedback", description: "Screenshot and crash feedback" },
           { id: "sandbox", label: "Sandbox", description: "Sandbox testers" },
-          { id: "feedback", label: "Feedback", description: "Beta feedback" },
         ],
       },
       {
