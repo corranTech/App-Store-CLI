@@ -311,6 +311,22 @@ describe("App", () => {
     });
   });
 
+  it("loads signing sections without requiring an app selection", async () => {
+    render(<App />);
+
+    await screen.findByText("Connected");
+
+    fireEvent.click(screen.getByRole("button", { name: "Signing" }));
+
+    await waitFor(() => {
+      expect(mockRunASCCommand.mock.calls.map(([cmd]) => cmd)).toContain(
+        "bundle-ids list --paginate --output json",
+      );
+    });
+
+    expect(screen.queryByText("Select an App")).not.toBeInTheDocument();
+  });
+
   it("preserves agent env when saving settings", async () => {
     mockBootstrap.mockResolvedValue({
       appName: "ASC Studio",

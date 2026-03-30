@@ -1,5 +1,162 @@
 # ASC Studio Coverage And IA Handoff
 
+## Status Audit (March 30, 2026)
+
+This section checks the original IA and product decisions against the current codebase.
+
+Short answer: no, we have not done everything we decided.
+
+The current branch has completed the shell, scope split, and a meaningful first slice of app surfaces, but a large part of the intended depth is still partial or missing.
+
+### What Is Fully Done
+
+- `ASC Studio` exists as a separate app in the same repo under `apps/studio`.
+- The Wails shell is in place with translucent window/webview setup in `apps/studio/main.go`.
+- The custom header now includes top-level scope tabs:
+  - `App`
+  - `Team`
+  - `Signing`
+  - `Automation`
+- The sidebar is no longer a single flat list. It is grouped by scope and section.
+- `Performance` remains inside the `App` scope rather than becoming a top-level scope.
+- `Game Center` remains an app-platform surface inside the `App` sidebar.
+- Team/admin and signing are no longer buried in the app-only sidebar. They now have dedicated top-level scopes.
+
+### What Is Partially Done
+
+#### App Scope
+
+The `App` scope is the most developed area and now contains grouped sections for:
+
+- `Overview`
+- `Release`
+- `Metadata`
+- `Growth`
+- `Monetization`
+- `Insights`
+- `Compliance`
+- `Platform`
+
+However, several of these sections are still bootstrap-level and not yet full Studio-native workspaces.
+
+#### Release
+
+The following now exist in the UI:
+
+- `Builds`
+- `TestFlight`
+- `Submit`
+- `Validate`
+- `Release Notes`
+
+But this is still incomplete because:
+
+- `Publish` is still missing from the sidebar and the workspace.
+- `Release` is still missing as its own surface.
+- `Submit`, `Validate`, and `Release Notes` are still mostly command-backed/read-only rather than polished, approval-driven release workflows.
+
+#### Metadata
+
+The following now exist in the UI:
+
+- `Localizations`
+- `Screenshots`
+- `Video Previews`
+- `Categories`
+
+This means the report's earlier recommendation to split metadata out of `overview` has started happening.
+
+But this is still incomplete because:
+
+- `Metadata` is not a first-class dedicated page yet.
+- `App Setup` is missing.
+- `App Tags` is missing.
+- `Pre-orders` is missing.
+- `Background Assets` is missing.
+
+#### Team Scope
+
+The `Team` scope now exists and includes:
+
+- `Account`
+- `Users`
+- `Devices`
+
+This is directionally correct, but still incomplete because:
+
+- `Actors` is still missing.
+- These surfaces are still mostly command-backed rather than fully designed management pages.
+
+#### Signing Scope
+
+The `Signing` scope now exists and includes:
+
+- `Bundle IDs`
+- `Certificates`
+- `Profiles`
+
+This is a strong start, but still incomplete because:
+
+- `Signing Overview` is missing.
+- `Merchant IDs` is missing.
+- `Pass Type IDs` is missing.
+- `Notarization` is missing.
+
+#### Automation Scope
+
+The `Automation` scope now exists and includes:
+
+- `Xcode Cloud`
+- `Webhooks`
+
+This matches the intended top-level placement, but the scope is still very incomplete because:
+
+- `Workflow` is missing.
+- `Notifications` is missing.
+- `Migrate` is missing.
+- `Diff` is missing.
+- `Schema` is missing.
+- `ACP Sessions` does not exist as a dedicated page yet.
+
+#### ACP / Chat
+
+The ACP chat dock exists and the backend thread/session plumbing exists.
+
+But it is still not complete:
+
+- the frontend still contains the bootstrap fallback text saying live ACP transport is not wired yet
+- the chat experience is still scaffolded rather than a fully integrated agent UX
+
+### What Is Still Not Done
+
+The following earlier decisions are still unimplemented in the product:
+
+- full release execution coverage
+- full metadata/store-admin coverage
+- full platform/distribution coverage
+- full team/admin coverage
+- full signing coverage
+- full automation coverage
+- native-feeling ACP session management in the main product experience
+
+### Practical Conclusion
+
+The current app has completed the structural reframe:
+
+- same-repo separate product
+- Wails desktop shell
+- header scope tabs
+- grouped scope-aware navigation
+
+But it has not completed the product-surface plan.
+
+The most accurate summary is:
+
+- shell and IA direction: mostly done
+- page coverage: partial
+- workflow depth: partial
+- ACP integration: partial
+
 ## Purpose
 
 This report is a handoff document for continuing `ASC Studio` as the desktop-first home of `asc`.

@@ -144,6 +144,13 @@ const scopes: Scope[] = [
           { id: "webhooks", label: "Webhooks", description: "Webhook management" },
         ],
       },
+      {
+        label: "Tools",
+        items: [
+          { id: "schema", label: "Schema", description: "API schema browser" },
+          { id: "diff", label: "Diff", description: "Version diff" },
+        ],
+      },
     ],
   },
 ];
@@ -196,6 +203,7 @@ const sectionCommands: Record<string, string> = {
   "sandbox": "sandbox list --output json",
   "merchant-ids": "merchant-ids list --output json",
   "pass-type-ids": "pass-type-ids list --output json",
+  "schema": "schema index --output json",
 };
 
 function sectionRequiresApp(sectionId: string): boolean {
@@ -696,6 +704,42 @@ export default function App() {
     }
   }
 
+  function loadStandaloneSection(sectionId: string) {
+    const cmd = sectionCommands[sectionId];
+    if (!cmd || sectionRequiresApp(sectionId)) return;
+
+    setSectionCache((prev) => {
+      const existing = prev[sectionId];
+      if (existing) return prev;
+      return { ...prev, [sectionId]: { loading: true, items: [] } };
+    });
+
+    RunASCCommand(cmd)
+      .then((res) => {
+        if (res.error) {
+          setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: false, error: res.error, items: [] } }));
+          return;
+        }
+        try {
+          const parsed = JSON.parse(res.data);
+          const items: Record<string, unknown>[] = [];
+          if (Array.isArray(parsed?.data)) {
+            for (const item of parsed.data) {
+              items.push({ id: item.id, type: item.type, ...item.attributes });
+            }
+          } else if (parsed?.data?.attributes) {
+            items.push({ id: parsed.data.id, type: parsed.data.type, ...parsed.data.attributes });
+          }
+          setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: false, items } }));
+        } catch {
+          setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: false, error: "Failed to parse response", items: [] } }));
+        }
+      })
+      .catch((e) => {
+        setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: false, error: String(e), items: [] } }));
+      });
+  }
+
   function handleSelectApp(id: string) {
     const requestID = appSelectionRequestRef.current + 1;
     appSelectionRequestRef.current = requestID;
@@ -833,6 +877,13 @@ export default function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!sectionCommands[activeSection.id]) return;
+    if (sectionRequiresApp(activeSection.id)) return;
+    if (sectionCache[activeSection.id]) return;
+    loadStandaloneSection(activeSection.id);
+  }, [activeSection, sectionCache]);
 
   const authConfigured = authStatus.authenticated;
   const resolvedTheme = resolveTheme(studioSettings.theme, systemTheme);
@@ -1791,7 +1842,7 @@ export default function App() {
               )}
             </div>
           </div>
-        ) : selectedAppId && sectionCommands[activeSection.id] ? (() => {
+        ) : sectionCommands[activeSection.id] && (!sectionRequiresApp(activeSection.id) || selectedAppId) ? (() => {
           const cache = sectionCache[activeSection.id];
           if (!cache || cache.loading) {
             return (
