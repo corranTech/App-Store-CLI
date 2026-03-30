@@ -14,6 +14,8 @@ import (
 func TestIAPPricingSchedulesManualPricesResolvedJSON(t *testing.T) {
 	setupAuth(t)
 
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices?cursor=Mg"
+
 	requestCount := 0
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requestCount++
@@ -48,7 +50,7 @@ func TestIAPPricingSchedulesManualPricesResolvedJSON(t *testing.T) {
 					{"type":"inAppPurchasePricePoints","id":"pp-manual-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
 					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
 				],
-				"links":{"next":""}
+				"links":{"next":"` + secondURL + `"}
 			}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -56,8 +58,48 @@ func TestIAPPricingSchedulesManualPricesResolvedJSON(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices" {
 				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("cursor") != "Mg" {
+				t.Fatalf("expected cursor=Mg, got %q", query.Get("cursor"))
+			}
+			if query.Get("include") != "inAppPurchasePricePoint,territory" {
+				t.Fatalf("unexpected paginated include query: %q", query.Get("include"))
+			}
+			if query.Get("fields[inAppPurchasePrices]") != "manual,startDate,endDate,inAppPurchasePricePoint,territory" {
+				t.Fatalf("unexpected paginated price fields: %q", query.Get("fields[inAppPurchasePrices]"))
+			}
+			if query.Get("fields[inAppPurchasePricePoints]") != "customerPrice,proceeds,territory" {
+				t.Fatalf("unexpected paginated price point fields: %q", query.Get("fields[inAppPurchasePricePoints]"))
+			}
+			body := `{
+				"data":[
+					{
+						"type":"inAppPurchasePrices",
+						"id":"manual-price-gbr",
+						"attributes":{"startDate":"2024-06-01","manual":true},
+						"relationships":{
+							"territory":{"data":{"type":"territories","id":"GBR"}},
+							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-manual-gbr"}}
+						}
+					}
+				],
+				"included":[
+					{"type":"inAppPurchasePricePoints","id":"pp-manual-gbr","attributes":{"customerPrice":"7.99","proceeds":"6.79"}},
+					{"type":"territories","id":"GBR","attributes":{"currency":"GBP"}}
+				],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 3:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1/automaticPrices" {
+				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
 			}
 			body := `{
 				"data":[
@@ -69,22 +111,11 @@ func TestIAPPricingSchedulesManualPricesResolvedJSON(t *testing.T) {
 							"territory":{"data":{"type":"territories","id":"USA"}},
 							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-automatic-usa"}}
 						}
-					},
-					{
-						"type":"inAppPurchasePrices",
-						"id":"automatic-price-gbr",
-						"attributes":{"startDate":"2024-06-01","manual":false},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"GBR"}},
-							"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-automatic-gbr"}}
-						}
 					}
 				],
 				"included":[
 					{"type":"inAppPurchasePricePoints","id":"pp-automatic-usa","attributes":{"customerPrice":"4.99","proceeds":"3.49"}},
-					{"type":"inAppPurchasePricePoints","id":"pp-automatic-gbr","attributes":{"customerPrice":"7.99","proceeds":"6.79"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}},
-					{"type":"territories","id":"GBR","attributes":{"currency":"GBP"}}
+					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
 				],
 				"links":{"next":""}
 			}`
@@ -232,44 +263,13 @@ func TestIAPPricingSchedulesAutomaticPricesResolvedTable(t *testing.T) {
 	}
 }
 
-func TestIAPPricingSchedulesManualPricesResolvedNext(t *testing.T) {
-	setupAuth(t)
-
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices?cursor=Mg"
-
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.String() != nextURL {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-
-		body := `{
-			"data":[
-				{
-					"type":"inAppPurchasePrices",
-					"id":"manual-price-usa",
-					"attributes":{"startDate":"2025-01-01","manual":true},
-					"relationships":{
-						"territory":{"data":{"type":"territories","id":"USA"}},
-						"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"pp-manual-usa"}}
-					}
-				}
-			],
-			"included":[
-				{"type":"inAppPurchasePricePoints","id":"pp-manual-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
-				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-			],
-			"links":{"next":""}
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
-
+func TestIAPPricingSchedulesManualPricesResolvedRejectsNext(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices?cursor=Mg"
+
+	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"iap", "pricing", "schedules", "manual-prices",
@@ -278,16 +278,17 @@ func TestIAPPricingSchedulesManualPricesResolvedNext(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+		runErr = root.Run(context.Background())
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(stdout, `"territory":"USA"`) || !strings.Contains(stdout, `"customerPrice":"9.99"`) {
-		t.Fatalf("expected resolved next output, got %q", stdout)
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --resolved cannot be combined with --next") {
+		t.Fatalf("expected resolved next usage error, got %q", stderr)
 	}
 }
 

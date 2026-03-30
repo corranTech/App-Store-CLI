@@ -785,6 +785,10 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions prices list: %w", err)
 			}
+			if *resolved && strings.TrimSpace(*next) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
+				return flag.ErrHelp
+			}
 
 			id := strings.TrimSpace(*subID)
 			if id == "" && strings.TrimSpace(*next) == "" {

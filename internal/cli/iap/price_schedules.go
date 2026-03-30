@@ -375,6 +375,10 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap pricing schedules manual-prices: %w", err)
 			}
+			if *resolved && strings.TrimSpace(*next) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
+				return flag.ErrHelp
+			}
 
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -459,6 +463,10 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap pricing schedules automatic-prices: %w", err)
+			}
+			if *resolved && strings.TrimSpace(*next) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
+				return flag.ErrHelp
 			}
 
 			id := strings.TrimSpace(*scheduleID)

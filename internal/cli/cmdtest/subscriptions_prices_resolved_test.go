@@ -72,8 +72,21 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/prices" {
 				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("cursor") != "Mg" {
+				t.Fatalf("expected cursor=Mg, got %q", query.Get("cursor"))
+			}
+			if query.Get("include") != "subscriptionPricePoint,territory" {
+				t.Fatalf("expected include query on paginated request, got %q", query.Get("include"))
+			}
+			if query.Get("fields[subscriptionPricePoints]") != "customerPrice,proceeds,proceedsYear2" {
+				t.Fatalf("unexpected paginated price point fields: %q", query.Get("fields[subscriptionPricePoints]"))
+			}
+			if query.Get("fields[territories]") != "currency" {
+				t.Fatalf("unexpected paginated territory fields: %q", query.Get("fields[territories]"))
 			}
 
 			body := `{
@@ -212,44 +225,13 @@ func TestSubscriptionsPricingPricesListResolvedTable(t *testing.T) {
 	}
 }
 
-func TestSubscriptionsPricingPricesListResolvedNext(t *testing.T) {
-	setupAuth(t)
-
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/prices?cursor=Mg"
-
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.String() != nextURL {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-
-		body := `{
-			"data":[
-				{
-					"type":"subscriptionPrices",
-					"id":"price-current-usa",
-					"attributes":{"startDate":"2025-01-01","preserved":false},
-					"relationships":{
-						"territory":{"data":{"type":"territories","id":"USA"}},
-						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-current-usa"}}
-					}
-				}
-			],
-			"included":[
-				{"type":"subscriptionPricePoints","id":"pp-current-usa","attributes":{"customerPrice":"9.99","proceeds":"7.00","proceedsYear2":"8.49"}},
-				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-			],
-			"links":{"next":""}
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
-
+func TestSubscriptionsPricingPricesListResolvedRejectsNext(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/prices?cursor=Mg"
+
+	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "pricing", "prices", "list",
@@ -258,16 +240,17 @@ func TestSubscriptionsPricingPricesListResolvedNext(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+		runErr = root.Run(context.Background())
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(stdout, `"territory":"USA"`) || !strings.Contains(stdout, `"customerPrice":"9.99"`) {
-		t.Fatalf("expected resolved next output, got %q", stdout)
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --resolved cannot be combined with --next") {
+		t.Fatalf("expected resolved next usage error, got %q", stderr)
 	}
 }
 

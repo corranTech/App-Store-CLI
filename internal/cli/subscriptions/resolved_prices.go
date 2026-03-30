@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -44,10 +45,14 @@ func fetchResolvedSubscriptionPrices(
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
 	if err := asc.PaginateEach(ctx, firstPage, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
+		nextURL, err := shared.MergeNextURLQuery(next, resolvedSubscriptionPricesQuery(limit))
+		if err != nil {
+			return nil, err
+		}
 		return client.GetSubscriptionPrices(
 			ctx,
 			subscriptionID,
-			asc.WithSubscriptionPricesNextURL(next),
+			asc.WithSubscriptionPricesNextURL(nextURL),
 			asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 			asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 			asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),
@@ -68,6 +73,17 @@ func fetchResolvedSubscriptionPrices(
 	}
 	shared.SortResolvedPrices(rows)
 	return &shared.ResolvedPricesResult{Prices: rows}, nil
+}
+
+func resolvedSubscriptionPricesQuery(limit int) url.Values {
+	values := url.Values{}
+	values.Set("include", "subscriptionPricePoint,territory")
+	values.Set("fields[subscriptionPricePoints]", "customerPrice,proceeds,proceedsYear2")
+	values.Set("fields[territories]", "currency")
+	if limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	return values
 }
 
 func consumeResolvedSubscriptionPricePage(

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -127,7 +128,11 @@ func consumeResolvedIAPSchedulePrices(
 	}
 
 	return asc.PaginateEach(ctx, firstPage, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-		return fetch(ctx, scheduleID, asc.WithIAPPriceSchedulePricesNextURL(next))
+		nextURL, err := shared.MergeNextURLQuery(next, resolvedIAPSchedulePricesQuery(limit))
+		if err != nil {
+			return nil, err
+		}
+		return fetch(ctx, scheduleID, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.InAppPurchasePricesResponse)
 		if !ok {
@@ -135,6 +140,18 @@ func consumeResolvedIAPSchedulePrices(
 		}
 		return consumeResolvedIAPPricePage(candidates, resp, now)
 	})
+}
+
+func resolvedIAPSchedulePricesQuery(limit int) url.Values {
+	values := url.Values{}
+	values.Set("include", "inAppPurchasePricePoint,territory")
+	values.Set("fields[inAppPurchasePrices]", "manual,startDate,endDate,inAppPurchasePricePoint,territory")
+	values.Set("fields[inAppPurchasePricePoints]", "customerPrice,proceeds,territory")
+	values.Set("fields[territories]", "currency")
+	if limit > 0 {
+		values.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	return values
 }
 
 func consumeResolvedIAPPricePage(
