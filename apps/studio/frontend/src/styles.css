@@ -835,22 +835,17 @@ textarea {
 
 .composer {
   padding: 10px 20px 14px;
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .composer-card {
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: none;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: transparent;
   overflow: hidden;
   cursor: text;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .composer-card:focus-within {
-  border-color: rgba(0, 0, 0, 0.14);
-  box-shadow: none;
 }
 
 .composer-card textarea {

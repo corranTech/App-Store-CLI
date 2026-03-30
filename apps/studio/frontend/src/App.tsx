@@ -1056,7 +1056,7 @@ export default function App() {
               <div className="composer-bar">
                 <div className="composer-meta">
                   <span>Codex</span>
-                  <span>Claude</span>
+                  <span>Cursor</span>
                   <span>Custom ACP</span>
                 </div>
                 <button className="send-btn" type="submit" aria-label="Send">⬆</button>
