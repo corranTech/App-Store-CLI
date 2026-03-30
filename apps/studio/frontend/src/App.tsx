@@ -210,6 +210,27 @@ function sectionRequiresApp(sectionId: string): boolean {
   return sectionCommands[sectionId]?.includes("APP_ID") ?? false;
 }
 
+const bundleIDPlatformOrder: Record<string, number> = {
+  IOS: 0,
+  UNIVERSAL: 1,
+  MAC_OS: 2,
+  TV_OS: 3,
+  VISION_OS: 4,
+  WATCH_OS: 5,
+};
+
+function compareBundleIDPlatforms(a: unknown, b: unknown, direction: "asc" | "desc"): number {
+  const aPlatform = String(a ?? "");
+  const bPlatform = String(b ?? "");
+  const aRank = bundleIDPlatformOrder[aPlatform] ?? Number.MAX_SAFE_INTEGER;
+  const bRank = bundleIDPlatformOrder[bPlatform] ?? Number.MAX_SAFE_INTEGER;
+  const rankDiff = aRank - bRank;
+  if (rankDiff !== 0) return direction === "asc" ? rankDiff : -rankDiff;
+  return direction === "asc"
+    ? aPlatform.localeCompare(bPlatform)
+    : bPlatform.localeCompare(aPlatform);
+}
+
 // Human-readable field labels for known attribute keys
 const fieldLabels: Record<string, string> = {
   name: "Name", productId: "Product ID", inAppPurchaseType: "Type", state: "State",
@@ -459,6 +480,7 @@ export default function App() {
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const [bundleIDsPlatformSort, setBundleIDsPlatformSort] = useState<"asc" | "desc">("asc");
   const [financeRegions, setFinanceRegions] = useState<{ loading: boolean; error?: string; regions: { reportRegion: string; reportCurrency: string; regionCode: string; countriesOrRegions: string }[] }>({ loading: false, regions: [] });
   const [offerCodes, setOfferCodes] = useState<{ loading: boolean; error?: string; codes: { subscriptionName: string; subscriptionId: string; name: string; offerEligibility: string; customerEligibilities: string[]; duration: string; offerMode: string; numberOfPeriods: number; totalNumberOfCodes: number; productionCodeCount: number }[] }>({ loading: false, codes: [] });
   const appSelectionRequestRef = useRef(0);
@@ -1797,6 +1819,65 @@ export default function App() {
               )}
             </div>
           </div>
+        ) : activeSection.id === "screenshots" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Screenshots</h3>
+              {screenshotsLoading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : screenshotSets.length > 0 ? (
+                <>
+                  {allLocalizations.length > 1 && (
+                    <div className="metadata-header" style={{ marginBottom: 12 }}>
+                      <span />
+                      <select className="locale-picker" value={selectedLocale} onChange={(e) => handleLocaleChange(e.target.value)}>
+                        {allLocalizations.map((l) => <option key={l.locale} value={l.locale}>{l.locale}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {screenshotSets.map((set) => {
+                    const label = set.displayType.replace(/^APP_/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                    return (
+                      <div key={set.displayType} className="screenshot-set">
+                        <p className="screenshot-set-label">{label}</p>
+                        <div className="screenshot-row">
+                          {set.screenshots.map((s, i) => (
+                            <img key={i} src={s.thumbnailUrl} alt={`Screenshot ${i + 1}`} className={`screenshot-thumb ${s.width > s.height ? "landscape" : ""}`} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : (
+                <p className="empty-hint">No screenshots found. Select an app with screenshots or change locale.</p>
+              )}
+            </div>
+          </div>
+        ) : activeSection.id === "diff" ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Diff</h3>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                Generate deterministic diff plans between app versions.
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
+                Use the ACP chat to run: <code>asc diff metadata --app {selectedAppId || "APP_ID"}</code>
+              </p>
+            </div>
+          </div>
+        ) : activeSection.id === "notarization" ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Notarization</h3>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                Submit macOS apps for Apple notarization.
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
+                Use the ACP chat to run: <code>asc notarization submit --file ./MyApp.zip</code>
+              </p>
+            </div>
+          </div>
         ) : activeSection.id === "promo-codes" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
@@ -1874,9 +1955,13 @@ export default function App() {
               </div>
             );
           }
+          const displayItems = activeSection.id === "bundle-ids"
+            ? [...cache.items].sort((a, b) => compareBundleIDPlatforms(a.platform, b.platform, bundleIDsPlatformSort))
+            : cache.items;
+
           // Build column list from all items' keys
           const allKeys = new Set<string>();
-          for (const item of cache.items) {
+          for (const item of displayItems) {
             for (const [k, v] of Object.entries(item)) {
               if (k !== "id" && k !== "type" && v !== null && v !== undefined && v !== "" && typeof v !== "object") {
                 allKeys.add(k);
@@ -1885,8 +1970,8 @@ export default function App() {
           }
           const columns = [...allKeys];
           // Single-item views (like age-rating) render as key-value pairs
-          if (cache.items.length === 1) {
-            const item = cache.items[0];
+          if (displayItems.length === 1) {
+            const item = displayItems[0];
             return (
               <div className="app-detail-view">
                 <div className="app-detail-section">
@@ -1920,7 +2005,7 @@ export default function App() {
                     <h3 className="section-label">{activeSection.label}</h3>
                     <span className="section-count">{cache.items.length} items</span>
                   </div>
-                  {cache.items.map((item, idx) => (
+                  {displayItems.map((item, idx) => (
                     <div key={item.id as string ?? idx} className="vertical-card">
                       <table className="data-table">
                         <tbody>
@@ -1948,18 +2033,33 @@ export default function App() {
               <div className="app-detail-section">
                 <div className="section-header-row">
                   <h3 className="section-label">{activeSection.label}</h3>
-                  <span className="section-count">{cache.items.length} items</span>
+                  <span className="section-count">{displayItems.length} items</span>
                 </div>
                 <table className="data-table">
                   <thead>
                     <tr>
                       {columns.map((col) => (
-                        <th key={col}>{fieldLabels[col] ?? col}</th>
+                        <th key={col}>
+                          {activeSection.id === "bundle-ids" && col === "platform" ? (
+                            <button
+                              type="button"
+                              className="table-sort-button"
+                              onClick={() => setBundleIDsPlatformSort((prev) => prev === "asc" ? "desc" : "asc")}
+                            >
+                              <span>{fieldLabels[col] ?? col}</span>
+                              <span aria-hidden="true" className="table-sort-arrow">
+                                {bundleIDsPlatformSort === "asc" ? "↑" : "↓"}
+                              </span>
+                            </button>
+                          ) : (
+                            fieldLabels[col] ?? col
+                          )}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {cache.items.map((item, idx) => (
+                    {displayItems.map((item, idx) => (
                       <tr key={item.id as string ?? idx}>
                         {columns.map((col) => {
                           const val = item[col];

@@ -327,6 +327,45 @@ describe("App", () => {
     expect(screen.queryByText("Select an App")).not.toBeInTheDocument();
   });
 
+  it("sorts bundle IDs by platform from the header control", async () => {
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "bundle-ids list --paginate --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: [
+              { id: "bundle-1", type: "bundleIds", attributes: { identifier: "com.example.mac", platform: "MAC_OS", seedId: "AAA" } },
+              { id: "bundle-2", type: "bundleIds", attributes: { identifier: "com.example.ios", platform: "IOS", seedId: "BBB" } },
+              { id: "bundle-3", type: "bundleIds", attributes: { identifier: "com.example.universal", platform: "UNIVERSAL", seedId: "CCC" } },
+            ],
+          }),
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    fireEvent.click(screen.getByRole("button", { name: "Signing" }));
+
+    expect(await screen.findByText("com.example.ios")).toBeInTheDocument();
+
+    const rowsBefore = screen.getAllByRole("row").slice(1);
+    expect(rowsBefore[0]).toHaveTextContent("com.example.ios");
+    expect(rowsBefore[1]).toHaveTextContent("com.example.universal");
+    expect(rowsBefore[2]).toHaveTextContent("com.example.mac");
+
+    fireEvent.click(screen.getByRole("button", { name: /Platform/i }));
+
+    await waitFor(() => {
+      const rowsAfter = screen.getAllByRole("row").slice(1);
+      expect(rowsAfter[0]).toHaveTextContent("com.example.mac");
+      expect(rowsAfter[1]).toHaveTextContent("com.example.universal");
+      expect(rowsAfter[2]).toHaveTextContent("com.example.ios");
+    });
+  });
+
   it("preserves agent env when saving settings", async () => {
     mockBootstrap.mockResolvedValue({
       appName: "ASC Studio",

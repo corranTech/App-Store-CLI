@@ -983,6 +983,25 @@ textarea {
   border-bottom: 1px solid var(--separator);
 }
 
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.table-sort-arrow {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .data-table td {
   padding: 8px 10px;
   color: var(--text-primary);
