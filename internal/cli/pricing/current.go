@@ -158,61 +158,20 @@ Examples:
 			}
 
 			entries = dedupeAppPriceEntries(entries)
-
-			baseCurrent, foundBase, err := resolveCurrentTerritoryPrice(entries, values, currencies, baseTerritory, time.Now().UTC())
-			if err != nil {
-				return fmt.Errorf("pricing current: %w", err)
-			}
-			if !foundBase {
-				return fmt.Errorf("pricing current: no current price found for base territory %s", baseTerritory)
-			}
-
 			now := time.Now().UTC()
 
-			targetTerritories := requestedTerritories
-			if *allTerritories {
-				targetTerritories = territoriesFromActiveEntries(entries, now)
-			}
-			if len(targetTerritories) == 0 {
-				targetTerritories = []string{baseTerritory}
-			}
-
-			currentPrices := make([]appCurrentTerritoryPrice, 0, len(targetTerritories))
-			missingTerritories := make([]string, 0)
-			for _, territoryID := range targetTerritories {
-				price, found, err := resolveCurrentTerritoryPrice(entries, values, currencies, territoryID, now)
-				if err != nil {
-					return fmt.Errorf("pricing current: %w", err)
-				}
-				if !found {
-					missingTerritories = append(missingTerritories, territoryID)
-					continue
-				}
-				currentPrices = append(currentPrices, price)
-			}
-
-			if len(missingTerritories) > 0 {
-				return fmt.Errorf("pricing current: no current price found for territories: %s", strings.Join(missingTerritories, ", "))
-			}
-
-			sortCurrentTerritoryPrices(currentPrices, baseTerritory)
-
-			result := &appCurrentPricingResult{
-				AppID:         resolvedAppID,
-				BaseTerritory: baseTerritory,
-				IsFree:        amountIsZero(baseCurrent.CustomerPrice),
-			}
-
-			if len(currentPrices) == 1 && !*allTerritories {
-				price := currentPrices[0]
-				if len(requestedTerritories) > 0 || price.Territory != baseTerritory {
-					result.Territory = price.Territory
-				}
-				result.CustomerPrice = price.CustomerPrice
-				result.Proceeds = price.Proceeds
-				result.Currency = price.Currency
-			} else {
-				result.Territories = currentPrices
+			result, err := buildAppCurrentPricingResult(
+				resolvedAppID,
+				baseTerritory,
+				entries,
+				values,
+				currencies,
+				requestedTerritories,
+				*allTerritories,
+				now,
+			)
+			if err != nil {
+				return fmt.Errorf("pricing current: %w", err)
 			}
 
 			return printAppCurrentPricingResult(result, *output.Output, *output.Pretty)
@@ -412,6 +371,73 @@ func resolveCurrentTerritoryPrice(
 		Proceeds:      value.Proceeds,
 		Currency:      currency,
 	}, true, nil
+}
+
+func buildAppCurrentPricingResult(
+	appID string,
+	baseTerritory string,
+	entries []appPriceEntry,
+	values map[string]appPricePointValue,
+	currencies map[string]string,
+	requestedTerritories []string,
+	allTerritories bool,
+	now time.Time,
+) (*appCurrentPricingResult, error) {
+	baseCurrent, foundBase, err := resolveCurrentTerritoryPrice(entries, values, currencies, baseTerritory, now)
+	if err != nil {
+		return nil, err
+	}
+	if !foundBase {
+		return nil, fmt.Errorf("no current price found for base territory %s", baseTerritory)
+	}
+
+	targetTerritories := requestedTerritories
+	if allTerritories {
+		targetTerritories = territoriesFromActiveEntries(entries, now)
+	}
+	if len(targetTerritories) == 0 {
+		targetTerritories = []string{baseTerritory}
+	}
+
+	currentPrices := make([]appCurrentTerritoryPrice, 0, len(targetTerritories))
+	missingTerritories := make([]string, 0)
+	for _, territoryID := range targetTerritories {
+		price, found, err := resolveCurrentTerritoryPrice(entries, values, currencies, territoryID, now)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			missingTerritories = append(missingTerritories, territoryID)
+			continue
+		}
+		currentPrices = append(currentPrices, price)
+	}
+
+	if len(missingTerritories) > 0 {
+		return nil, fmt.Errorf("no current price found for territories: %s", strings.Join(missingTerritories, ", "))
+	}
+
+	sortCurrentTerritoryPrices(currentPrices, baseTerritory)
+
+	result := &appCurrentPricingResult{
+		AppID:         appID,
+		BaseTerritory: baseTerritory,
+		IsFree:        amountIsZero(baseCurrent.CustomerPrice),
+	}
+
+	if len(currentPrices) == 1 && !allTerritories {
+		price := currentPrices[0]
+		if len(requestedTerritories) > 0 || price.Territory != baseTerritory {
+			result.Territory = price.Territory
+		}
+		result.CustomerPrice = price.CustomerPrice
+		result.Proceeds = price.Proceeds
+		result.Currency = price.Currency
+	} else {
+		result.Territories = currentPrices
+	}
+
+	return result, nil
 }
 
 func findActiveAppPriceEntry(entries []appPriceEntry, territoryID string, at time.Time) (appPriceEntry, bool) {

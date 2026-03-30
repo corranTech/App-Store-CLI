@@ -3218,27 +3218,6 @@ func WithPricePointsTerritory(territory string) PricePointsOption {
 	}
 }
 
-// WithPricePointsFields sets fields[appPricePoints] for app price point responses.
-func WithPricePointsFields(fields []string) PricePointsOption {
-	return func(q *pricePointsQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithPricePointsTerritoryFields sets fields[territories] for included territory responses.
-func WithPricePointsTerritoryFields(fields []string) PricePointsOption {
-	return func(q *pricePointsQuery) {
-		q.territoryFields = normalizeList(fields)
-	}
-}
-
-// WithPricePointsInclude sets include values for app price point responses.
-func WithPricePointsInclude(include []string) PricePointsOption {
-	return func(q *pricePointsQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
 // WithAppPriceSchedulePricesLimit sets the max number of schedule prices to return.
 func WithAppPriceSchedulePricesLimit(limit int) AppPriceSchedulePricesOption {
 	return func(q *appPriceSchedulePricesQuery) {
