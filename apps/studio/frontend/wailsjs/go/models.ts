@@ -503,11 +503,13 @@ export namespace main {
 		}
 	}
 	export class SubscriptionItem {
+	    id: string;
 	    groupName: string;
 	    name: string;
 	    productId: string;
 	    state: string;
 	    subscriptionPeriod: string;
+	    reviewNote: string;
 	    groupLevel: number;
 	
 	    static createFrom(source: any = {}) {
@@ -516,11 +518,13 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
 	        this.groupName = source["groupName"];
 	        this.name = source["name"];
 	        this.productId = source["productId"];
 	        this.state = source["state"];
 	        this.subscriptionPeriod = source["subscriptionPeriod"];
+	        this.reviewNote = source["reviewNote"];
 	        this.groupLevel = source["groupLevel"];
 	    }
 	}

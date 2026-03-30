@@ -126,11 +126,13 @@ type ASCCommandResponse struct {
 }
 
 type SubscriptionItem struct {
+	ID                 string `json:"id"`
 	GroupName          string `json:"groupName"`
 	Name               string `json:"name"`
 	ProductID          string `json:"productId"`
 	State              string `json:"state"`
 	SubscriptionPeriod string `json:"subscriptionPeriod"`
+	ReviewNote         string `json:"reviewNote"`
 	GroupLevel         int    `json:"groupLevel"`
 }
 
@@ -439,11 +441,13 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 				return
 			}
 			type rawSub struct {
+				ID         string `json:"id"`
 				Attributes struct {
 					Name               string `json:"name"`
 					ProductID          string `json:"productId"`
 					State              string `json:"state"`
 					SubscriptionPeriod string `json:"subscriptionPeriod"`
+					ReviewNote         string `json:"reviewNote"`
 					GroupLevel         int    `json:"groupLevel"`
 				} `json:"attributes"`
 			}
@@ -457,11 +461,13 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 			items := make([]SubscriptionItem, 0, len(env.Data))
 			for _, s := range env.Data {
 				items = append(items, SubscriptionItem{
+					ID:                 s.ID,
 					GroupName:          groupName,
 					Name:               s.Attributes.Name,
 					ProductID:          s.Attributes.ProductID,
 					State:              s.Attributes.State,
 					SubscriptionPeriod: s.Attributes.SubscriptionPeriod,
+					ReviewNote:         s.Attributes.ReviewNote,
 					GroupLevel:         s.Attributes.GroupLevel,
 				})
 			}

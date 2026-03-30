@@ -157,7 +157,8 @@ export default function App() {
   const [appsLoading, setAppsLoading] = useState(false);
   // Cache of section data keyed by section ID. Prefetched in parallel on app select.
   const [sectionCache, setSectionCache] = useState<Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }>>({});
-  const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; groupLevel: number }[] }>({ loading: false, items: [] });
+  const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
+  const [selectedSub, setSelectedSub] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([Bootstrap(), CheckAuthStatus()])
@@ -785,52 +786,99 @@ export default function App() {
               );
             })() : null}
           </div>
-        ) : activeSection.id === "subscriptions" && selectedAppId ? (
-          <div className="app-detail-view">
-            <div className="app-detail-section">
-              <h3 className="section-label">Subscriptions</h3>
-              {subscriptions.loading ? (
-                <p className="empty-hint">Loading…</p>
-              ) : subscriptions.error ? (
-                <p className="empty-hint">{subscriptions.error}</p>
-              ) : subscriptions.items.length === 0 ? (
-                <p className="empty-hint">No subscriptions found.</p>
-              ) : (() => {
-                const groups = [...new Set(subscriptions.items.map((s) => s.groupName))];
-                return groups.map((group) => (
-                  <div key={group} className="sub-group">
-                    <p className="sub-group-name">{group}</p>
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Product ID</th>
-                          <th>Period</th>
-                          <th>Level</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {subscriptions.items
-                          .filter((s) => s.groupName === group)
-                          .sort((a, b) => a.groupLevel - b.groupLevel)
-                          .map((s) => (
-                            <tr key={s.productId}>
-                              <td>{s.name}</td>
-                              <td className="mono">{s.productId}</td>
-                              <td>{s.subscriptionPeriod.replace(/_/g, " ").toLowerCase()}</td>
-                              <td>{s.groupLevel}</td>
-                              <td><span className={`status-pill status-${s.state.toLowerCase()}`}>{s.state}</span></td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
+        ) : activeSection.id === "subscriptions" && selectedAppId ? (() => {
+          const sub = selectedSub ? subscriptions.items.find((s) => s.id === selectedSub) : null;
+          if (sub) {
+            // Detail view for a single subscription
+            return (
+              <div className="app-detail-view">
+                <div className="app-detail-section">
+                  <button className="back-link" type="button" onClick={() => setSelectedSub(null)}>← Subscriptions</button>
+                  <p className="app-detail-name" style={{ marginTop: 8 }}>{sub.name}</p>
+                  <div className="env-grid" style={{ marginTop: 12 }}>
+                    <div className="env-row">
+                      <span className="env-key">Status</span>
+                      <span className="env-value"><span className={`status-pill status-${sub.state.toLowerCase()}`}>{sub.state}</span></span>
+                    </div>
+                    <div className="env-row">
+                      <span className="env-key">Product ID</span>
+                      <span className="env-value mono">{sub.productId}</span>
+                    </div>
+                    <div className="env-row">
+                      <span className="env-key">Subscription Duration</span>
+                      <span className="env-value">{sub.subscriptionPeriod.replace(/_/g, " ").toLowerCase()}</span>
+                    </div>
+                    <div className="env-row">
+                      <span className="env-key">Group</span>
+                      <span className="env-value">{sub.groupName}</span>
+                    </div>
+                    <div className="env-row">
+                      <span className="env-key">Group Level</span>
+                      <span className="env-value">{sub.groupLevel}</span>
+                    </div>
+                    {sub.reviewNote && (
+                      <div className="env-row">
+                        <span className="env-key">Review Notes</span>
+                        <span className="env-value">{sub.reviewNote}</span>
+                      </div>
+                    )}
+                    <div className="env-row">
+                      <span className="env-key">Apple ID</span>
+                      <span className="env-value mono">{sub.id}</span>
+                    </div>
                   </div>
-                ));
-              })()}
+                </div>
+              </div>
+            );
+          }
+          // List view
+          return (
+            <div className="app-detail-view">
+              <div className="app-detail-section">
+                <h3 className="section-label">Subscriptions</h3>
+                {subscriptions.loading ? (
+                  <p className="empty-hint">Loading…</p>
+                ) : subscriptions.error ? (
+                  <p className="empty-hint">{subscriptions.error}</p>
+                ) : subscriptions.items.length === 0 ? (
+                  <p className="empty-hint">No subscriptions found.</p>
+                ) : (() => {
+                  const groups = [...new Set(subscriptions.items.map((s) => s.groupName))];
+                  return groups.map((group) => (
+                    <div key={group} className="sub-group">
+                      <p className="sub-group-name">{group}</p>
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Product ID</th>
+                            <th>Period</th>
+                            <th>Level</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subscriptions.items
+                            .filter((s) => s.groupName === group)
+                            .sort((a, b) => a.groupLevel - b.groupLevel)
+                            .map((s) => (
+                              <tr key={s.productId} className="clickable-row" onClick={() => setSelectedSub(s.id)}>
+                                <td>{s.name}</td>
+                                <td className="mono">{s.productId}</td>
+                                <td>{s.subscriptionPeriod.replace(/_/g, " ").toLowerCase()}</td>
+                                <td>{s.groupLevel}</td>
+                                <td><span className={`status-pill status-${s.state.toLowerCase()}`}>{s.state}</span></td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ));
+                })()}
+              </div>
             </div>
-          </div>
-        ) : activeSection.id === "promo-codes" && selectedAppId ? (
+          );
+        })() : activeSection.id === "promo-codes" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
               <h3 className="section-label">Promo Codes</h3>
