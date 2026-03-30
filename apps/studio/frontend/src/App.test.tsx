@@ -197,4 +197,64 @@ describe("App", () => {
     });
     expect(screen.queryByText("No beta groups found.")).not.toBeInTheDocument();
   });
+
+  it("ignores stale app detail responses after switching to another app", async () => {
+    let resolveFirstApp: ((value: {
+      id: string;
+      name: string;
+      subtitle: string;
+      bundleId: string;
+      sku: string;
+      primaryLocale: string;
+      versions: { id: string; platform: string; version: string; state: string }[];
+    }) => void) | undefined;
+
+    mockListApps.mockResolvedValue({
+      apps: [
+        { id: "1", name: "First App", subtitle: "One" },
+        { id: "2", name: "Second App", subtitle: "Two" },
+      ],
+    });
+    mockGetAppDetail.mockImplementation((appID: string) => {
+      if (appID === "1") {
+        return new Promise((resolve) => {
+          resolveFirstApp = resolve;
+        });
+      }
+      return Promise.resolve({
+        id: "2",
+        name: "Second App",
+        subtitle: "Two",
+        bundleId: "com.example.second",
+        sku: "SECONDSKU",
+        primaryLocale: "en-US",
+        versions: [{ id: "version-2", platform: "IOS", version: "2.0", state: "READY_FOR_SALE" }],
+      });
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+
+    const picker = screen.getByRole("combobox");
+    fireEvent.change(picker, { target: { value: "1" } });
+    fireEvent.change(picker, { target: { value: "2" } });
+
+    expect(await screen.findByText("Second App")).toBeInTheDocument();
+
+    resolveFirstApp?.({
+      id: "1",
+      name: "First App",
+      subtitle: "One",
+      bundleId: "com.example.first",
+      sku: "FIRSTSKU",
+      primaryLocale: "en-US",
+      versions: [{ id: "version-1", platform: "IOS", version: "1.0", state: "READY_FOR_SALE" }],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Second App")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("First App")).not.toBeInTheDocument();
+  });
 });

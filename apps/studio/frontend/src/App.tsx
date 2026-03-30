@@ -1,4 +1,4 @@
-import { FormEvent, startTransition, useEffect, useEffectEvent, useState } from "react";
+import { FormEvent, startTransition, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
@@ -277,6 +277,8 @@ export default function App() {
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const appSelectionRequestRef = useRef(0);
+  const screenshotRequestRef = useRef(0);
 
   const loadStudioShell = useEffectEvent(async (options?: {
     clearApps?: boolean;
@@ -367,7 +369,8 @@ export default function App() {
   }
 
   // Prefetch all section data in parallel for an app
-  function prefetchSections(appId: string) {
+  function prefetchSections(appId: string, requestID: number) {
+    const isStale = () => appSelectionRequestRef.current !== requestID;
     const initial: Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }> = {};
     for (const sectionId of Object.keys(sectionCommands)) {
       initial[sectionId] = { loading: true, items: [] };
@@ -377,56 +380,77 @@ export default function App() {
     setAppStatus({ loading: true, data: null });
     RunASCCommand(`status --app ${appId} --output json`)
       .then((res) => {
+        if (isStale()) return;
         if (res.error) { setAppStatus({ loading: false, error: res.error, data: null }); return; }
         try { setAppStatus({ loading: false, data: JSON.parse(res.data) }); }
         catch { setAppStatus({ loading: false, error: "Failed to parse status", data: null }); }
       })
-      .catch((e) => setAppStatus({ loading: false, error: String(e), data: null }));
+      .catch((e) => {
+        if (isStale()) return;
+        setAppStatus({ loading: false, error: String(e), data: null });
+      });
 
     // TestFlight groups with tester counts
     setTestflightData({ loading: true, groups: [] });
     setSelectedGroup(null);
     GetTestFlight(appId)
       .then((res) => {
+        if (isStale()) return;
         if (res.error) setTestflightData({ loading: false, error: res.error, groups: [] });
         else setTestflightData({ loading: false, groups: res.groups ?? [] });
       })
-      .catch((e) => setTestflightData({ loading: false, error: String(e), groups: [] }));
+      .catch((e) => {
+        if (isStale()) return;
+        setTestflightData({ loading: false, error: String(e), groups: [] });
+      });
 
     // Reviews
     setReviews({ loading: true, items: [] });
     RunASCCommand(`reviews list --app ${appId} --limit 25 --output json`)
       .then((res) => {
+        if (isStale()) return;
         if (res.error) { setReviews({ loading: false, error: res.error, items: [] }); return; }
         try {
           const d = JSON.parse(res.data);
           setReviews({ loading: false, items: (d.data ?? []).map((i: { attributes: Record<string, unknown> }) => i.attributes) });
         } catch { setReviews({ loading: false, error: "Failed to parse", items: [] }); }
       })
-      .catch((e) => setReviews({ loading: false, error: String(e), items: [] }));
+      .catch((e) => {
+        if (isStale()) return;
+        setReviews({ loading: false, error: String(e), items: [] });
+      });
 
     // Pricing overview
     setPricingOverview({ loading: true, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
     GetPricingOverview(appId)
       .then((res) => {
+        if (isStale()) return;
         if (res.error) setPricingOverview({ loading: false, error: res.error, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
         else setPricingOverview({ loading: false, availableInNewTerritories: res.availableInNewTerritories, currentPrice: res.currentPrice, currentProceeds: res.currentProceeds, baseCurrency: res.baseCurrency, territories: res.territories ?? [], subscriptionPricing: res.subscriptionPricing ?? [] });
       })
-      .catch((e) => setPricingOverview({ loading: false, error: String(e), availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] }));
+      .catch((e) => {
+        if (isStale()) return;
+        setPricingOverview({ loading: false, error: String(e), availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
+      });
 
     // Subscriptions: dedicated two-phase fetch
     setSubscriptions({ loading: true, items: [] });
     GetSubscriptions(appId)
       .then((res) => {
+        if (isStale()) return;
         if (res.error) setSubscriptions({ loading: false, error: res.error, items: [] });
         else setSubscriptions({ loading: false, items: res.subscriptions ?? [] });
       })
-      .catch((e) => setSubscriptions({ loading: false, error: String(e), items: [] }));
+      .catch((e) => {
+        if (isStale()) return;
+        setSubscriptions({ loading: false, error: String(e), items: [] });
+      });
 
     for (const [sectionId, cmdTemplate] of Object.entries(sectionCommands)) {
       const cmd = cmdTemplate.replace(/APP_ID/g, appId);
       RunASCCommand(cmd)
         .then((res) => {
+          if (isStale()) return;
           if (res.error) {
             setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: false, error: res.error, items: [] } }));
             return;
@@ -447,12 +471,16 @@ export default function App() {
           }
         })
         .catch((e) => {
+          if (isStale()) return;
           setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: false, error: String(e), items: [] } }));
         });
     }
   }
 
   function handleSelectApp(id: string) {
+    const requestID = appSelectionRequestRef.current + 1;
+    appSelectionRequestRef.current = requestID;
+    screenshotRequestRef.current += 1;
     startTransition(() => {
       setSelectedAppId(id);
       setAppDetail(null);
@@ -465,9 +493,10 @@ export default function App() {
       setDetailLoading(true);
     });
     // Fire all section prefetches in parallel
-    prefetchSections(id);
+    prefetchSections(id, requestID);
     GetAppDetail(id)
       .then((d) => {
+        if (appSelectionRequestRef.current !== requestID) return;
         const detail = {
           id: d.id, name: d.name, subtitle: d.subtitle, bundleId: d.bundleId,
           sku: d.sku, primaryLocale: d.primaryLocale, versions: d.versions ?? [], error: d.error,
@@ -480,6 +509,7 @@ export default function App() {
           setMetadataLoading(true);
           GetVersionMetadata(primaryVersion.id)
             .then((meta) => {
+              if (appSelectionRequestRef.current !== requestID) return;
               if (meta.localizations?.length) {
                 setAllLocalizations(meta.localizations);
                 const defaultLoc = meta.localizations.find(
@@ -488,32 +518,57 @@ export default function App() {
                 setSelectedLocale(defaultLoc.locale);
                 // Fetch screenshots for the default locale in parallel
                 if (defaultLoc.localizationId) {
+                  const screenshotRequestID = screenshotRequestRef.current + 1;
+                  screenshotRequestRef.current = screenshotRequestID;
                   setScreenshotsLoading(true);
                   GetScreenshots(defaultLoc.localizationId)
-                    .then((res) => setScreenshotSets(res.sets ?? []))
+                    .then((res) => {
+                      if (appSelectionRequestRef.current !== requestID || screenshotRequestRef.current !== screenshotRequestID) return;
+                      setScreenshotSets(res.sets ?? []);
+                    })
                     .catch(() => {})
-                    .finally(() => setScreenshotsLoading(false));
+                    .finally(() => {
+                      if (appSelectionRequestRef.current !== requestID || screenshotRequestRef.current !== screenshotRequestID) return;
+                      setScreenshotsLoading(false);
+                    });
                 }
               }
             })
             .catch(() => {})
-            .finally(() => setMetadataLoading(false));
+            .finally(() => {
+              if (appSelectionRequestRef.current !== requestID) return;
+              setMetadataLoading(false);
+            });
         }
       })
-      .catch((e) => setAppDetail({ id, name: "", subtitle: "", bundleId: "", sku: "", primaryLocale: "", versions: [], error: String(e) }))
-      .finally(() => setDetailLoading(false));
+      .catch((e) => {
+        if (appSelectionRequestRef.current !== requestID) return;
+        setAppDetail({ id, name: "", subtitle: "", bundleId: "", sku: "", primaryLocale: "", versions: [], error: String(e) });
+      })
+      .finally(() => {
+        if (appSelectionRequestRef.current !== requestID) return;
+        setDetailLoading(false);
+      });
   }
 
   function handleLocaleChange(locale: string) {
     setSelectedLocale(locale);
     const loc = allLocalizations.find((l) => l.locale === locale);
     if (loc?.localizationId) {
+      const screenshotRequestID = screenshotRequestRef.current + 1;
+      screenshotRequestRef.current = screenshotRequestID;
       setScreenshotsLoading(true);
       setScreenshotSets([]);
       GetScreenshots(loc.localizationId)
-        .then((res) => setScreenshotSets(res.sets ?? []))
+        .then((res) => {
+          if (screenshotRequestRef.current !== screenshotRequestID) return;
+          setScreenshotSets(res.sets ?? []);
+        })
         .catch(() => {})
-        .finally(() => setScreenshotsLoading(false));
+        .finally(() => {
+          if (screenshotRequestRef.current !== screenshotRequestID) return;
+          setScreenshotsLoading(false);
+        });
     }
   }
 
