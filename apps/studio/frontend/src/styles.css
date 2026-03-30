@@ -1364,3 +1364,115 @@ textarea {
 .section-data-card .env-key {
   min-width: 140px;
 }
+
+/* ── Data tables ─────────────────────────────────── */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--separator);
+}
+
+.data-table td {
+  padding: 8px 10px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--separator);
+  vertical-align: top;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table td.mono,
+.data-table .mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.section-header-row .section-label {
+  margin: 0;
+}
+
+.section-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ── Status pills ────────────────────────────────── */
+
+.status-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.status-pill.status-approved,
+.status-pill.status-ready-for-distribution {
+  background: rgba(52, 199, 89, 0.12);
+  color: #1a9a3a;
+}
+
+.status-pill.status-pending-developer-release,
+.status-pill.status-waiting-for-review {
+  background: rgba(255, 159, 10, 0.12);
+  color: #b86e00;
+}
+
+.status-pill.status-prepare-for-submission,
+.status-pill.status-draft {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--accent);
+}
+
+.status-pill.status-in-review {
+  background: rgba(88, 86, 214, 0.1);
+  color: #5856d6;
+}
+
+.status-pill.status-rejected,
+.status-pill.status-developer-rejected,
+.status-pill.status-removed-from-sale {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--red);
+}
+
+/* ── Subscription groups ─────────────────────────── */
+
+.sub-group {
+  margin-bottom: 20px;
+}
+
+.sub-group:last-child {
+  margin-bottom: 0;
+}
+
+.sub-group-name {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}

@@ -19,6 +19,8 @@ export function GetScreenshots(arg1:string):Promise<main.ScreenshotsResponse>;
 
 export function GetSettings():Promise<settings.StudioSettings>;
 
+export function GetSubscriptions(arg1:string):Promise<main.SubscriptionsResponse>;
+
 export function GetVersionMetadata(arg1:string):Promise<main.VersionMetadataResponse>;
 
 export function ListApprovals():Promise<Array<approvals.Action>>;

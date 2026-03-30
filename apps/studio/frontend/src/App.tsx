@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
-import { Bootstrap, CheckAuthStatus, GetAppDetail, GetScreenshots, GetSettings, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
+import { Bootstrap, CheckAuthStatus, GetAppDetail, GetScreenshots, GetSettings, GetSubscriptions, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 type SidebarGroup = { label: string; items: NavSection[] };
@@ -67,7 +67,6 @@ const sectionCommands: Record<string, string> = {
   "game-center": "game-center achievements list --app APP_ID --output json",
   "pricing": "pricing schedule view --app APP_ID --output json",
   "iap": "iap list --app APP_ID --output json",
-  "subscriptions": "subscriptions groups list --app APP_ID --output json",
   "nominations": "nominations list --output json",
 };
 
@@ -158,6 +157,7 @@ export default function App() {
   const [appsLoading, setAppsLoading] = useState(false);
   // Cache of section data keyed by section ID. Prefetched in parallel on app select.
   const [sectionCache, setSectionCache] = useState<Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }>>({});
+  const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; groupLevel: number }[] }>({ loading: false, items: [] });
 
   useEffect(() => {
     Promise.all([Bootstrap(), CheckAuthStatus()])
@@ -240,6 +240,14 @@ export default function App() {
       initial[sectionId] = { loading: true, items: [] };
     }
     setSectionCache(initial);
+    // Subscriptions: dedicated two-phase fetch
+    setSubscriptions({ loading: true, items: [] });
+    GetSubscriptions(appId)
+      .then((res) => {
+        if (res.error) setSubscriptions({ loading: false, error: res.error, items: [] });
+        else setSubscriptions({ loading: false, items: res.subscriptions ?? [] });
+      })
+      .catch((e) => setSubscriptions({ loading: false, error: String(e), items: [] }));
 
     for (const [sectionId, cmdTemplate] of Object.entries(sectionCommands)) {
       const cmd = cmdTemplate.replace(/APP_ID/g, appId);
@@ -777,6 +785,58 @@ export default function App() {
               );
             })() : null}
           </div>
+        ) : activeSection.id === "subscriptions" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Subscriptions</h3>
+              {subscriptions.loading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : subscriptions.error ? (
+                <p className="empty-hint">{subscriptions.error}</p>
+              ) : subscriptions.items.length === 0 ? (
+                <p className="empty-hint">No subscriptions found.</p>
+              ) : (() => {
+                const groups = [...new Set(subscriptions.items.map((s) => s.groupName))];
+                return groups.map((group) => (
+                  <div key={group} className="sub-group">
+                    <p className="sub-group-name">{group}</p>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Product ID</th>
+                          <th>Period</th>
+                          <th>Level</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subscriptions.items
+                          .filter((s) => s.groupName === group)
+                          .sort((a, b) => a.groupLevel - b.groupLevel)
+                          .map((s) => (
+                            <tr key={s.productId}>
+                              <td>{s.name}</td>
+                              <td className="mono">{s.productId}</td>
+                              <td>{s.subscriptionPeriod.replace(/_/g, " ").toLowerCase()}</td>
+                              <td>{s.groupLevel}</td>
+                              <td><span className={`status-pill status-${s.state.toLowerCase()}`}>{s.state}</span></td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        ) : activeSection.id === "promo-codes" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Promo Codes</h3>
+              <p className="empty-hint">Promo codes are managed per-subscription or per-IAP. Use the ACP chat to generate codes.</p>
+            </div>
+          </div>
         ) : selectedAppId && sectionCommands[activeSection.id] ? (() => {
           const cache = sectionCache[activeSection.id];
           if (!cache || cache.loading) {
@@ -809,27 +869,71 @@ export default function App() {
               </div>
             );
           }
+          // Build column list from all items' keys
+          const allKeys = new Set<string>();
+          for (const item of cache.items) {
+            for (const [k, v] of Object.entries(item)) {
+              if (k !== "id" && k !== "type" && v !== null && v !== undefined && v !== "" && typeof v !== "object") {
+                allKeys.add(k);
+              }
+            }
+          }
+          const columns = [...allKeys];
+          // Single-item views (like age-rating) render as key-value pairs
+          if (cache.items.length === 1) {
+            const item = cache.items[0];
+            return (
+              <div className="app-detail-view">
+                <div className="app-detail-section">
+                  <h3 className="section-label">{activeSection.label}</h3>
+                  <div className="env-grid">
+                    {columns.map((key) => (
+                      <div key={key} className="env-row">
+                        <span className="env-key">{fieldLabels[key] ?? key}</span>
+                        <span className="env-value">{String(item[key] ?? "")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          }
           return (
             <div className="app-detail-view">
               <div className="app-detail-section">
-                <h3 className="section-label">{activeSection.label}</h3>
-                <div className="section-data-list">
-                  {cache.items.map((item, idx) => {
-                    const attrs = Object.entries(item).filter(
-                      ([k, v]) => k !== "id" && k !== "type" && v !== null && v !== undefined && v !== ""
-                    );
-                    return (
-                      <div key={item.id as string ?? idx} className="section-data-card">
-                        {attrs.map(([key, val]) => (
-                          <div key={key} className="env-row">
-                            <span className="env-key">{fieldLabels[key] ?? key}</span>
-                            <span className="env-value">{typeof val === "object" ? JSON.stringify(val) : String(val)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+                <div className="section-header-row">
+                  <h3 className="section-label">{activeSection.label}</h3>
+                  <span className="section-count">{cache.items.length} items</span>
                 </div>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      {columns.map((col) => (
+                        <th key={col}>{fieldLabels[col] ?? col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cache.items.map((item, idx) => (
+                      <tr key={item.id as string ?? idx}>
+                        {columns.map((col) => {
+                          const val = item[col];
+                          const isState = col === "state" || col === "appVersionState" || col === "appStoreState" || col === "processingState";
+                          const display = val != null ? String(val) : "";
+                          return (
+                            <td key={col}>
+                              {isState ? (
+                                <span className={`status-pill status-${display.toLowerCase().replace(/_/g, "-")}`}>
+                                  {display.replace(/_/g, " ")}
+                                </span>
+                              ) : display}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           );

@@ -30,6 +30,10 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function GetSubscriptions(arg1) {
+  return window['go']['main']['App']['GetSubscriptions'](arg1);
+}
+
 export function GetVersionMetadata(arg1) {
   return window['go']['main']['App']['GetVersionMetadata'](arg1);
 }

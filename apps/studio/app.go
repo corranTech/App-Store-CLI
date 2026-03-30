@@ -125,6 +125,20 @@ type ASCCommandResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
+type SubscriptionItem struct {
+	GroupName          string `json:"groupName"`
+	Name               string `json:"name"`
+	ProductID          string `json:"productId"`
+	State              string `json:"state"`
+	SubscriptionPeriod string `json:"subscriptionPeriod"`
+	GroupLevel         int    `json:"groupLevel"`
+}
+
+type SubscriptionsResponse struct {
+	Subscriptions []SubscriptionItem `json:"subscriptions"`
+	Error         string             `json:"error,omitempty"`
+}
+
 type AppLocalization struct {
 	LocalizationID  string `json:"localizationId"`
 	Locale          string `json:"locale"`
@@ -377,6 +391,92 @@ func (a *App) fetchSubtitle(ctx context.Context, ascPath, appID string) string {
 
 // RunASCCommand runs an arbitrary asc CLI command and returns the raw JSON output.
 // args is a space-separated command string, e.g. "reviews list --app 123 --limit 10 --output json".
+// GetSubscriptions fetches subscription groups, then subscriptions for each group concurrently.
+func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
+	if strings.TrimSpace(appID) == "" {
+		return SubscriptionsResponse{Error: "app ID is required"}, nil
+	}
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return SubscriptionsResponse{Error: err.Error()}, nil
+	}
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	defer cancel()
+
+	// Step 1: get groups
+	cmd := exec.CommandContext(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--output", "json")
+	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return SubscriptionsResponse{Error: strings.TrimSpace(string(out))}, nil
+	}
+	type groupItem struct {
+		ID         string `json:"id"`
+		Attributes struct {
+			ReferenceName string `json:"referenceName"`
+		} `json:"attributes"`
+	}
+	var groupEnv struct {
+		Data []groupItem `json:"data"`
+	}
+	if json.Unmarshal(out, &groupEnv) != nil {
+		return SubscriptionsResponse{Error: "failed to parse groups"}, nil
+	}
+
+	// Step 2: fetch subscriptions per group concurrently
+	type subResult struct {
+		groupName string
+		subs      []SubscriptionItem
+	}
+	ch := make(chan subResult, len(groupEnv.Data))
+	for _, g := range groupEnv.Data {
+		go func(groupID, groupName string) {
+			cmd := exec.CommandContext(ctx, ascPath, "subscriptions", "list", "--group-id", groupID, "--output", "json")
+			cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				ch <- subResult{groupName: groupName}
+				return
+			}
+			type rawSub struct {
+				Attributes struct {
+					Name               string `json:"name"`
+					ProductID          string `json:"productId"`
+					State              string `json:"state"`
+					SubscriptionPeriod string `json:"subscriptionPeriod"`
+					GroupLevel         int    `json:"groupLevel"`
+				} `json:"attributes"`
+			}
+			var env struct {
+				Data []rawSub `json:"data"`
+			}
+			if json.Unmarshal(out, &env) != nil {
+				ch <- subResult{groupName: groupName}
+				return
+			}
+			items := make([]SubscriptionItem, 0, len(env.Data))
+			for _, s := range env.Data {
+				items = append(items, SubscriptionItem{
+					GroupName:          groupName,
+					Name:               s.Attributes.Name,
+					ProductID:          s.Attributes.ProductID,
+					State:              s.Attributes.State,
+					SubscriptionPeriod: s.Attributes.SubscriptionPeriod,
+					GroupLevel:         s.Attributes.GroupLevel,
+				})
+			}
+			ch <- subResult{groupName: groupName, subs: items}
+		}(g.ID, g.Attributes.ReferenceName)
+	}
+
+	var all []SubscriptionItem
+	for range groupEnv.Data {
+		r := <-ch
+		all = append(all, r.subs...)
+	}
+	return SubscriptionsResponse{Subscriptions: all}, nil
+}
+
 func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 	if strings.TrimSpace(args) == "" {
 		return ASCCommandResponse{Error: "args required"}, nil

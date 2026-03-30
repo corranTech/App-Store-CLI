@@ -502,6 +502,60 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class SubscriptionItem {
+	    groupName: string;
+	    name: string;
+	    productId: string;
+	    state: string;
+	    subscriptionPeriod: string;
+	    groupLevel: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SubscriptionItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groupName = source["groupName"];
+	        this.name = source["name"];
+	        this.productId = source["productId"];
+	        this.state = source["state"];
+	        this.subscriptionPeriod = source["subscriptionPeriod"];
+	        this.groupLevel = source["groupLevel"];
+	    }
+	}
+	export class SubscriptionsResponse {
+	    subscriptions: SubscriptionItem[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SubscriptionsResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.subscriptions = this.convertValues(source["subscriptions"], SubscriptionItem);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class VersionMetadataResponse {
 	    localizations: AppLocalization[];
 	    error?: string;
