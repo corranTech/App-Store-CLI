@@ -11,13 +11,13 @@ It answers four things:
 3. How the information architecture should evolve, especially for team admin, signing, automation, and app-platform surfaces.
 4. What the most native-feeling Wails/macOS implementation should be for the header, tabs, and top-level workspace split.
 
-This report is based on the current Studio frontend in [apps/studio/frontend/src/App.tsx](/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI/apps/studio/frontend/src/App.tsx), the current Wails shell in [apps/studio/main.go](/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI/apps/studio/main.go), and the current root CLI registry in [internal/cli/registry/registry.go](/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI/internal/cli/registry/registry.go).
+This report is based on the current Studio frontend in `apps/studio/frontend/src/App.tsx`, the current Wails shell in `apps/studio/main.go`, and the current root CLI registry in `internal/cli/registry/registry.go`.
 
 ## Current Reality
 
 `asc` currently exposes about 75 root command families from `asc --help`.
 
-`ASC Studio` currently exposes 21 app-facing sidebar sections in [apps/studio/frontend/src/App.tsx](/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI/apps/studio/frontend/src/App.tsx):
+`ASC Studio` currently exposes 21 app-facing sidebar sections in `apps/studio/frontend/src/App.tsx`:
 
 - `overview`
 - `status`
@@ -237,7 +237,7 @@ Wails currently gives you native macOS title bar customization such as:
 - toolbar usage
 - hidden toolbar separator
 
-Those are already enabled in [apps/studio/main.go](/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI/apps/studio/main.go):
+Those are already enabled in `apps/studio/main.go`:
 
 - `TitlebarAppearsTransparent: true`
 - `HideTitle: true`
@@ -722,7 +722,7 @@ If another agent is continuing the work, this is the best order:
 
 ### Current Wails Window Setup
 
-See [apps/studio/main.go](/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI/apps/studio/main.go). The app already uses:
+See `apps/studio/main.go`. The app already uses:
 
 - translucent window
 - transparent webview
@@ -734,7 +734,7 @@ This is already the right shell for a native-feeling macOS desktop app.
 
 ### Current Studio IA Source
 
-Sidebar structure and section routing currently live mostly in [apps/studio/frontend/src/App.tsx](/Users/rudrank/Developer/CLIs/App-Store-Connect-CLI/apps/studio/frontend/src/App.tsx).
+Sidebar structure and section routing currently live mostly in `apps/studio/frontend/src/App.tsx`.
 
 The next agent should expect to refactor that file rather than just append more conditions to it.
 
