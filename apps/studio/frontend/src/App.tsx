@@ -94,11 +94,19 @@ const fieldLabels: Record<string, string> = {
   violenceRealisticProlongedGraphicOrSadistic: "Violence (Graphic/Sadistic)",
   copyright: "Copyright", releaseType: "Release Type",
   appStoreAgeRating: "Age Rating", kidsAgeBand: "Kids Age Band",
+  deviceFamily: "Device", supportsAudioDescriptions: "Audio Descriptions",
+  supportsCaptions: "Captions", supportsDarkInterface: "Dark Interface",
+  supportsDifferentiateWithoutColorAlone: "Differentiate Without Color",
+  supportsLargeText: "Large Text", supportsVoiceOver: "VoiceOver",
+  supportsSwitchControl: "Switch Control", supportsAssistiveTouch: "Assistive Touch",
+  supportsReduceMotion: "Reduce Motion", supportsGuidedAccess: "Guided Access",
 };
 
 // Format raw API enum values for display
 const displayValue: Record<string, string> = {
   IOS: "iOS", MAC_OS: "macOS", TV_OS: "tvOS", VISION_OS: "visionOS",
+  IPHONE: "iPhone", IPAD: "iPad", APPLE_TV: "Apple TV", APPLE_WATCH: "Apple Watch",
+  DRAFT: "Draft",
   READY_FOR_SALE: "Ready for Sale", READY_FOR_DISTRIBUTION: "Ready for Distribution",
   PREPARE_FOR_SUBMISSION: "Prepare for Submission", WAITING_FOR_REVIEW: "Waiting for Review",
   IN_REVIEW: "In Review", PENDING_DEVELOPER_RELEASE: "Pending Developer Release",
@@ -980,6 +988,38 @@ export default function App() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            );
+          }
+          // Wide tables (>5 columns): render each item as a vertical card
+          if (columns.length > 5) {
+            return (
+              <div className="app-detail-view">
+                <div className="app-detail-section">
+                  <div className="section-header-row">
+                    <h3 className="section-label">{activeSection.label}</h3>
+                    <span className="section-count">{cache.items.length} items</span>
+                  </div>
+                  {cache.items.map((item, idx) => (
+                    <div key={item.id as string ?? idx} className="vertical-card">
+                      <table className="data-table">
+                        <tbody>
+                          {columns.map((key) => {
+                            const raw = item[key] != null ? String(item[key]) : "";
+                            const display = fmt(raw);
+                            const isState = key === "state" || key === "appVersionState" || key === "appStoreState";
+                            return (
+                              <tr key={key}>
+                                <td className="vcard-label">{fieldLabels[key] ?? key}</td>
+                                <td>{isState ? <span className={`status-pill status-${raw.toLowerCase().replace(/_/g, "-")}`}>{display}</span> : display}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
                 </div>
               </div>
             );

@@ -1508,3 +1508,27 @@ textarea {
 .back-link:hover {
   text-decoration: underline;
 }
+
+/* ── Vertical cards (wide data transposed) ───────── */
+
+.vertical-card {
+  margin-bottom: 12px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.vertical-card:last-child {
+  margin-bottom: 0;
+}
+
+.vertical-card .data-table {
+  margin: 0;
+}
+
+.vertical-card .vcard-label {
+  width: 200px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
