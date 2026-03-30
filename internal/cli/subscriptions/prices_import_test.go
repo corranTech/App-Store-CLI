@@ -87,3 +87,10 @@ func TestResolveSubscriptionPriceImportTerritoryID_MapsCommonNames(t *testing.T)
 		t.Fatalf("expected AFG, got %q", got)
 	}
 }
+
+func TestResolveSubscriptionPriceImportTerritoryID_RejectsUnknownThreeLetterCode(t *testing.T) {
+	_, err := resolveSubscriptionPriceImportTerritoryID("ZZZ")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}

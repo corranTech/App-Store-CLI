@@ -79,6 +79,7 @@ type territoryNameMapResult struct {
 var (
 	subscriptionPriceImportTerritoryNamesOnce sync.Once
 	subscriptionPriceImportTerritoryNames     map[string]territoryNameMapResult
+	subscriptionPriceImportTerritoryIDs       map[string]struct{}
 )
 
 var subscriptionPricesImportKnownColumns = map[string]string{
@@ -562,13 +563,16 @@ func resolveSubscriptionPriceImportTerritoryID(raw string) (string, error) {
 
 	upper := strings.ToUpper(trimmed)
 	if isThreeLetterCode(upper) {
-		return upper, nil
+		if isKnownSubscriptionPriceImportTerritoryID(upper) {
+			return upper, nil
+		}
+		return "", fmt.Errorf("territory %q could not be mapped to an App Store Connect territory ID", trimmed)
 	}
 
 	// Accept alpha-2 inputs when users pass "US"/"GB" from spreadsheets.
 	if len(upper) == 2 {
 		if region, err := language.ParseRegion(upper); err == nil {
-			if iso3 := strings.ToUpper(strings.TrimSpace(region.ISO3())); isThreeLetterCode(iso3) {
+			if iso3 := strings.ToUpper(strings.TrimSpace(region.ISO3())); isKnownSubscriptionPriceImportTerritoryID(iso3) {
 				return iso3, nil
 			}
 		}
@@ -588,6 +592,7 @@ func resolveSubscriptionPriceImportTerritoryID(raw string) (string, error) {
 func subscriptionPriceImportTerritoryNameMap() map[string]territoryNameMapResult {
 	subscriptionPriceImportTerritoryNamesOnce.Do(func() {
 		m := make(map[string]territoryNameMapResult)
+		ids := make(map[string]struct{})
 		regionNamer := display.English.Regions()
 
 		for a := 'A'; a <= 'Z'; a++ {
@@ -603,9 +608,10 @@ func subscriptionPriceImportTerritoryNameMap() map[string]territoryNameMapResult
 						continue
 					}
 					name := strings.TrimSpace(regionNamer.Name(region))
-					if name == "" || strings.EqualFold(name, code) {
+					if name == "" || strings.EqualFold(name, code) || strings.EqualFold(name, "Unknown Region") {
 						continue
 					}
+					ids[iso3] = struct{}{}
 					key := normalizeSubscriptionPriceImportTerritoryName(name)
 					if key == "" {
 						continue
@@ -626,13 +632,25 @@ func subscriptionPriceImportTerritoryNameMap() map[string]territoryNameMapResult
 			if key == "" {
 				continue
 			}
-			m[key] = territoryNameMapResult{id: strings.ToUpper(strings.TrimSpace(id))}
+			normalizedID := strings.ToUpper(strings.TrimSpace(id))
+			if normalizedID == "" {
+				continue
+			}
+			m[key] = territoryNameMapResult{id: normalizedID}
+			ids[normalizedID] = struct{}{}
 		}
 
 		subscriptionPriceImportTerritoryNames = m
+		subscriptionPriceImportTerritoryIDs = ids
 	})
 
 	return subscriptionPriceImportTerritoryNames
+}
+
+func isKnownSubscriptionPriceImportTerritoryID(value string) bool {
+	subscriptionPriceImportTerritoryNameMap()
+	_, ok := subscriptionPriceImportTerritoryIDs[value]
+	return ok
 }
 
 func subscriptionPriceImportTerritoryAliases() map[string]string {
