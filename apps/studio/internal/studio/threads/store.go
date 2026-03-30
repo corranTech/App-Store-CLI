@@ -117,7 +117,7 @@ func (s *Store) SaveThread(next Thread) error {
 	if err := s.mkdirAll(filepath.Dir(s.path), 0o755); err != nil {
 		return fmt.Errorf("create thread directory: %w", err)
 	}
-	if err := s.write(s.path, data, 0o644); err != nil {
+	if err := s.write(s.path, data, 0o600); err != nil {
 		return fmt.Errorf("write thread store: %w", err)
 	}
 	return nil

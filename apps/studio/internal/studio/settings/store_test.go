@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -44,5 +45,24 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	}
 	if got.WorkspaceRoot != input.WorkspaceRoot {
 		t.Fatalf("WorkspaceRoot = %q, want %q", got.WorkspaceRoot, input.WorkspaceRoot)
+	}
+}
+
+func TestSaveUsesOwnerOnlyPermissions(t *testing.T) {
+	root := t.TempDir()
+	store := NewStore(root)
+
+	cfg := DefaultSettings()
+	cfg.AgentEnv["TOKEN"] = "secret"
+	if err := store.Save(cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	info, err := os.Stat(filepath.Join(root, "settings.json"))
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("permissions = %#o, want 0o600", got)
 	}
 }

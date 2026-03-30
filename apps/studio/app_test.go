@@ -125,7 +125,7 @@ func TestBundledASCPathPrefersAppBundleResources(t *testing.T) {
 	}
 }
 
-func TestConfigGuardSerializesConcurrentSnapshots(t *testing.T) {
+func TestConfigGuardRestoresOriginalSnapshotAfterConcurrentScopes(t *testing.T) {
 	tmpHome := t.TempDir()
 	configDir := filepath.Join(tmpHome, ".asc")
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
@@ -148,43 +148,64 @@ func TestConfigGuardSerializesConcurrentSnapshots(t *testing.T) {
 		_ = os.Setenv("HOME", originalHome)
 	})
 
+	ascConfigGuard = &configGuardState{}
+
 	restoreFirst := configGuard()
+	restoreSecond := configGuard()
+
 	if err := os.WriteFile(configPath, []byte(`{"profile":"corrupted"}`), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	secondReady := make(chan func(), 1)
-	go func() {
-		secondReady <- configGuard()
-	}()
-
-	select {
-	case <-secondReady:
-		t.Fatal("second configGuard() returned before the first restore unlocked it")
-	case <-time.After(150 * time.Millisecond):
-	}
-
 	restoreFirst()
 
-	var restoreSecond func()
-	select {
-	case restoreSecond = <-secondReady:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for second configGuard()")
+	got, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(got) != `{"profile":"corrupted"}` {
+		t.Fatalf("config contents after first restore = %q, want corruption to remain until final restore", string(got))
 	}
 
-	if err := os.WriteFile(configPath, []byte(`{"profile":"second-corruption"}`), 0o600); err != nil {
-		t.Fatalf("WriteFile() error = %v", err)
-	}
 	restoreSecond()
 
-	got, err := os.ReadFile(configPath)
+	got, err = os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
 	if string(got) != `{"profile":"good"}` {
 		t.Fatalf("config contents = %q, want original snapshot", string(got))
 	}
+}
+
+func TestConfigGuardAllowsConcurrentEntry(t *testing.T) {
+	ascConfigGuard = &configGuardState{}
+
+	restoreFirst := configGuard()
+	defer restoreFirst()
+
+	secondReady := make(chan struct{}, 1)
+	go func() {
+		restoreSecond := configGuard()
+		secondReady <- struct{}{}
+		restoreSecond()
+	}()
+
+	select {
+	case <-secondReady:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("second configGuard() blocked, want overlapping scopes to proceed")
+	}
+}
+
+func TestConfigGuardAllowsNestedCalls(t *testing.T) {
+	t.Helper()
+	ascConfigGuard = &configGuardState{}
+
+	restoreOuter := configGuard()
+	restoreInner := configGuard()
+	restoreInner()
+	restoreOuter()
 }
 
 func TestEnsureSessionSingleFlightsConcurrentCalls(t *testing.T) {
@@ -313,6 +334,54 @@ func TestStartThreadSessionTimesOutBootstrap(t *testing.T) {
 	_, err := app.startThreadSession(threads.Thread{ID: "thread-timeout"})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("startThreadSession() error = %v, want deadline exceeded", err)
+	}
+}
+
+func TestGetAppDetailReturnsVersionsError(t *testing.T) {
+	tmp := t.TempDir()
+	fakeASC := filepath.Join(tmp, "asc")
+	script := `#!/bin/sh
+set -eu
+if [ "$1" = "apps" ] && [ "$2" = "view" ]; then
+  printf '%s\n' '{"data":{"attributes":{"name":"Test App","bundleId":"com.example.test","sku":"SKU","primaryLocale":"en-US"}}}'
+  exit 0
+fi
+if [ "$1" = "versions" ] && [ "$2" = "list" ]; then
+  printf '%s\n' 'versions failed' >&2
+  exit 1
+fi
+if [ "$1" = "apps" ] && [ "$2" = "subtitle" ]; then
+  printf '%s\n' ''
+  exit 0
+fi
+printf '%s\n' "unexpected command: $*" >&2
+exit 1
+`
+	if err := os.WriteFile(fakeASC, []byte(script), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	settingsStore := settings.NewStore(tmp)
+	if err := settingsStore.Save(settings.StudioSettings{
+		SystemASCPath:    fakeASC,
+		PreferBundledASC: false,
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	app := &App{
+		rootDir:   tmp,
+		settings:  settingsStore,
+		threads:   threads.NewStore(tmp),
+		approvals: approvals.NewQueue(),
+	}
+
+	got, err := app.GetAppDetail("1")
+	if err != nil {
+		t.Fatalf("GetAppDetail() error = %v", err)
+	}
+	if got.Error != "versions failed" {
+		t.Fatalf("GetAppDetail().Error = %q, want versions failed", got.Error)
 	}
 }
 

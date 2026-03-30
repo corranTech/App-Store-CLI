@@ -66,7 +66,7 @@ vi.mock("../wailsjs/go/models", () => ({
   },
 }));
 
-import App from "./App";
+import App, { insightsWeekStart } from "./App";
 
 describe("App", () => {
   beforeEach(() => {
@@ -276,8 +276,51 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(mockRunASCCommand.mock.calls.map(([cmd]) => cmd)).toContain(
-        "nominations list --status DRAFT,SUBMITTED,ARCHIVED --output json",
+        "nominations list --app 1 --status DRAFT,SUBMITTED,ARCHIVED --output json",
       );
+    });
+  });
+
+  it("preserves agent env when saving settings", async () => {
+    mockBootstrap.mockResolvedValue({
+      appName: "ASC Studio",
+      environment: {
+        configPath: "/Users/test/.asc/config.json",
+        configPresent: true,
+        defaultAppId: "123456",
+        keychainAvailable: true,
+        keychainBypassed: false,
+        workflowPath: "",
+      },
+      settings: {
+        preferredPreset: "codex",
+        agentCommand: "codex",
+        agentArgs: ["agent", "acp"],
+        agentEnv: { OPENAI_API_KEY: "secret" },
+        preferBundledASC: true,
+        systemASCPath: "",
+        workspaceRoot: "",
+        theme: "system",
+        windowMaterial: "translucent",
+        showCommandPreviews: true,
+      },
+      presets: [],
+      threads: [],
+      approvals: [],
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    fireEvent.click(screen.getByRole("button", { name: /settings/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save settings/i }));
+
+    await waitFor(() => {
+      expect(mockSaveSettings).toHaveBeenCalled();
+    });
+
+    expect(mockSaveSettings.mock.calls.at(-1)?.[0]).toMatchObject({
+      agentEnv: { OPENAI_API_KEY: "secret" },
     });
   });
 
@@ -328,6 +371,10 @@ describe("App", () => {
     await screen.findByText("Connected");
 
     expect(document.querySelector(".studio-shell")).toHaveAttribute("data-theme", "dark");
+  });
+
+  it("uses the current week's Monday for weekly insights on Sundays", () => {
+    expect(insightsWeekStart(new Date("2026-03-29T12:00:00Z"))).toBe("2026-03-23");
   });
 
   it("ignores stale tester responses after switching groups", async () => {

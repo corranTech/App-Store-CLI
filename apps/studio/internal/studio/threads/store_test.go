@@ -1,6 +1,8 @@
 package threads
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -31,5 +33,28 @@ func TestSaveThreadRoundTrip(t *testing.T) {
 	}
 	if len(got.Messages) != 1 {
 		t.Fatalf("len(Messages) = %d, want 1", len(got.Messages))
+	}
+}
+
+func TestSaveThreadUsesOwnerOnlyPermissions(t *testing.T) {
+	root := t.TempDir()
+	store := NewStore(root)
+	now := time.Now().UTC()
+
+	if err := store.SaveThread(Thread{
+		ID:        "thread-1",
+		Title:     "Release Prep",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}); err != nil {
+		t.Fatalf("SaveThread() error = %v", err)
+	}
+
+	info, err := os.Stat(filepath.Join(root, "threads.json"))
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("permissions = %#o, want 0o600", got)
 	}
 }

@@ -90,7 +90,7 @@ func (s *Store) Save(cfg StudioSettings) error {
 		return fmt.Errorf("encode settings: %w", err)
 	}
 	data = append(data, '\n')
-	if err := s.write(s.path, data, 0o644); err != nil {
+	if err := s.write(s.path, data, 0o600); err != nil {
 		return fmt.Errorf("write settings: %w", err)
 	}
 	return nil

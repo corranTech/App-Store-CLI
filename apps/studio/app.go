@@ -26,7 +26,15 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/threads"
 )
 
-var ascConfigGuardMu sync.Mutex
+type configGuardState struct {
+	mu       sync.Mutex
+	active   int
+	path     string
+	original []byte
+	valid    bool
+}
+
+var ascConfigGuard = &configGuardState{}
 
 type App struct {
 	ctx         context.Context
@@ -1122,7 +1130,12 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 		cmd := a.newASCCommand(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			versionsCh <- versionsResult{err: err}
+			trimmed := strings.TrimSpace(string(out))
+			if trimmed == "" {
+				versionsCh <- versionsResult{err: err}
+				return
+			}
+			versionsCh <- versionsResult{err: errors.New(trimmed)}
 			return
 		}
 		type rawVersion struct {
@@ -1138,7 +1151,7 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 			Data []rawVersion `json:"data"`
 		}
 		if json.Unmarshal(out, &env) != nil {
-			versionsCh <- versionsResult{}
+			versionsCh <- versionsResult{err: errors.New("failed to parse versions list")}
 			return
 		}
 		vs := make([]AppVersion, 0, len(env.Data))
@@ -1167,6 +1180,9 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 
 	if attrs.err != nil {
 		return AppDetail{Error: attrs.err.Error()}, nil
+	}
+	if vers.err != nil {
+		return AppDetail{Error: vers.err.Error()}, nil
 	}
 
 	return AppDetail{
@@ -1338,14 +1354,38 @@ func configGuard() func() {
 	}
 	path := filepath.Join(home, ".asc", "config.json")
 
-	ascConfigGuardMu.Lock()
-	original, err := os.ReadFile(path)
-	if err != nil {
-		ascConfigGuardMu.Unlock()
-		return func() {}
+	ascConfigGuard.mu.Lock()
+	if ascConfigGuard.active == 0 || ascConfigGuard.path != path {
+		original, err := os.ReadFile(path)
+		ascConfigGuard.path = path
+		if err != nil {
+			ascConfigGuard.original = nil
+			ascConfigGuard.valid = false
+		} else {
+			ascConfigGuard.original = append(ascConfigGuard.original[:0], original...)
+			ascConfigGuard.valid = true
+		}
 	}
+	ascConfigGuard.active++
+	valid := ascConfigGuard.valid
+	original := append([]byte(nil), ascConfigGuard.original...)
+	ascConfigGuard.mu.Unlock()
+
 	return func() {
-		defer ascConfigGuardMu.Unlock()
+		ascConfigGuard.mu.Lock()
+		ascConfigGuard.active--
+		shouldRestore := ascConfigGuard.active == 0 && valid
+		if ascConfigGuard.active == 0 {
+			ascConfigGuard.original = nil
+			ascConfigGuard.valid = false
+			ascConfigGuard.path = ""
+		}
+		ascConfigGuard.mu.Unlock()
+
+		if !shouldRestore {
+			return
+		}
+
 		current, err := os.ReadFile(path)
 		if err != nil || bytes.Equal(current, original) {
 			return

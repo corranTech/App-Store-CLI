@@ -77,7 +77,7 @@ const sectionCommands: Record<string, string> = {
   "ppo": "product-pages experiments list --v2 --app APP_ID --output json",
   "game-center": "game-center achievements list --app APP_ID --output json",
   "iap": "iap list --app APP_ID --output json",
-  "nominations": "nominations list --status DRAFT,SUBMITTED,ARCHIVED --output json",
+  "nominations": "nominations list --app APP_ID --status DRAFT,SUBMITTED,ARCHIVED --output json",
   "performance": "performance metrics list --app APP_ID --output json",
 };
 
@@ -159,6 +159,7 @@ type StudioSettings = {
   preferredPreset: string;
   agentCommand: string;
   agentArgs: string[];
+  agentEnv: Record<string, string>;
   preferBundledASC: boolean;
   systemASCPath: string;
   workspaceRoot: string;
@@ -180,6 +181,7 @@ const defaultSettings: StudioSettings = {
   preferredPreset: "codex",
   agentCommand: "",
   agentArgs: [],
+  agentEnv: {},
   preferBundledASC: true,
   systemASCPath: "",
   workspaceRoot: "",
@@ -218,6 +220,7 @@ function normalizeStudioSettings(input?: Partial<StudioSettings>): StudioSetting
     preferredPreset: input?.preferredPreset || "codex",
     agentCommand: input?.agentCommand || "",
     agentArgs: input?.agentArgs || [],
+    agentEnv: input?.agentEnv || {},
     preferBundledASC: input?.preferBundledASC ?? true,
     systemASCPath: input?.systemASCPath || "",
     workspaceRoot: input?.workspaceRoot || "",
@@ -245,6 +248,14 @@ function resolveTheme(theme: string | undefined, systemTheme: "light" | "dark"):
     default:
       return systemTheme;
   }
+}
+
+export function insightsWeekStart(today: Date): string {
+  const monday = new Date(today);
+  const day = today.getDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  monday.setDate(today.getDate() - daysSinceMonday);
+  return monday.toISOString().split("T")[0];
 }
 
 function normalizeAuthStatus(input?: Partial<AuthState>): AuthState {
@@ -419,7 +430,7 @@ export default function App() {
       preferredPreset: studioSettings.preferredPreset,
       agentCommand: studioSettings.agentCommand,
       agentArgs: studioSettings.agentArgs,
-      agentEnv: {},
+      agentEnv: studioSettings.agentEnv,
       preferBundledASC: studioSettings.preferBundledASC,
       systemASCPath: studioSettings.systemASCPath,
       workspaceRoot: studioSettings.workspaceRoot,
@@ -1293,9 +1304,7 @@ export default function App() {
           );
         })() : activeSection.id === "insights" && selectedAppId ? (() => {
           const today = new Date();
-          const monday = new Date(today);
-          monday.setDate(today.getDate() - today.getDay() + 1);
-          const weekStr = monday.toISOString().split("T")[0];
+          const weekStr = insightsWeekStart(today);
           return (
             <div className="app-detail-view">
               <div className="app-detail-section">
