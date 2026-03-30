@@ -50,6 +50,7 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { id: "performance", label: "Performance", description: "Metrics and diagnostics" },
       { id: "insights", label: "Insights", description: "Weekly and daily analytics" },
+      { id: "finance", label: "Finance", description: "Financial reports" },
     ],
   },
   {
@@ -77,6 +78,7 @@ const sectionCommands: Record<string, string> = {
   "game-center": "game-center achievements list --app APP_ID --output json",
   "iap": "iap list --app APP_ID --output json",
   "nominations": "nominations list --output json",
+  "performance": "performance metrics list --app APP_ID --output json",
 };
 
 // Human-readable field labels for known attribute keys
@@ -1194,18 +1196,75 @@ export default function App() {
               </div>
             </div>
           );
-        })() : activeSection.id === "performance" && selectedAppId ? (
-          <div className="app-detail-view">
-            <div className="app-detail-section">
-              <h3 className="section-label">Performance</h3>
-              <p className="empty-hint">Performance metrics require a build ID. Use the ACP chat to run: <code>asc performance metrics list --app {selectedAppId}</code></p>
+        })() : activeSection.id === "insights" && selectedAppId ? (() => {
+          const today = new Date();
+          const monday = new Date(today);
+          monday.setDate(today.getDate() - today.getDay() + 1);
+          const weekStr = monday.toISOString().split("T")[0];
+          return (
+            <div className="app-detail-view">
+              <div className="app-detail-section">
+                <h3 className="section-label">Weekly Insights</h3>
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+                  Week of {weekStr} — analytics source
+                </p>
+                {(() => {
+                  const cache = sectionCache["insights"];
+                  if (!cache) {
+                    // Fetch on first view
+                    RunASCCommand(`insights weekly --app ${selectedAppId} --source analytics --week ${weekStr} --output json`)
+                      .then((res) => {
+                        if (res.error) {
+                          setSectionCache((prev) => ({ ...prev, insights: { loading: false, error: res.error, items: [] } }));
+                        } else {
+                          try {
+                            const d = JSON.parse(res.data);
+                            const metrics = (d.metrics ?? []).map((m: Record<string, unknown>) => m);
+                            setSectionCache((prev) => ({ ...prev, insights: { loading: false, items: metrics } }));
+                          } catch {
+                            setSectionCache((prev) => ({ ...prev, insights: { loading: false, error: "Failed to parse", items: [] } }));
+                          }
+                        }
+                      });
+                    setSectionCache((prev) => ({ ...prev, insights: { loading: true, items: [] } }));
+                    return <p className="empty-hint">Loading…</p>;
+                  }
+                  if (cache.loading) return <p className="empty-hint">Loading…</p>;
+                  if (cache.error) return <p className="empty-hint">{cache.error}</p>;
+                  if (cache.items.length === 0) return <p className="empty-hint">No insights data.</p>;
+                  return (
+                    <table className="data-table">
+                      <thead><tr><th>Metric</th><th>Status</th><th>Value</th></tr></thead>
+                      <tbody>
+                        {cache.items.map((m, i) => (
+                          <tr key={i}>
+                            <td>{String(m.name ?? "").replace(/_/g, " ")}</td>
+                            <td><span className={`status-pill status-${String(m.status ?? "").toLowerCase()}`}>{fmt(String(m.status ?? ""))}</span></td>
+                            <td>{m.thisWeek != null ? String(m.thisWeek) : (m.reason ? String(m.reason) : "—")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
             </div>
-          </div>
-        ) : activeSection.id === "insights" && selectedAppId ? (
+          );
+        })() : activeSection.id === "finance" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
-              <h3 className="section-label">Insights</h3>
-              <p className="empty-hint">Run weekly insights via ACP chat: <code>asc insights weekly --app {selectedAppId} --source analytics</code></p>
+              <h3 className="section-label">Finance</h3>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
+                Financial reports require a vendor number. Set it in Settings or <code>~/.asc/config.json</code>.
+              </p>
+              <table className="data-table">
+                <thead><tr><th>Command</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td className="mono">asc finance reports --vendor VN --report-type FINANCIAL --region US --date 2025-12</td><td>Download financial report</td></tr>
+                  <tr><td className="mono">asc finance regions</td><td>List region codes</td></tr>
+                  <tr><td className="mono">asc analytics sales --vendor VN --type SALES --subtype SUMMARY --frequency DAILY --date 2026-03-29</td><td>Sales report</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         ) : activeSection.id === "pricing" && selectedAppId ? (
@@ -1431,7 +1490,29 @@ export default function App() {
           <div className="app-detail-view">
             <div className="app-detail-section">
               <h3 className="section-label">Promo Codes</h3>
-              <p className="empty-hint">Promo codes are managed per-subscription or per-IAP. Use the ACP chat to generate codes.</p>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+                Offer codes are per-subscription. Select a subscription to manage codes.
+              </p>
+              {subscriptions.loading ? (
+                <p className="empty-hint">Loading subscriptions…</p>
+              ) : subscriptions.items.length === 0 ? (
+                <p className="empty-hint">No subscriptions found for this app.</p>
+              ) : (
+                <table className="data-table">
+                  <thead><tr><th>Subscription</th><th>Product ID</th><th>Group</th><th>Status</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {subscriptions.items.map((s) => (
+                      <tr key={s.id}>
+                        <td style={{ fontWeight: 500 }}>{s.name}</td>
+                        <td className="mono">{s.productId}</td>
+                        <td>{s.groupName}</td>
+                        <td><span className={`status-pill status-${s.state.toLowerCase()}`}>{fmt(s.state)}</span></td>
+                        <td><code style={{ fontSize: 10, color: "var(--text-secondary)" }}>asc subscriptions offers offer-codes list --subscription-id {s.id}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         ) : selectedAppId && sectionCommands[activeSection.id] ? (() => {
