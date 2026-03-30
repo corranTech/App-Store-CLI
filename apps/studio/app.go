@@ -573,7 +573,7 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 	return TestFlightResponse{Groups: groups}, nil
 }
 
-// GetTestFlightTesters fetches testers for a specific group.
+// GetTestFlightTesters fetches ALL testers for a specific group (paginated).
 func (a *App) GetTestFlightTesters(groupID string) (TestFlightResponse, error) {
 	if strings.TrimSpace(groupID) == "" {
 		return TestFlightResponse{Error: "group ID is required"}, nil
@@ -583,14 +583,14 @@ func (a *App) GetTestFlightTesters(groupID string) (TestFlightResponse, error) {
 	if err != nil {
 		return TestFlightResponse{Error: err.Error()}, nil
 	}
-	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 120*time.Second)
 	defer cancel()
 
 	// Workaround for CLI bug #1292: --group filter fails with "Only one relationship filter".
-	// Use --next with the betaTesters relationship URL to fetch testers for a specific group.
+	// Use --next with the betaTesters relationship URL and --paginate to fetch ALL testers.
 	relationshipURL := fmt.Sprintf("https://api.appstoreconnect.apple.com/v1/betaGroups/%s/betaTesters?limit=200", groupID)
 	cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
-		"--next", relationshipURL, "--output", "json")
+		"--next", relationshipURL, "--paginate", "--output", "json")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return TestFlightResponse{Error: strings.TrimSpace(string(out))}, nil

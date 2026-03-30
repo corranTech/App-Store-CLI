@@ -278,58 +278,66 @@ export default function App() {
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
 
+  const loadStudioShell = useEffectEvent(async (options?: {
+    clearApps?: boolean;
+    isCancelled?: () => boolean;
+  }) => {
+    const isCancelled = options?.isCancelled ?? (() => false);
+
+    try {
+      const [data, auth] = await Promise.all([Bootstrap(), CheckAuthStatus()]);
+      if (isCancelled()) return;
+
+      startTransition(() => {
+        setEnv(normalizeEnvSnapshot(data.environment));
+        setStudioSettings(normalizeStudioSettings(data.settings));
+        setAuthStatus(normalizeAuthStatus(auth));
+        setBootstrapError("");
+        if (options?.clearApps) {
+          setAppList([]);
+        }
+      });
+
+      if (!auth?.authenticated) {
+        if (isCancelled()) return;
+        startTransition(() => {
+          setAppList([]);
+          setAppsLoading(false);
+        });
+        return;
+      }
+
+      setAppsLoading(true);
+      try {
+        const res = await ListApps();
+        if (isCancelled()) return;
+        startTransition(() => {
+          setAppList(mapAppList(res.apps));
+        });
+      } catch {
+        if (isCancelled()) return;
+        startTransition(() => {
+          setAppList([]);
+        });
+      } finally {
+        if (!isCancelled()) {
+          setAppsLoading(false);
+        }
+      }
+    } catch (err) {
+      if (isCancelled()) return;
+      setBootstrapError(String(err));
+    } finally {
+      if (!isCancelled()) {
+        setLoading(false);
+      }
+    }
+  });
+
   useEffect(() => {
     let cancelled = false;
 
-    async function bootstrapStudio() {
-      try {
-        const [data, auth] = await Promise.all([Bootstrap(), CheckAuthStatus()]);
-        if (cancelled) return;
-
-        startTransition(() => {
-          setEnv(normalizeEnvSnapshot(data.environment));
-          setStudioSettings(normalizeStudioSettings(data.settings));
-          setAuthStatus(normalizeAuthStatus(auth));
-          setBootstrapError("");
-        });
-
-        if (!auth?.authenticated) {
-          if (cancelled) return;
-          startTransition(() => {
-            setAppList([]);
-            setAppsLoading(false);
-          });
-          return;
-        }
-
-        setAppsLoading(true);
-        try {
-          const res = await ListApps();
-          if (cancelled) return;
-          startTransition(() => {
-            setAppList(mapAppList(res.apps));
-          });
-        } catch {
-          if (cancelled) return;
-          startTransition(() => {
-            setAppList([]);
-          });
-        } finally {
-          if (!cancelled) {
-            setAppsLoading(false);
-          }
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setBootstrapError(String(err));
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void bootstrapStudio();
+    void loadStudioShell({ isCancelled: () => cancelled });
     return () => {
       cancelled = true;
     };
@@ -534,37 +542,7 @@ export default function App() {
     } else {
       setLoading(true);
       setBootstrapError("");
-      startTransition(() => {
-        setAppList([]);
-      });
-      void Promise.all([Bootstrap(), CheckAuthStatus()])
-        .then(([data, auth]) => {
-          startTransition(() => {
-            setEnv(normalizeEnvSnapshot(data.environment));
-            setStudioSettings(normalizeStudioSettings(data.settings));
-            setAuthStatus(normalizeAuthStatus(auth));
-          });
-          if (!auth?.authenticated) {
-            startTransition(() => {
-              setAppsLoading(false);
-            });
-            return;
-          }
-          setAppsLoading(true);
-          return ListApps()
-            .then((res) => {
-              startTransition(() => {
-                setAppList(mapAppList(res.apps));
-              });
-            })
-            .finally(() => setAppsLoading(false));
-        })
-        .catch((err) => {
-          setBootstrapError(String(err));
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      void loadStudioShell({ clearApps: true });
     }
   });
 
@@ -1106,11 +1084,9 @@ export default function App() {
                           ))}
                         </tbody>
                       </table>
-                      {groupTesters.testers.length < (group?.testerCount ?? 0) && (
-                        <p style={{ marginTop: 8, fontSize: 11, color: "var(--text-secondary)" }}>
-                          Showing {groupTesters.testers.length} of {group?.testerCount} testers (API limit 200 per page)
-                        </p>
-                      )}
+                      <p style={{ marginTop: 8, fontSize: 11, color: "var(--text-secondary)" }}>
+                        {groupTesters.testers.length} testers loaded
+                      </p>
                     </>
                   )}
                 </div>
