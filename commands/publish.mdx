@@ -1,13 +1,13 @@
 # publish
 
-> End-to-end publish workflows for TestFlight and App Store
+> High-level publishing workflows for TestFlight, plus App Store release guidance
 
-The `publish` command provides high-level workflows for publishing apps to TestFlight or the App Store.
+The `publish` command remains the high-level surface for TestFlight workflows. For App Store releases, use `asc release run` to manage version setup, metadata application, build attachment, validation, and submission in one deterministic pipeline.
 
 ## Usage
 
 ```bash  theme={null}
-asc publish <workflow> [flags]
+asc publish testflight [flags]
 ```
 
 ## Workflows
@@ -29,23 +29,27 @@ This workflow:
 2. Waits for processing
 3. Distributes to specified beta groups
 
-### App Store workflow
-
-Submit to App Store:
+### Canonical App Store workflow
 
 ```bash  theme={null}
-asc publish appstore \
+# Upload a build first
+asc builds upload --app APP_ID --ipa /path/to/MyApp.ipa
+
+# Then run the App Store release pipeline
+asc release run \
   --app APP_ID \
   --version 1.2.0 \
-  --ipa /path/to/MyApp.ipa
+  --build BUILD_ID \
+  --metadata-dir ./metadata/version/1.2.0 \
+  --confirm
 ```
 
 This workflow:
 
-1. Uploads the build
-2. Waits for processing
-3. Attaches build to version
-4. Validates version
+1. Ensures or creates the target version
+2. Applies metadata and localizations
+3. Attaches the selected build
+4. Validates readiness
 5. Submits for review
 
 ## TestFlight flags
@@ -70,7 +74,7 @@ This workflow:
   Default: `true`
 </ParamField>
 
-## App Store flags
+## App Store release flags
 
 <ParamField path="--app" type="string" required>
   App ID for the version
@@ -80,14 +84,20 @@ This workflow:
   Version string (e.g., `1.2.0`)
 </ParamField>
 
-<ParamField path="--file" type="string" required>
-  Path to IPA file
+<ParamField path="--build" type="string" required>
+  Build ID to attach before validating and submitting
 </ParamField>
 
-<ParamField path="--submit --confirm" type="boolean">
-  Automatically release after approval
+<ParamField path="--metadata-dir" type="string" required>
+  Metadata directory to apply during the release pipeline
+</ParamField>
 
-  Default: `false`
+<ParamField path="--confirm" type="boolean" required>
+  Required confirmation flag for a mutating App Store release
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`
 </ParamField>
 
 ## Example workflows
@@ -101,14 +111,26 @@ asc publish testflight \
   --group "External Testers,Beta Team"
 ```
 
-### Publish to App Store
+### Stage an App Store release without submitting
 
 ```bash  theme={null}
-asc publish appstore \
+asc release stage \
   --app 123456789 \
   --version 1.2.0 \
-  --ipa build/MyApp.ipa \
-  --submit --confirm
+  --build BUILD_ID \
+  --copy-metadata-from 1.1.9 \
+  --dry-run
+```
+
+### Submit to the App Store
+
+```bash  theme={null}
+asc release run \
+  --app 123456789 \
+  --version 1.2.0 \
+  --build BUILD_ID \
+  --metadata-dir ./metadata/version/1.2.0 \
+  --confirm
 ```
 
 ### CI/CD integration
@@ -123,18 +145,17 @@ asc publish appstore \
       --group "External Testers"
 ```
 
-## Output
+## Example App Store output
 
 ```
 Uploading build...
 Build uploaded successfully
-Waiting for processing...
-Build processed (VALID)
-Distributing to beta groups...
-Build distributed to External Testers
+Running release pipeline...
+Readiness checks passed
+Submission created successfully
 
 Publish complete!
-Build ID: build-id-here
+Submission ID: submission-id-here
 ```
 
 ## Error handling
@@ -142,14 +163,14 @@ Build ID: build-id-here
 If any step fails, the workflow stops and reports the error:
 
 ```
-Upload failed: Invalid IPA file
+Release failed: metadata directory is missing required localization files
 ```
 
 You can retry individual steps using the lower-level commands:
 
 ```bash  theme={null}
 asc builds upload --app 123456789 --ipa MyApp.ipa
-asc builds add-groups --build-id BUILD_ID --group "External Testers"
+asc submit status --version-id VERSION_ID
 ```
 
 ## Related
@@ -160,7 +181,7 @@ asc builds add-groups --build-id BUILD_ID --group "External Testers"
   </Card>
 
   <Card title="Submit command" icon="paper-plane" href="/commands/submit">
-    Submit for App Store review
+    Monitor or cancel active submissions
   </Card>
 
   <Card title="Automation guide" icon="robot" href="/guides/automation">

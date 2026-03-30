@@ -581,6 +581,48 @@ USAGE
             self.assertIn("--build", errors[0])
             self.assertIn("--confirm", errors[0])
 
+    def test_website_command_checks_reject_hidden_deprecated_alias_examples(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"submit"},
+            ),
+            ("submit",): check_website_commands.CommandSpec(
+                path=("submit",),
+                usage="asc submit <subcommand> [flags]",
+                flags={},
+                subcommands={"preflight", "status", "cancel"},
+            ),
+        }
+
+        original_hidden_alias = check_website_commands.hidden_deprecated_alias_replacement
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "hidden_deprecated_alias_replacement",
+            original_hidden_alias,
+        )
+        check_website_commands.hidden_deprecated_alias_replacement = (
+            lambda _binary_path, _example: "asc release run"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "```bash\nasc submit create --app 123456789 --version 1.2.0 --build 42 --confirm\n```\n"
+            )
+            errors = check_website_commands.collect_errors(
+                website,
+                index,
+                Path(tmpdir) / "asc-doc-check",
+            )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("deprecated alias", errors[0])
+        self.assertIn("asc release run", errors[0])
+
 
 class DocLinksTest(unittest.TestCase):
     def test_normalize_target_strips_angle_brackets_before_prefix_check(self) -> None:

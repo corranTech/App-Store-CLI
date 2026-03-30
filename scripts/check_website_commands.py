@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import re
 import shlex
 import subprocess
@@ -108,16 +109,6 @@ def command_help(binary_path: Path, path: tuple[str, ...]) -> str:
     proc = subprocess.run(
         [str(binary_path), *path, "--help"],
         check=True,
-        capture_output=True,
-        text=True,
-    )
-    return proc.stderr or proc.stdout
-
-
-def example_help(binary_path: Path, tokens: tuple[str, ...]) -> str:
-    proc = subprocess.run(
-        [str(binary_path), *tokens[1:], "--help"],
-        check=False,
         capture_output=True,
         text=True,
     )
@@ -398,8 +389,19 @@ def deprecation_replacement(help_text: str) -> str | None:
     return None
 
 
+@functools.lru_cache(maxsize=None)
+def path_help(binary_path: Path, path: tuple[str, ...]) -> str:
+    proc = subprocess.run(
+        [str(binary_path), *path, "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return proc.stderr or proc.stdout
+
+
 def hidden_deprecated_alias_replacement(binary_path: Path, example: Example) -> str | None:
-    return deprecation_replacement(example_help(binary_path, example.tokens))
+    return deprecation_replacement(path_help(binary_path, token_command_path(example.tokens)))
 
 
 def token_command_path(tokens: tuple[str, ...]) -> tuple[str, ...]:
@@ -590,12 +592,9 @@ def tokens_are_root_only_invocation(
 def validate_not_deprecated(
     example: Example,
     binary_path: Path,
-    index: dict[tuple[str, ...], CommandSpec],
 ) -> list[str]:
     replacement = hidden_deprecated_alias_replacement(binary_path, example)
     if replacement is None:
-        return []
-    if token_command_path(example.tokens) not in index:
         return []
     return [
         f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
@@ -621,7 +620,7 @@ def collect_errors(
             continue
         if example.source != "fenced":
             continue
-        errors.extend(validate_not_deprecated(example, binary_path, index))
+        errors.extend(validate_not_deprecated(example, binary_path))
     return errors
 
 

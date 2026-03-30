@@ -43,6 +43,10 @@ Commands are organized into logical families based on functionality:
 * `init` - Initialize asc helper docs in the current repo
 * `docs` - Access embedded documentation guides and reference helpers
 
+### Experimental and Unofficial
+
+* `web` - Unofficial Apple web-session workflows. Experimental, unofficial, and discouraged.
+
 ### Analytics and Finance
 
 * `analytics` - Request and download analytics and sales reports
@@ -168,7 +172,7 @@ asc apps view --id "123456789" --output json
 
 # Validate and submit an App Store version
 asc validate --app "123456789" --version "1.2.3"
-asc submit create --app "123456789" --version "1.2.3" --build "BUILD_ID" --confirm
+asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --confirm
 
 # Run a local automation workflow
 asc workflow run --file .asc/workflow.json release

@@ -2,7 +2,7 @@
 
 > Submit builds for App Store review and manage the submission lifecycle
 
-Automate the complete App Store submission process, from attaching builds to versions through monitoring review status.
+Automate the complete App Store submission process, from preparing metadata through monitoring review status. Use `asc release run` for the canonical end-to-end App Store path, then use `asc submit status` or `asc submit cancel` to monitor and manage the review lifecycle.
 
 ## Overview
 
@@ -24,6 +24,7 @@ Before submitting, ensure you have:
 3. All localizations configured with required fields
 4. Screenshots uploaded for at least one device type
 5. Privacy information and app review details completed
+6. A metadata directory such as `./metadata/version/1.0.0` if you plan to use `asc release run`
 
 ## Submission Workflow
 
@@ -98,33 +99,36 @@ Before submitting, ensure you have:
   </Step>
 
   <Step title="Submit for review">
-    Submit the build (with automatic preflight validation):
+    Run the canonical App Store release pipeline:
 
     ```bash  theme={null}
-    asc submit create \
+    asc release run \
       --app "YOUR_APP_ID" \
       --version "1.0.0" \
       --build "BUILD_ID" \
+      --metadata-dir "./metadata/version/1.0.0" \
       --confirm
     ```
 
-    Or submit using version ID:
+    Preview the plan before mutating anything:
 
     ```bash  theme={null}
-    asc submit create \
+    asc release run \
       --app "YOUR_APP_ID" \
-      --version-id "VERSION_ID" \
+      --version "1.0.0" \
       --build "BUILD_ID" \
-      --confirm
+      --metadata-dir "./metadata/version/1.0.0" \
+      --dry-run
     ```
 
     For macOS, tvOS, or visionOS apps, specify the platform:
 
     ```bash  theme={null}
-    asc submit create \
+    asc release run \
       --app "YOUR_APP_ID" \
       --version "1.0.0" \
       --build "BUILD_ID" \
+      --metadata-dir "./metadata/version/1.0.0" \
       --platform MAC_OS \
       --confirm
     ```
@@ -205,10 +209,11 @@ If you need to make changes after submitting:
 
   <Step title="Resubmit">
     ```bash  theme={null}
-    asc submit create \
+    asc release run \
       --app "YOUR_APP_ID" \
-      --version-id "VERSION_ID" \
+      --version "1.0.0" \
       --build "NEW_BUILD_ID" \
+      --metadata-dir "./metadata/version/1.0.0" \
       --confirm
     ```
   </Step>
@@ -267,19 +272,27 @@ asc localizations update \
   --keywords "productivity,tools" \
   --whats-new "Bug fixes and performance improvements"
 
-# 4. Submit for review
-echo "Submitting for review..."
-asc submit create \
+# 4. Create and submit the review submission
+echo "Creating review submission..."
+SUBMISSION_ID=$(asc review submissions-create \
   --app "$ASC_APP_ID" \
-  --version-id "$VERSION_ID" \
-  --build "$BUILD_ID" \
   --platform "$PLATFORM" \
+  --output json | jq -r '.data.id')
+
+asc review items-add \
+  --submission "$SUBMISSION_ID" \
+  --item-type appStoreVersions \
+  --item-id "$VERSION_ID"
+
+asc review submissions-submit \
+  --id "$SUBMISSION_ID" \
   --confirm
 
 echo "Submission complete!"
+echo "Submission ID: $SUBMISSION_ID"
 
 # 5. Check status
-asc submit status --version-id "$VERSION_ID"
+asc submit status --id "$SUBMISSION_ID"
 ```
 
 ## Preflight Validation
@@ -300,7 +313,7 @@ If any fields are missing, the submission will fail with a detailed error:
 Submit preflight failed: submission-blocking localization fields are missing:
   - en-US: description, keywords
   - es-ES: whats-new
-Fix these with `asc apps info edit` (optionally using `--copy-from-locale`) before retrying `asc submit create`.
+Fix these with `asc apps info edit` (optionally using `--copy-from-locale`) before retrying `asc release run`.
 ```
 
 ### Fixing Validation Errors
@@ -374,10 +387,11 @@ If your submission is rejected:
 4. Resubmit:
 
 ```bash  theme={null}
-asc submit create \
+asc release run \
   --app "YOUR_APP_ID" \
-  --version-id "VERSION_ID" \
+  --version "1.0.0" \
   --build "FIXED_BUILD_ID" \
+  --metadata-dir "./metadata/version/1.0.0" \
   --confirm
 ```
 
@@ -388,10 +402,11 @@ asc submit create \
 For macOS apps, specify the `MAC_OS` platform:
 
 ```bash  theme={null}
-asc submit create \
+asc release run \
   --app "YOUR_APP_ID" \
   --version "1.0.0" \
   --build "BUILD_ID" \
+  --metadata-dir "./metadata/version/1.0.0" \
   --platform MAC_OS \
   --confirm
 ```
@@ -401,10 +416,11 @@ asc submit create \
 For tvOS apps, use the `TV_OS` platform:
 
 ```bash  theme={null}
-asc submit create \
+asc release run \
   --app "YOUR_APP_ID" \
   --version "1.0.0" \
   --build "BUILD_ID" \
+  --metadata-dir "./metadata/version/1.0.0" \
   --platform TV_OS \
   --confirm
 ```
@@ -414,10 +430,11 @@ asc submit create \
 For visionOS apps, use the `VISION_OS` platform:
 
 ```bash  theme={null}
-asc submit create \
+asc release run \
   --app "YOUR_APP_ID" \
   --version "1.0.0" \
   --build "BUILD_ID" \
+  --metadata-dir "./metadata/version/1.0.0" \
   --platform VISION_OS \
   --confirm
 ```

@@ -259,12 +259,14 @@ set -e
 
 VERSION="1.2.3"
 BUILD_ID="12345"
+METADATA_DIR="./metadata/version/$VERSION"
 
 # Submit for review
-asc submit create \
+asc release run \
   --app "$APP_ID" \
   --version "$VERSION" \
   --build "$BUILD_ID" \
+  --metadata-dir "$METADATA_DIR" \
   --confirm
 
 # Notify Slack with success

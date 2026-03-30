@@ -223,6 +223,7 @@ Use this mental model:
 Lower-level alternatives (for validation or partial workflows):
 
 ```bash
+# Canonical readiness check (preferred over deprecated `asc submit preflight`)
 asc validate --app "123456789" --version "1.2.3"
 asc submit preflight --app "123456789" --version "1.2.3" --build "BUILD_ID"
 ```
