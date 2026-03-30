@@ -6,63 +6,125 @@ import { Bootstrap, CheckAuthStatus, GetAppDetail, GetFinanceRegions, GetOfferCo
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 type SidebarGroup = { label: string; items: NavSection[] };
+type Scope = { id: string; label: string; groups: SidebarGroup[] };
 
-const sidebarGroups: SidebarGroup[] = [
+const scopes: Scope[] = [
   {
-    label: "Distribution",
-    items: [
-      { id: "overview", label: "App Information", description: "App details and metadata" },
-      { id: "status", label: "Status", description: "Release health dashboard" },
-      { id: "builds", label: "Builds", description: "Build processing and history" },
-      { id: "testflight", label: "TestFlight", description: "Beta groups and testers" },
-      { id: "history", label: "History", description: "Version history" },
+    id: "app", label: "App",
+    groups: [
+      {
+        label: "Overview",
+        items: [
+          { id: "overview", label: "App Information", description: "App details and metadata" },
+          { id: "status", label: "Status", description: "Release health dashboard" },
+          { id: "history", label: "History", description: "Version history" },
+        ],
+      },
+      {
+        label: "Release",
+        items: [
+          { id: "builds", label: "Builds", description: "Build processing and history" },
+          { id: "testflight", label: "TestFlight", description: "Beta groups and testers" },
+          { id: "submit", label: "Submit", description: "Submit for review" },
+          { id: "validate", label: "Validate", description: "Pre-submission validation" },
+          { id: "release-notes", label: "Release Notes", description: "What's new" },
+        ],
+      },
+      {
+        label: "Metadata",
+        items: [
+          { id: "localizations", label: "Localizations", description: "Locale metadata" },
+          { id: "screenshots", label: "Screenshots", description: "App Store screenshots" },
+          { id: "video-previews", label: "Video Previews", description: "App preview videos" },
+          { id: "categories", label: "Categories", description: "App categories" },
+        ],
+      },
+      {
+        label: "Growth",
+        items: [
+          { id: "ratings-reviews", label: "Ratings and Reviews", description: "Customer reviews" },
+          { id: "in-app-events", label: "In-App Events", description: "App events" },
+          { id: "custom-product-pages", label: "Custom Product Pages", description: "Product pages" },
+          { id: "ppo", label: "Product Page Optimization", description: "A/B tests" },
+          { id: "promo-codes", label: "Promo Codes", description: "Offer codes" },
+          { id: "nominations", label: "Nominations", description: "Featuring nominations" },
+        ],
+      },
+      {
+        label: "Monetization",
+        items: [
+          { id: "pricing", label: "Pricing and Availability", description: "Pricing" },
+          { id: "iap", label: "In-App Purchases", description: "In-app purchases" },
+          { id: "subscriptions", label: "Subscriptions", description: "Subscription groups" },
+        ],
+      },
+      {
+        label: "Insights",
+        items: [
+          { id: "performance", label: "Performance", description: "Metrics and diagnostics" },
+          { id: "insights", label: "Insights", description: "Weekly analytics" },
+          { id: "finance", label: "Finance", description: "Financial reports" },
+        ],
+      },
+      {
+        label: "Compliance",
+        items: [
+          { id: "app-review", label: "App Review", description: "Review submissions" },
+          { id: "age-rating", label: "Age Rating", description: "Age rating declarations" },
+          { id: "app-accessibility", label: "Accessibility", description: "Accessibility declarations" },
+          { id: "encryption", label: "Encryption", description: "Export compliance" },
+        ],
+      },
+      {
+        label: "Platform",
+        items: [
+          { id: "game-center", label: "Game Center", description: "Game Center resources" },
+        ],
+      },
     ],
   },
   {
-    label: "General",
-    items: [
-      { id: "app-review", label: "App Review", description: "Review details and attachments" },
-      { id: "app-privacy", label: "App Privacy", description: "Privacy declarations" },
-      { id: "app-accessibility", label: "App Accessibility", description: "Accessibility declarations" },
-      { id: "ratings-reviews", label: "Ratings and Reviews", description: "Customer reviews" },
+    id: "team", label: "Team",
+    groups: [
+      {
+        label: "Account",
+        items: [
+          { id: "account-status", label: "Account", description: "Account health" },
+          { id: "users", label: "Users", description: "Team members" },
+          { id: "devices", label: "Devices", description: "Registered devices" },
+        ],
+      },
     ],
   },
   {
-    label: "Growth & Marketing",
-    items: [
-      { id: "in-app-events", label: "In-App Events", description: "App events" },
-      { id: "custom-product-pages", label: "Custom Product Pages", description: "Product pages" },
-      { id: "ppo", label: "Product Page Optimization", description: "A/B tests" },
-      { id: "promo-codes", label: "Promo Codes", description: "Promotional codes" },
-      { id: "game-center", label: "Game Center", description: "Game Center resources" },
+    id: "signing", label: "Signing",
+    groups: [
+      {
+        label: "Identifiers",
+        items: [
+          { id: "bundle-ids", label: "Bundle IDs", description: "App identifiers" },
+          { id: "certificates", label: "Certificates", description: "Signing certificates" },
+          { id: "profiles", label: "Profiles", description: "Provisioning profiles" },
+        ],
+      },
     ],
   },
   {
-    label: "Monetization",
-    items: [
-      { id: "pricing", label: "Pricing and Availability", description: "Pricing" },
-      { id: "iap", label: "In-App Purchases", description: "In-app purchases" },
-      { id: "subscriptions", label: "Subscriptions", description: "Subscription groups" },
-    ],
-  },
-  {
-    label: "Analytics & Finance",
-    items: [
-      { id: "performance", label: "Performance", description: "Metrics and diagnostics" },
-      { id: "insights", label: "Insights", description: "Weekly and daily analytics" },
-      { id: "finance", label: "Finance", description: "Financial reports" },
-    ],
-  },
-  {
-    label: "Featuring",
-    items: [
-      { id: "nominations", label: "Nominations", description: "Featuring nominations" },
+    id: "automation", label: "Automation",
+    groups: [
+      {
+        label: "Workflows",
+        items: [
+          { id: "xcode-cloud", label: "Xcode Cloud", description: "CI/CD workflows" },
+          { id: "webhooks", label: "Webhooks", description: "Webhook management" },
+        ],
+      },
     ],
   },
 ];
 
 // Flatten for lookup
-const allSections: NavSection[] = sidebarGroups.flatMap((g) => g.items);
+const allSections: NavSection[] = scopes.flatMap((s) => s.groups.flatMap((g) => g.items));
 allSections.push({ id: "settings", label: "Settings", description: "Studio preferences" });
 
 // Map section IDs to asc CLI commands. APP_ID is replaced at runtime.
@@ -79,6 +141,22 @@ const sectionCommands: Record<string, string> = {
   "iap": "iap list --app APP_ID --output json",
   "nominations": "nominations list --app APP_ID --status DRAFT,SUBMITTED,ARCHIVED --output json",
   "performance": "performance metrics list --app APP_ID --output json",
+  "submit": "review submissions-list --app APP_ID --output json",
+  "validate": "validate --app APP_ID --output json",
+  "release-notes": "localizations list --app APP_ID --output json",
+  "localizations": "localizations list --app APP_ID --type app-info --output json",
+  "video-previews": "localizations preview-sets list --app APP_ID --output json",
+  "categories": "categories list --output json",
+  "age-rating": "age-rating view --app APP_ID --output json",
+  "encryption": "encryption list --app APP_ID --output json",
+  "account-status": "account status --output json",
+  "users": "users list --output json",
+  "devices": "devices list --output json",
+  "bundle-ids": "bundle-ids list --output json",
+  "certificates": "certificates list --output json",
+  "profiles": "profiles list --output json",
+  "xcode-cloud": "xcode-cloud workflows list --app APP_ID --output json",
+  "webhooks": "webhooks list --app APP_ID --output json",
 };
 
 // Human-readable field labels for known attribute keys
@@ -276,6 +354,7 @@ function mapAppList(apps?: { id: string; name: string; subtitle: string }[]) {
 }
 
 export default function App() {
+  const [activeScope, setActiveScope] = useState<string>("app");
   const [activeSection, setActiveSection] = useState<NavSection>(allSections[0]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -721,8 +800,8 @@ export default function App() {
       <aside className="sidebar">
         <div className="sidebar-header" />
 
-        {/* App picker dropdown */}
-        <div className="sidebar-app-picker">
+        {/* App picker dropdown — only in App scope */}
+        {activeScope === "app" && <div className="sidebar-app-picker">
           {appsLoading ? (
             <div className="app-picker-placeholder">Loading apps…</div>
           ) : appList.length > 0 ? (
@@ -749,11 +828,11 @@ export default function App() {
               {authStatus.authenticated ? "No apps found" : "Not authenticated"}
             </div>
           )}
-        </div>
+        </div>}
 
         <div className="sidebar-scroll">
-        {/* Version badges when an app is selected */}
-        {appDetail && appDetail.versions.length > 0 && (
+        {/* Version badges when an app is selected (app scope only) */}
+        {activeScope === "app" && appDetail && appDetail.versions.length > 0 && (
           <div className="sidebar-section">
             {(["IOS", "MAC_OS", "VISION_OS"] as const).map((platform) => {
               const v = appDetail.versions.find((ver) => ver.platform === platform);
@@ -774,21 +853,25 @@ export default function App() {
           </div>
         )}
 
-        {selectedAppId && sidebarGroups.map((group) => (
-          <div key={group.label} className="sidebar-section">
-            <p className="sidebar-section-label">{group.label}</p>
-            {group.items.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                className={`sidebar-row ${section.id === activeSection.id ? "is-active" : ""}`}
-                onClick={() => setActiveSection(section)}
-              >
-                <span>{section.label}</span>
-              </button>
-            ))}
-          </div>
-        ))}
+        {(scopes.find((s) => s.id === activeScope)?.groups ?? []).map((group) => {
+          // App scope needs an app selected; other scopes don't
+          if (activeScope === "app" && !selectedAppId) return null;
+          return (
+            <div key={group.label} className="sidebar-section">
+              <p className="sidebar-section-label">{group.label}</p>
+              {group.items.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  className={`sidebar-row ${section.id === activeSection.id ? "is-active" : ""}`}
+                  onClick={() => setActiveSection(section)}
+                >
+                  <span>{section.label}</span>
+                </button>
+              ))}
+            </div>
+          );
+        })}
 
         <div className="sidebar-section">
           <button
@@ -812,7 +895,22 @@ export default function App() {
         {/* Context bar */}
         <header className="context-bar">
           <div className="context-app">
-            <strong className="context-app-name">ASC Studio</strong>
+            <div className="scope-tabs">
+              {scopes.map((scope) => (
+                <button
+                  key={scope.id}
+                  type="button"
+                  className={`scope-tab ${activeScope === scope.id ? "is-active" : ""}`}
+                  onClick={() => {
+                    setActiveScope(scope.id);
+                    const firstSection = scope.groups[0]?.items[0];
+                    if (firstSection) setActiveSection(firstSection);
+                  }}
+                >
+                  {scope.label}
+                </button>
+              ))}
+            </div>
             {authConfigured ? (
               <>
                 <span className="context-badge">{authStatus.storage || "Authenticated"}</span>

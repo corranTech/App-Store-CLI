@@ -1235,3 +1235,36 @@ textarea {
   background: rgba(0, 122, 255, 0.1);
   color: var(--accent);
 }
+
+/* ── Scope tabs (header) ─────────────────────────── */
+
+.scope-tabs {
+  display: flex;
+  gap: 2px;
+  background: rgba(128, 128, 128, 0.12);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.scope-tab {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.scope-tab:hover {
+  color: var(--text-primary);
+}
+
+.scope-tab.is-active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
