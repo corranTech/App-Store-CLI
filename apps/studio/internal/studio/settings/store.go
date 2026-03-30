@@ -105,7 +105,7 @@ func DefaultSettings() StudioSettings {
 		PreferredPreset:     "codex",
 		AgentEnv:            map[string]string{},
 		PreferBundledASC:    true,
-		Theme:               "glass-light",
+		Theme:               "system",
 		WindowMaterial:      "translucent",
 		ShowCommandPreviews: true,
 	}

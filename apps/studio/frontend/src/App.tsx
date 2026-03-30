@@ -163,6 +163,8 @@ type StudioSettings = {
   systemASCPath: string;
   workspaceRoot: string;
   showCommandPreviews: boolean;
+  theme: string;
+  windowMaterial: string;
 };
 
 const emptyEnv: EnvSnapshot = {
@@ -182,6 +184,8 @@ const defaultSettings: StudioSettings = {
   systemASCPath: "",
   workspaceRoot: "",
   showCommandPreviews: true,
+  theme: "system",
+  windowMaterial: "translucent",
 };
 
 type AuthState = {
@@ -218,7 +222,29 @@ function normalizeStudioSettings(input?: Partial<StudioSettings>): StudioSetting
     systemASCPath: input?.systemASCPath || "",
     workspaceRoot: input?.workspaceRoot || "",
     showCommandPreviews: input?.showCommandPreviews ?? true,
+    theme: input?.theme || "system",
+    windowMaterial: input?.windowMaterial || "translucent",
   };
+}
+
+function getSystemTheme(): "light" | "dark" {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "light";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function resolveTheme(theme: string | undefined, systemTheme: "light" | "dark"): "light" | "dark" {
+  switch (theme) {
+    case "dark":
+    case "glass-dark":
+      return "dark";
+    case "light":
+    case "glass-light":
+      return "light";
+    default:
+      return systemTheme;
+  }
 }
 
 function normalizeAuthStatus(input?: Partial<AuthState>): AuthState {
@@ -246,6 +272,7 @@ export default function App() {
 
   const [env, setEnv] = useState<EnvSnapshot>(emptyEnv);
   const [studioSettings, setStudioSettings] = useState<StudioSettings>(defaultSettings);
+  const [systemTheme, setSystemTheme] = useState<"light" | "dark">(getSystemTheme);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [bootstrapError, setBootstrapError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -362,6 +389,26 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (event?: MediaQueryListEvent) => {
+      setSystemTheme(event?.matches ?? mediaQuery.matches ? "dark" : "light");
+    };
+
+    handleChange();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
   function updateSetting<K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) {
     setStudioSettings((prev) => ({ ...prev, [key]: value }));
     setSettingsSaved(false);
@@ -376,8 +423,8 @@ export default function App() {
       preferBundledASC: studioSettings.preferBundledASC,
       systemASCPath: studioSettings.systemASCPath,
       workspaceRoot: studioSettings.workspaceRoot,
-      theme: "glass-light",
-      windowMaterial: "translucent",
+      theme: studioSettings.theme === "glass-light" ? "system" : studioSettings.theme,
+      windowMaterial: studioSettings.windowMaterial,
       showCommandPreviews: studioSettings.showCommandPreviews,
     });
     SaveSettings(payload)
@@ -655,9 +702,10 @@ export default function App() {
   }, []);
 
   const authConfigured = authStatus.authenticated;
+  const resolvedTheme = resolveTheme(studioSettings.theme, systemTheme);
 
   return (
-    <div className="studio-shell">
+    <div className="studio-shell" data-theme={resolvedTheme}>
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-header" />

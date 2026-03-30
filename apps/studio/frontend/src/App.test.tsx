@@ -281,6 +281,55 @@ describe("App", () => {
     });
   });
 
+  it("honors system dark mode when theme is set to system", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query === "(prefers-color-scheme: dark)",
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+
+    mockBootstrap.mockResolvedValue({
+      appName: "ASC Studio",
+      environment: {
+        configPath: "/Users/test/.asc/config.json",
+        configPresent: true,
+        defaultAppId: "123456",
+        keychainAvailable: true,
+        keychainBypassed: false,
+        workflowPath: "",
+      },
+      settings: {
+        preferredPreset: "codex",
+        agentCommand: "",
+        agentArgs: [],
+        agentEnv: {},
+        preferBundledASC: true,
+        systemASCPath: "",
+        workspaceRoot: "",
+        theme: "system",
+        windowMaterial: "translucent",
+        showCommandPreviews: true,
+      },
+      presets: [],
+      threads: [],
+      approvals: [],
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+
+    expect(document.querySelector(".studio-shell")).toHaveAttribute("data-theme", "dark");
+  });
+
   it("ignores stale tester responses after switching groups", async () => {
     let resolveFirstGroup: ((value: { testers: { email: string; firstName: string; lastName: string; inviteType: string; state: string }[] }) => void) | undefined;
 
