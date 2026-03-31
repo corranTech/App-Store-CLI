@@ -497,6 +497,7 @@ Examples:
 				defer cancel()
 				buildResp = localBuildResult.Build
 				versionValue = localBuildResult.Version
+				buildNumberValue = localBuildResult.BuildNumber
 				uploaded = localBuildResult.Uploaded
 				mode = asc.PublishModeLocalBuild
 			} else {
@@ -506,6 +507,7 @@ Examples:
 				}
 				buildResp = uploadResult.Build
 				versionValue = uploadResult.Version
+				buildNumberValue = uploadResult.BuildNumber
 				uploaded = true
 				mode = asc.PublishModeIPAUpload
 			}
@@ -526,13 +528,17 @@ Examples:
 				return fmt.Errorf("publish appstore: failed to attach build: %w", err)
 			}
 
+			resolvedBuildNumberValue := firstNonEmpty(strings.TrimSpace(buildResp.Data.Attributes.Version), buildNumberValue)
+
 			result := &asc.AppStorePublishResult{
-				Mode:      mode,
-				BuildID:   buildResp.Data.ID,
-				VersionID: versionResp.Data.ID,
-				Uploaded:  uploaded,
-				Attached:  true,
-				Submitted: false,
+				Mode:         mode,
+				BuildVersion: versionValue,
+				BuildNumber:  resolvedBuildNumberValue,
+				BuildID:      buildResp.Data.ID,
+				VersionID:    versionResp.Data.ID,
+				Uploaded:     uploaded,
+				Attached:     true,
+				Submitted:    false,
 			}
 
 			if *submit {
@@ -557,6 +563,8 @@ Examples:
 				result.Archive = localBuildResult.Archive
 				result.Export = localBuildResult.Export
 				result.Publish = &asc.AppStorePublishStageResult{
+					BuildVersion: result.BuildVersion,
+					BuildNumber:  result.BuildNumber,
 					BuildID:      result.BuildID,
 					VersionID:    result.VersionID,
 					SubmissionID: result.SubmissionID,

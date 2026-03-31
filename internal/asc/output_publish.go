@@ -25,9 +25,11 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 }
 
 func appStorePublishResultRows(result *AppStorePublishResult) ([]string, [][]string) {
-	headers := []string{"Build ID", "Version ID", "Submission ID", "Uploaded", "Attached", "Submitted"}
+	headers := []string{"Build ID", "Version", "Build Number", "Version ID", "Submission ID", "Uploaded", "Attached", "Submitted"}
 	rows := [][]string{{
 		result.BuildID,
+		result.BuildVersion,
+		result.BuildNumber,
 		result.VersionID,
 		result.SubmissionID,
 		fmt.Sprintf("%t", result.Uploaded),

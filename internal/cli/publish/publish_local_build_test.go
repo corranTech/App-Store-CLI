@@ -614,8 +614,30 @@ func TestPublishTestFlightLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testin
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), nil); err != nil {
-		t.Fatalf("Exec() error: %v", err)
+	var runErr error
+	stdout, stderr := capturePublishCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if runErr != nil {
+		t.Fatalf("Exec() error: %v", runErr)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected no stderr output, got %q", stderr)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if payload["buildVersion"] != "1.2.3" {
+		t.Fatalf("expected buildVersion 1.2.3, got %#v", payload["buildVersion"])
+	}
+	if payload["buildNumber"] != "42" {
+		t.Fatalf("expected buildNumber 42, got %#v", payload["buildNumber"])
+	}
+	if payload["buildId"] != "build-123" {
+		t.Fatalf("expected buildId build-123, got %#v", payload["buildId"])
 	}
 }
 
@@ -976,8 +998,33 @@ func TestPublishAppStoreLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	if err := cmd.Exec(context.Background(), nil); err != nil {
-		t.Fatalf("Exec() error: %v", err)
+	var runErr error
+	stdout, stderr := capturePublishCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if runErr != nil {
+		t.Fatalf("Exec() error: %v", runErr)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected no stderr output, got %q", stderr)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if payload["buildVersion"] != "1.2.3" {
+		t.Fatalf("expected buildVersion 1.2.3, got %#v", payload["buildVersion"])
+	}
+	if payload["buildNumber"] != "42" {
+		t.Fatalf("expected buildNumber 42, got %#v", payload["buildNumber"])
+	}
+	if payload["buildId"] != "build-123" {
+		t.Fatalf("expected buildId build-123, got %#v", payload["buildId"])
+	}
+	if payload["versionId"] != "version-1" {
+		t.Fatalf("expected versionId version-1, got %#v", payload["versionId"])
 	}
 }
 
@@ -1091,6 +1138,12 @@ func TestPublishAppStoreIPAUploadResolvesAppIDBeforeUploadAndAttach(t *testing.T
 	}
 	if payload["buildId"] != "build-123" {
 		t.Fatalf("expected buildId build-123, got %#v", payload["buildId"])
+	}
+	if payload["buildVersion"] != "1.2.3" {
+		t.Fatalf("expected buildVersion 1.2.3, got %#v", payload["buildVersion"])
+	}
+	if payload["buildNumber"] != "42" {
+		t.Fatalf("expected buildNumber 42, got %#v", payload["buildNumber"])
 	}
 	if payload["versionId"] != "version-1" {
 		t.Fatalf("expected versionId version-1, got %#v", payload["versionId"])

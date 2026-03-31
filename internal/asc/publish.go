@@ -48,6 +48,8 @@ type TestFlightPublishStageResult struct {
 // AppStorePublishStageResult duplicates the publish summary inside local-build
 // mode so agents can inspect stage-specific output.
 type AppStorePublishStageResult struct {
+	BuildVersion string `json:"buildVersion,omitempty"`
+	BuildNumber  string `json:"buildNumber,omitempty"`
 	BuildID      string `json:"buildId"`
 	VersionID    string `json:"versionId"`
 	SubmissionID string `json:"submissionId,omitempty"`
@@ -75,6 +77,8 @@ type TestFlightPublishResult struct {
 // AppStorePublishResult captures the App Store publish workflow output.
 type AppStorePublishResult struct {
 	Mode         PublishMode                 `json:"mode,omitempty"`
+	BuildVersion string                      `json:"buildVersion,omitempty"`
+	BuildNumber  string                      `json:"buildNumber,omitempty"`
 	BuildID      string                      `json:"buildId"`
 	VersionID    string                      `json:"versionId"`
 	SubmissionID string                      `json:"submissionId,omitempty"`
