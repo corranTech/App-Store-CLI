@@ -876,10 +876,12 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 	}
 
 	skippedResults := make([]asc.AssetUploadResultItem, 0)
-	if skipExisting {
-		files, skippedResults, err = filterExistingScreenshotFiles(files, existingScreenshots)
-		if err != nil {
-			return asc.AppScreenshotUploadResult{}, err
+	files := cfg.Files
+	if cfg.SkipExisting {
+		var filterErr error
+		files, skippedResults, filterErr = filterExistingScreenshotFiles(cfg.Files, existingScreenshots)
+		if filterErr != nil {
+			return zero, filterErr
 		}
 	}
 
