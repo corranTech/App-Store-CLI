@@ -904,14 +904,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 			})
 		}
 		results = append(results, skippedResults...)
-
-		return asc.AppScreenshotUploadResult{
-			VersionLocalizationID: localizationID,
-			SetID:                 set.ID,
-			DisplayType:           set.Attributes.ScreenshotDisplayType,
-			DryRun:                true,
-			Results:               results,
-		}, nil
+		return cfg.BuildResult(cfg.LocalizationID, set, true, results), nil
 	}
 
 	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
