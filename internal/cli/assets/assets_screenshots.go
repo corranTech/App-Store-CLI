@@ -907,7 +907,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 		return cfg.BuildResult(cfg.LocalizationID, set, true, results), nil
 	}
 
-	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
+	uploadCtx, cancel := cfg.UploadContext(ctx)
 	defer cancel()
 
 	if replace {
