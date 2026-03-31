@@ -857,7 +857,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 	if cfg.DryRun {
 		set, err = findScreenshotSetWithAccess(requestCtx, cfg.Client, cfg.LocalizationID, cfg.DisplayType, cfg.Access)
 	} else {
-		set, err = ensureScreenshotSet(requestCtx, client, localizationID, displayType)
+		set, err = ensureScreenshotSetWithAccess(requestCtx, cfg.Client, cfg.LocalizationID, cfg.DisplayType, cfg.Access)
 	}
 	reqCancel()
 	if err != nil {
