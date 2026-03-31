@@ -164,6 +164,64 @@ func TestBundledASCPathPrefersAppBundleResources(t *testing.T) {
 	}
 }
 
+func TestResolveASCMatchesCommandResolution(t *testing.T) {
+	tmp := t.TempDir()
+	resourceDir := filepath.Join(tmp, "ASC Studio.app", "Contents", "Resources", "bin")
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	bundled := filepath.Join(resourceDir, "asc")
+	if err := os.WriteFile(bundled, []byte("binary"), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	originalExecutable := osExecutableFunc
+	originalGetwd := getwdFunc
+	originalLookPath := execLookPathFunc
+	t.Cleanup(func() {
+		osExecutableFunc = originalExecutable
+		getwdFunc = originalGetwd
+		execLookPathFunc = originalLookPath
+	})
+
+	osExecutableFunc = func() (string, error) {
+		return filepath.Join(tmp, "ASC Studio.app", "Contents", "MacOS", "ASC Studio"), nil
+	}
+	getwdFunc = func() (string, error) {
+		return filepath.Join(tmp, "workspace"), nil
+	}
+	execLookPathFunc = func(string) (string, error) {
+		return "/usr/local/bin/asc", nil
+	}
+
+	settingsStore := settings.NewStore(tmp)
+	if err := settingsStore.Save(settings.StudioSettings{
+		PreferBundledASC: true,
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	app := &App{settings: settingsStore}
+	path, err := app.resolveASCPath()
+	if err != nil {
+		t.Fatalf("resolveASCPath() error = %v", err)
+	}
+	if path != bundled {
+		t.Fatalf("resolveASCPath() = %q, want %q", path, bundled)
+	}
+
+	resp, err := app.ResolveASC()
+	if err != nil {
+		t.Fatalf("ResolveASC() error = %v", err)
+	}
+	if resp.Resolution.Path != bundled {
+		t.Fatalf("ResolveASC().Resolution.Path = %q, want %q", resp.Resolution.Path, bundled)
+	}
+	if resp.Resolution.Source != "bundled" {
+		t.Fatalf("ResolveASC().Resolution.Source = %q, want bundled", resp.Resolution.Source)
+	}
+}
+
 func TestRunASCCombinedOutputUsesShadowConfigPath(t *testing.T) {
 	tmpHome := t.TempDir()
 	configDir := filepath.Join(tmpHome, ".asc")

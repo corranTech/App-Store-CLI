@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/ascbin"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/settings"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -81,22 +82,29 @@ func setEnvVar(env []string, key, value string) []string {
 }
 
 func (a *App) resolveASCPath() (string, error) {
-	cfg, err := a.settings.Load()
-	if err != nil {
-		return "", err
-	}
-
-	bundled := a.bundledASCPath()
-	resolution, err := ascbin.Resolve(ascbin.ResolveOptions{
-		BundledPath:    bundled,
-		SystemOverride: cfg.SystemASCPath,
-		PreferBundled:  cfg.PreferBundledASC,
-		LookPath:       execLookPath,
-	})
+	resolution, err := a.resolveASC()
 	if err != nil {
 		return "", err
 	}
 	return resolution.Path, nil
+}
+
+func (a *App) resolveASC() (ascbin.Resolution, error) {
+	cfg, err := a.settings.Load()
+	if err != nil {
+		return ascbin.Resolution{}, err
+	}
+
+	return ascbin.Resolve(a.ascResolveOptions(cfg))
+}
+
+func (a *App) ascResolveOptions(cfg settings.StudioSettings) ascbin.ResolveOptions {
+	return ascbin.ResolveOptions{
+		BundledPath:    a.bundledASCPath(),
+		SystemOverride: cfg.SystemASCPath,
+		PreferBundled:  cfg.PreferBundledASC,
+		LookPath:       execLookPath,
+	}
 }
 
 func (a *App) bundledASCPath() string {

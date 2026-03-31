@@ -11,7 +11,6 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/acp"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/approvals"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/ascbin"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/settings"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/threads"
 )
@@ -51,18 +50,7 @@ func (a *App) createThreadRecord(title string) (threads.Thread, error) {
 }
 
 func (a *App) ResolveASC() (ResolutionResponse, error) {
-	cfg, err := a.settings.Load()
-	if err != nil {
-		return ResolutionResponse{}, err
-	}
-
-	bundled := a.bundledASCPath()
-	resolution, err := ascbin.Resolve(ascbin.ResolveOptions{
-		BundledPath:    bundled,
-		SystemOverride: cfg.SystemASCPath,
-		PreferBundled:  cfg.PreferBundledASC,
-		LookPath:       execLookPath,
-	})
+	resolution, err := a.resolveASC()
 	if err != nil {
 		return ResolutionResponse{}, err
 	}
