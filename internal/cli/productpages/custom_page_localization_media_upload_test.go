@@ -31,8 +31,8 @@ func (fn customPageUploadRoundTripFunc) RoundTrip(req *http.Request) (*http.Resp
 
 func TestExecuteCustomPageScreenshotUpload_SyncDeletesExistingScreenshotsAndReordersUploads(t *testing.T) {
 	dir := t.TempDir()
-	fileA := writeCustomPageTestPNG(t, dir, "01-home.png", 1242, 2688)
-	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png", 1242, 2688)
+	fileA := writeCustomPageTestPNG(t, dir, "01-home.png")
+	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png")
 	sizes := map[string]int64{
 		"new-1": customPageFileSize(t, fileA),
 		"new-2": customPageFileSize(t, fileB),
@@ -153,7 +153,7 @@ func customPageJSONResponse(status int, body string) (*http.Response, error) {
 	}, nil
 }
 
-func writeCustomPageTestPNG(t *testing.T, dir, name string, width, height int) string {
+func writeCustomPageTestPNG(t *testing.T, dir, name string) string {
 	t.Helper()
 
 	path := filepath.Join(dir, name)
@@ -162,6 +162,11 @@ func writeCustomPageTestPNG(t *testing.T, dir, name string, width, height int) s
 		t.Fatalf("create png: %v", err)
 	}
 	defer file.Close()
+
+	const (
+		width  = 1242
+		height = 2688
+	)
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	for y := 0; y < height; y++ {

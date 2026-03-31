@@ -15,8 +15,8 @@ import (
 
 func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadCreatesSetAndOrdersUploads(t *testing.T) {
 	dir := t.TempDir()
-	fileA := writeCustomPageTestPNG(t, dir, "01-home.png", 1242, 2688)
-	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png", 1242, 2688)
+	fileA := writeCustomPageTestPNG(t, dir, "01-home.png")
+	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png")
 	sizes := map[string]int64{
 		"new-1": customPageFileSize(t, fileA),
 		"new-2": customPageFileSize(t, fileB),
@@ -114,8 +114,8 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadCreatesSet
 
 func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadPreservesExistingOrderAndAppendsNewUploads(t *testing.T) {
 	dir := t.TempDir()
-	fileA := writeCustomPageTestPNG(t, dir, "01-home.png", 1242, 2688)
-	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png", 1242, 2688)
+	fileA := writeCustomPageTestPNG(t, dir, "01-home.png")
+	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png")
 	sizes := map[string]int64{
 		"new-1": customPageFileSize(t, fileA),
 		"new-2": customPageFileSize(t, fileB),
@@ -199,8 +199,8 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadPreservesE
 
 func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_SyncDeletesExistingScreenshotsAndReordersUploads(t *testing.T) {
 	dir := t.TempDir()
-	fileA := writeCustomPageTestPNG(t, dir, "01-home.png", 1242, 2688)
-	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png", 1242, 2688)
+	fileA := writeCustomPageTestPNG(t, dir, "01-home.png")
+	fileB := writeCustomPageTestPNG(t, dir, "02-settings.png")
 	sizes := map[string]int64{
 		"new-1": customPageFileSize(t, fileA),
 		"new-2": customPageFileSize(t, fileB),

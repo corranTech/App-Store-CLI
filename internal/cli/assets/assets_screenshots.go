@@ -762,14 +762,6 @@ func ValidateScreenshotDimensions(files []string, displayType string) error {
 	return validateScreenshotDimensions(files, displayType)
 }
 
-func findScreenshotSet(ctx context.Context, client *asc.Client, localizationID, displayType string) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
-	return findScreenshotSetWithAccess(ctx, client, localizationID, displayType, appStoreVersionScreenshotSetAccess)
-}
-
-func ensureScreenshotSet(ctx context.Context, client *asc.Client, localizationID, displayType string) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
-	return ensureScreenshotSetWithAccess(ctx, client, localizationID, displayType, appStoreVersionScreenshotSetAccess)
-}
-
 func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace, dryRun bool) (asc.AppScreenshotUploadResult, error) {
 	return uploadScreenshotsWithConfig(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
 		Client:         client,
