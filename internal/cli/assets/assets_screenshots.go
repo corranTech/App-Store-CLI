@@ -918,20 +918,15 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 
 	results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files))
 	if len(files) > 0 {
-		uploadedResults, err := UploadScreenshotsToSet(uploadCtx, client, set.ID, files, !replace)
+		uploadedResults, err := UploadScreenshotsToSet(uploadCtx, cfg.Client, set.ID, files, !cfg.Replace)
 		if err != nil {
-			return asc.AppScreenshotUploadResult{}, err
+			return zero, err
 		}
 		results = append(results, uploadedResults...)
 	}
 	results = append(skippedResults, results...)
 
-	return asc.AppScreenshotUploadResult{
-		VersionLocalizationID: localizationID,
-		SetID:                 set.ID,
-		DisplayType:           set.Attributes.ScreenshotDisplayType,
-		Results:               results,
-	}, nil
+	return cfg.BuildResult(cfg.LocalizationID, set, false, results), nil
 }
 
 func deleteExistingScreenshots(ctx context.Context, client *asc.Client, screenshots []asc.Resource[asc.AppScreenshotAttributes]) error {
