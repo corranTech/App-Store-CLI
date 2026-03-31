@@ -813,8 +813,12 @@ func findScreenshotSetWithAccess(ctx context.Context, client *asc.Client, locali
 	}, nil
 }
 
-func ensureScreenshotSet(ctx context.Context, client *asc.Client, localizationID, displayType string) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
-	resp, err := client.GetAppScreenshotSets(ctx, localizationID)
+func ensureScreenshotSetWithAccess(ctx context.Context, client *asc.Client, localizationID, displayType string, access ScreenshotSetAccess) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
+	if access.Create == nil {
+		return asc.Resource[asc.AppScreenshotSetAttributes]{}, fmt.Errorf("screenshot set create function is required")
+	}
+
+	set, err := findScreenshotSetWithAccess(ctx, client, localizationID, displayType, access)
 	if err != nil {
 		return asc.Resource[asc.AppScreenshotSetAttributes]{}, err
 	}
