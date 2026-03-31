@@ -123,11 +123,12 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, opts ScreenshotSetUp
 		}
 		return zero, err
 	}
+	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 	files, err := CollectAssetFiles(trimmedPath)
 	if err != nil {
 		return zero, err
 	}
-	if err := ValidateScreenshotDimensions(files, displayType); err != nil {
+	if err := ValidateScreenshotDimensions(files, apiDisplayType); err != nil {
 		return zero, err
 	}
 
@@ -139,7 +140,7 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, opts ScreenshotSetUp
 	return uploadScreenshotsWithConfig(ctx, screenshotUploadConfig[T]{
 		Client:         client,
 		LocalizationID: trimmedLocalizationID,
-		DisplayType:    displayType,
+		DisplayType:    apiDisplayType,
 		Files:          files,
 		Replace:        opts.Replace,
 		RequestContext: opts.RequestContext,

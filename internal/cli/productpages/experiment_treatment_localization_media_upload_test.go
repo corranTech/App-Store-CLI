@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -87,7 +88,7 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadCreatesSet
 		http.DefaultTransport = origTransport
 	})
 
-	client := newCustomPageTestClient(t)
+	client := newCustomPageTestClientWithTimeout(t, 0)
 	origFactory := experimentTreatmentLocalizationMediaClientFactory
 	experimentTreatmentLocalizationMediaClientFactory = func() (*asc.Client, error) { return client, nil }
 	t.Cleanup(func() {
@@ -109,6 +110,68 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadCreatesSet
 	}
 	if !relationshipPatchCalled {
 		t.Fatal("expected screenshot relationship reorder PATCH to be called")
+	}
+}
+
+func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_CanonicalizesAliasDisplayTypeForAPI(t *testing.T) {
+	dir := t.TempDir()
+	file := writeDisplayTypeTestPNG(t, dir, "01-home.png", "APP_IPHONE_69")
+	fileSize := customPageFileSize(t, file)
+
+	createdSetDisplayType := ""
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = customPageUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1/appScreenshotSets":
+			return customPageJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshotSets":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("read create screenshot-set body: %v", err)
+			}
+			var payload asc.AppScreenshotSetCreateRequest
+			if err := json.Unmarshal(body, &payload); err != nil {
+				t.Fatalf("decode create screenshot-set body: %v", err)
+			}
+			createdSetDisplayType = payload.Data.Attributes.ScreenshotDisplayType
+			return customPageJSONResponse(http.StatusCreated, `{"data":{"type":"appScreenshotSets","id":"set-69","attributes":{"screenshotDisplayType":"APP_IPHONE_67"}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-69/relationships/appScreenshots":
+			return customPageJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			return customPageJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-1","length":%d,"offset":0}]}}}`, fileSize))
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return customPageJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/new-1":
+			return customPageJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploaded":true}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-1":
+			return customPageJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-69/relationships/appScreenshots":
+			return customPageJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	client := newCustomPageTestClient(t)
+	origFactory := experimentTreatmentLocalizationMediaClientFactory
+	experimentTreatmentLocalizationMediaClientFactory = func() (*asc.Client, error) { return client, nil }
+	t.Cleanup(func() {
+		experimentTreatmentLocalizationMediaClientFactory = origFactory
+	})
+
+	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), "tloc-1", dir, "IPHONE_69", false)
+	if err != nil {
+		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)
+	}
+	if createdSetDisplayType != "APP_IPHONE_67" {
+		t.Fatalf("expected canonical create display type APP_IPHONE_67, got %q", createdSetDisplayType)
+	}
+	if result.DisplayType != "APP_IPHONE_67" {
+		t.Fatalf("expected canonical result display type APP_IPHONE_67, got %q", result.DisplayType)
 	}
 }
 
@@ -286,5 +349,63 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_SyncDeletesExist
 	}
 	if !relationshipPatchCalled {
 		t.Fatal("expected screenshot relationship reorder PATCH to be called")
+	}
+}
+
+func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UsesRequestTimeoutForMetadataCalls(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "1s")
+	t.Setenv("ASC_UPLOAD_TIMEOUT", "10m")
+
+	dir := t.TempDir()
+	file := writeCustomPageTestPNG(t, dir, "01-home.png")
+	fileSize := customPageFileSize(t, file)
+
+	var metadataRemaining time.Duration
+
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = customPageUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		deadline, ok := req.Context().Deadline()
+		if !ok {
+			t.Fatalf("expected request deadline for %s %s", req.Method, req.URL.Path)
+		}
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1/appScreenshotSets":
+			metadataRemaining = time.Until(deadline)
+			return customPageJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			return customPageJSONResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			return customPageJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-1","length":%d,"offset":0}]}}}`, fileSize))
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return customPageJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/new-1":
+			return customPageJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploaded":true}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-1":
+			return customPageJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			return customPageJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	client := newCustomPageTestClient(t)
+	origFactory := experimentTreatmentLocalizationMediaClientFactory
+	experimentTreatmentLocalizationMediaClientFactory = func() (*asc.Client, error) { return client, nil }
+	t.Cleanup(func() {
+		experimentTreatmentLocalizationMediaClientFactory = origFactory
+	})
+
+	if _, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), "tloc-1", dir, "IPHONE_65", false); err != nil {
+		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)
+	}
+
+	if metadataRemaining <= 0 || metadataRemaining > 5*time.Second {
+		t.Fatalf("expected metadata request timeout near ASC_TIMEOUT, got %s remaining", metadataRemaining)
 	}
 }

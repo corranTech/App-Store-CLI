@@ -293,7 +293,7 @@ func executeExperimentTreatmentLocalizationScreenshotUpload(
 		Replace:                  sync,
 		InvalidDeviceTypeIsUsage: true,
 		ClientFactory:            experimentTreatmentLocalizationMediaClientFactory,
-		RequestContext:           assets.ContextWithAssetUploadTimeout,
+		RequestContext:           shared.ContextWithTimeout,
 		UploadContext:            assets.ContextWithAssetUploadTimeout,
 		Access: assets.ScreenshotSetAccess{
 			List: func(ctx context.Context, client *asc.Client, localizationID string) (*asc.AppScreenshotSetsResponse, error) {
