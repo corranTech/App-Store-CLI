@@ -131,6 +131,8 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ExperimentTreatmentLocalizationScreenshotSetsListCommand(),
+			ExperimentTreatmentLocalizationScreenshotSetsUploadCommand(),
+			ExperimentTreatmentLocalizationScreenshotSetsSyncCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
