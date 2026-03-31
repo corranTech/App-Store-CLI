@@ -162,7 +162,7 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /settings/i }));
 
-    expect(screen.getByText("Authentication")).toBeInTheDocument();
+    expect(await screen.findByText("Authentication")).toBeInTheDocument();
     expect(screen.getByText("ACP Provider")).toBeInTheDocument();
   });
 
@@ -567,6 +567,66 @@ describe("App", () => {
     });
   });
 
+  it("closes the bundle ID sheet when escape is pressed inside the dialog", async () => {
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "bundle-ids list --paginate --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: [
+              { id: "bundle-1", type: "bundleIds", attributes: { identifier: "com.example.existing", platform: "IOS", seedId: "AAA" } },
+            ],
+          }),
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    fireEvent.click(screen.getByRole("tab", { name: "Signing" }));
+    fireEvent.click(await screen.findByRole("button", { name: /New Bundle ID/i }));
+
+    const nameInput = screen.getByLabelText("Name");
+    nameInput.focus();
+    fireEvent.keyDown(nameInput, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /Create Bundle ID/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("wraps focus within the bundle ID sheet without a global keydown listener", async () => {
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "bundle-ids list --paginate --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: [
+              { id: "bundle-1", type: "bundleIds", attributes: { identifier: "com.example.existing", platform: "IOS", seedId: "AAA" } },
+            ],
+          }),
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    fireEvent.click(screen.getByRole("tab", { name: "Signing" }));
+    fireEvent.click(await screen.findByRole("button", { name: /New Bundle ID/i }));
+
+    const closeButton = screen.getByRole("button", { name: /Close create bundle ID sheet/i });
+    const createButton = screen.getByRole("button", { name: "Create" });
+
+    createButton.focus();
+    fireEvent.keyDown(createButton, { key: "Tab" });
+
+    expect(closeButton).toHaveFocus();
+  });
+
   it("preserves agent env when saving settings", async () => {
     mockBootstrap.mockResolvedValue({
       appName: "ASC Studio",
@@ -657,6 +717,66 @@ describe("App", () => {
     await screen.findByRole("img", { name: /Connected/i });
 
     expect(document.querySelector(".studio-shell")).toHaveAttribute("data-theme", "dark");
+  });
+
+  it("updates the shell theme when the system theme changes", async () => {
+    const listeners = new Set<() => void>();
+    let matches = false;
+
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        get matches() {
+          return matches;
+        },
+        media: query,
+        onchange: null,
+        addListener: vi.fn((listener: () => void) => listeners.add(listener)),
+        removeListener: vi.fn((listener: () => void) => listeners.delete(listener)),
+        addEventListener: vi.fn((_event: string, listener: () => void) => listeners.add(listener)),
+        removeEventListener: vi.fn((_event: string, listener: () => void) => listeners.delete(listener)),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+
+    mockBootstrap.mockResolvedValue({
+      appName: "ASC Studio",
+      environment: {
+        configPath: "/Users/test/.asc/config.json",
+        configPresent: true,
+        defaultAppId: "123456",
+        keychainAvailable: true,
+        keychainBypassed: false,
+        workflowPath: "",
+      },
+      settings: {
+        preferredPreset: "codex",
+        agentCommand: "",
+        agentArgs: [],
+        agentEnv: {},
+        preferBundledASC: true,
+        systemASCPath: "",
+        workspaceRoot: "",
+        theme: "system",
+        windowMaterial: "translucent",
+        showCommandPreviews: true,
+      },
+      presets: [],
+      threads: [],
+      approvals: [],
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    expect(document.querySelector(".studio-shell")).toHaveAttribute("data-theme", "light");
+
+    matches = true;
+    listeners.forEach((listener) => listener());
+
+    await waitFor(() => {
+      expect(document.querySelector(".studio-shell")).toHaveAttribute("data-theme", "dark");
+    });
   });
 
   it("uses the current week's Monday for weekly insights on Sundays", () => {
