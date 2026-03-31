@@ -37,9 +37,11 @@ After submission, monitor progress with:
 
 For lower-level submission lifecycle control, use:
   asc validate --app "APP_ID" --version "VERSION"
-  asc submit preflight --app "APP_ID" --version "VERSION"
   asc submit status --version-id "VERSION_ID"
   asc submit cancel --version-id "VERSION_ID" --confirm
+
+` + "`asc submit preflight`" + ` remains available as a deprecated compatibility
+wrapper when you need the older preflight-style text/json output.
 
 Examples:
   asc release stage --app "APP_ID" --version "2.4.0" --build "BUILD_ID" --copy-metadata-from "2.3.2" --dry-run

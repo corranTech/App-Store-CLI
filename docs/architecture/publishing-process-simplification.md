@@ -10,7 +10,8 @@ older automation working during the migration window.
 - `asc release run` - canonical App Store publish path
 - `asc release stage` - canonical pre-submit preparation path
 - `asc publish testflight` - canonical TestFlight publish path
-- `asc submit preflight|status|cancel` - lower-level submission lifecycle tools
+- `asc validate` - canonical App Store submission readiness path
+- `asc submit status|cancel` - lower-level submission lifecycle tools
 - `asc review ...` - raw review-submission resource management
 
 ## What changed
@@ -47,11 +48,13 @@ as the primary answer to "how do I publish to the App Store?"
 
 ### Use `asc submit ...` when
 
-- you want preflight checks without running the full release pipeline
 - you want submission status or cancellation commands
 - you are debugging review state
 - you are maintaining an older direct-submit script and have not migrated off
   `asc submit create` yet
+
+`asc submit preflight` remains available as a deprecated compatibility wrapper
+for older scripts that still expect the legacy preflight-style output.
 
 ### Use `asc review ...` when
 

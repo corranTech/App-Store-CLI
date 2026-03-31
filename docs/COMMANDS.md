@@ -166,9 +166,8 @@ asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadat
 asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --confirm
 asc status --app "123456789"
 
-# Lower-level submission lifecycle flow
+# Canonical readiness and lower-level submission lifecycle flow
 asc validate --app "123456789" --version "1.2.3"
-asc submit preflight --app "123456789" --version "1.2.3"
 asc submit status --version-id "VERSION_ID"
 asc submit cancel --version-id "VERSION_ID" --confirm
 

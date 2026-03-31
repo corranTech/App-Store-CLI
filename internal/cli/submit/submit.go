@@ -32,7 +32,11 @@ func SubmitCommand() *ffcli.Command {
 
 Use:
   - asc release run for the canonical App Store shipping path
-  - asc submit preflight/status/cancel for lower-level submission lifecycle work
+  - asc validate for canonical readiness checks before submission
+  - asc submit status/cancel for lower-level review submission lifecycle work
+
+` + "`asc submit preflight`" + ` remains available as a deprecated compatibility
+path for older scripts that still expect preflight-style text/json output.
 
 ` + "`asc submit create`" + ` remains available as a deprecated compatibility
 path for older scripts that submit an already-prepared version directly.`,

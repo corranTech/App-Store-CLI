@@ -50,7 +50,7 @@ Do not memorize flags. Always use `--help` for the current interface.
 | Publish to App Store (canonical) | `asc release run --app "APP_ID" --version "VERSION" --build "BUILD_ID" --metadata-dir "./metadata/version/VERSION" --dry-run` |
 | Review status | `asc review status --app "APP_ID"` |
 | Review blockers | `asc review doctor --app "APP_ID"` |
-| Submission lifecycle (preflight) | `asc submit preflight --app "APP_ID" --version "VERSION"` |
+| Submission readiness (canonical) | `asc validate --app "APP_ID" --version "VERSION"` |
 | Apply metadata | `asc metadata apply --app "APP_ID" --version "VERSION" --dir "./metadata" --dry-run` |
 | Weekly insights summary | `asc insights weekly --app "APP_ID" --source analytics --week "YYYY-MM-DD"` |
 | Download localizations | `asc localizations download --version "VERSION_ID" --path "./localizations"` |
@@ -94,14 +94,16 @@ asc release stage --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --copy-met
 asc release stage --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --copy-metadata-from "0.9.0" --confirm
 ```
 
-Lower-level submission lifecycle commands remain available for debugging or partial workflows:
+Canonical readiness and lower-level submission lifecycle commands remain available for debugging or partial workflows:
 
 ```bash
 asc validate --app "APP_ID" --version "1.0.0"
-asc submit preflight --app "APP_ID" --version "1.0.0"
 asc submit status --version-id "VERSION_ID"
 asc submit cancel --version-id "VERSION_ID" --confirm
 ```
+
+`asc submit preflight` remains available as a deprecated compatibility wrapper
+for older scripts that still expect the legacy preflight text/json output.
 
 ### Distribute to TestFlight Group
 
@@ -188,7 +190,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `iap` - Manage in-app purchases.
 - `app-events` - Manage App Store in-app events.
 - `subscriptions` - Manage subscription groups and subscriptions.
-- `submit` - Submission lifecycle tools; use `release run` to ship.
+- `submit` - Submission lifecycle tools; use `validate` for readiness and `release run` to ship.
 - `xcode-cloud` - Trigger and monitor Xcode Cloud workflows.
 - `categories` - Manage App Store categories.
 - `age-rating` - Manage App Store age rating declarations.

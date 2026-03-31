@@ -16,9 +16,12 @@ asc submit <subcommand> [flags]
 Use these commands deliberately:
 
 * `asc release run` - canonical App Store publish path
-* `asc submit preflight` - inspect submission readiness without mutating anything
+* `asc validate` - canonical readiness check before submission
 * `asc submit status` - inspect submission or version review state
 * `asc submit cancel` - cancel an active submission
+
+`asc submit preflight` remains available only as a deprecated compatibility path
+for older scripts that still expect preflight-style text/json output.
 
 `asc submit create` remains available only as a deprecated compatibility path
 for older automation that already prepared the version and only needs the final
@@ -26,12 +29,12 @@ submission step.
 
 ## Submission lifecycle
 
-### Preflight a submission
+### Validate readiness
 
 Check readiness before you ship:
 
 ```bash  theme={null}
-asc submit preflight --app APP_ID --version VERSION_STRING
+asc validate --app APP_ID --version VERSION_STRING
 ```
 
 ### Check status
@@ -96,7 +99,7 @@ Error: Missing required metadata for version 1.2.0
 ```
 
 **Solution:** Complete the metadata, then retry `asc release run` or re-check
-with `asc submit preflight`.
+with `asc validate`.
 
 ### Already in review
 

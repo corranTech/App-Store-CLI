@@ -1,6 +1,6 @@
 # App Store Submission
 
-> Publish with `release run`, then use `submit` for lifecycle checks
+> Publish with `release run`, then use `validate` or `submit` for follow-up checks
 
 Automate the complete App Store submission process with the canonical release
 pipeline, then use the lower-level submission lifecycle commands to inspect or
@@ -12,9 +12,12 @@ Use these surfaces deliberately:
 
 * `asc release run` - canonical App Store publish path
 * `asc release stage` - prepare a version without submitting it
-* `asc submit preflight` - inspect submission readiness without mutating anything
+* `asc validate` - canonical readiness check before submission
 * `asc submit status` - inspect submission or version review state
 * `asc submit cancel` - cancel an active submission
+
+`asc submit preflight` remains available only as a deprecated compatibility path
+for older scripts that still expect preflight-style text/json output.
 
 `asc submit create` remains available only as a deprecated compatibility path
 for older automation that already prepared the version and only needs the final
@@ -133,10 +136,10 @@ Before submitting, ensure you have:
 Use the `submit` command family when you need to inspect or manage the review
 submission itself instead of running the full publish pipeline.
 
-### Preflight
+### Validate readiness
 
 ```bash  theme={null}
-asc submit preflight --app "YOUR_APP_ID" --version "1.0.0"
+asc validate --app "YOUR_APP_ID" --version "1.0.0"
 ```
 
 ## Monitoring Submission Status
@@ -309,7 +312,7 @@ If any fields are missing, the submission will fail with a detailed error:
 Submit preflight failed: submission-blocking localization fields are missing:
   - en-US: description, keywords
   - es-ES: whats-new
-Fix these with `asc apps info edit` (optionally using `--copy-from-locale`) before retrying `asc submit preflight` or `asc release run`.
+Fix these with `asc apps info edit` (optionally using `--copy-from-locale`) before retrying `asc validate` or `asc release run`.
 ```
 
 ### Fixing Validation Errors
