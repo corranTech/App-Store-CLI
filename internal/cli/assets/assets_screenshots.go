@@ -763,7 +763,43 @@ func ValidateScreenshotDimensions(files []string, displayType string) error {
 }
 
 func findScreenshotSet(ctx context.Context, client *asc.Client, localizationID, displayType string) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
-	resp, err := client.GetAppScreenshotSets(ctx, localizationID)
+	return findScreenshotSetWithAccess(ctx, client, localizationID, displayType, appStoreVersionScreenshotSetAccess)
+}
+
+func ensureScreenshotSet(ctx context.Context, client *asc.Client, localizationID, displayType string) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
+	return ensureScreenshotSetWithAccess(ctx, client, localizationID, displayType, appStoreVersionScreenshotSetAccess)
+}
+
+func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace, dryRun bool) (asc.AppScreenshotUploadResult, error) {
+	return uploadScreenshotsWithConfig(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Client:         client,
+		LocalizationID: localizationID,
+		DisplayType:    displayType,
+		Files:          files,
+		SkipExisting:   skipExisting,
+		Replace:        replace,
+		DryRun:         dryRun,
+		RequestContext: shared.ContextWithTimeout,
+		UploadContext:  contextWithAssetUploadTimeout,
+		Access:         appStoreVersionScreenshotSetAccess,
+		BuildResult: func(localizationID string, set asc.Resource[asc.AppScreenshotSetAttributes], dryRun bool, results []asc.AssetUploadResultItem) asc.AppScreenshotUploadResult {
+			return asc.AppScreenshotUploadResult{
+				VersionLocalizationID: localizationID,
+				SetID:                 set.ID,
+				DisplayType:           set.Attributes.ScreenshotDisplayType,
+				DryRun:                dryRun,
+				Results:               results,
+			}
+		},
+	})
+}
+
+func findScreenshotSetWithAccess(ctx context.Context, client *asc.Client, localizationID, displayType string, access ScreenshotSetAccess) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
+	if access.List == nil {
+		return asc.Resource[asc.AppScreenshotSetAttributes]{}, fmt.Errorf("screenshot set list function is required")
+	}
+
+	resp, err := access.List(ctx, client, localizationID)
 	if err != nil {
 		return asc.Resource[asc.AppScreenshotSetAttributes]{}, err
 	}
