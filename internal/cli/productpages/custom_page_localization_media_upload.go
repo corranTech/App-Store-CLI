@@ -155,63 +155,31 @@ func executeCustomPageScreenshotUpload(
 	localizationID, path, deviceType string,
 	sync bool,
 ) (*asc.CustomProductPageScreenshotUploadResult, error) {
-	trimmedLocalizationID := strings.TrimSpace(localizationID)
-	if trimmedLocalizationID == "" {
-		fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-		return nil, flag.ErrHelp
-	}
-	trimmedPath := strings.TrimSpace(path)
-	if trimmedPath == "" {
-		fmt.Fprintln(os.Stderr, "Error: --path is required")
-		return nil, flag.ErrHelp
-	}
-	trimmedDeviceType := strings.TrimSpace(deviceType)
-	if trimmedDeviceType == "" {
-		fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-		return nil, flag.ErrHelp
-	}
-
-	displayType, err := assets.NormalizeScreenshotDisplayType(trimmedDeviceType)
-	if err != nil {
-		return nil, err
-	}
-	files, err := collectCustomPageMediaFiles(trimmedPath)
-	if err != nil {
-		return nil, err
-	}
-	if err := assets.ValidateScreenshotDimensions(files, displayType); err != nil {
-		return nil, err
-	}
-
-	client, err := customPageMediaClientFactory()
-	if err != nil {
-		return nil, err
-	}
-
-	requestCtx, cancel := contextWithCustomPageMediaUploadTimeout(ctx)
-	defer cancel()
-
-	set, err := ensureCustomPageLocalizationScreenshotSet(requestCtx, client, trimmedLocalizationID, displayType)
-	if err != nil {
-		return nil, err
-	}
-	if sync {
-		if err := deleteAllScreenshotsInSet(requestCtx, client, set.ID); err != nil {
-			return nil, err
-		}
-	}
-
-	results, err := assets.UploadScreenshotsToSet(requestCtx, client, set.ID, files, !sync)
-	if err != nil {
-		return nil, err
-	}
-
-	return &asc.CustomProductPageScreenshotUploadResult{
-		CustomProductPageLocalizationID: trimmedLocalizationID,
-		SetID:                           set.ID,
-		DisplayType:                     set.Attributes.ScreenshotDisplayType,
-		Results:                         results,
-	}, nil
+	return assets.ExecuteScreenshotSetUpload(ctx, assets.ScreenshotSetUploadOptions[*asc.CustomProductPageScreenshotUploadResult]{
+		LocalizationID: localizationID,
+		Path:           path,
+		DeviceType:     deviceType,
+		Replace:        sync,
+		ClientFactory:  customPageMediaClientFactory,
+		RequestContext: contextWithCustomPageMediaUploadTimeout,
+		UploadContext:  contextWithCustomPageMediaUploadTimeout,
+		Access: assets.ScreenshotSetAccess{
+			List: func(ctx context.Context, client *asc.Client, localizationID string) (*asc.AppScreenshotSetsResponse, error) {
+				return client.GetAppCustomProductPageLocalizationScreenshotSets(ctx, localizationID)
+			},
+			Create: func(ctx context.Context, client *asc.Client, localizationID, displayType string) (*asc.AppScreenshotSetResponse, error) {
+				return client.CreateAppScreenshotSetForCustomProductPageLocalization(ctx, localizationID, displayType)
+			},
+		},
+		BuildResult: func(localizationID string, set asc.Resource[asc.AppScreenshotSetAttributes], results []asc.AssetUploadResultItem) *asc.CustomProductPageScreenshotUploadResult {
+			return &asc.CustomProductPageScreenshotUploadResult{
+				CustomProductPageLocalizationID: localizationID,
+				SetID:                           set.ID,
+				DisplayType:                     set.Attributes.ScreenshotDisplayType,
+				Results:                         results,
+			}
+		},
+	})
 }
 
 func executeCustomPagePreviewUpload(
