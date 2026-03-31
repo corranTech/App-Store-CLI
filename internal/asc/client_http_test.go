@@ -4380,6 +4380,65 @@ func TestCreateAppScreenshotSetForCustomProductPageLocalization(t *testing.T) {
 	}
 }
 
+func TestCreateAppScreenshotSetForExperimentTreatmentLocalization(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appScreenshotSets","id":"SET_TREATMENT_123","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appScreenshotSets" {
+			t.Fatalf("expected path /v1/appScreenshotSets, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+
+		data, ok := payload["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected object data payload, got %T", payload["data"])
+		}
+		relationships, ok := data["relationships"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected relationships payload, got %T", data["relationships"])
+		}
+		treatmentRel, ok := relationships["appStoreVersionExperimentTreatmentLocalization"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected appStoreVersionExperimentTreatmentLocalization relationship, got %+v", relationships)
+		}
+		treatmentData, ok := treatmentRel["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected appStoreVersionExperimentTreatmentLocalization.data object, got %T", treatmentRel["data"])
+		}
+		if treatmentData["type"] != "appStoreVersionExperimentTreatmentLocalizations" {
+			t.Fatalf("expected relationship type appStoreVersionExperimentTreatmentLocalizations, got %#v", treatmentData["type"])
+		}
+		if treatmentData["id"] != "TREATMENT_LOC_123" {
+			t.Fatalf("expected relationship id TREATMENT_LOC_123, got %#v", treatmentData["id"])
+		}
+		if _, exists := relationships["appStoreVersionLocalization"]; exists {
+			t.Fatalf("expected appStoreVersionLocalization to be omitted for treatment localization")
+		}
+		if _, exists := relationships["appCustomProductPageLocalization"]; exists {
+			t.Fatalf("expected appCustomProductPageLocalization to be omitted for treatment localization")
+		}
+	}, response)
+
+	result, err := client.CreateAppScreenshotSetForExperimentTreatmentLocalization(context.Background(), "TREATMENT_LOC_123", "APP_IPHONE_65")
+	if err != nil {
+		t.Fatalf("CreateAppScreenshotSetForExperimentTreatmentLocalization() error: %v", err)
+	}
+	if result.Data.ID != "SET_TREATMENT_123" {
+		t.Fatalf("expected set ID SET_TREATMENT_123, got %s", result.Data.ID)
+	}
+}
+
 func TestDeleteAppScreenshotSet(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, "")
 	client := newTestClient(t, func(req *http.Request) {
@@ -8040,7 +8099,8 @@ func TestClientRenewsMutatingRequestTimeoutAfterLimiterWait(t *testing.T) {
 	release := make(chan struct{})
 	started := make(chan struct{}, 2)
 	var requests atomic.Int32
-	remainingBudget := make(chan time.Duration, 1)
+	derivedDeadlineCh := make(chan time.Time, 1)
+	parentDeadlineCh := make(chan time.Time, 1)
 
 	client := &Client{
 		httpClient: &http.Client{
@@ -8056,7 +8116,7 @@ func TestClientRenewsMutatingRequestTimeoutAfterLimiterWait(t *testing.T) {
 					if !ok {
 						t.Fatal("expected queued mutating request to have a timeout")
 					}
-					remainingBudget <- time.Until(deadline)
+					derivedDeadlineCh <- deadline
 				}
 
 				return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), nil
@@ -8078,6 +8138,12 @@ func TestClientRenewsMutatingRequestTimeoutAfterLimiterWait(t *testing.T) {
 	go func() {
 		requestCtx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
 		defer cancel()
+		deadline, ok := requestCtx.Deadline()
+		if !ok {
+			errCh <- fmt.Errorf("expected parent mutating request context to have a deadline")
+			return
+		}
+		parentDeadlineCh <- deadline
 
 		_, err := client.CreateSubscriptionAvailability(requestCtx, "sub-2", []string{"CAN"}, SubscriptionAvailabilityAttributes{})
 		errCh <- err
@@ -8097,8 +8163,14 @@ func TestClientRenewsMutatingRequestTimeoutAfterLimiterWait(t *testing.T) {
 		}
 	}
 
-	if budget := <-remainingBudget; budget < 65*time.Millisecond {
-		t.Fatalf("expected queued request to receive a refreshed timeout budget, got %s remaining", budget)
+	parentDeadline := <-parentDeadlineCh
+	derivedDeadline := <-derivedDeadlineCh
+	if !derivedDeadline.After(parentDeadline) {
+		t.Fatalf(
+			"expected queued request to receive a refreshed timeout deadline after %s, got %s",
+			parentDeadline.Format(time.RFC3339Nano),
+			derivedDeadline.Format(time.RFC3339Nano),
+		)
 	}
 
 	if requests.Load() != 2 {
