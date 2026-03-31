@@ -116,8 +116,8 @@ func runInitCreatesReferenceAndLinks(t *testing.T, args []string) {
 	if !strings.Contains(string(ascData), `asc status --app "APP_ID"`) {
 		t.Fatalf("expected ASC.md to mention release status monitoring, got %q", string(ascData))
 	}
-	if !strings.Contains(string(ascData), "Check submission readiness") || !strings.Contains(string(ascData), "asc submit preflight") {
-		t.Fatalf("expected ASC.md to retain low-level submit guidance via submit preflight, got %q", string(ascData))
+	if !strings.Contains(string(ascData), "Check submission readiness") || !strings.Contains(string(ascData), "asc validate") {
+		t.Fatalf("expected ASC.md to retain low-level submit guidance via validate, got %q", string(ascData))
 	}
 
 	agentsData, err := os.ReadFile(agentsPath)

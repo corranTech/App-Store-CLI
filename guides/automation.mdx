@@ -373,6 +373,10 @@ asc workflow run submit VERSION:1.0.0 VERSION_ID:abc123
           "run": "BUILD_ID=$(asc builds list --app $APP_ID --sort -uploadedDate --limit 1 --output json | jq -r '.data[0].id') && echo BUILD_ID=$BUILD_ID"
         },
         {
+          "name": "attach_build",
+          "run": "asc versions attach-build --version-id $VERSION_ID --build $BUILD_ID"
+        },
+        {
           "name": "submit",
           "run": "SUBMISSION_ID=$(asc review submissions-create --app $APP_ID --platform $PLATFORM --output json | jq -r '.data.id') && asc review items-add --submission $SUBMISSION_ID --item-type appStoreVersions --item-id $VERSION_ID && asc review submissions-submit --id $SUBMISSION_ID --confirm"
         }

@@ -222,8 +222,8 @@ func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
 		if !sliceContains(report.Migration.SuggestedCommands, `asc release run --app "123456789" --version "3.2.1" --build "BUILD_ID" --metadata-dir "./metadata/version/3.2.1" --confirm`) {
 			t.Fatalf("expected release command with prefilled app/version, got %#v", report.Migration.SuggestedCommands)
 		}
-		if !sliceContains(report.Migration.SuggestedCommands, `asc submit preflight --app "123456789" --version "3.2.1" --build "BUILD_ID"`) {
-			t.Fatalf("expected submit preflight command with prefilled app/version, got %#v", report.Migration.SuggestedCommands)
+		if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version "3.2.1"`) {
+			t.Fatalf("expected readiness validation command with prefilled app/version, got %#v", report.Migration.SuggestedCommands)
 		}
 	})
 }

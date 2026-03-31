@@ -51,7 +51,7 @@ Do not memorize flags. Always use `--help` for the current interface.
 | Publish to TestFlight | `asc publish testflight --app "APP_ID" --ipa "./App.ipa" --group "GROUP_ID" --wait` |
 | Review status | `asc review status --app "APP_ID"` |
 | Review blockers | `asc review doctor --app "APP_ID"` |
-| Check submission readiness | `asc submit preflight --app "APP_ID" --version "VERSION" --build "BUILD_ID"` |
+| Check submission readiness | `asc validate --app "APP_ID" --version "VERSION"` |
 | Apply metadata | `asc metadata apply --app "APP_ID" --version "VERSION" --dir "./metadata" --dry-run` |
 | Weekly insights summary | `asc insights weekly --app "APP_ID" --source analytics --week "YYYY-MM-DD"` |
 | Download localizations | `asc localizations download --version "VERSION_ID" --path "./localizations"` |
@@ -95,7 +95,6 @@ Low-level release operations (use when you intentionally do not want the full pu
 asc versions list --app "APP_ID"
 asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"
 asc validate --app "APP_ID" --version "1.0.0"
-asc submit preflight --app "APP_ID" --version "1.0.0" --build "BUILD_ID"
 asc submit status --version-id "VERSION_ID"
 asc submit cancel --version-id "VERSION_ID" --app "APP_ID" --confirm
 ```

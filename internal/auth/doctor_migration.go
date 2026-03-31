@@ -579,7 +579,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	}
 	if hasAppStoreSignal {
 		add(fmt.Sprintf(`asc release run --app %q --version %q --build %q --metadata-dir "./metadata/version/%s" --confirm`, values.appID, values.versionString, values.buildID, values.versionString))
-		add(fmt.Sprintf(`asc submit preflight --app %q --version %q --build %q`, values.appID, values.versionString, values.buildID))
+		add(fmt.Sprintf(`asc validate --app %q --version %q`, values.appID, values.versionString))
 	}
 
 	return commands

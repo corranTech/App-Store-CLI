@@ -272,8 +272,12 @@ asc localizations update \
   --keywords "productivity,tools" \
   --whats-new "Bug fixes and performance improvements"
 
-# 4. Create and submit the review submission
-echo "Creating review submission..."
+# 4. Attach the build and create the review submission
+echo "Attaching build and creating review submission..."
+asc versions attach-build \
+  --version-id "$VERSION_ID" \
+  --build "$BUILD_ID"
+
 SUBMISSION_ID=$(asc review submissions-create \
   --app "$ASC_APP_ID" \
   --platform "$PLATFORM" \

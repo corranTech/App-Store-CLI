@@ -218,14 +218,16 @@ Use this mental model:
 
 - `asc release run`: canonical App Store publish command
 - `asc release stage`: same App Store preparation without submission
-- `asc submit preflight|status|cancel`: submission operations, not the main publish path
+- `asc validate`: canonical App Store readiness check
+- `asc submit status|cancel`: submission operations, not the main publish path
 
 Lower-level alternatives (for validation or partial workflows):
 
 ```bash
-# Canonical readiness check (preferred over deprecated `asc submit preflight`)
+# Canonical readiness check
 asc validate --app "123456789" --version "1.2.3"
-asc submit preflight --app "123456789" --version "1.2.3" --build "BUILD_ID"
+asc submit status --version-id "VERSION_ID"
+asc submit cancel --version-id "VERSION_ID" --confirm
 ```
 
 ### Review status and blockers

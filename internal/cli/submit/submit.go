@@ -35,10 +35,12 @@ func SubmitCommand() *ffcli.Command {
 Use these canonical paths:
   - App Store publish: asc release run
   - App Store stage without submission: asc release stage
-  - Submission checks/status: asc submit preflight|status|cancel
+  - Submission readiness: asc validate
+  - Submission status/cancel: asc submit status|cancel
 
-The older ` + "`asc submit create`" + ` path remains available as a deprecated
-compatibility command for low-level submission-only flows.`,
+The older ` + "`asc submit preflight`" + ` and ` + "`asc submit create`" + ` paths
+remain available as deprecated compatibility commands for low-level
+submission-only flows.`,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubmitCreateCommand(),
@@ -77,7 +79,7 @@ Canonical App Store publish:
   asc release run --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --metadata-dir "./metadata/version/1.0.0" --confirm
 
 Low-level validation without submission:
-  asc submit preflight --app "APP_ID" --version "1.0.0" --build "BUILD_ID"`,
+  asc validate --app "APP_ID" --version "1.0.0"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

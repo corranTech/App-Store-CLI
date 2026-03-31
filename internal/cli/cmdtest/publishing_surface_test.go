@@ -71,8 +71,8 @@ func TestSubmitHelpPointsToReleaseRunAndHidesCreate(t *testing.T) {
 	if !strings.Contains(stderr, "asc release run") {
 		t.Fatalf("expected submit help to point to asc release run, got %q", stderr)
 	}
-	if !strings.Contains(stderr, "asc submit preflight") {
-		t.Fatalf("expected submit help to keep preflight guidance, got %q", stderr)
+	if !strings.Contains(stderr, "asc validate") {
+		t.Fatalf("expected submit help to point readiness checks to asc validate, got %q", stderr)
 	}
 	if strings.Contains(stderr, "\n  create") {
 		t.Fatalf("expected deprecated submit create subcommand to be hidden from submit help, got %q", stderr)

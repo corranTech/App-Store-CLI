@@ -421,8 +421,8 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if !sliceContains(report.Migration.SuggestedCommands, `asc release run --app "123456789" --version "2.3.4" --build "BUILD_ID" --metadata-dir "./metadata/version/2.3.4" --confirm`) {
 		t.Fatalf("expected personalized release command, got %#v", report.Migration.SuggestedCommands)
 	}
-	if !sliceContains(report.Migration.SuggestedCommands, `asc submit preflight --app "123456789" --version "2.3.4" --build "BUILD_ID"`) {
-		t.Fatalf("expected personalized submit preflight command, got %#v", report.Migration.SuggestedCommands)
+	if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version "2.3.4"`) {
+		t.Fatalf("expected personalized readiness validation command, got %#v", report.Migration.SuggestedCommands)
 	}
 }
 
