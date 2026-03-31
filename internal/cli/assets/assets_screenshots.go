@@ -833,9 +833,20 @@ func ensureScreenshotSetWithAccess(ctx context.Context, client *asc.Client, loca
 	return created.Data, nil
 }
 
-func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace, dryRun bool) (asc.AppScreenshotUploadResult, error) {
-	if client == nil {
-		return asc.AppScreenshotUploadResult{}, fmt.Errorf("client is required")
+func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploadConfig[T]) (T, error) {
+	var zero T
+
+	if cfg.Client == nil {
+		return zero, fmt.Errorf("client is required")
+	}
+	if cfg.BuildResult == nil {
+		return zero, fmt.Errorf("build result function is required")
+	}
+	if cfg.RequestContext == nil {
+		cfg.RequestContext = shared.ContextWithTimeout
+	}
+	if cfg.UploadContext == nil {
+		cfg.UploadContext = contextWithAssetUploadTimeout
 	}
 
 	requestCtx, reqCancel := shared.ContextWithTimeout(ctx)
