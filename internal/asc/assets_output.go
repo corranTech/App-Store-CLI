@@ -211,6 +211,12 @@ func customProductPageScreenshotUploadResultMainRows(result *CustomProductPageSc
 	return headers, rows
 }
 
+func experimentTreatmentLocalizationScreenshotUploadResultMainRows(result *ExperimentTreatmentLocalizationScreenshotUploadResult) ([]string, [][]string) {
+	headers := []string{"Localization ID", "Set ID", "Display Type"}
+	rows := [][]string{{result.ExperimentTreatmentLocalizationID, result.SetID, result.DisplayType}}
+	return headers, rows
+}
+
 func customProductPagePreviewUploadResultMainRows(result *CustomProductPagePreviewUploadResult) ([]string, [][]string) {
 	headers := []string{"Localization ID", "Set ID", "Preview Type"}
 	rows := [][]string{{result.CustomProductPageLocalizationID, result.SetID, result.PreviewType}}
