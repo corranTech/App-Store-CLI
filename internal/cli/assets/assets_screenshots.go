@@ -890,8 +890,8 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 		if cfg.Replace {
 			for _, screenshot := range existingScreenshots {
 				results = append(results, asc.AssetUploadResultItem{
-					FileName: s.Attributes.FileName,
-					AssetID:  s.ID,
+					FileName: screenshot.Attributes.FileName,
+					AssetID:  screenshot.ID,
 					State:    "would-delete",
 				})
 			}
