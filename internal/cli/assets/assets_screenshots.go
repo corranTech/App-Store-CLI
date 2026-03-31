@@ -887,8 +887,8 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 
 	if cfg.DryRun {
 		results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files)+len(existingScreenshots))
-		if replace {
-			for _, s := range existingScreenshots {
+		if cfg.Replace {
+			for _, screenshot := range existingScreenshots {
 				results = append(results, asc.AssetUploadResultItem{
 					FileName: s.Attributes.FileName,
 					AssetID:  s.ID,
