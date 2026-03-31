@@ -865,9 +865,9 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 	}
 
 	existingScreenshots := make([]asc.Resource[asc.AppScreenshotAttributes], 0)
-	if (skipExisting || replace) && set.ID != "" {
-		fetchCtx, fetchCancel := shared.ContextWithTimeout(ctx)
-		existingResp, err := client.GetAppScreenshots(fetchCtx, set.ID)
+	if (cfg.SkipExisting || cfg.Replace) && set.ID != "" {
+		fetchCtx, fetchCancel := cfg.RequestContext(ctx)
+		existingResp, err := cfg.Client.GetAppScreenshots(fetchCtx, set.ID)
 		fetchCancel()
 		if err != nil {
 			return asc.AppScreenshotUploadResult{}, err
