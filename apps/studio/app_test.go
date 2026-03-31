@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -103,6 +105,31 @@ func TestRunASCCommandRejectsDisallowedPaths(t *testing.T) {
 	}
 	if got.Error != "Command is not allowed in ASC Studio" {
 		t.Fatalf("RunASCCommand().Error = %q, want command rejection", got.Error)
+	}
+}
+
+func TestFrontendSectionCommandsStayInStudioAllowlist(t *testing.T) {
+	commands, err := frontendSectionCommands(filepath.Join("frontend", "src", "constants.ts"))
+	if err != nil {
+		t.Fatalf("frontendSectionCommands() error = %v", err)
+	}
+	if len(commands) == 0 {
+		t.Fatal("frontendSectionCommands() returned no commands")
+	}
+
+	var missing []string
+	for _, command := range commands {
+		parts, err := parseASCCommandArgs(strings.ReplaceAll(command, "APP_ID", "app-id"))
+		if err != nil {
+			t.Fatalf("parseASCCommandArgs(%q) error = %v", command, err)
+		}
+		path := studioCommandPath(parts)
+		if _, ok := allowedStudioCommandPaths[path]; !ok {
+			missing = append(missing, path+" <= "+command)
+		}
+	}
+	if len(missing) > 0 {
+		t.Fatalf("frontend section commands missing from Studio allowlist:\n%s", strings.Join(missing, "\n"))
 	}
 }
 
@@ -218,6 +245,33 @@ func TestConfigGuardAllowsNestedCalls(t *testing.T) {
 	restoreInner := configGuard()
 	restoreInner()
 	restoreOuter()
+}
+
+func frontendSectionCommands(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	source := string(data)
+	start := strings.Index(source, "export const sectionCommands")
+	if start == -1 {
+		return nil, errors.New("sectionCommands block not found")
+	}
+	block := source[start:]
+	end := strings.Index(block, "\n};")
+	if end == -1 {
+		return nil, errors.New("sectionCommands block terminator not found")
+	}
+	block = block[:end]
+
+	re := regexp.MustCompile(`(?m)^\s*"[^"]+":\s*"([^"]+)"`)
+	matches := re.FindAllStringSubmatch(block, -1)
+	commands := make([]string, 0, len(matches))
+	for _, match := range matches {
+		commands = append(commands, match[1])
+	}
+	return commands, nil
 }
 
 func TestEnsureSessionSingleFlightsConcurrentCalls(t *testing.T) {

@@ -353,6 +353,36 @@ describe("App", () => {
     expect(screen.queryByText("Select an App")).not.toBeInTheDocument();
   });
 
+  it("renders top-level account status checks in the team scope", async () => {
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "account status --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            summary: { health: "warn", nextAction: "Fix credentials" },
+            checks: [
+              { name: "authentication", status: "warn", message: "auth doctor found 1 warning(s)" },
+              { name: "api_access", status: "ok", message: "able to read apps list" },
+            ],
+            generatedAt: "2026-03-31T00:00:00Z",
+          }),
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Team" }));
+    fireEvent.click(screen.getByRole("button", { name: "Account" }));
+
+    expect(await screen.findByText("authentication")).toBeInTheDocument();
+    expect(screen.getByText("auth doctor found 1 warning(s)")).toBeInTheDocument();
+    expect(screen.getByText("able to read apps list")).toBeInTheDocument();
+  });
+
   it("does not refetch standalone sections when switching apps", async () => {
     mockListApps.mockResolvedValue({
       apps: [

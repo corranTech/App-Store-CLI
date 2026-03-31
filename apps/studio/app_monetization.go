@@ -43,59 +43,50 @@ func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID strin
 		return SubscriptionsResponse{Error: "failed to parse groups"}
 	}
 
-	// Step 2: fetch subscriptions per group concurrently
-	type subResult struct {
-		groupName string
-		subs      []SubscriptionItem
-	}
-	ch := make(chan subResult, len(groupEnv.Data))
-	for _, g := range groupEnv.Data {
-		go func(groupID, groupName string) {
-			cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "list", "--group-id", groupID, "--output", "json")
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				ch <- subResult{groupName: groupName}
-				return
-			}
-			type rawSub struct {
-				ID         string `json:"id"`
-				Attributes struct {
-					Name               string `json:"name"`
-					ProductID          string `json:"productId"`
-					State              string `json:"state"`
-					SubscriptionPeriod string `json:"subscriptionPeriod"`
-					ReviewNote         string `json:"reviewNote"`
-					GroupLevel         int    `json:"groupLevel"`
-				} `json:"attributes"`
-			}
-			var env struct {
-				Data []rawSub `json:"data"`
-			}
-			if json.Unmarshal(out, &env) != nil {
-				ch <- subResult{groupName: groupName}
-				return
-			}
-			items := make([]SubscriptionItem, 0, len(env.Data))
-			for _, s := range env.Data {
-				items = append(items, SubscriptionItem{
-					ID:                 s.ID,
-					GroupName:          groupName,
-					Name:               s.Attributes.Name,
-					ProductID:          s.Attributes.ProductID,
-					State:              s.Attributes.State,
-					SubscriptionPeriod: s.Attributes.SubscriptionPeriod,
-					ReviewNote:         s.Attributes.ReviewNote,
-					GroupLevel:         s.Attributes.GroupLevel,
-				})
-			}
-			ch <- subResult{groupName: groupName, subs: items}
-		}(g.ID, g.Attributes.ReferenceName)
-	}
+	groupSubscriptions := make([][]SubscriptionItem, len(groupEnv.Data))
+	runWithConcurrency(boundedStudioConcurrency(len(groupEnv.Data)), len(groupEnv.Data), func(i int) {
+		group := groupEnv.Data[i]
+		cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "list", "--group-id", group.ID, "--output", "json")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return
+		}
+		type rawSub struct {
+			ID         string `json:"id"`
+			Attributes struct {
+				Name               string `json:"name"`
+				ProductID          string `json:"productId"`
+				State              string `json:"state"`
+				SubscriptionPeriod string `json:"subscriptionPeriod"`
+				ReviewNote         string `json:"reviewNote"`
+				GroupLevel         int    `json:"groupLevel"`
+			} `json:"attributes"`
+		}
+		var env struct {
+			Data []rawSub `json:"data"`
+		}
+		if json.Unmarshal(out, &env) != nil {
+			return
+		}
+		items := make([]SubscriptionItem, 0, len(env.Data))
+		for _, s := range env.Data {
+			items = append(items, SubscriptionItem{
+				ID:                 s.ID,
+				GroupName:          group.Attributes.ReferenceName,
+				Name:               s.Attributes.Name,
+				ProductID:          s.Attributes.ProductID,
+				State:              s.Attributes.State,
+				SubscriptionPeriod: s.Attributes.SubscriptionPeriod,
+				ReviewNote:         s.Attributes.ReviewNote,
+				GroupLevel:         s.Attributes.GroupLevel,
+			})
+		}
+		groupSubscriptions[i] = items
+	})
 
 	var all []SubscriptionItem
-	for range groupEnv.Data {
-		r := <-ch
-		all = append(all, r.subs...)
+	for _, items := range groupSubscriptions {
+		all = append(all, items...)
 	}
 	return SubscriptionsResponse{Subscriptions: all}
 }
@@ -291,59 +282,54 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 	type offerResult struct {
 		codes []OfferCode
 	}
-	ch := make(chan offerResult, len(subsResp.Subscriptions))
-
-	for _, sub := range subsResp.Subscriptions {
-		go func(subID, subName string) {
-			cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "offers", "offer-codes", "list",
-				"--subscription-id", subID, "--output", "json")
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				ch <- offerResult{}
-				return
-			}
-			type rawCode struct {
-				Attributes struct {
-					Name                  string   `json:"name"`
-					OfferEligibility      string   `json:"offerEligibility"`
-					CustomerEligibilities []string `json:"customerEligibilities"`
-					Duration              string   `json:"duration"`
-					OfferMode             string   `json:"offerMode"`
-					NumberOfPeriods       int      `json:"numberOfPeriods"`
-					TotalNumberOfCodes    int      `json:"totalNumberOfCodes"`
-					ProductionCodeCount   int      `json:"productionCodeCount"`
-				} `json:"attributes"`
-			}
-			var env struct {
-				Data []rawCode `json:"data"`
-			}
-			if json.Unmarshal(out, &env) != nil {
-				ch <- offerResult{}
-				return
-			}
-			codes := make([]OfferCode, 0, len(env.Data))
-			for _, c := range env.Data {
-				codes = append(codes, OfferCode{
-					SubscriptionName: subName,
-					SubscriptionID:   subID,
-					Name:             c.Attributes.Name,
-					Eligibility:      c.Attributes.OfferEligibility,
-					Customers:        c.Attributes.CustomerEligibilities,
-					Duration:         c.Attributes.Duration,
-					OfferMode:        c.Attributes.OfferMode,
-					Periods:          c.Attributes.NumberOfPeriods,
-					TotalCodes:       c.Attributes.TotalNumberOfCodes,
-					ProductionCodes:  c.Attributes.ProductionCodeCount,
-				})
-			}
-			ch <- offerResult{codes: codes}
-		}(sub.ID, sub.Name)
-	}
+	offersBySubscription := make([]offerResult, len(subsResp.Subscriptions))
+	runWithConcurrency(boundedStudioConcurrency(len(subsResp.Subscriptions)), len(subsResp.Subscriptions), func(i int) {
+		sub := subsResp.Subscriptions[i]
+		cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "offers", "offer-codes", "list",
+			"--subscription-id", sub.ID, "--output", "json")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return
+		}
+		type rawCode struct {
+			Attributes struct {
+				Name                  string   `json:"name"`
+				OfferEligibility      string   `json:"offerEligibility"`
+				CustomerEligibilities []string `json:"customerEligibilities"`
+				Duration              string   `json:"duration"`
+				OfferMode             string   `json:"offerMode"`
+				NumberOfPeriods       int      `json:"numberOfPeriods"`
+				TotalNumberOfCodes    int      `json:"totalNumberOfCodes"`
+				ProductionCodeCount   int      `json:"productionCodeCount"`
+			} `json:"attributes"`
+		}
+		var env struct {
+			Data []rawCode `json:"data"`
+		}
+		if json.Unmarshal(out, &env) != nil {
+			return
+		}
+		codes := make([]OfferCode, 0, len(env.Data))
+		for _, c := range env.Data {
+			codes = append(codes, OfferCode{
+				SubscriptionName: sub.Name,
+				SubscriptionID:   sub.ID,
+				Name:             c.Attributes.Name,
+				Eligibility:      c.Attributes.OfferEligibility,
+				Customers:        c.Attributes.CustomerEligibilities,
+				Duration:         c.Attributes.Duration,
+				OfferMode:        c.Attributes.OfferMode,
+				Periods:          c.Attributes.NumberOfPeriods,
+				TotalCodes:       c.Attributes.TotalNumberOfCodes,
+				ProductionCodes:  c.Attributes.ProductionCodeCount,
+			})
+		}
+		offersBySubscription[i] = offerResult{codes: codes}
+	})
 
 	var all []OfferCode
-	for range subsResp.Subscriptions {
-		r := <-ch
-		all = append(all, r.codes...)
+	for _, result := range offersBySubscription {
+		all = append(all, result.codes...)
 	}
 	return OfferCodesResponse{OfferCodes: all}, nil
 }

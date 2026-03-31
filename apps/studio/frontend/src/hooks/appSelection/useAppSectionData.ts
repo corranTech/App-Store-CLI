@@ -20,6 +20,7 @@ import {
   GetSubscriptions,
   RunASCCommand,
 } from "../../../wailsjs/go/main/App";
+import { parseCommandItems } from "./commandItems";
 
 function emptyPricingOverview(): PricingOverviewState {
   return {
@@ -39,24 +40,6 @@ function emptyOfferCodes(): OfferCodesState {
 
 function emptyFeedback(): FeedbackState {
   return { loading: false, total: 0, items: [] };
-}
-
-function parseCommandItems(raw: string): Record<string, unknown>[] {
-  const parsed = JSON.parse(raw);
-  const items: Record<string, unknown>[] = [];
-
-  if (Array.isArray(parsed?.data)) {
-    for (const item of parsed.data) {
-      items.push({ id: item.id, type: item.type, ...item.attributes });
-    }
-    return items;
-  }
-
-  if (parsed?.data?.attributes) {
-    items.push({ id: parsed.data.id, type: parsed.data.type, ...parsed.data.attributes });
-  }
-
-  return items;
 }
 
 export function useAppSectionData(appSelectionRequestRef: MutableRefObject<number>) {

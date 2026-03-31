@@ -43,21 +43,9 @@ func (a *App) ListApps() (ListAppsResponse, error) {
 	subtitleCtx, subtitleCancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
 	defer subtitleCancel()
 
-	type subtitleResult struct {
-		index    int
-		subtitle string
-	}
-	results := make(chan subtitleResult, len(apps))
-	for i, app := range apps {
-		go func(idx int, appID string) {
-			subtitle := a.fetchSubtitle(subtitleCtx, ascPath, appID)
-			results <- subtitleResult{index: idx, subtitle: subtitle}
-		}(i, app.ID)
-	}
-	for range apps {
-		r := <-results
-		apps[r.index].Subtitle = r.subtitle
-	}
+	runWithConcurrency(boundedStudioConcurrency(len(apps)), len(apps), func(i int) {
+		apps[i].Subtitle = a.fetchSubtitle(subtitleCtx, ascPath, apps[i].ID)
+	})
 
 	return ListAppsResponse{Apps: apps}, nil
 }

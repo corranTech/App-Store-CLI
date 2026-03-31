@@ -51,36 +51,6 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 		return TestFlightResponse{Error: "failed to parse groups"}, nil
 	}
 
-	// 2. Fetch tester count per group concurrently (just need meta.paging.total)
-	type countResult struct {
-		idx   int
-		count int
-	}
-	countCh := make(chan countResult, len(groupEnv.Data))
-	for i, g := range groupEnv.Data {
-		go func(idx int, groupID string) {
-			cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
-				"--group", groupID, "--limit", "1", "--output", "json")
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				countCh <- countResult{idx: idx, count: 0}
-				return
-			}
-			var env struct {
-				Meta struct {
-					Paging struct {
-						Total int `json:"total"`
-					} `json:"paging"`
-				} `json:"meta"`
-			}
-			if json.Unmarshal(out, &env) == nil {
-				countCh <- countResult{idx: idx, count: env.Meta.Paging.Total}
-			} else {
-				countCh <- countResult{idx: idx, count: 0}
-			}
-		}(i, g.ID)
-	}
-
 	groups := make([]BetaGroup, len(groupEnv.Data))
 	for i, g := range groupEnv.Data {
 		groups[i] = BetaGroup{
@@ -93,10 +63,24 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 		}
 	}
 
-	for range groupEnv.Data {
-		r := <-countCh
-		groups[r.idx].TesterCount = r.count
-	}
+	runWithConcurrency(boundedStudioConcurrency(len(groupEnv.Data)), len(groupEnv.Data), func(i int) {
+		cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
+			"--group", groupEnv.Data[i].ID, "--limit", "1", "--output", "json")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return
+		}
+		var env struct {
+			Meta struct {
+				Paging struct {
+					Total int `json:"total"`
+				} `json:"paging"`
+			} `json:"meta"`
+		}
+		if json.Unmarshal(out, &env) == nil {
+			groups[i].TesterCount = env.Meta.Paging.Total
+		}
+	})
 
 	return TestFlightResponse{Groups: groups}, nil
 }
@@ -201,48 +185,6 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 		return FeedbackResponse{Error: "failed to parse feedback list"}, nil
 	}
 
-	// Enrich each feedback item with detail view (concurrent, best-effort)
-	type detailResult struct {
-		idx    int
-		locale string
-		tz     string
-		conn   string
-		batt   int
-	}
-	ch := make(chan detailResult, len(listEnv.Data))
-	for i, fb := range listEnv.Data {
-		go func(idx int, fbID string) {
-			cmd := a.newASCCommand(ctx, ascPath, "testflight", "feedback", "view",
-				"--submission-id", fbID, "--output", "json")
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				ch <- detailResult{idx: idx}
-				return
-			}
-			var env struct {
-				Data struct {
-					Attributes struct {
-						Locale         string `json:"locale"`
-						TimeZone       string `json:"timeZone"`
-						ConnectionType string `json:"connectionType"`
-						Battery        int    `json:"batteryPercentage"`
-					} `json:"attributes"`
-				} `json:"data"`
-			}
-			if json.Unmarshal(out, &env) == nil {
-				ch <- detailResult{
-					idx:    idx,
-					locale: env.Data.Attributes.Locale,
-					tz:     env.Data.Attributes.TimeZone,
-					conn:   env.Data.Attributes.ConnectionType,
-					batt:   env.Data.Attributes.Battery,
-				}
-			} else {
-				ch <- detailResult{idx: idx}
-			}
-		}(i, fb.ID)
-	}
-
 	items := make([]FeedbackItem, len(listEnv.Data))
 	for i, fb := range listEnv.Data {
 		var shots []FeedbackScreenshot
@@ -261,13 +203,31 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 			Screenshots:  shots,
 		}
 	}
-	for range listEnv.Data {
-		r := <-ch
-		items[r.idx].Locale = r.locale
-		items[r.idx].TimeZone = r.tz
-		items[r.idx].ConnectionType = r.conn
-		items[r.idx].Battery = r.batt
-	}
+	runWithConcurrency(boundedStudioConcurrency(len(listEnv.Data)), len(listEnv.Data), func(i int) {
+		cmd := a.newASCCommand(ctx, ascPath, "testflight", "feedback", "view",
+			"--submission-id", listEnv.Data[i].ID, "--output", "json")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return
+		}
+		var env struct {
+			Data struct {
+				Attributes struct {
+					Locale         string `json:"locale"`
+					TimeZone       string `json:"timeZone"`
+					ConnectionType string `json:"connectionType"`
+					Battery        int    `json:"batteryPercentage"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if json.Unmarshal(out, &env) != nil {
+			return
+		}
+		items[i].Locale = env.Data.Attributes.Locale
+		items[i].TimeZone = env.Data.Attributes.TimeZone
+		items[i].ConnectionType = env.Data.Attributes.ConnectionType
+		items[i].Battery = env.Data.Attributes.Battery
+	})
 
 	return FeedbackResponse{Feedback: items, Total: listEnv.Meta.Paging.Total}, nil
 }

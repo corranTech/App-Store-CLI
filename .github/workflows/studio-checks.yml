@@ -34,6 +34,8 @@ on:
 jobs:
   studio:
     runs-on: macos-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: apps/studio/frontend
@@ -64,9 +66,9 @@ jobs:
         run: npm run build
 
       - name: Run Studio Go tests
-        working-directory: .
+        working-directory: ${{ github.workspace }}
         run: go test ./apps/studio/...
 
       - name: Build Studio bootstrap binary
-        working-directory: .
+        working-directory: ${{ github.workspace }}
         run: go build ./apps/studio

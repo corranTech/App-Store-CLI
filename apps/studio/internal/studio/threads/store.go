@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,7 @@ type Thread struct {
 }
 
 type Store struct {
+	mu       sync.RWMutex
 	path     string
 	readFile func(string) ([]byte, error)
 	write    func(string, []byte, os.FileMode) error
@@ -58,6 +60,12 @@ func NewStore(root string) *Store {
 }
 
 func (s *Store) LoadAll() ([]Thread, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.loadAllUnlocked()
+}
+
+func (s *Store) loadAllUnlocked() ([]Thread, error) {
 	data, err := s.readFile(s.path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -92,7 +100,10 @@ func (s *Store) Get(id string) (Thread, error) {
 }
 
 func (s *Store) SaveThread(next Thread) error {
-	all, err := s.LoadAll()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	all, err := s.loadAllUnlocked()
 	if err != nil {
 		return err
 	}

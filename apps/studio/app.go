@@ -67,6 +67,7 @@ var allowedStudioCommandPaths = map[string]struct{}{
 	"devices register":                      {},
 	"encryption list":                       {},
 	"eula list":                             {},
+	"eula view":                             {},
 	"game-center achievements list":         {},
 	"iap list":                              {},
 	"insights weekly":                       {},
