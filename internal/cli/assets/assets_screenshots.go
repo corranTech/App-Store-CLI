@@ -849,11 +849,13 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 		cfg.UploadContext = contextWithAssetUploadTimeout
 	}
 
-	requestCtx, reqCancel := shared.ContextWithTimeout(ctx)
-	var set asc.Resource[asc.AppScreenshotSetAttributes]
-	var err error
-	if dryRun {
-		set, err = findScreenshotSet(requestCtx, client, localizationID, displayType)
+	requestCtx, reqCancel := cfg.RequestContext(ctx)
+	var (
+		set asc.Resource[asc.AppScreenshotSetAttributes]
+		err error
+	)
+	if cfg.DryRun {
+		set, err = findScreenshotSetWithAccess(requestCtx, cfg.Client, cfg.LocalizationID, cfg.DisplayType, cfg.Access)
 	} else {
 		set, err = ensureScreenshotSet(requestCtx, client, localizationID, displayType)
 	}
