@@ -433,31 +433,22 @@ def hidden_deprecated_alias_spec(
     binary_path: Path,
     example: Example,
     root_flags: dict[str, bool],
-    index: dict[tuple[str, ...], CommandSpec],
 ) -> CommandSpec | None:
-    replacement = hidden_deprecated_alias_replacement(binary_path, example, root_flags)
-    if replacement is None:
-        return None
-
-    try:
-        replacement_tokens = tuple(shlex.split(replacement))
-    except ValueError:
-        return None
-
-    if not replacement_tokens or replacement_tokens[0] != "asc":
-        return None
-
-    replacement_path = token_command_path(replacement_tokens, root_flags)
-    replacement_spec = index.get(replacement_path)
-    if replacement_spec is None:
+    if hidden_deprecated_alias_replacement(binary_path, example, root_flags) is None:
         return None
 
     deprecated_path = token_command_path(example.tokens, root_flags)
+    if not deprecated_path:
+        return None
+
+    deprecated_help = path_help(binary_path, deprecated_path)
+    deprecated_spec = parse_help_text(deprecated_help, is_root=False)
+
     return CommandSpec(
         path=deprecated_path,
-        usage=replacement_spec.usage,
-        flags=replacement_spec.flags,
-        subcommands=replacement_spec.subcommands,
+        usage=deprecated_spec.usage,
+        flags=deprecated_spec.flags,
+        subcommands=deprecated_spec.subcommands,
     )
 
 
@@ -501,7 +492,7 @@ def validate_example(
             pending_root_flag = flag if "=" not in token and not root.flags[flag] else None
             continue
         if binary_path is not None:
-            hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags, index)
+            hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags)
             if hidden_current is not None:
                 top_level_index = i
                 break
@@ -545,7 +536,7 @@ def validate_example(
         if i < len(tokens) and current.subcommands and not tokens[i].startswith("--"):
             hidden_current = None
             if binary_path is not None:
-                hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags, index)
+                hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags)
             if hidden_current is None:
                 errors.append(
                     f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
