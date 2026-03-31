@@ -436,7 +436,11 @@ func resolveScreenshotPlanVersion(ctx context.Context, client *asc.Client, appID
 		if !strings.EqualFold(strings.TrimSpace(relatedAppID), strings.TrimSpace(appID)) {
 			return "", "", "", fmt.Errorf("version %q belongs to app %q, not %q", strings.TrimSpace(versionID), relatedAppID, appID)
 		}
-		return strings.TrimSpace(resp.Data.ID), strings.TrimSpace(resp.Data.Attributes.VersionString), strings.TrimSpace(string(resp.Data.Attributes.Platform)), nil
+		resolvedPlatform := strings.TrimSpace(string(resp.Data.Attributes.Platform))
+		if strings.TrimSpace(platform) != "" && !strings.EqualFold(resolvedPlatform, platform) {
+			return "", "", "", fmt.Errorf("version %q is on platform %q, not %q", strings.TrimSpace(resp.Data.ID), resolvedPlatform, strings.TrimSpace(platform))
+		}
+		return strings.TrimSpace(resp.Data.ID), strings.TrimSpace(resp.Data.Attributes.VersionString), resolvedPlatform, nil
 	}
 
 	resolvedVersionID, err := shared.ResolveAppStoreVersionID(ctx, client, appID, strings.TrimSpace(version), strings.TrimSpace(platform))

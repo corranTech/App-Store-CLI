@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	reviewshots "github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
@@ -231,6 +232,55 @@ func TestExecuteScreenshotReviewPlanUsesPlatformSpecificCoverageWarnings(t *test
 	}
 	if result.PlannedGroups != 1 {
 		t.Fatalf("expected one planned group, got %d", result.PlannedGroups)
+	}
+}
+
+func TestResolveScreenshotPlanVersionRejectsPlatformMismatchForVersionID(t *testing.T) {
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
+			return assetsJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-123",
+					"attributes": {
+						"versionString": "1.2.3",
+						"platform": "IOS"
+					},
+					"relationships": {
+						"app": {
+							"data": {
+								"type": "apps",
+								"id": "123456789"
+							}
+						}
+					}
+				}
+			}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	client := newAssetsUploadTestClient(t)
+	_, _, _, err := resolveScreenshotPlanVersion(
+		context.Background(),
+		client,
+		"123456789",
+		"",
+		"version-123",
+		"MAC_OS",
+	)
+	if err == nil {
+		t.Fatal("expected platform mismatch error, got nil")
+	}
+	if !strings.Contains(err.Error(), `version "version-123" is on platform "IOS", not "MAC_OS"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
