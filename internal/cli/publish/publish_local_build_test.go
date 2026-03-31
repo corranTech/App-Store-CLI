@@ -30,7 +30,7 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
 		if appID != "friendly-app" {
 			t.Fatalf("expected unresolved app input to be passed through lookup, got %q", appID)
@@ -252,7 +252,7 @@ func TestPublishTestFlightLocalBuildRejectsDirectUploadExportOptions(t *testing.
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -325,7 +325,7 @@ func TestPublishTestFlightLocalBuildTableIncludesArchiveAndExportSections(t *tes
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -437,7 +437,7 @@ func TestPublishTestFlightLocalBuildUsesDefaultExportOptionsPath(t *testing.T) {
 		_ = os.Chdir(originalWD)
 	})
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -528,7 +528,7 @@ func TestPublishTestFlightLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testin
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -707,7 +707,7 @@ func TestPublishTestFlightIPAUploadResolvesAppIDBeforeGroupLookupAndUpload(t *te
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
 		return newPublishTestFileInfo(t)
 	}
@@ -821,7 +821,7 @@ func TestPublishAppStoreLocalBuildRequiresExportOptionsWhenDefaultMissing(t *tes
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -865,7 +865,7 @@ func TestPublishAppStoreLocalBuildRejectsDirectUploadExportOptions(t *testing.T)
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -913,7 +913,7 @@ func TestPublishAppStoreLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -976,6 +976,8 @@ func TestPublishAppStoreLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.
 		switch req.URL.Path {
 		case "/v1/apps/app-123/appStoreVersions":
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case "/v1/appStoreVersions/version-1/build":
+			return publishCommandJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		case "/v1/appStoreVersions/version-1/relationships/build":
 			return publishCommandJSONResponse(http.StatusNoContent, "")
 		default:
@@ -1032,7 +1034,7 @@ func TestPublishAppStoreIPAUploadResolvesAppIDBeforeUploadAndAttach(t *testing.T
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
 		return newPublishTestFileInfo(t)
 	}
@@ -1088,6 +1090,11 @@ func TestPublishAppStoreIPAUploadResolvesAppIDBeforeUploadAndAttach(t *testing.T
 			}
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
 		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1/build" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return publishCommandJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case 3:
 			if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreVersions/version-1/relationships/build" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}

@@ -18,9 +18,14 @@ import (
 const defaultPublishExportOptionsPath = ".asc/export-options-app-store.plist"
 
 var (
-	runPublishArchiveFn             = localxcode.Archive
-	runPublishExportFn              = localxcode.Export
-	getPublishASCClientFn           = shared.GetASCClient
+	runPublishArchiveFn   = localxcode.Archive
+	runPublishExportFn    = localxcode.Export
+	getPublishASCClientFn = func(timeout time.Duration) (*asc.Client, error) {
+		if timeout > 0 {
+			return shared.GetASCClientWithTimeout(timeout)
+		}
+		return shared.GetASCClient()
+	}
 	validatePublishIPAPathFn        = shared.ValidateIPAPath
 	resolvePublishNextBuildNumberFn = func(ctx context.Context, client *asc.Client, opts shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
 		return shared.ResolveNextBuildNumber(ctx, client, opts)
