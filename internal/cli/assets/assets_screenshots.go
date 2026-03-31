@@ -22,6 +22,58 @@ var focusedScreenshotDisplayTypes = []string{
 
 var screenshotFileChecksumFunc = computeFileChecksum
 
+// ScreenshotSetListFunc fetches screenshot sets for a localization kind.
+type ScreenshotSetListFunc func(context.Context, *asc.Client, string) (*asc.AppScreenshotSetsResponse, error)
+
+// ScreenshotSetCreateFunc creates a screenshot set for a localization kind.
+type ScreenshotSetCreateFunc func(context.Context, *asc.Client, string, string) (*asc.AppScreenshotSetResponse, error)
+
+// ScreenshotSetAccess contains the list/create hooks for a screenshot-set owner.
+type ScreenshotSetAccess struct {
+	List   ScreenshotSetListFunc
+	Create ScreenshotSetCreateFunc
+}
+
+// ScreenshotSetUploadOptions configures the shared screenshot upload path for
+// custom product pages and PPO treatment localizations.
+type ScreenshotSetUploadOptions[T any] struct {
+	LocalizationID           string
+	Path                     string
+	DeviceType               string
+	Replace                  bool
+	InvalidDeviceTypeIsUsage bool
+
+	ClientFactory  func() (*asc.Client, error)
+	RequestContext func(context.Context) (context.Context, context.CancelFunc)
+	UploadContext  func(context.Context) (context.Context, context.CancelFunc)
+
+	Access      ScreenshotSetAccess
+	BuildResult func(string, asc.Resource[asc.AppScreenshotSetAttributes], []asc.AssetUploadResultItem) T
+}
+
+type screenshotUploadConfig[T any] struct {
+	Client         *asc.Client
+	LocalizationID string
+	DisplayType    string
+	Files          []string
+	SkipExisting   bool
+	Replace        bool
+	DryRun         bool
+	RequestContext func(context.Context) (context.Context, context.CancelFunc)
+	UploadContext  func(context.Context) (context.Context, context.CancelFunc)
+	Access         ScreenshotSetAccess
+	BuildResult    func(string, asc.Resource[asc.AppScreenshotSetAttributes], bool, []asc.AssetUploadResultItem) T
+}
+
+var appStoreVersionScreenshotSetAccess = ScreenshotSetAccess{
+	List: func(ctx context.Context, client *asc.Client, localizationID string) (*asc.AppScreenshotSetsResponse, error) {
+		return client.GetAppScreenshotSets(ctx, localizationID)
+	},
+	Create: func(ctx context.Context, client *asc.Client, localizationID, displayType string) (*asc.AppScreenshotSetResponse, error) {
+		return client.CreateAppScreenshotSet(ctx, localizationID, displayType)
+	},
+}
+
 func focusedScreenshotSizeCatalog() []asc.ScreenshotSizeEntry {
 	focused := make([]asc.ScreenshotSizeEntry, 0, len(focusedScreenshotDisplayTypes))
 	for _, displayType := range focusedScreenshotDisplayTypes {
