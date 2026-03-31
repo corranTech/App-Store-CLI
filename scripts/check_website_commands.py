@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import re
 import shlex
 import subprocess
@@ -114,9 +115,10 @@ def command_help(binary_path: Path, path: tuple[str, ...]) -> str:
     return proc.stderr or proc.stdout
 
 
-def example_help(binary_path: Path, tokens: tuple[str, ...]) -> str:
+@functools.lru_cache(maxsize=None)
+def path_help(binary_path: Path, path: tuple[str, ...]) -> str:
     proc = subprocess.run(
-        [str(binary_path), *tokens[1:], "--help"],
+        [str(binary_path), *path, "--help"],
         check=False,
         capture_output=True,
         text=True,
@@ -398,17 +400,65 @@ def deprecation_replacement(help_text: str) -> str | None:
     return None
 
 
-def hidden_deprecated_alias_replacement(binary_path: Path, example: Example) -> str | None:
-    return deprecation_replacement(example_help(binary_path, example.tokens))
+def hidden_deprecated_alias_replacement(
+    binary_path: Path,
+    example: Example,
+    root_flags: dict[str, bool],
+) -> str | None:
+    return deprecation_replacement(path_help(binary_path, token_command_path(example.tokens, root_flags)))
 
 
-def token_command_path(tokens: tuple[str, ...]) -> tuple[str, ...]:
+def token_command_path(tokens: tuple[str, ...], root_flags: dict[str, bool]) -> tuple[str, ...]:
     path: list[str] = []
+    pending_root_flag: str | None = None
+    collecting = False
     for token in tokens[1:]:
+        if pending_root_flag is not None:
+            pending_root_flag = None
+            continue
         if token == "--help" or token.startswith("--"):
-            break
+            if collecting:
+                break
+            flag = token.split("=", 1)[0]
+            if flag not in root_flags:
+                break
+            pending_root_flag = flag if "=" not in token and not root_flags[flag] else None
+            continue
+        collecting = True
         path.append(token)
     return tuple(path)
+
+
+def hidden_deprecated_alias_spec(
+    binary_path: Path,
+    example: Example,
+    root_flags: dict[str, bool],
+    index: dict[tuple[str, ...], CommandSpec],
+) -> CommandSpec | None:
+    replacement = hidden_deprecated_alias_replacement(binary_path, example, root_flags)
+    if replacement is None:
+        return None
+
+    try:
+        replacement_tokens = tuple(shlex.split(replacement))
+    except ValueError:
+        return None
+
+    if not replacement_tokens or replacement_tokens[0] != "asc":
+        return None
+
+    replacement_path = token_command_path(replacement_tokens, root_flags)
+    replacement_spec = index.get(replacement_path)
+    if replacement_spec is None:
+        return None
+
+    deprecated_path = token_command_path(example.tokens, root_flags)
+    return CommandSpec(
+        path=deprecated_path,
+        usage=replacement_spec.usage,
+        flags=replacement_spec.flags,
+        subcommands=replacement_spec.subcommands,
+    )
 
 
 def validate_example(
@@ -419,6 +469,7 @@ def validate_example(
     errors: list[str] = []
     root = index[()]
     tokens = example.tokens
+    hidden_current: CommandSpec | None = None
 
     top_level_index: int | None = None
     pending_root_flag: str | None = None
@@ -449,8 +500,11 @@ def validate_example(
                 return errors
             pending_root_flag = flag if "=" not in token and not root.flags[flag] else None
             continue
-        if binary_path is not None and hidden_deprecated_alias_replacement(binary_path, example) is not None:
-            return errors
+        if binary_path is not None:
+            hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags, index)
+            if hidden_current is not None:
+                top_level_index = i
+                break
         errors.append(
             f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
             f"could not resolve top-level command in {example.raw!r}"
@@ -473,24 +527,34 @@ def validate_example(
         )
         return errors
 
-    current_path = (tokens[top_level_index],)
-    current = index.get(current_path)
-    assert current is not None
-    i = top_level_index + 1
+    if hidden_current is not None:
+        current_path = hidden_current.path
+        current = hidden_current
+        i = top_level_index + len(current_path)
+    else:
+        current_path = (tokens[top_level_index],)
+        current = index.get(current_path)
+        assert current is not None
+        i = top_level_index + 1
 
-    while i < len(tokens) and current.subcommands and tokens[i] in current.subcommands:
-        current_path = (*current_path, tokens[i])
-        current = index[current_path]
-        i += 1
+        while i < len(tokens) and current.subcommands and tokens[i] in current.subcommands:
+            current_path = (*current_path, tokens[i])
+            current = index[current_path]
+            i += 1
 
-    if i < len(tokens) and current.subcommands and not tokens[i].startswith("--"):
-        if binary_path is not None and hidden_deprecated_alias_replacement(binary_path, example) is not None:
-            return errors
-        errors.append(
-            f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
-            f"unknown subcommand {tokens[i]!r} for {' '.join(current.path)!r} in {example.raw!r}"
-        )
-        return errors
+        if i < len(tokens) and current.subcommands and not tokens[i].startswith("--"):
+            hidden_current = None
+            if binary_path is not None:
+                hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags, index)
+            if hidden_current is None:
+                errors.append(
+                    f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
+                    f"unknown subcommand {tokens[i]!r} for {' '.join(current.path)!r} in {example.raw!r}"
+                )
+                return errors
+            current_path = hidden_current.path
+            current = hidden_current
+            i = top_level_index + len(current_path)
 
     style = usage_position_style(current)
     if current.path == ("workflow", "run"):
@@ -590,12 +654,10 @@ def tokens_are_root_only_invocation(
 def validate_not_deprecated(
     example: Example,
     binary_path: Path,
-    index: dict[tuple[str, ...], CommandSpec],
+    root_flags: dict[str, bool],
 ) -> list[str]:
-    replacement = hidden_deprecated_alias_replacement(binary_path, example)
+    replacement = hidden_deprecated_alias_replacement(binary_path, example, root_flags)
     if replacement is None:
-        return []
-    if token_command_path(example.tokens) not in index:
         return []
     return [
         f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
@@ -621,7 +683,7 @@ def collect_errors(
             continue
         if example.source != "fenced":
             continue
-        errors.extend(validate_not_deprecated(example, binary_path, index))
+        errors.extend(validate_not_deprecated(example, binary_path, index[()].flags))
     return errors
 
 
