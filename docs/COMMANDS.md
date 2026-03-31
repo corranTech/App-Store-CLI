@@ -98,7 +98,7 @@ asc <subcommand> [flags]
 - `review` - Manage App Store review details, attachments, and submissions.
 - `reviews` - List and manage App Store customer reviews.
 - `submit` - Submission lifecycle tools; use `release run` to ship.
-- `validate` - Validate App Store version readiness before submission.
+- `validate` - Canonical App Store submission readiness report.
 - `publish` - High-level publish workflows; use `publish testflight` for TestFlight.
 
 ### Monetization

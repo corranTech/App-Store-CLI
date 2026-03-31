@@ -41,10 +41,13 @@ func TestSubmitHelpShowsLifecycleCommandsAndHidesDeprecatedCreate(t *testing.T) 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	for _, subcommand := range []string{"status", "cancel", "preflight"} {
+	for _, subcommand := range []string{"status", "cancel"} {
 		if !usageListsSubcommand(stderr, subcommand) {
 			t.Fatalf("expected submit help to list %s, got %q", subcommand, stderr)
 		}
+	}
+	if !strings.Contains(stderr, "asc submit preflight/status/cancel") {
+		t.Fatalf("expected submit help text to mention preflight lifecycle guidance, got %q", stderr)
 	}
 	if usageListsSubcommand(stderr, "create") {
 		t.Fatalf("expected submit help to hide deprecated create path, got %q", stderr)
