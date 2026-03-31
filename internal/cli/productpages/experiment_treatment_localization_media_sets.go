@@ -124,7 +124,9 @@ func ExperimentTreatmentLocalizationScreenshotSetsCommand() *ffcli.Command {
 		LongHelp: `Manage screenshot sets for a treatment localization.
 
 Examples:
-  asc product-pages experiments treatments localizations screenshot-sets list --localization-id "LOCALIZATION_ID"`,
+  asc product-pages experiments treatments localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
+  asc product-pages experiments treatments localizations screenshot-sets upload --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65"
+  asc product-pages experiments treatments localizations screenshot-sets sync --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
