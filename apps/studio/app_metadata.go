@@ -12,7 +12,6 @@ import (
 // Pass versionID from AppVersion.ID. Returns all locales so the frontend can
 // render a picker without an extra round-trip.
 func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, error) {
-	defer configGuard()()
 	if strings.TrimSpace(versionID) == "" {
 		return VersionMetadataResponse{Error: "version ID is required"}, nil
 	}
@@ -25,9 +24,8 @@ func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, err
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
 	defer cancel()
 
-	cmd := a.newASCCommand(ctx, ascPath, "localizations", "list",
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "localizations", "list",
 		"--version", versionID, "--output", "json")
-	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return VersionMetadataResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
@@ -72,7 +70,6 @@ func (a *App) GetVersionMetadata(versionID string) (VersionMetadataResponse, err
 // GetScreenshots returns screenshot sets for a version localization.
 // Pass LocalizationID from AppLocalization.
 func (a *App) GetScreenshots(localizationID string) (ScreenshotsResponse, error) {
-	defer configGuard()()
 	if strings.TrimSpace(localizationID) == "" {
 		return ScreenshotsResponse{Error: "localization ID is required"}, nil
 	}
@@ -85,9 +82,8 @@ func (a *App) GetScreenshots(localizationID string) (ScreenshotsResponse, error)
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
 	defer cancel()
 
-	cmd := a.newASCCommand(ctx, ascPath, "screenshots", "list",
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "screenshots", "list",
 		"--version-localization", localizationID, "--output", "json")
-	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return ScreenshotsResponse{Error: strings.TrimSpace(string(out))}, nil
 	}

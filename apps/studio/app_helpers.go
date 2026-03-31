@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/ascbin"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
 func (a *App) newASCCommand(ctx context.Context, ascPath string, args ...string) *exec.Cmd {
@@ -23,15 +24,60 @@ func (a *App) newASCCommand(ctx context.Context, ascPath string, args ...string)
 	if a.cachedKeyID != "" {
 		// When we have cached credentials, bypass keychain and inject them directly
 		// so we're immune to config.json wipes during the session.
-		env = append(env,
-			"ASC_BYPASS_KEYCHAIN=1",
-			"ASC_KEY_ID="+a.cachedKeyID,
-			"ASC_ISSUER_ID="+a.cachedIssuerID,
-			"ASC_PRIVATE_KEY_PATH="+a.cachedPrivateKeyPath,
-		)
+		env = setEnvVar(env, "ASC_BYPASS_KEYCHAIN", "1")
+		env = setEnvVar(env, "ASC_KEY_ID", a.cachedKeyID)
+		env = setEnvVar(env, "ASC_ISSUER_ID", a.cachedIssuerID)
+		env = setEnvVar(env, "ASC_PRIVATE_KEY_PATH", a.cachedPrivateKeyPath)
 	}
 	cmd.Env = env
 	return cmd
+}
+
+func (a *App) runASCCombinedOutput(ctx context.Context, ascPath string, args ...string) ([]byte, error) {
+	cmd := a.newASCCommand(ctx, ascPath, args...)
+	cleanup := isolateASCConfig(cmd)
+	defer cleanup()
+	return cmd.CombinedOutput()
+}
+
+func isolateASCConfig(cmd *exec.Cmd) func() {
+	activePath, err := config.Path()
+	if err != nil {
+		return func() {}
+	}
+
+	shadowDir, err := os.MkdirTemp("", "asc-studio-config-*")
+	if err != nil {
+		return func() {}
+	}
+	shadowPath := filepath.Join(shadowDir, "config.json")
+
+	if data, err := os.ReadFile(activePath); err == nil {
+		if err := os.WriteFile(shadowPath, data, 0o600); err != nil {
+			_ = os.RemoveAll(shadowDir)
+			return func() {}
+		}
+	} else if !os.IsNotExist(err) {
+		_ = os.RemoveAll(shadowDir)
+		return func() {}
+	}
+
+	cmd.Env = setEnvVar(cmd.Env, "ASC_CONFIG_PATH", shadowPath)
+	return func() {
+		_ = os.RemoveAll(shadowDir)
+	}
+}
+
+func setEnvVar(env []string, key, value string) []string {
+	prefix := key + "="
+	filtered := env[:0]
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return append(filtered, prefix+value)
 }
 
 func (a *App) resolveASCPath() (string, error) {

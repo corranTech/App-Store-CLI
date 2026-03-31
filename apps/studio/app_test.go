@@ -164,87 +164,81 @@ func TestBundledASCPathPrefersAppBundleResources(t *testing.T) {
 	}
 }
 
-func TestConfigGuardRestoresOriginalSnapshotAfterConcurrentScopes(t *testing.T) {
+func TestRunASCCombinedOutputUsesShadowConfigPath(t *testing.T) {
 	tmpHome := t.TempDir()
 	configDir := filepath.Join(tmpHome, ".asc")
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll() error = %v", err)
 	}
 	configPath := filepath.Join(configDir, "config.json")
-	if err := os.WriteFile(configPath, []byte(`{"profile":"good"}`), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(`{"key_id":"KEY123"}`), 0o600); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	originalHome := os.Getenv("HOME")
-	if err := os.Setenv("HOME", tmpHome); err != nil {
-		t.Fatalf("Setenv() error = %v", err)
-	}
-	t.Cleanup(func() {
-		if originalHome == "" {
-			_ = os.Unsetenv("HOME")
-			return
-		}
-		_ = os.Setenv("HOME", originalHome)
-	})
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("ASC_CONFIG_PATH", configPath)
 
-	ascConfigGuard = &configGuardState{}
-
-	restoreFirst := configGuard()
-	restoreSecond := configGuard()
-
-	if err := os.WriteFile(configPath, []byte(`{"profile":"corrupted"}`), 0o600); err != nil {
+	ascPath := filepath.Join(t.TempDir(), "asc")
+	script := "#!/bin/sh\ncat \"$ASC_CONFIG_PATH\"\nprintf '\\n%s' \"$ASC_CONFIG_PATH\""
+	if err := os.WriteFile(ascPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	restoreFirst()
+	app := &App{}
+	out, err := app.runASCCombinedOutput(context.Background(), ascPath, "auth", "status")
+	if err != nil {
+		t.Fatalf("runASCCombinedOutput() error = %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) < 2 {
+		t.Fatalf("command output = %q, want config contents and shadow path", string(out))
+	}
+	shadowPath := lines[len(lines)-1]
+	shadowConfig := strings.Join(lines[:len(lines)-1], "\n")
+	if !strings.Contains(shadowConfig, `"KEY123"`) {
+		t.Fatalf("shadow config contents = %q, want copied config contents", shadowConfig)
+	}
+	if shadowPath == "" {
+		t.Fatal("shadowPath = empty, want isolated config path")
+	}
+	if shadowPath == configPath {
+		t.Fatalf("shadowPath = %q, want path distinct from real config", shadowPath)
+	}
+}
+
+func TestRunASCCombinedOutputPreservesLegitimateConfigWrites(t *testing.T) {
+	tmpHome := t.TempDir()
+	configDir := filepath.Join(tmpHome, ".asc")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	configPath := filepath.Join(configDir, "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"key_id":"OLD","issuer_id":"ISS","private_key_path":"/tmp/old.p8"}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+
+	ascPath := filepath.Join(t.TempDir(), "asc")
+	script := "#!/bin/sh\ncat <<'EOF' > \"$ASC_CONFIG_PATH\"\n{\"key_id\":\"NEW\",\"issuer_id\":\"ISS2\",\"private_key_path\":\"/tmp/new.p8\"}\nEOF\n"
+	if err := os.WriteFile(ascPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	app := &App{}
+	if _, err := app.runASCCombinedOutput(context.Background(), ascPath, "auth", "status"); err != nil {
+		t.Fatalf("runASCCombinedOutput() error = %v", err)
+	}
 
 	got, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
-	if string(got) != `{"profile":"corrupted"}` {
-		t.Fatalf("config contents after first restore = %q, want corruption to remain until final restore", string(got))
+	if string(got) != `{"key_id":"OLD","issuer_id":"ISS","private_key_path":"/tmp/old.p8"}` {
+		t.Fatalf("real config = %q, want original config preserved", string(got))
 	}
-
-	restoreSecond()
-
-	got, err = os.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("ReadFile() error = %v", err)
-	}
-	if string(got) != `{"profile":"good"}` {
-		t.Fatalf("config contents = %q, want original snapshot", string(got))
-	}
-}
-
-func TestConfigGuardAllowsConcurrentEntry(t *testing.T) {
-	ascConfigGuard = &configGuardState{}
-
-	restoreFirst := configGuard()
-	defer restoreFirst()
-
-	secondReady := make(chan struct{}, 1)
-	go func() {
-		restoreSecond := configGuard()
-		secondReady <- struct{}{}
-		restoreSecond()
-	}()
-
-	select {
-	case <-secondReady:
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("second configGuard() blocked, want overlapping scopes to proceed")
-	}
-}
-
-func TestConfigGuardAllowsNestedCalls(t *testing.T) {
-	t.Helper()
-	ascConfigGuard = &configGuardState{}
-
-	restoreOuter := configGuard()
-	restoreInner := configGuard()
-	restoreInner()
-	restoreOuter()
 }
 
 func frontendSectionCommands(path string) ([]string, error) {

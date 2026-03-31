@@ -12,7 +12,6 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 	if strings.TrimSpace(appID) == "" {
 		return TestFlightResponse{Error: "app ID is required"}, nil
 	}
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return TestFlightResponse{Error: err.Error()}, nil
@@ -21,8 +20,7 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 	defer cancel()
 
 	// 1. Fetch groups
-	cmd := a.newASCCommand(ctx, ascPath, "testflight", "groups", "list", "--app", appID, "--output", "json")
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "testflight", "groups", "list", "--app", appID, "--output", "json")
 	if err != nil {
 		return TestFlightResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
@@ -64,9 +62,8 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 	}
 
 	runWithConcurrency(boundedStudioConcurrency(len(groupEnv.Data)), len(groupEnv.Data), func(i int) {
-		cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "testflight", "testers", "list",
 			"--group", groupEnv.Data[i].ID, "--limit", "1", "--output", "json")
-		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return
 		}
@@ -90,7 +87,6 @@ func (a *App) GetTestFlightTesters(groupID string) (TestFlightResponse, error) {
 	if strings.TrimSpace(groupID) == "" {
 		return TestFlightResponse{Error: "group ID is required"}, nil
 	}
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return TestFlightResponse{Error: err.Error()}, nil
@@ -98,9 +94,8 @@ func (a *App) GetTestFlightTesters(groupID string) (TestFlightResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 120*time.Second)
 	defer cancel()
 
-	cmd := a.newASCCommand(ctx, ascPath, "testflight", "testers", "list",
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "testflight", "testers", "list",
 		"--group", groupID, "--paginate", "--output", "json")
-	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return TestFlightResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
@@ -139,7 +134,6 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 	if strings.TrimSpace(appID) == "" {
 		return FeedbackResponse{Error: "app ID is required"}, nil
 	}
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return FeedbackResponse{Error: err.Error()}, nil
@@ -148,9 +142,8 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 	defer cancel()
 
 	// Fetch feedback list with screenshots
-	cmd := a.newASCCommand(ctx, ascPath, "testflight", "feedback", "list",
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "testflight", "feedback", "list",
 		"--app", appID, "--include-screenshots", "--sort", "-createdDate", "--paginate", "--output", "json")
-	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return FeedbackResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
@@ -204,9 +197,8 @@ func (a *App) GetFeedback(appID string) (FeedbackResponse, error) {
 		}
 	}
 	runWithConcurrency(boundedStudioConcurrency(len(listEnv.Data)), len(listEnv.Data), func(i int) {
-		cmd := a.newASCCommand(ctx, ascPath, "testflight", "feedback", "view",
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "testflight", "feedback", "view",
 			"--submission-id", listEnv.Data[i].ID, "--output", "json")
-		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return
 		}

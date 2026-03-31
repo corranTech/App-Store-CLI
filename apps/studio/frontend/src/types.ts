@@ -125,6 +125,7 @@ export type Tester = {
 
 export type GroupTestersState = {
   loading: boolean;
+  error?: string;
   testers: Tester[];
 };
 

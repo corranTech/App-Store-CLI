@@ -10,7 +10,6 @@ import (
 
 // GetSubscriptions fetches subscription groups, then subscriptions for each group concurrently.
 func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
-	defer configGuard()()
 	if strings.TrimSpace(appID) == "" {
 		return SubscriptionsResponse{Error: "app ID is required"}, nil
 	}
@@ -25,8 +24,7 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 
 func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID string) SubscriptionsResponse {
 	// Step 1: get groups
-	cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--output", "json")
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--output", "json")
 	if err != nil {
 		return SubscriptionsResponse{Error: strings.TrimSpace(string(out))}
 	}
@@ -46,8 +44,7 @@ func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID strin
 	groupSubscriptions := make([][]SubscriptionItem, len(groupEnv.Data))
 	runWithConcurrency(boundedStudioConcurrency(len(groupEnv.Data)), len(groupEnv.Data), func(i int) {
 		group := groupEnv.Data[i]
-		cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "list", "--group-id", group.ID, "--output", "json")
-		out, err := cmd.CombinedOutput()
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "list", "--group-id", group.ID, "--output", "json")
 		if err != nil {
 			return
 		}
@@ -96,7 +93,6 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 	if strings.TrimSpace(appID) == "" {
 		return PricingOverview{Error: "app ID is required"}, nil
 	}
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return PricingOverview{Error: err.Error()}, nil
@@ -144,8 +140,7 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 	// Availability + territories (sequential: need avail ID first, but it's the app ID)
 	go func() {
 		// 1. Get availability flag and resource ID
-		cmd := a.newASCCommand(ctx, ascPath, "pricing", "availability", "view", "--app", appID, "--output", "json")
-		out, err := cmd.CombinedOutput()
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "pricing", "availability", "view", "--app", appID, "--output", "json")
 		if err != nil {
 			availCh <- availResult{err: fmt.Errorf("%s", strings.TrimSpace(string(out)))}
 			return
@@ -159,9 +154,8 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 		// 2. Get territory availabilities
 		var territories []TerritoryAvailability
 		if availabilityID != "" {
-			cmd2 := a.newASCCommand(ctx, ascPath, "pricing", "availability", "territory-availabilities",
+			out2, err := a.runASCCombinedOutput(ctx, ascPath, "pricing", "availability", "territory-availabilities",
 				"--availability", availabilityID, "--paginate", "--output", "json")
-			out2, err := cmd2.CombinedOutput()
 			if err == nil {
 				type rawTerrItem struct {
 					Attributes struct {
@@ -199,8 +193,7 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 
 	// Subscription pricing summary
 	go func() {
-		cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "pricing", "summary", "--app", appID, "--output", "json")
-		out, err := cmd.CombinedOutput()
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "pricing", "summary", "--app", appID, "--output", "json")
 		if err != nil {
 			pricingCh <- pricingResult{} // not an error -- app may have no subscriptions
 			return
@@ -265,7 +258,6 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 	if strings.TrimSpace(appID) == "" {
 		return OfferCodesResponse{Error: "app ID is required"}, nil
 	}
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return OfferCodesResponse{Error: err.Error()}, nil
@@ -285,9 +277,8 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 	offersBySubscription := make([]offerResult, len(subsResp.Subscriptions))
 	runWithConcurrency(boundedStudioConcurrency(len(subsResp.Subscriptions)), len(subsResp.Subscriptions), func(i int) {
 		sub := subsResp.Subscriptions[i]
-		cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "offers", "offer-codes", "list",
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "offers", "offer-codes", "list",
 			"--subscription-id", sub.ID, "--output", "json")
-		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return
 		}
@@ -335,8 +326,7 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 }
 
 func (a *App) fetchPricingScheduleID(ctx context.Context, ascPath, appID string) (string, error) {
-	cmd := a.newASCCommand(ctx, ascPath, "pricing", "schedule", "view", "--app", appID, "--output", "json")
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "pricing", "schedule", "view", "--app", appID, "--output", "json")
 	if err != nil {
 		return "", err
 	}
@@ -344,8 +334,7 @@ func (a *App) fetchPricingScheduleID(ctx context.Context, ascPath, appID string)
 }
 
 func (a *App) fetchSchedulePriceReference(ctx context.Context, ascPath, scheduleID, priceMode string) (appPriceReference, bool, error) {
-	cmd := a.newASCCommand(ctx, ascPath, "pricing", "schedule", priceMode, "--schedule", scheduleID, "--output", "json")
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "pricing", "schedule", priceMode, "--schedule", scheduleID, "--output", "json")
 	if err != nil {
 		return appPriceReference{}, false, err
 	}
@@ -362,8 +351,7 @@ func (a *App) fetchCurrentAppPrice(ctx context.Context, ascPath, appID, schedule
 			continue
 		}
 
-		cmd := a.newASCCommand(ctx, ascPath, "pricing", "price-points", "--app", appID, "--territory", ref.Territory, "--output", "json")
-		out, err := cmd.CombinedOutput()
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "pricing", "price-points", "--app", appID, "--territory", ref.Territory, "--output", "json")
 		if err != nil {
 			return appPricePointLookupResult{}, err
 		}

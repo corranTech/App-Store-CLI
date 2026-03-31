@@ -9,7 +9,6 @@ import (
 )
 
 func (a *App) ListApps() (ListAppsResponse, error) {
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return ListAppsResponse{Error: "Could not find asc binary: " + err.Error()}, nil
@@ -18,8 +17,7 @@ func (a *App) ListApps() (ListAppsResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
 
-	cmd := a.newASCCommand(ctx, ascPath, "apps", "list", "--output", "json")
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "apps", "list", "--output", "json")
 	if err != nil {
 		return ListAppsResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
@@ -51,7 +49,6 @@ func (a *App) ListApps() (ListAppsResponse, error) {
 }
 
 func (a *App) GetAppDetail(appID string) (AppDetail, error) {
-	defer configGuard()()
 	if strings.TrimSpace(appID) == "" {
 		return AppDetail{Error: "app ID is required"}, nil
 	}
@@ -85,8 +82,7 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 	subtitleCh := make(chan subtitleRes, 1)
 
 	go func() {
-		cmd := a.newASCCommand(ctx, ascPath, "apps", "view", "--id", appID, "--output", "json")
-		out, err := cmd.CombinedOutput()
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "apps", "view", "--id", appID, "--output", "json")
 		if err != nil {
 			attrsCh <- attrsResult{err: err}
 			return
@@ -110,8 +106,7 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 	}()
 
 	go func() {
-		cmd := a.newASCCommand(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
-		out, err := cmd.CombinedOutput()
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
 		if err != nil {
 			trimmed := strings.TrimSpace(string(out))
 			if trimmed == "" {
@@ -180,9 +175,8 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 }
 
 func (a *App) fetchSubtitle(ctx context.Context, ascPath, appID string) string {
-	cmd := a.newASCCommand(ctx, ascPath, "localizations", "list",
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "localizations", "list",
 		"--app", appID, "--type", "app-info", "--locale", "en-US", "--output", "json")
-	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return ""
 	}

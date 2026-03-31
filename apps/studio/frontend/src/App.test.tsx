@@ -1002,4 +1002,26 @@ describe("App", () => {
     });
     expect(screen.queryByText("first@example.com")).not.toBeInTheDocument();
   });
+
+  it("surfaces tester fetch failures in the TestFlight detail view", async () => {
+    mockGetTestFlight.mockResolvedValue({
+      groups: [
+        { id: "group-1", name: "Internal", isInternal: true, publicLink: "", feedbackEnabled: false, createdDate: "2026-03-30T00:00:00Z", testerCount: 1 },
+      ],
+    });
+    mockGetTestFlightTesters.mockResolvedValue({
+      error: "auth expired",
+      testers: [],
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    await pickApp("Test App");
+    fireEvent.click(await screen.findByRole("button", { name: "Groups" }));
+    fireEvent.click((await screen.findAllByText("Internal"))[0].closest("tr")!);
+
+    expect(await screen.findByText("auth expired")).toBeInTheDocument();
+    expect(screen.queryByText("No testers in this group.")).not.toBeInTheDocument();
+  });
 });

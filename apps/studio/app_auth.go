@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -11,7 +10,6 @@ import (
 )
 
 func (a *App) CheckAuthStatus() (AuthStatus, error) {
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return AuthStatus{RawOutput: "Could not find asc binary: " + err.Error()}, nil
@@ -20,8 +18,7 @@ func (a *App) CheckAuthStatus() (AuthStatus, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 10*time.Second)
 	defer cancel()
 
-	cmd := a.newASCCommand(ctx, ascPath, "auth", "status", "--output", "json")
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "auth", "status", "--output", "json")
 	output := strings.TrimSpace(string(out))
 
 	status := AuthStatus{RawOutput: output}
@@ -104,56 +101,5 @@ func (a *App) cacheAuthFromConfig() {
 		a.cachedKeyID = cfg.KeyID
 		a.cachedIssuerID = cfg.IssuerID
 		a.cachedPrivateKeyPath = cfg.PrivateKeyPath
-	}
-}
-
-// configGuard saves a snapshot of ~/.asc/config.json before running an asc
-// command and restores it afterwards if the command mutated the file.
-// This defends against CLI auth codepaths that accidentally wipe credentials
-// during read-only operations (a known issue in the auth resolver).
-func configGuard() func() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return func() {}
-	}
-	path := filepath.Join(home, ".asc", "config.json")
-
-	ascConfigGuard.mu.Lock()
-	if ascConfigGuard.active == 0 || ascConfigGuard.path != path {
-		original, err := os.ReadFile(path)
-		ascConfigGuard.path = path
-		if err != nil {
-			ascConfigGuard.original = nil
-			ascConfigGuard.valid = false
-		} else {
-			ascConfigGuard.original = append(ascConfigGuard.original[:0], original...)
-			ascConfigGuard.valid = true
-		}
-	}
-	ascConfigGuard.active++
-	valid := ascConfigGuard.valid
-	original := append([]byte(nil), ascConfigGuard.original...)
-	ascConfigGuard.mu.Unlock()
-
-	return func() {
-		ascConfigGuard.mu.Lock()
-		ascConfigGuard.active--
-		shouldRestore := ascConfigGuard.active == 0 && valid
-		if ascConfigGuard.active == 0 {
-			ascConfigGuard.original = nil
-			ascConfigGuard.valid = false
-			ascConfigGuard.path = ""
-		}
-		ascConfigGuard.mu.Unlock()
-
-		if !shouldRestore {
-			return
-		}
-
-		current, err := os.ReadFile(path)
-		if err != nil || bytes.Equal(current, original) {
-			return
-		}
-		_ = os.WriteFile(path, original, 0o600)
 	}
 }

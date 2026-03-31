@@ -36,6 +36,8 @@ export function TestFlightView({
 
           {groupTesters.loading ? (
             <p className="empty-hint">Loading testers…</p>
+          ) : groupTesters.error ? (
+            <p className="empty-hint">{groupTesters.error}</p>
           ) : groupTesters.testers.length === 0 ? (
             <p className="empty-hint">No testers in this group.</p>
           ) : (

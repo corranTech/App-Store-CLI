@@ -45,11 +45,15 @@ export function useTestFlightData(appSelectionRequestRef: MutableRefObject<numbe
     GetTestFlightTesters(groupId)
       .then((res) => {
         if (groupTesterRequestRef.current !== testerRequestID) return;
+        if (res.error) {
+          setGroupTesters({ loading: false, error: res.error, testers: [] });
+          return;
+        }
         setGroupTesters({ loading: false, testers: res.testers ?? [] });
       })
-      .catch(() => {
+      .catch((error) => {
         if (groupTesterRequestRef.current !== testerRequestID) return;
-        setGroupTesters({ loading: false, testers: [] });
+        setGroupTesters({ loading: false, error: String(error), testers: [] });
       });
   }
 

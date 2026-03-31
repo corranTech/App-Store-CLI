@@ -12,7 +12,6 @@ import (
 // RunASCCommand runs an arbitrary asc CLI command and returns the raw output.
 // Args is a shell-style command string, e.g. `reviews list --app "123" --limit 10 --output json`.
 func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
-	defer configGuard()()
 	if strings.TrimSpace(args) == "" {
 		return ASCCommandResponse{Error: "args required"}, nil
 	}
@@ -32,8 +31,7 @@ func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
-	cmd := a.newASCCommand(ctx, ascPath, parts...)
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, parts...)
 	if err != nil {
 		return ASCCommandResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
@@ -42,7 +40,6 @@ func (a *App) RunASCCommand(args string) (ASCCommandResponse, error) {
 
 // GetFinanceRegions fetches finance report region codes.
 func (a *App) GetFinanceRegions() (FinanceResponse, error) {
-	defer configGuard()()
 	ascPath, err := a.resolveASCPath()
 	if err != nil {
 		return FinanceResponse{Error: err.Error()}, nil
@@ -50,8 +47,7 @@ func (a *App) GetFinanceRegions() (FinanceResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
 	defer cancel()
 
-	cmd := a.newASCCommand(ctx, ascPath, "finance", "regions", "--output", "json")
-	out, err := cmd.CombinedOutput()
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "finance", "regions", "--output", "json")
 	if err != nil {
 		return FinanceResponse{Error: strings.TrimSpace(string(out))}, nil
 	}

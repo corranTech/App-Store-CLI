@@ -14,16 +14,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/threads"
 )
 
-type configGuardState struct {
-	mu       sync.Mutex
-	active   int
-	path     string
-	original []byte
-	valid    bool
-}
-
-var ascConfigGuard = &configGuardState{}
-
 type App struct {
 	ctx         context.Context
 	rootDir     string
