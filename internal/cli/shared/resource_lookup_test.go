@@ -24,15 +24,25 @@ type subscriptionLookupFixture struct {
 
 type sequenceIAPLookupStub struct {
 	responses []*asc.InAppPurchasesV2Response
+	errs      []error
 	calls     int
 }
 
 func (s *sequenceIAPLookupStub) GetInAppPurchasesV2(_ context.Context, _ string, _ ...asc.IAPOption) (*asc.InAppPurchasesV2Response, error) {
 	s.calls++
+	idx := s.calls - 1
+	if len(s.errs) != 0 {
+		errIdx := idx
+		if errIdx >= len(s.errs) {
+			errIdx = len(s.errs) - 1
+		}
+		if s.errs[errIdx] != nil {
+			return nil, s.errs[errIdx]
+		}
+	}
 	if len(s.responses) == 0 {
 		return &asc.InAppPurchasesV2Response{}, nil
 	}
-	idx := s.calls - 1
 	if idx >= len(s.responses) {
 		idx = len(s.responses) - 1
 	}
@@ -44,6 +54,7 @@ func (s *sequenceIAPLookupStub) GetInAppPurchasesV2(_ context.Context, _ string,
 
 type sequenceSubscriptionLookupStub struct {
 	groupResponses []*asc.SubscriptionGroupsResponse
+	groupErrors    []error
 	groupCalls     int
 
 	subscriptionResponses map[string][]*asc.SubscriptionsResponse
@@ -52,10 +63,19 @@ type sequenceSubscriptionLookupStub struct {
 
 func (s *sequenceSubscriptionLookupStub) GetSubscriptionGroups(_ context.Context, _ string, _ ...asc.SubscriptionGroupsOption) (*asc.SubscriptionGroupsResponse, error) {
 	s.groupCalls++
+	idx := s.groupCalls - 1
+	if len(s.groupErrors) != 0 {
+		errIdx := idx
+		if errIdx >= len(s.groupErrors) {
+			errIdx = len(s.groupErrors) - 1
+		}
+		if s.groupErrors[errIdx] != nil {
+			return nil, s.groupErrors[errIdx]
+		}
+	}
 	if len(s.groupResponses) == 0 {
 		return &asc.SubscriptionGroupsResponse{}, nil
 	}
-	idx := s.groupCalls - 1
 	if idx >= len(s.groupResponses) {
 		idx = len(s.groupResponses) - 1
 	}
@@ -223,6 +243,23 @@ func TestResolveIAPID_WithAppContextFallsBackToNumericPassthroughWhenLookupMisse
 	}
 }
 
+func TestResolveIAPID_WithAppContextFallsBackToNumericPassthroughWhenLookupErrors(t *testing.T) {
+	stub := &sequenceIAPLookupStub{
+		errs: []error{errors.New("lookup temporarily unavailable")},
+	}
+
+	got, err := ResolveIAPID(context.Background(), stub, "app-1", "2024")
+	if err != nil {
+		t.Fatalf("ResolveIAPID() error: %v", err)
+	}
+	if got != "2024" {
+		t.Fatalf("expected numeric passthrough fallback, got %q", got)
+	}
+	if stub.calls != 1 {
+		t.Fatalf("expected single lookup attempt before fallback, got %d calls", stub.calls)
+	}
+}
+
 func TestResolveIAPID_FallsBackToFullScanForExactName(t *testing.T) {
 	stub := &sequenceIAPLookupStub{
 		responses: []*asc.InAppPurchasesV2Response{
@@ -355,5 +392,22 @@ func TestResolveSubscriptionID_WithAppContextFallsBackToNumericPassthroughWhenLo
 	}
 	if stub.groupCalls == 0 {
 		t.Fatal("expected lookup attempt before numeric fallback")
+	}
+}
+
+func TestResolveSubscriptionID_WithAppContextFallsBackToNumericPassthroughWhenLookupErrors(t *testing.T) {
+	stub := &sequenceSubscriptionLookupStub{
+		groupErrors: []error{errors.New("lookup temporarily unavailable")},
+	}
+
+	got, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
+	if err != nil {
+		t.Fatalf("ResolveSubscriptionID() error: %v", err)
+	}
+	if got != "2024" {
+		t.Fatalf("expected numeric passthrough fallback, got %q", got)
+	}
+	if stub.groupCalls != 1 {
+		t.Fatalf("expected single lookup attempt before fallback, got %d", stub.groupCalls)
 	}
 }

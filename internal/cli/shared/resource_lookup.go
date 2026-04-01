@@ -91,7 +91,9 @@ func ResolveIAPID(ctx context.Context, client iapSelectorClient, appID, selector
 
 	candidate, err := resolveIAPCandidate(ctx, client, resolvedAppID, selector)
 	if err != nil {
-		if !needsLookup && errors.Is(err, errSelectorNotFound) {
+		// Preserve legacy raw-ID behavior for numeric selectors when app-scoped lookup
+		// misses or fails; the direct resource request may still succeed.
+		if !needsLookup {
 			return selector, nil
 		}
 		return "", err
@@ -119,7 +121,9 @@ func ResolveSubscriptionID(ctx context.Context, client subscriptionSelectorClien
 
 	candidate, err := resolveSubscriptionCandidate(ctx, client, resolvedAppID, selector)
 	if err != nil {
-		if !needsLookup && errors.Is(err, errSelectorNotFound) {
+		// Preserve legacy raw-ID behavior for numeric selectors when app-scoped lookup
+		// misses or fails; the direct resource request may still succeed.
+		if !needsLookup {
 			return selector, nil
 		}
 		return "", err
