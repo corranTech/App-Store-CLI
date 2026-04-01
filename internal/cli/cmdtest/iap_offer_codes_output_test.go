@@ -170,6 +170,145 @@ func TestIAPOfferCodesCreateReturnsCreateFailure(t *testing.T) {
 	}
 }
 
+func TestIAPOfferCodesListFallsBackToNumericIDAfterLookupTimeout(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_TIMEOUT", "10ms")
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch req.URL.Path {
+		case "/v1/apps/app-123/inAppPurchasesV2":
+			<-req.Context().Done()
+			return nil, req.Context().Err()
+		case "/v2/inAppPurchases/2024/offerCodes":
+			if err := req.Context().Err(); err != nil {
+				t.Fatalf("expected fresh list context after lookup timeout, got %v", err)
+			}
+			body := `{"data":[{"type":"inAppPurchaseOfferCodes","id":"offer-timeout-1"}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"iap", "offer-codes", "list",
+			"--app", "app-123",
+			"--iap-id", "2024",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if requests != 2 {
+		t.Fatalf("expected lookup timeout followed by offer-code list fetch, got %d requests", requests)
+	}
+	if !strings.Contains(stdout, `"id":"offer-timeout-1"`) {
+		t.Fatalf("expected fallback list output, got %q", stdout)
+	}
+}
+
+func TestIAPOfferCodesCreateFallsBackToNumericIDAfterLookupTimeout(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_TIMEOUT", "10ms")
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch req.URL.Path {
+		case "/v1/apps/app-123/inAppPurchasesV2":
+			<-req.Context().Done()
+			return nil, req.Context().Err()
+		case "/v1/inAppPurchaseOfferCodes":
+			if err := req.Context().Err(); err != nil {
+				t.Fatalf("expected fresh create context after lookup timeout, got %v", err)
+			}
+			rawBody, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("read body error: %v", err)
+			}
+			var payload map[string]any
+			if err := json.Unmarshal(rawBody, &payload); err != nil {
+				t.Fatalf("decode request body: %v\nbody=%s", err, string(rawBody))
+			}
+			relationships := payload["data"].(map[string]any)["relationships"].(map[string]any)
+			iapRelationship := relationships["inAppPurchase"].(map[string]any)["data"].(map[string]any)
+			if iapRelationship["id"] != "2024" {
+				t.Fatalf("expected numeric fallback IAP id 2024, got %#v", iapRelationship["id"])
+			}
+			body := `{"data":{"type":"inAppPurchaseOfferCodes","id":"offer-timeout-create","attributes":{"name":"SPRING","active":true}}}`
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"iap", "offer-codes", "create",
+			"--app", "app-123",
+			"--iap-id", "2024",
+			"--name", "SPRING",
+			"--prices", "usa:pp-us",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if requests != 2 {
+		t.Fatalf("expected lookup timeout followed by create fetch, got %d requests", requests)
+	}
+	if !strings.Contains(stdout, `"id":"offer-timeout-create"`) {
+		t.Fatalf("expected created offer code output, got %q", stdout)
+	}
+}
+
 func TestIAPOfferCodesListRejectsInvalidNextURL(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

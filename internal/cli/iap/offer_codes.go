@@ -92,15 +92,17 @@ Examples:
 				return fmt.Errorf("iap offer-codes list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			if iapValue != "" && strings.TrimSpace(*next) == "" {
-				iapValue, err = resolveIAPLookupID(requestCtx, client, *appID, iapValue)
+				resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
+				iapValue, err = resolveIAPLookupID(resolveCtx, client, *appID, iapValue)
+				resolveCancel()
 				if err != nil {
 					return err
 				}
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			opts := []asc.IAPOfferCodesOption{
 				asc.WithIAPOfferCodesLimit(*limit),
@@ -235,13 +237,15 @@ Examples:
 				return fmt.Errorf("iap offer-codes create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			iapValue, err = resolveIAPLookupID(requestCtx, client, *appID, iapValue)
+			resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
+			iapValue, err = resolveIAPLookupID(resolveCtx, client, *appID, iapValue)
+			resolveCancel()
 			if err != nil {
 				return err
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			resp, err := client.CreateInAppPurchaseOfferCode(requestCtx, iapValue, asc.InAppPurchaseOfferCodeCreateAttributes{
 				Name:                  nameValue,
