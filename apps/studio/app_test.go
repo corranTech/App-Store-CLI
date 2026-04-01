@@ -12,10 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/acp"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/approvals"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/settings"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/apps/studio/internal/studio/threads"
+	asccmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestParseAppsListOutputAcceptsEmptyEnvelope(t *testing.T) {
@@ -38,6 +40,38 @@ func TestParseAvailabilityViewOutputReturnsResourceID(t *testing.T) {
 	}
 	if !available {
 		t.Fatal("available = false, want true")
+	}
+}
+
+func TestParseFinanceRegionsOutputAcceptsRegionsEnvelope(t *testing.T) {
+	regions, err := parseFinanceRegionsOutput([]byte(`{"regions":[{"reportRegion":"Americas","reportCurrency":"USD","regionCode":"US","countriesOrRegions":"United States"}]}`))
+	if err != nil {
+		t.Fatalf("parseFinanceRegionsOutput() error = %v", err)
+	}
+	if len(regions) != 1 {
+		t.Fatalf("len(regions) = %d, want 1", len(regions))
+	}
+	if regions[0].Code != "US" {
+		t.Fatalf("regions[0].Code = %q, want US", regions[0].Code)
+	}
+}
+
+func TestParseFinanceRegionsOutputAcceptsDataEnvelope(t *testing.T) {
+	regions, err := parseFinanceRegionsOutput([]byte(`{"data":[{"reportRegion":"Europe","reportCurrency":"EUR","regionCode":"EU","countriesOrRegions":"Euro-Zone"}]}`))
+	if err != nil {
+		t.Fatalf("parseFinanceRegionsOutput() error = %v", err)
+	}
+	if len(regions) != 1 {
+		t.Fatalf("len(regions) = %d, want 1", len(regions))
+	}
+	if regions[0].Code != "EU" {
+		t.Fatalf("regions[0].Code = %q, want EU", regions[0].Code)
+	}
+}
+
+func TestParseFinanceRegionsOutputRejectsUnknownEnvelope(t *testing.T) {
+	if _, err := parseFinanceRegionsOutput([]byte(`{"unexpected":[]}`)); err == nil {
+		t.Fatal("parseFinanceRegionsOutput() error = nil, want error")
 	}
 }
 
@@ -318,16 +352,28 @@ func TestRunASCCommandRejectsDisallowedPaths(t *testing.T) {
 	}
 }
 
-func TestFrontendSectionCommandsStayInStudioAllowlist(t *testing.T) {
-	commands, err := frontendSectionCommands(filepath.Join("frontend", "src", "constants.ts"))
+func TestStudioCommandPathKeepsHyphenatedSubcommands(t *testing.T) {
+	parts, err := parseASCCommandArgs("review submissions-list --app 123 --output json")
 	if err != nil {
-		t.Fatalf("frontendSectionCommands() error = %v", err)
+		t.Fatalf("parseASCCommandArgs() error = %v", err)
+	}
+	if got := studioCommandPath(parts); got != "review submissions-list" {
+		t.Fatalf("studioCommandPath() = %q, want review submissions-list", got)
+	}
+}
+
+func TestFrontendRunASCCommandsStayInStudioAllowlistAndCLIRegistry(t *testing.T) {
+	commands, err := frontendRunASCCommands()
+	if err != nil {
+		t.Fatalf("frontendRunASCCommands() error = %v", err)
 	}
 	if len(commands) == 0 {
-		t.Fatal("frontendSectionCommands() returned no commands")
+		t.Fatal("frontendRunASCCommands() returned no commands")
 	}
 
+	root := asccmd.RootCommand("test")
 	var missing []string
+	var unregistered []string
 	for _, command := range commands {
 		parts, err := parseASCCommandArgs(strings.ReplaceAll(command, "APP_ID", "app-id"))
 		if err != nil {
@@ -337,9 +383,15 @@ func TestFrontendSectionCommandsStayInStudioAllowlist(t *testing.T) {
 		if _, ok := allowedStudioCommandPaths[path]; !ok {
 			missing = append(missing, path+" <= "+command)
 		}
+		if !cliCommandPathExists(root, parts) {
+			unregistered = append(unregistered, path+" <= "+command)
+		}
 	}
 	if len(missing) > 0 {
-		t.Fatalf("frontend section commands missing from Studio allowlist:\n%s", strings.Join(missing, "\n"))
+		t.Fatalf("frontend RunASCCommand paths missing from Studio allowlist:\n%s", strings.Join(missing, "\n"))
+	}
+	if len(unregistered) > 0 {
+		t.Fatalf("frontend RunASCCommand paths missing from CLI registry:\n%s", strings.Join(unregistered, "\n"))
 	}
 }
 
@@ -534,6 +586,86 @@ func frontendSectionCommands(path string) ([]string, error) {
 		commands = append(commands, match[1])
 	}
 	return commands, nil
+}
+
+func frontendDirectRunASCCommands(paths ...string) ([]string, error) {
+	re := regexp.MustCompile("RunASCCommand\\(\\s*`([^`$]+)")
+	commands := make([]string, 0, len(paths))
+
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		matches := re.FindAllStringSubmatch(string(data), -1)
+		for _, match := range matches {
+			commands = append(commands, strings.TrimSpace(match[1]))
+		}
+	}
+
+	return commands, nil
+}
+
+func frontendRunASCCommands() ([]string, error) {
+	commands, err := frontendSectionCommands(filepath.Join("frontend", "src", "constants.ts"))
+	if err != nil {
+		return nil, err
+	}
+
+	directCommands, err := frontendDirectRunASCCommands(
+		filepath.Join("frontend", "src", "hooks", "appSelection", "useAppSectionData.ts"),
+		filepath.Join("frontend", "src", "hooks", "useSheetForm.ts"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	expectedDirectPaths := map[string]struct{}{
+		"status":            {},
+		"reviews list":      {},
+		"insights weekly":   {},
+		"bundle-ids create": {},
+		"devices register":  {},
+	}
+
+	foundDirectPaths := make(map[string]struct{}, len(directCommands))
+	for _, command := range directCommands {
+		parts, err := parseASCCommandArgs(command)
+		if err != nil {
+			return nil, err
+		}
+		foundDirectPaths[studioCommandPath(parts)] = struct{}{}
+	}
+
+	for expected := range expectedDirectPaths {
+		if _, ok := foundDirectPaths[expected]; !ok {
+			return nil, errors.New("frontend direct RunASCCommand path not found: " + expected)
+		}
+	}
+
+	return append(commands, directCommands...), nil
+}
+
+func cliCommandPathExists(root *ffcli.Command, parts []string) bool {
+	current := root
+	for _, part := range parts {
+		if strings.HasPrefix(part, "-") {
+			return true
+		}
+
+		var next *ffcli.Command
+		for _, sub := range current.Subcommands {
+			if sub.Name == part {
+				next = sub
+				break
+			}
+		}
+		if next == nil {
+			return false
+		}
+		current = next
+	}
+	return true
 }
 
 func TestEnsureSessionSingleFlightsConcurrentCalls(t *testing.T) {

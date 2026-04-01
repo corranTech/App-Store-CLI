@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -51,17 +52,33 @@ func (a *App) GetFinanceRegions() (FinanceResponse, error) {
 	if err != nil {
 		return FinanceResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
-	var env struct {
-		Regions []FinanceRegion `json:"regions"`
+	regions, err := parseFinanceRegionsOutput(out)
+	if err != nil {
+		return FinanceResponse{Error: err.Error()}, nil
 	}
-	if json.Unmarshal(out, &env) != nil {
-		return FinanceResponse{Error: "failed to parse finance regions"}, nil
-	}
-	return FinanceResponse{Regions: env.Regions}, nil
+	return FinanceResponse{Regions: regions}, nil
 }
 
 func parseASCCommandArgs(args string) ([]string, error) {
 	return shellquote.Split(strings.TrimSpace(args))
+}
+
+func parseFinanceRegionsOutput(out []byte) ([]FinanceRegion, error) {
+	var regionsEnvelope struct {
+		Regions []FinanceRegion `json:"regions"`
+	}
+	if err := json.Unmarshal(out, &regionsEnvelope); err == nil && regionsEnvelope.Regions != nil {
+		return regionsEnvelope.Regions, nil
+	}
+
+	var dataEnvelope struct {
+		Data []FinanceRegion `json:"data"`
+	}
+	if err := json.Unmarshal(out, &dataEnvelope); err == nil && dataEnvelope.Data != nil {
+		return dataEnvelope.Data, nil
+	}
+
+	return nil, errors.New("failed to parse finance regions")
 }
 
 func isAllowedStudioCommand(parts []string) bool {
