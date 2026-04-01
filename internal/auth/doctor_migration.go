@@ -543,6 +543,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	var commands []string
 	seen := map[string]struct{}{}
 	const uploadedBuildIDPlaceholder = "UPLOADED_BUILD_ID"
+	const reviewSubmissionPlatformPlaceholder = "PLATFORM"
 	add := func(cmd string) {
 		if _, ok := seen[cmd]; ok {
 			return
@@ -593,7 +594,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 		}
 		add(fmt.Sprintf(`asc validate --app %q --version %q`, values.appID, values.versionString))
 		if !hasMetadataSignal {
-			add(fmt.Sprintf(`asc review submissions-create --app %q`, values.appID))
+			add(fmt.Sprintf(`asc review submissions-create --app %q --platform %q`, values.appID, reviewSubmissionPlatformPlaceholder))
 			add(fmt.Sprintf(`asc review items-add --submission "REVIEW_SUBMISSION_ID" --item-type appStoreVersions --item-id %q`, values.versionID))
 			add(`asc review submissions-submit --id "REVIEW_SUBMISSION_ID" --confirm`)
 		}
