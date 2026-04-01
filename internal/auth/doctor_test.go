@@ -427,10 +427,10 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version "2.3.4"`) {
 		t.Fatalf("expected personalized validate command, got %#v", report.Migration.SuggestedCommands)
 	}
-	if !sliceContains(report.Migration.SuggestedCommands, `asc builds upload --app "123456789" --ipa app.ipa --version "2.3.4" --build-number "BUILD_ID" --wait`) {
+	if !sliceContains(report.Migration.SuggestedCommands, `asc builds upload --app "123456789" --ipa app.ipa --version "2.3.4" --build-number "BUILD_NUMBER" --wait`) {
 		t.Fatalf("expected upload step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
 	}
-	if !sliceContains(report.Migration.SuggestedCommands, `asc builds info --app "123456789" --build-number "BUILD_ID" --version "2.3.4"`) {
+	if !sliceContains(report.Migration.SuggestedCommands, `asc builds info --app "123456789" --build-number "BUILD_NUMBER" --version "2.3.4"`) {
 		t.Fatalf("expected build lookup step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
 	}
 	if !sliceContains(report.Migration.SuggestedCommands, `asc versions create --app "123456789" --version "2.3.4"`) {
@@ -438,6 +438,15 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	}
 	if !sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"`) {
 		t.Fatalf("expected personalized attach-build command, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc review submissions-create --app "123456789"`) {
+		t.Fatalf("expected review submission create step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc review items-add --submission "REVIEW_SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"`) {
+		t.Fatalf("expected review submission item step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc review submissions-submit --id "REVIEW_SUBMISSION_ID" --confirm`) {
+		t.Fatalf("expected review submission submit step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
 	}
 	if sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "2.3.4" --build "BUILD_ID" --confirm`) {
 		t.Fatalf("expected upload-only migration hints to avoid deprecated submit create guidance, got %#v", report.Migration.SuggestedCommands)
