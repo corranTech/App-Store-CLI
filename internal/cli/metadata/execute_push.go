@@ -65,7 +65,7 @@ func ExecutePush(ctx context.Context, opts PushExecutionOptions) (PushPlanResult
 
 	localBundle, err := loadLocalMetadata(dirValue, versionValue)
 	if err != nil {
-		return PushPlanResult{}, err
+		return PushPlanResult{}, fmt.Errorf("%s: %w", errorPrefix, err)
 	}
 
 	client, err := shared.GetASCClient()
