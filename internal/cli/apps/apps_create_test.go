@@ -30,9 +30,11 @@ func captureAppsCreateOutput(t *testing.T, fn func()) string {
 	os.Stdout = stdoutWriter
 	os.Stderr = stderrWriter
 
+	stdoutCh := make(chan struct{}, 1)
 	stderrCh := make(chan string, 1)
 	go func() {
 		_, _ = io.Copy(io.Discard, stdoutReader)
+		stdoutCh <- struct{}{}
 	}()
 	go func() {
 		var buf bytes.Buffer
@@ -63,6 +65,7 @@ func captureAppsCreateOutput(t *testing.T, fn func()) string {
 	os.Stdout = origStdout
 	os.Stderr = origStderr
 
+	<-stdoutCh
 	return <-stderrCh
 }
 
