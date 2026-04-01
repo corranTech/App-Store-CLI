@@ -357,7 +357,7 @@ Examples:
 	}
 }
 
-// PublishAppStoreCommand uploads an IPA and submits it for App Store review.
+// PublishAppStoreCommand uploads an IPA, attaches it to an App Store version, and optionally submits it.
 func PublishAppStoreCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("publish appstore", flag.ExitOnError)
 
@@ -387,9 +387,11 @@ Workflow:
 4. Attach the build to the version
 5. Optionally submit for review with --submit --confirm
 
-If you need to prepare metadata or localizations before submission:
-  - ` + "`asc release stage`" + ` runs the preparation pipeline without submitting
-  - ` + "`asc validate`" + ` runs readiness checks before you add ` + "`--submit`" + `
+Use ` + "`asc release stage`" + ` when you want metadata-driven preparation without
+submission. Use ` + "`asc validate`" + ` to run readiness checks before you add
+` + "`--submit`" + `. Use the deprecated ` + "`asc release run`" + ` compatibility
+pipeline only for older automation that still expects a single stage+submit
+command with ` + "`--metadata-dir`" + `.
 
 Examples:
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3

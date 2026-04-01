@@ -582,7 +582,7 @@ func TestBuildSuggestedCommandsQuotesDerivedPublishVersion(t *testing.T) {
 	}, nil)
 
 	if !sliceContains(commands, `asc publish appstore --app "APP_ID" --ipa app.ipa --version "1.2.3 beta \"1\"" --submit --confirm`) {
-		t.Fatalf("expected quoted publish guidance derived from version string, got %#v", commands)
+		t.Fatalf("expected quoted canonical publish command derived from version string, got %#v", commands)
 	}
 }
 

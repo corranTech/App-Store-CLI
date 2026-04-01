@@ -223,7 +223,7 @@ func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
 			t.Fatalf("unmarshal error: %v", err)
 		}
 		if sliceContains(report.Migration.SuggestedCommands, `asc release run --app "123456789" --version "3.2.1" --build "BUILD_ID" --metadata-dir "./metadata/version/3.2.1" --confirm`) {
-			t.Fatalf("expected upload-only migration hints to avoid release run without metadata, got %#v", report.Migration.SuggestedCommands)
+			t.Fatalf("expected upload-only migration hints to avoid deprecated release run guidance without metadata, got %#v", report.Migration.SuggestedCommands)
 		}
 		if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version-id "VERSION_ID"`) {
 			t.Fatalf("expected canonical validate guidance with prefilled app/version, got %#v", report.Migration.SuggestedCommands)

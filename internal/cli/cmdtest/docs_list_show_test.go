@@ -144,10 +144,10 @@ func TestDocsShowPrintsReferenceGuide(t *testing.T) {
 		t.Fatalf("expected reference guide heading, got %q", stdout)
 	}
 	if !strings.Contains(stdout, "Publish to App Store (canonical)") {
-		t.Fatalf("expected reference guide to lead with release pipeline guidance, got %q", stdout)
+		t.Fatalf("expected reference guide to lead with App Store publish guidance, got %q", stdout)
 	}
 	if !strings.Contains(stdout, "Submission readiness (canonical)") {
-		t.Fatalf("expected reference guide to keep canonical readiness guidance discoverable, got %q", stdout)
+		t.Fatalf("expected reference guide to keep readiness guidance discoverable, got %q", stdout)
 	}
 	if !strings.Contains(stdout, `asc status --app "APP_ID"`) {
 		t.Fatalf("expected reference guide to mention status monitoring, got %q", stdout)

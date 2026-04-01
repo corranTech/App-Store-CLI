@@ -117,7 +117,7 @@ func runInitCreatesReferenceAndLinks(t *testing.T, args []string) {
 		t.Fatalf("expected ASC.md to mention release status monitoring, got %q", string(ascData))
 	}
 	if !strings.Contains(string(ascData), "Submission readiness (canonical)") || !strings.Contains(string(ascData), "asc validate") {
-		t.Fatalf("expected ASC.md to retain canonical readiness guidance, got %q", string(ascData))
+		t.Fatalf("expected ASC.md to retain readiness guidance via validate, got %q", string(ascData))
 	}
 
 	agentsData, err := os.ReadFile(agentsPath)
