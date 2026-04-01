@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -47,5 +48,18 @@ func TestSelectLatestAppStoreVersionFallsBackToFirst(t *testing.T) {
 	selected := selectLatestAppStoreVersion(versions)
 	if selected.ID != "first" {
 		t.Fatalf("expected fallback to the first version, got %q", selected.ID)
+	}
+}
+
+func TestWarnAppInfoSetSubmitIncompleteLocaleMentionsCanonicalReleaseRun(t *testing.T) {
+	stderr := captureAppsCreateOutput(t, func() {
+		warnAppInfoSetSubmitIncompleteLocale("en-US", asc.AppStoreVersionLocalizationAttributes{})
+	})
+
+	if !strings.Contains(stderr, "`asc release run`") {
+		t.Fatalf("expected canonical release guidance in warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "deprecated direct path `asc submit create`") {
+		t.Fatalf("expected deprecated direct path note in warning, got %q", stderr)
 	}
 }
