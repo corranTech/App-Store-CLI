@@ -158,6 +158,7 @@ Notes:
 				return shared.UsageError(fmt.Sprintf("metadata %s does not accept positional arguments", cfg.name))
 			}
 			result, err := ExecutePush(ctx, PushExecutionOptions{
+				CommandName:  cfg.name,
 				AppID:        *appID,
 				AppInfoID:    *appInfoID,
 				Version:      *version,
@@ -200,7 +201,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 	appInfoDir := filepath.Join(dir, appInfoDirName)
 	appInfoEntries, err := os.ReadDir(appInfoDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return localMetadataBundle{}, fmt.Errorf("metadata push: failed to read %s: %w", appInfoDir, err)
+		return localMetadataBundle{}, fmt.Errorf("failed to read %s: %w", appInfoDir, err)
 	}
 	if err == nil {
 		seenAppInfoLocales := make(map[string]string)
@@ -239,7 +240,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 	versionDir := filepath.Join(dir, versionDirName, resolvedVersion)
 	versionEntries, err := os.ReadDir(versionDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return localMetadataBundle{}, fmt.Errorf("metadata push: failed to read %s: %w", versionDir, err)
+		return localMetadataBundle{}, fmt.Errorf("failed to read %s: %w", versionDir, err)
 	}
 	if err == nil {
 		seenVersionLocales := make(map[string]string)
