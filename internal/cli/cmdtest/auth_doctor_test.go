@@ -240,7 +240,7 @@ func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
 		if !sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "UPLOADED_BUILD_ID"`) {
 			t.Fatalf("expected attach-build guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
 		}
-		if !sliceContains(report.Migration.SuggestedCommands, `asc review submissions-create --app "123456789"`) {
+		if !sliceContains(report.Migration.SuggestedCommands, `asc review submissions-create --app "123456789" --platform "PLATFORM"`) {
 			t.Fatalf("expected review submission create guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
 		}
 		if !sliceContains(report.Migration.SuggestedCommands, `asc review items-add --submission "REVIEW_SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"`) {
