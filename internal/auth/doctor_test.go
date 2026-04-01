@@ -572,7 +572,7 @@ func TestBuildSuggestedCommandsUploadOnlyDoesNotRequestResolvedBuildID(t *testin
 	}
 }
 
-func TestBuildSuggestedCommandsQuotesDerivedMetadataDir(t *testing.T) {
+func TestBuildSuggestedCommandsQuotesDerivedPublishVersion(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 

@@ -378,7 +378,7 @@ func PublishAppStoreCommand() *ffcli.Command {
 		Name:       "appstore",
 		ShortUsage: "asc publish appstore [flags]",
 		ShortHelp:  "Canonical App Store upload + submit workflow.",
-		LongHelp: `Use the canonical high-level App Store publish command.
+		LongHelp: `Use this as the canonical high-level App Store publish command.
 
 Workflow:
 1. Build locally with Xcode or upload an IPA
@@ -388,9 +388,10 @@ Workflow:
 5. Optionally submit for review with --submit --confirm
 
 Use ` + "`asc release stage`" + ` when you want metadata-driven preparation without
-submission. Use the deprecated ` + "`asc release run`" + ` compatibility pipeline only
-for older automation that still expects a single stage+submit command with
-` + "`--metadata-dir`" + `.
+submission. Use ` + "`asc validate`" + ` to run readiness checks before you add
+` + "`--submit`" + `. Use the deprecated ` + "`asc release run`" + ` compatibility
+pipeline only for older automation that still expects a single stage+submit
+command with ` + "`--metadata-dir`" + `.
 
 Examples:
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3

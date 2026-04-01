@@ -107,7 +107,7 @@ func runInitCreatesReferenceAndLinks(t *testing.T, args []string) {
 	if !strings.Contains(string(ascData), "# asc cli reference") {
 		t.Fatalf("expected ASC.md to contain header, got %q", string(ascData))
 	}
-	if !strings.Contains(string(ascData), "Publish to App Store") || !strings.Contains(string(ascData), "asc publish appstore") {
+	if !strings.Contains(string(ascData), "Publish to App Store (canonical)") || !strings.Contains(string(ascData), "asc publish appstore") {
 		t.Fatalf("expected ASC.md to contain publish-appstore-first guidance, got %q", string(ascData))
 	}
 	if !strings.Contains(string(ascData), "Stage a release (pre-submit)") || !strings.Contains(string(ascData), "asc release stage") {

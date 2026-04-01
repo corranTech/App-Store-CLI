@@ -427,11 +427,15 @@ func TestRootCommand_UsageGroupsSubcommands(t *testing.T) {
 	releaseIdx := strings.Index(usage, "  release:")
 	reviewIdx := strings.Index(usage, "  review:")
 	submitIdx := strings.Index(usage, "  submit:")
-	if releaseIdx == -1 || reviewIdx == -1 || submitIdx == -1 {
-		t.Fatalf("expected release, review, and submit commands in root usage, got %q", usage)
+	publishIdx := strings.Index(usage, "  publish:")
+	if releaseIdx == -1 || reviewIdx == -1 || submitIdx == -1 || publishIdx == -1 {
+		t.Fatalf("expected release, review, submit, and publish commands in root usage, got %q", usage)
 	}
 	if releaseIdx > reviewIdx || releaseIdx > submitIdx {
 		t.Fatalf("expected release to lead the review and release group, got %q", usage)
+	}
+	if strings.Contains(usage, "End-to-end publish workflows for TestFlight and App Store.") {
+		t.Fatalf("expected publish root help to stop advertising App Store publishing, got %q", usage)
 	}
 }
 
@@ -453,17 +457,26 @@ func TestRootCommand_ReleaseHelpMentionsCanonicalPathAndStatus(t *testing.T) {
 	if !strings.Contains(usage, `asc publish appstore --app "APP_ID" --ipa app.ipa --version "VERSION" --submit --confirm`) {
 		t.Fatalf("expected release help to point to the canonical publish appstore path, got %q", usage)
 	}
+	if !strings.Contains(usage, "canonical App Store shipping command") {
+		t.Fatalf("expected release help to describe the canonical publish command, got %q", usage)
+	}
 	if !strings.Contains(usage, `asc status --app "APP_ID"`) {
 		t.Fatalf("expected release help to mention status monitoring, got %q", usage)
 	}
 	if !strings.Contains(usage, `asc validate --app "APP_ID" --version "VERSION"`) {
 		t.Fatalf("expected release help to mention canonical readiness validation, got %q", usage)
 	}
+	if !strings.Contains(usage, "`asc submit preflight` remains available as a deprecated compatibility") {
+		t.Fatalf("expected release help to keep deprecated submit preflight guidance discoverable, got %q", usage)
+	}
 	if !strings.Contains(usage, `asc submit status --version-id "VERSION_ID"`) {
 		t.Fatalf("expected release help to mention submission status lookup, got %q", usage)
 	}
 	if !strings.Contains(usage, `asc submit cancel --version-id "VERSION_ID" --confirm`) {
 		t.Fatalf("expected release help to mention submission cancellation, got %q", usage)
+	}
+	if strings.Contains(usage, `asc submit create --app "APP_ID" --version "VERSION" --build "BUILD_ID" --confirm`) {
+		t.Fatalf("expected release help to stop promoting deprecated submit create guidance, got %q", usage)
 	}
 	if strings.Contains(usage, `asc submit preflight --app "APP_ID" --version "VERSION" --build "BUILD_ID"`) {
 		t.Fatalf("expected release help to stop advertising deprecated submit preflight syntax, got %q", usage)

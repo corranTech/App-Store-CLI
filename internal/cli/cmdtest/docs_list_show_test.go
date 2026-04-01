@@ -143,7 +143,7 @@ func TestDocsShowPrintsReferenceGuide(t *testing.T) {
 	if !strings.Contains(stdout, "# asc cli reference") {
 		t.Fatalf("expected reference guide heading, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "Publish to App Store") {
+	if !strings.Contains(stdout, "Publish to App Store (canonical)") {
 		t.Fatalf("expected reference guide to lead with App Store publish guidance, got %q", stdout)
 	}
 	if !strings.Contains(stdout, "Submission readiness (canonical)") {
