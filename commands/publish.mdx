@@ -87,15 +87,8 @@ This workflow:
 ## Deprecated App Store compatibility path
 
 If you still maintain an older IPA-first script, the deprecated compatibility
-path is:
-
-```bash  theme={null}
-asc publish appstore \
-  --app APP_ID \
-  --ipa /path/to/MyApp.ipa \
-  --version 1.2.0 \
-  --submit --confirm
-```
+path remains available through the hidden `publish appstore` alias for older
+automation.
 
 Prefer migrating that workflow to `asc release run`.
 

@@ -73,11 +73,9 @@ validates readiness, and submits for review.
 ## Deprecated direct submission path
 
 If you still maintain older automation that already prepared the version, the
-deprecated compatibility path is:
-
-```bash  theme={null}
-asc submit create --app APP_ID --version VERSION_STRING --build BUILD_ID --confirm
-```
+deprecated compatibility path remains available through the hidden
+`submit create` alias for older scripts that only need the final review
+submission step.
 
 Prefer migrating that workflow to `asc release run`.
 
