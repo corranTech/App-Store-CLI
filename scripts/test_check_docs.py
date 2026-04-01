@@ -909,6 +909,12 @@ USAGE
         self.assertNotIn("unknown flag '--version'", errors[0])
         self.assertNotIn("unknown flag '--output'", errors[0])
 
+    def test_hidden_alias_flags_do_not_list_canonical_publish_appstore(self) -> None:
+        self.assertNotIn(
+            ("publish", "appstore"),
+            check_website_commands.HIDDEN_DEPRECATED_ALIAS_FLAGS,
+        )
+
 class DocLinksTest(unittest.TestCase):
     def test_normalize_target_strips_angle_brackets_before_prefix_check(self) -> None:
         normalized = doc_links.normalize_target(
