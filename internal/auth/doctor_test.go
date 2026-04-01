@@ -373,6 +373,9 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if err := os.MkdirAll(fastlaneDir, 0o755); err != nil {
 		t.Fatalf("mkdir fastlane error: %v", err)
 	}
+	if err := os.WriteFile(filepath.Join(fastlaneDir, "Appfile"), []byte(`app_identifier "com.example.app"`), 0o644); err != nil {
+		t.Fatalf("write Appfile error: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(fastlaneDir, "Fastfile"), []byte("upload_to_app_store\napp_store_build_number\n"), 0o644); err != nil {
 		t.Fatalf("write Fastfile error: %v", err)
 	}

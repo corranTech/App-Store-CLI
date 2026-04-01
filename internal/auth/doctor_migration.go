@@ -551,7 +551,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	}
 
 	hasAuthSignal := containsAction(signals.detectedActions, "app_store_connect_api_key")
-	hasMetadataSignal := len(signals.appfiles) > 0 || len(signals.deliverfiles) > 0 || containsAction(signals.detectedActions, "deliver")
+	hasMetadataSignal := len(signals.deliverfiles) > 0 || containsAction(signals.detectedActions, "deliver")
 	hasBuildSignal := containsAction(signals.detectedActions, "app_store_build_number") ||
 		containsAction(signals.detectedActions, "latest_testflight_build_number")
 	hasTestflightSignal := containsAction(signals.detectedActions, "upload_to_testflight") || containsAction(signals.detectedActions, "pilot")
