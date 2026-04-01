@@ -425,22 +425,12 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 
 func resolveScreenshotPlanVersion(ctx context.Context, client *asc.Client, appID, version, versionID, platform string) (string, string, string, error) {
 	if strings.TrimSpace(versionID) != "" {
-		resp, err := client.GetAppStoreVersion(ctx, strings.TrimSpace(versionID), asc.WithAppStoreVersionInclude([]string{"app"}))
+		versionData, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, platform)
 		if err != nil {
 			return "", "", "", err
 		}
-		relatedAppID, err := asc.AppStoreVersionAppID(resp)
-		if err != nil {
-			return "", "", "", err
-		}
-		if !strings.EqualFold(strings.TrimSpace(relatedAppID), strings.TrimSpace(appID)) {
-			return "", "", "", fmt.Errorf("version %q belongs to app %q, not %q", strings.TrimSpace(versionID), relatedAppID, appID)
-		}
-		resolvedPlatform := strings.TrimSpace(string(resp.Data.Attributes.Platform))
-		if strings.TrimSpace(platform) != "" && !strings.EqualFold(resolvedPlatform, platform) {
-			return "", "", "", fmt.Errorf("version %q is on platform %q, not %q", strings.TrimSpace(resp.Data.ID), resolvedPlatform, strings.TrimSpace(platform))
-		}
-		return strings.TrimSpace(resp.Data.ID), strings.TrimSpace(resp.Data.Attributes.VersionString), resolvedPlatform, nil
+		resolvedPlatform := strings.TrimSpace(string(versionData.Attributes.Platform))
+		return strings.TrimSpace(versionData.ID), strings.TrimSpace(versionData.Attributes.VersionString), resolvedPlatform, nil
 	}
 
 	resolvedVersionID, err := shared.ResolveAppStoreVersionID(ctx, client, appID, strings.TrimSpace(version), strings.TrimSpace(platform))

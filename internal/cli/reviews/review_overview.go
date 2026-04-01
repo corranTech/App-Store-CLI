@@ -269,21 +269,11 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 
 func resolveReviewVersion(ctx context.Context, client *asc.Client, appID, version, versionID, platform string) (*reviewVersionContext, error) {
 	if strings.TrimSpace(versionID) != "" {
-		resp, err := client.GetAppStoreVersion(ctx, strings.TrimSpace(versionID), asc.WithAppStoreVersionInclude([]string{"app"}))
+		versionData, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, platform)
 		if err != nil {
 			return nil, fmt.Errorf("fetch app store version %q: %w", strings.TrimSpace(versionID), err)
 		}
-		relatedAppID, err := asc.AppStoreVersionAppID(resp)
-		if err != nil {
-			return nil, err
-		}
-		if !strings.EqualFold(strings.TrimSpace(relatedAppID), strings.TrimSpace(appID)) {
-			return nil, fmt.Errorf("version %q belongs to app %q, not %q", strings.TrimSpace(versionID), relatedAppID, appID)
-		}
-		versionContext := mapReviewVersion(resp.Data)
-		if strings.TrimSpace(platform) != "" && !strings.EqualFold(versionContext.Platform, platform) {
-			return nil, fmt.Errorf("version %q is on platform %q, not %q", versionContext.ID, versionContext.Platform, platform)
-		}
+		versionContext := mapReviewVersion(versionData)
 		return &versionContext, nil
 	}
 
