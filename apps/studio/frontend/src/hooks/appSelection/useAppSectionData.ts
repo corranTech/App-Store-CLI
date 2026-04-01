@@ -273,9 +273,9 @@ export function useAppSectionData(appSelectionRequestRef: MutableRefObject<numbe
     loadStandaloneSection(sectionId);
   }
 
-  function loadOfferCodesIfNeeded(sectionId: string, appId: string | null) {
+  function loadOfferCodesIfNeeded(sectionId: string, appId: string | null, force = false) {
     if (sectionId !== "promo-codes" || !appId) return;
-    if (offerCodes.loading || (offerCodes.loadedAppId === appId && !offerCodes.error)) return;
+    if (!force && (offerCodes.loading || (offerCodes.loadedAppId === appId && !offerCodes.error))) return;
 
     const appRequestID = appSelectionRequestRef.current;
     const offerRequestID = offerCodesRequestRef.current + 1;
@@ -308,10 +308,10 @@ export function useAppSectionData(appSelectionRequestRef: MutableRefObject<numbe
       });
   }
 
-  function loadInsightsIfNeeded(sectionId: string, appId: string | null) {
+  function loadInsightsIfNeeded(sectionId: string, appId: string | null, force = false) {
     if (sectionId !== "insights" || !appId) return;
     const existingInsights = sectionCache.insights;
-    if (existingInsights?.loading || (existingInsights && !existingInsights.error)) return;
+    if (!force && (existingInsights?.loading || (existingInsights && !existingInsights.error))) return;
 
     const weekStr = insightsWeekStart(new Date());
     const appRequestID = appSelectionRequestRef.current;

@@ -5,6 +5,7 @@ type AppInfoViewProps = {
   appDetail: AppDetail;
   selectedAppId: string | null;
   metadataLoading: boolean;
+  metadataError: string;
   allLocalizations: LocalizationEntry[];
   selectedLocale: string;
   screenshotsLoading: boolean;
@@ -18,6 +19,7 @@ export function AppInfoView({
   appDetail,
   selectedAppId,
   metadataLoading,
+  metadataError,
   allLocalizations,
   selectedLocale,
   screenshotsLoading,
@@ -88,6 +90,11 @@ export function AppInfoView({
       {metadataLoading ? (
         <div className="app-detail-section">
           <p className="empty-hint">Loading metadata…</p>
+        </div>
+      ) : metadataError ? (
+        <div className="app-detail-section">
+          <h3 className="section-label">App Store Metadata</h3>
+          <p className="empty-hint">{metadataError}</p>
         </div>
       ) : allLocalizations.length > 0 ? (() => {
         const loc = allLocalizations.find((l) => l.locale === selectedLocale) ?? allLocalizations[0];

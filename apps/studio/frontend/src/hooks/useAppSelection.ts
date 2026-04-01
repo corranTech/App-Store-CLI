@@ -12,7 +12,7 @@ export function useAppSelection() {
   const sectionData = useAppSectionData(appSelectionRequestRef);
   const testFlight = useTestFlightData(appSelectionRequestRef);
 
-  function handleSelectApp(id: string) {
+  function handleSelectApp(id: string, activeSectionId?: string) {
     const requestID = appSelectionRequestRef.current + 1;
     appSelectionRequestRef.current = requestID;
 
@@ -26,6 +26,10 @@ export function useAppSelection() {
     sectionData.prefetchSections(id, requestID);
     testFlight.loadGroups(id, requestID);
     metadata.loadAppDetail(id, requestID);
+    if (activeSectionId) {
+      sectionData.loadOfferCodesIfNeeded(activeSectionId, id, true);
+      sectionData.loadInsightsIfNeeded(activeSectionId, id, true);
+    }
   }
 
   return {
@@ -34,6 +38,7 @@ export function useAppSelection() {
     allLocalizations: metadata.allLocalizations,
     selectedLocale: metadata.selectedLocale,
     metadataLoading: metadata.metadataLoading,
+    metadataError: metadata.metadataError,
     screenshotSets: metadata.screenshotSets,
     screenshotsLoading: metadata.screenshotsLoading,
     screenshotsError: metadata.screenshotsError,

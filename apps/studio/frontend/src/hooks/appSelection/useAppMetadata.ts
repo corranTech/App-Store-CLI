@@ -8,6 +8,7 @@ export function useAppMetadata(appSelectionRequestRef: MutableRefObject<number>)
   const [allLocalizations, setAllLocalizations] = useState<LocalizationEntry[]>([]);
   const [selectedLocale, setSelectedLocale] = useState("");
   const [metadataLoading, setMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState("");
   const [screenshotSets, setScreenshotSets] = useState<ScreenshotSet[]>([]);
   const [screenshotsLoading, setScreenshotsLoading] = useState(false);
   const [screenshotsError, setScreenshotsError] = useState("");
@@ -19,6 +20,7 @@ export function useAppMetadata(appSelectionRequestRef: MutableRefObject<number>)
     setAppDetail(null);
     setAllLocalizations([]);
     setSelectedLocale("");
+    setMetadataError("");
     setScreenshotSets([]);
     setMetadataLoading(false);
     setScreenshotsLoading(false);
@@ -94,10 +96,25 @@ export function useAppMetadata(appSelectionRequestRef: MutableRefObject<number>)
         if (!primaryVersion?.id) return;
 
         setMetadataLoading(true);
+        setMetadataError("");
         GetVersionMetadata(primaryVersion.id)
           .then((metadata) => {
             if (appSelectionRequestRef.current !== requestID) return;
-            if (!metadata.localizations?.length) return;
+            if (metadata.error) {
+              setAllLocalizations([]);
+              setSelectedLocale("");
+              setScreenshotSets([]);
+              setScreenshotsError("");
+              setMetadataError(metadata.error);
+              return;
+            }
+            if (!metadata.localizations?.length) {
+              setAllLocalizations([]);
+              setSelectedLocale("");
+              setScreenshotSets([]);
+              setScreenshotsError("");
+              return;
+            }
 
             setAllLocalizations(metadata.localizations);
             const defaultLocalization = metadata.localizations.find(
@@ -109,7 +126,14 @@ export function useAppMetadata(appSelectionRequestRef: MutableRefObject<number>)
               loadScreenshots(defaultLocalization.localizationId, requestID);
             }
           })
-          .catch(() => {})
+          .catch((error) => {
+            if (appSelectionRequestRef.current !== requestID) return;
+            setAllLocalizations([]);
+            setSelectedLocale("");
+            setScreenshotSets([]);
+            setScreenshotsError("");
+            setMetadataError(String(error));
+          })
           .finally(() => {
             if (appSelectionRequestRef.current !== requestID) return;
             setMetadataLoading(false);
@@ -144,6 +168,7 @@ export function useAppMetadata(appSelectionRequestRef: MutableRefObject<number>)
     allLocalizations,
     selectedLocale,
     metadataLoading,
+    metadataError,
     screenshotSets,
     screenshotsLoading,
     screenshotsError,

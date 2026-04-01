@@ -89,6 +89,10 @@ export default function App() {
   const insightsWeek = insightsWeekStart(new Date());
   const insightsCache = app.sectionCache.insights;
 
+  function handleSelectApp(id: string) {
+    app.handleSelectApp(id, activeSection.id);
+  }
+
   function handleSetActiveSection(section: NavSection) {
     setActiveSection(section);
     if (sectionCommands[section.id] && !sectionRequiresApp(section.id)) {
@@ -99,7 +103,7 @@ export default function App() {
   }
 
   function handleRefresh() {
-    bootstrap.handleRefresh(app.selectedAppId, app.handleSelectApp);
+    bootstrap.handleRefresh(app.selectedAppId, handleSelectApp);
   }
 
   function renderContent() {
@@ -158,7 +162,7 @@ export default function App() {
     if (activeSection.id === "overview" && app.appDetail) {
       return (
         <AppInfoView appDetail={app.appDetail} selectedAppId={app.selectedAppId} metadataLoading={app.metadataLoading}
-          allLocalizations={app.allLocalizations} selectedLocale={app.selectedLocale} screenshotsLoading={app.screenshotsLoading}
+          metadataError={app.metadataError} allLocalizations={app.allLocalizations} selectedLocale={app.selectedLocale} screenshotsLoading={app.screenshotsLoading}
           screenshotsError={app.screenshotsError}
           screenshotSets={app.screenshotSets} onLocaleChange={app.handleLocaleChange} onRunCommand={RunASCCommand} />
       );
@@ -214,7 +218,7 @@ export default function App() {
         appList={bootstrap.appList} appSearchTerm={appSearchTerm} activeSection={activeSection}
         appsLoading={bootstrap.appsLoading} appsError={bootstrap.appsError} authAuthenticated={bootstrap.authStatus.authenticated}
         filteredApps={filteredApps} onAppSearchChange={setAppSearchTerm}
-        onSelectApp={app.handleSelectApp} onSetActiveSection={handleSetActiveSection}
+        onSelectApp={handleSelectApp} onSetActiveSection={handleSetActiveSection}
       />
 
       <div className="shell-separator" />

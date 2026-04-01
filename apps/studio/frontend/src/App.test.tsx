@@ -346,6 +346,22 @@ describe("App", () => {
     expect(screen.queryByText("No screenshots found. Select an app with screenshots or change locale.")).not.toBeInTheDocument();
   });
 
+  it("surfaces version metadata errors without hiding overview details", async () => {
+    mockGetVersionMetadata.mockResolvedValue({
+      error: "metadata unavailable",
+      localizations: [],
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    await pickApp("Test App");
+
+    expect(await screen.findByText("General")).toBeInTheDocument();
+    expect(screen.getByText("metadata unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Overview unavailable")).not.toBeInTheDocument();
+  });
+
   it("includes required statuses when loading nominations", async () => {
     render(<App />);
 
@@ -660,7 +676,7 @@ describe("App", () => {
           }),
         });
       }
-      if (cmd === "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform IOS --output json") {
+      if (cmd === "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform 'MAC_OS' --output json") {
         return Promise.resolve({
           error: "",
           data: JSON.stringify({
@@ -684,11 +700,12 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /New Bundle ID/i }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New App" } });
     fireEvent.change(screen.getByLabelText("Identifier"), { target: { value: "com.example.newapp" } });
+    fireEvent.change(screen.getByLabelText("Platform"), { target: { value: "MAC_OS" } });
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => {
       expect(mockRunASCCommand).toHaveBeenCalledWith(
-        "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform IOS --output json",
+        "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform 'MAC_OS' --output json",
       );
     });
   });
@@ -705,7 +722,7 @@ describe("App", () => {
           }),
         });
       }
-      if (cmd === "devices register --name 'QA iPhone' --udid 'NEW-UDID-123' --platform IOS --output json") {
+      if (cmd === "devices register --name 'QA iPhone' --udid 'NEW-UDID-123' --platform 'MAC_OS' --output json") {
         return Promise.resolve({
           error: "",
           data: JSON.stringify({
@@ -730,11 +747,12 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /New Device/i }));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "QA iPhone" } });
     fireEvent.change(screen.getByLabelText("UDID"), { target: { value: "NEW-UDID-123" } });
+    fireEvent.change(screen.getByLabelText("Platform"), { target: { value: "MAC_OS" } });
     fireEvent.click(screen.getByRole("button", { name: "Register" }));
 
     await waitFor(() => {
       expect(mockRunASCCommand).toHaveBeenCalledWith(
-        "devices register --name 'QA iPhone' --udid 'NEW-UDID-123' --platform IOS --output json",
+        "devices register --name 'QA iPhone' --udid 'NEW-UDID-123' --platform 'MAC_OS' --output json",
       );
     });
   });
@@ -1081,6 +1099,45 @@ describe("App", () => {
       expect(screen.getByText("second metric")).toBeInTheDocument();
     });
     expect(screen.queryByText("first metric")).not.toBeInTheDocument();
+  });
+
+  it("reloads insights when refreshing the selected app on the insights view", async () => {
+    const firstInsights = {
+      error: "",
+      data: JSON.stringify({
+        metrics: [{ name: "first_metric", status: "VALID", thisWeek: 1 }],
+      }),
+    };
+    const refreshedInsights = {
+      error: "",
+      data: JSON.stringify({
+        metrics: [{ name: "refreshed_metric", status: "VALID", thisWeek: 2 }],
+      }),
+    };
+
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "insights weekly --app '1' --source analytics --week 2026-03-30 --output json") {
+        return Promise.resolve(
+          mockRunASCCommand.mock.calls.filter(([calledCmd]) => calledCmd === cmd).length === 1
+            ? firstInsights
+            : refreshedInsights,
+        );
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    await pickApp("Test App");
+    fireEvent.click(await screen.findByRole("button", { name: "Insights" }));
+
+    expect(await screen.findByText("first metric")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Refresh/i }));
+
+    expect(await screen.findByText("refreshed metric")).toBeInTheDocument();
+    expect(mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === "insights weekly --app '1' --source analytics --week 2026-03-30 --output json")).toHaveLength(2);
   });
 
   it("ignores stale tester responses after switching groups", async () => {

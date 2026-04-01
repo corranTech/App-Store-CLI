@@ -41,6 +41,36 @@ func TestParseAvailabilityViewOutputReturnsResourceID(t *testing.T) {
 	}
 }
 
+func TestLoadSubscriptionsReturnsGroupFetchErrors(t *testing.T) {
+	ascPath := filepath.Join(t.TempDir(), "asc")
+	script := `#!/bin/sh
+if [ "$1" = "subscriptions" ] && [ "$2" = "groups" ] && [ "$3" = "list" ]; then
+  printf '{"data":[{"id":"group-1","attributes":{"referenceName":"Main Group"}}]}'
+  exit 0
+fi
+
+if [ "$1" = "subscriptions" ] && [ "$2" = "list" ]; then
+  printf 'group fetch failed' >&2
+  exit 1
+fi
+
+printf 'unexpected args: %s' "$*" >&2
+exit 1
+`
+	if err := os.WriteFile(ascPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	app := &App{}
+	got := app.loadSubscriptions(context.Background(), ascPath, "app-1")
+	if !strings.Contains(got.Error, "group fetch failed") {
+		t.Fatalf("loadSubscriptions().Error = %q, want group fetch failure", got.Error)
+	}
+	if len(got.Subscriptions) != 0 {
+		t.Fatalf("loadSubscriptions().Subscriptions = %+v, want no partial results", got.Subscriptions)
+	}
+}
+
 func TestSetEnvVarDoesNotMutateInputSlice(t *testing.T) {
 	original := []string{"A=1", "ASC_KEY_ID=old", "B=2"}
 	snapshot := append([]string(nil), original...)

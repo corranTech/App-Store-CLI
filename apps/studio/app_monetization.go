@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -42,10 +43,32 @@ func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID strin
 	}
 
 	groupSubscriptions := make([][]SubscriptionItem, len(groupEnv.Data))
+	var (
+		groupErr   string
+		groupErrMu sync.Mutex
+	)
+	recordGroupErr := func(groupName, message string) {
+		groupErrMu.Lock()
+		defer groupErrMu.Unlock()
+		if groupErr != "" {
+			return
+		}
+		groupLabel := strings.TrimSpace(groupName)
+		detail := strings.TrimSpace(message)
+		if groupLabel == "" {
+			groupLabel = "unknown group"
+		}
+		if detail == "" {
+			groupErr = fmt.Sprintf("failed to load subscriptions for %s", groupLabel)
+			return
+		}
+		groupErr = fmt.Sprintf("failed to load subscriptions for %s: %s", groupLabel, detail)
+	}
 	runWithConcurrency(boundedStudioConcurrency(len(groupEnv.Data)), len(groupEnv.Data), func(i int) {
 		group := groupEnv.Data[i]
 		out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "list", "--group-id", group.ID, "--output", "json")
 		if err != nil {
+			recordGroupErr(group.Attributes.ReferenceName, string(out))
 			return
 		}
 		type rawSub struct {
@@ -63,6 +86,7 @@ func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID strin
 			Data []rawSub `json:"data"`
 		}
 		if json.Unmarshal(out, &env) != nil {
+			recordGroupErr(group.Attributes.ReferenceName, "failed to parse response")
 			return
 		}
 		items := make([]SubscriptionItem, 0, len(env.Data))
@@ -80,6 +104,9 @@ func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID strin
 		}
 		groupSubscriptions[i] = items
 	})
+	if groupErr != "" {
+		return SubscriptionsResponse{Error: groupErr}
+	}
 
 	var all []SubscriptionItem
 	for _, items := range groupSubscriptions {

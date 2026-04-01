@@ -38,9 +38,10 @@ function sheetReducer(state: SheetState, action: SheetAction): SheetState {
 
 export function useBundleIDSheet(onCreated: () => void) {
   const [state, dispatch] = useReducer(sheetReducer, initialState);
+  const quotedPlatform = shellQuote(state.platform);
 
   const commandPreview =
-    `bundle-ids create --identifier ${shellQuote(state.identifier.trim())} --name ${shellQuote(state.name.trim())} --platform ${state.platform} --output json`;
+    `bundle-ids create --identifier ${shellQuote(state.identifier.trim())} --name ${shellQuote(state.name.trim())} --platform ${quotedPlatform} --output json`;
 
   function handleCreate() {
     const trimmedName = state.name.trim();
@@ -53,7 +54,7 @@ export function useBundleIDSheet(onCreated: () => void) {
     dispatch({ type: "setError", value: "" });
 
     RunASCCommand(
-      `bundle-ids create --identifier ${shellQuote(trimmedIdentifier)} --name ${shellQuote(trimmedName)} --platform ${state.platform} --output json`,
+      `bundle-ids create --identifier ${shellQuote(trimmedIdentifier)} --name ${shellQuote(trimmedName)} --platform ${quotedPlatform} --output json`,
     )
       .then((res) => {
         if (res.error) { dispatch({ type: "setError", value: res.error }); return; }
@@ -69,9 +70,10 @@ export function useBundleIDSheet(onCreated: () => void) {
 
 export function useDeviceSheet(onCreated: () => void) {
   const [state, dispatch] = useReducer(sheetReducer, initialState);
+  const quotedPlatform = shellQuote(state.platform);
 
   const commandPreview =
-    `devices register --name ${shellQuote(state.name.trim())} --udid ${shellQuote(state.identifier.trim())} --platform ${state.platform} --output json`;
+    `devices register --name ${shellQuote(state.name.trim())} --udid ${shellQuote(state.identifier.trim())} --platform ${quotedPlatform} --output json`;
 
   function handleCreate() {
     const trimmedName = state.name.trim();
@@ -84,7 +86,7 @@ export function useDeviceSheet(onCreated: () => void) {
     dispatch({ type: "setError", value: "" });
 
     RunASCCommand(
-      `devices register --name ${shellQuote(trimmedName)} --udid ${shellQuote(trimmedUDID)} --platform ${state.platform} --output json`,
+      `devices register --name ${shellQuote(trimmedName)} --udid ${shellQuote(trimmedUDID)} --platform ${quotedPlatform} --output json`,
     )
       .then((res) => {
         if (res.error) { dispatch({ type: "setError", value: res.error }); return; }
