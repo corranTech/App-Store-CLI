@@ -240,6 +240,15 @@ func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
 		if !sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"`) {
 			t.Fatalf("expected attach-build guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
 		}
+		if !sliceContains(report.Migration.SuggestedCommands, `asc review submissions-create --app "123456789"`) {
+			t.Fatalf("expected review submission create guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
+		}
+		if !sliceContains(report.Migration.SuggestedCommands, `asc review items-add --submission "REVIEW_SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"`) {
+			t.Fatalf("expected review submission item guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
+		}
+		if !sliceContains(report.Migration.SuggestedCommands, `asc review submissions-submit --id "REVIEW_SUBMISSION_ID" --confirm`) {
+			t.Fatalf("expected review submission submit guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
+		}
 		if sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "3.2.1" --build "BUILD_ID" --confirm`) {
 			t.Fatalf("expected upload-only migration hints to avoid deprecated submit create guidance, got %#v", report.Migration.SuggestedCommands)
 		}

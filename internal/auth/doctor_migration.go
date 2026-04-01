@@ -588,6 +588,11 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 			add(fmt.Sprintf(`asc versions attach-build --version-id %q --build %q`, values.versionID, values.buildID))
 		}
 		add(fmt.Sprintf(`asc validate --app %q --version %q`, values.appID, values.versionString))
+		if !hasMetadataSignal {
+			add(fmt.Sprintf(`asc review submissions-create --app %q`, values.appID))
+			add(fmt.Sprintf(`asc review items-add --submission "REVIEW_SUBMISSION_ID" --item-type appStoreVersions --item-id %q`, values.versionID))
+			add(`asc review submissions-submit --id "REVIEW_SUBMISSION_ID" --confirm`)
+		}
 	}
 
 	return commands
