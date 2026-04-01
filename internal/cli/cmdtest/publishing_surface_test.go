@@ -1,105 +1,139 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"strings"
 	"testing"
 )
 
-func TestPublishHelpPointsToCanonicalPublishCommands(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+const (
+	releaseRunDeprecationWarning   = "Warning: `asc release run` is deprecated. Use `asc publish appstore`."
+	submitCreateDeprecationWarning = "Warning: `asc submit create` is deprecated. Use `asc publish appstore --submit`."
+)
 
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"publish"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+func TestPublishHelpShowsCanonicalAppStoreAndTestFlightSurfaces(t *testing.T) {
+	stdout, stderr, runErr := runRootCommand(t, []string{"publish"})
 
-	if !strings.Contains(stderr, "asc publish testflight") {
-		t.Fatalf("expected publish help to mention canonical TestFlight publish command, got %q", stderr)
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "asc release run") {
-		t.Fatalf("expected publish help to mention canonical App Store publish command, got %q", stderr)
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if strings.Contains(stderr, "\n  appstore") {
-		t.Fatalf("expected deprecated publish appstore subcommand to be hidden from publish help, got %q", stderr)
+	if !usageListsSubcommand(stderr, "testflight") {
+		t.Fatalf("expected publish help to list testflight, got %q", stderr)
 	}
-}
-
-func TestPublishAppStoreWarnsDeprecatedPath(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"publish", "appstore", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	requireStderrContainsWarning(t, stderr, "Warning: `asc publish appstore` is deprecated. Use `asc release run` for the canonical App Store publish flow.")
-	if !strings.Contains(stderr, "Error: --ipa is required") {
-		t.Fatalf("expected validation error after deprecation warning, got %q", stderr)
+	if !usageListsSubcommand(stderr, "appstore") {
+		t.Fatalf("expected publish help to list canonical appstore path, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "asc publish appstore") {
+		t.Fatalf("expected publish help to point App Store users to asc publish appstore, got %q", stderr)
 	}
 }
 
-func TestSubmitHelpPointsToReleaseRunAndHidesCreate(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+func TestSubmitHelpShowsLifecycleCommandsAndHidesDeprecatedCreate(t *testing.T) {
+	stdout, stderr, runErr := runRootCommand(t, []string{"submit"})
 
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit"}); err != nil {
-			t.Fatalf("parse error: %v", err)
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, subcommand := range []string{"status", "cancel"} {
+		if !usageListsSubcommand(stderr, subcommand) {
+			t.Fatalf("expected submit help to list %s, got %q", subcommand, stderr)
 		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	if !strings.Contains(stderr, "asc release run") {
-		t.Fatalf("expected submit help to point to asc release run, got %q", stderr)
+	}
+	if usageListsSubcommand(stderr, "preflight") {
+		t.Fatalf("expected submit help to hide deprecated preflight path, got %q", stderr)
 	}
 	if !strings.Contains(stderr, "asc validate") {
-		t.Fatalf("expected submit help to point readiness checks to asc validate, got %q", stderr)
+		t.Fatalf("expected submit help text to mention canonical validate guidance, got %q", stderr)
 	}
-	if strings.Contains(stderr, "\n  create") {
-		t.Fatalf("expected deprecated submit create subcommand to be hidden from submit help, got %q", stderr)
+	if !strings.Contains(stderr, "asc submit status/cancel") {
+		t.Fatalf("expected submit help text to mention visible submit lifecycle commands, got %q", stderr)
+	}
+	if usageListsSubcommand(stderr, "create") {
+		t.Fatalf("expected submit help to hide deprecated create path, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "asc publish appstore --submit") {
+		t.Fatalf("expected submit help to point App Store users to asc publish appstore --submit, got %q", stderr)
 	}
 }
 
-func TestSubmitCreateWarnsDeprecatedPath(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+func TestPublishAppStoreHelpShowsCanonicalWorkflowGuidance(t *testing.T) {
+	usage := usageForCommand(t, "publish", "appstore")
 
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"submit", "create",
-			"--app", "app-1",
-			"--version", "1.0.0",
-			"--build", "build-1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	if strings.Contains(usage, "DEPRECATED:") {
+		t.Fatalf("expected canonical publish appstore help without deprecation banner, got %q", usage)
+	}
+	if !strings.Contains(usage, "canonical high-level App Store publish command") {
+		t.Fatalf("expected canonical guidance in publish appstore help, got %q", usage)
+	}
+	if !strings.Contains(usage, "--ipa") {
+		t.Fatalf("expected publish appstore help to show flag details, got %q", usage)
+	}
+}
 
-	requireStderrContainsWarning(t, stderr, "Warning: `asc submit create` is deprecated. Use `asc release run` for the canonical App Store publish flow.")
-	if !strings.Contains(stderr, "--confirm is required") {
-		t.Fatalf("expected normal validation error after deprecation warning, got %q", stderr)
+func TestSubmitCreateHelpShowsDeprecatedCompatibilityGuidance(t *testing.T) {
+	usage := usageForCommand(t, "submit", "create")
+
+	if !strings.Contains(usage, "DEPRECATED: use `asc publish appstore --submit`.") {
+		t.Fatalf("expected deprecated guidance in submit create help, got %q", usage)
+	}
+	if !strings.Contains(usage, "Deprecated compatibility path") {
+		t.Fatalf("expected compatibility guidance in submit create help, got %q", usage)
+	}
+	if strings.Contains(usage, "--build") {
+		t.Fatalf("expected deprecated submit create help to hide legacy flag details, got %q", usage)
+	}
+}
+
+func TestPublishAppStoreInvocationDoesNotWarn(t *testing.T) {
+	stdout, stderr, runErr := runRootCommand(t, []string{"publish", "appstore", "--app", "app-1", "--version", "1.0.0"})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --ipa is required") {
+		t.Fatalf("expected validation error for missing ipa, got %q", stderr)
+	}
+	if strings.Contains(stderr, releaseRunDeprecationWarning) {
+		t.Fatalf("expected canonical publish appstore path to avoid release-run deprecation warning, got %q", stderr)
+	}
+}
+
+func TestDeprecatedSubmitCreateInvocationWarns(t *testing.T) {
+	stdout, stderr, runErr := runRootCommand(t, []string{"submit", "create", "--version", "1.0.0", "--version-id", "version-1", "--build", "build-1", "--confirm"})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	requireStderrContainsWarning(t, stderr, submitCreateDeprecationWarning)
+	if !strings.Contains(stderr, "--version and --version-id are mutually exclusive") {
+		t.Fatalf("expected legacy validation error after deprecation warning, got %q", stderr)
+	}
+}
+
+func TestDeprecatedReleaseRunInvocationWarns(t *testing.T) {
+	stdout, stderr, runErr := runRootCommand(t, []string{"release", "run", "--app", "app-1", "--version", "1.0.0", "--build", "build-1", "--dry-run"})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	requireStderrContainsWarning(t, stderr, releaseRunDeprecationWarning)
+	if !strings.Contains(stderr, "--metadata-dir is required") {
+		t.Fatalf("expected validation error after deprecation warning, got %q", stderr)
 	}
 }

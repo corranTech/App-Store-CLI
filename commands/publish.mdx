@@ -1,14 +1,26 @@
 # publish
 
-> High-level publishing workflows for TestFlight, plus App Store release guidance
+> High-level publish workflows for TestFlight and App Store
 
-The `publish` command remains the high-level surface for TestFlight workflows. For App Store releases, use `asc release run` to manage version setup, metadata application, build attachment, validation, and submission in one deterministic pipeline.
+The `publish` command is the high-level publishing surface for TestFlight and
+the canonical App Store upload + submit flow.
 
 ## Usage
 
 ```bash  theme={null}
-asc publish testflight [flags]
+asc publish <workflow> [flags]
 ```
+
+## Canonical paths
+
+Use these top-level workflows deliberately:
+
+* `asc publish testflight` - canonical high-level TestFlight publish path
+* `asc publish appstore` - canonical high-level App Store publish path
+* `asc release stage` - prepare an App Store version without submitting it
+
+`asc release run` remains available as a deprecated compatibility pipeline for
+older automation that still expects one command to stage and submit a release.
 
 ## Workflows
 
@@ -29,28 +41,26 @@ This workflow:
 2. Waits for processing
 3. Distributes to specified beta groups
 
-### Canonical App Store workflow
+### App Store workflow
+
+Ship to the App Store with the canonical publish command:
 
 ```bash  theme={null}
-# Upload a build first
-asc builds upload --app APP_ID --ipa /path/to/MyApp.ipa
-
-# Then run the App Store release pipeline
-asc release run \
+asc publish appstore \
   --app APP_ID \
+  --ipa /path/to/MyApp.ipa \
   --version 1.2.0 \
-  --build BUILD_ID \
-  --metadata-dir ./metadata/version/1.2.0 \
+  --submit \
   --confirm
 ```
 
 This workflow:
 
-1. Ensures or creates the target version
-2. Applies metadata and localizations
-3. Attaches the selected build
-4. Validates readiness
-5. Submits for review
+1. Uploads the IPA
+2. Finds or creates the matching App Store version
+3. Attaches the processed build
+4. Optionally submits for review with `--submit`
+5. Prints the resulting build/version/submission identifiers
 
 ## TestFlight flags
 
@@ -74,31 +84,14 @@ This workflow:
   Default: `true`
 </ParamField>
 
-## App Store release flags
+## Deprecated release compatibility path
 
-<ParamField path="--app" type="string" required>
-  App ID for the version
-</ParamField>
+If you still maintain older automation that depends on the metadata-aware
+one-command release pipeline, `asc release run` remains available as a
+deprecated compatibility path.
 
-<ParamField path="--version" type="string" required>
-  Version string (e.g., `1.2.0`)
-</ParamField>
-
-<ParamField path="--build" type="string" required>
-  Build ID to attach before validating and submitting
-</ParamField>
-
-<ParamField path="--metadata-dir" type="string" required>
-  Metadata directory to apply during the release pipeline
-</ParamField>
-
-<ParamField path="--confirm" type="boolean" required>
-  Required confirmation flag for a mutating App Store release
-</ParamField>
-
-<ParamField path="--platform" type="string">
-  Platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`
-</ParamField>
+Prefer migrating day-to-day App Store shipping to `asc publish appstore` and
+using `asc release stage` for pre-submit preparation work.
 
 ## Example workflows
 
@@ -111,25 +104,14 @@ asc publish testflight \
   --group "External Testers,Beta Team"
 ```
 
-### Stage an App Store release without submitting
+### Publish to App Store
 
 ```bash  theme={null}
-asc release stage \
+asc publish appstore \
   --app 123456789 \
+  --ipa build/MyApp.ipa \
   --version 1.2.0 \
-  --build BUILD_ID \
-  --copy-metadata-from 1.1.9 \
-  --dry-run
-```
-
-### Submit to the App Store
-
-```bash  theme={null}
-asc release run \
-  --app 123456789 \
-  --version 1.2.0 \
-  --build BUILD_ID \
-  --metadata-dir ./metadata/version/1.2.0 \
+  --submit \
   --confirm
 ```
 
@@ -145,17 +127,18 @@ asc release run \
       --group "External Testers"
 ```
 
-## Example App Store output
+## Output
 
 ```
 Uploading build...
 Build uploaded successfully
-Running release pipeline...
-Readiness checks passed
-Submission created successfully
+Waiting for processing...
+Build processed (VALID)
+Distributing to beta groups...
+Build distributed to External Testers
 
 Publish complete!
-Submission ID: submission-id-here
+Build ID: build-id-here
 ```
 
 ## Error handling
@@ -163,14 +146,14 @@ Submission ID: submission-id-here
 If any step fails, the workflow stops and reports the error:
 
 ```
-Release failed: metadata directory is missing required localization files
+Upload failed: Invalid IPA file
 ```
 
 You can retry individual steps using the lower-level commands:
 
 ```bash  theme={null}
 asc builds upload --app 123456789 --ipa MyApp.ipa
-asc submit status --version-id VERSION_ID
+asc builds add-groups --build-id BUILD_ID --group "External Testers"
 ```
 
 ## Related
@@ -180,8 +163,8 @@ asc submit status --version-id VERSION_ID
     Manage builds and uploads
   </Card>
 
-  <Card title="Submit command" icon="paper-plane" href="/commands/submit">
-    Monitor or cancel active submissions
+  <Card title="Release command" icon="rocket" href="/commands/overview">
+    Pre-submit release staging and deprecated compatibility pipeline
   </Card>
 
   <Card title="Automation guide" icon="robot" href="/guides/automation">

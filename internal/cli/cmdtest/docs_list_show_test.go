@@ -146,8 +146,8 @@ func TestDocsShowPrintsReferenceGuide(t *testing.T) {
 	if !strings.Contains(stdout, "Publish to App Store") {
 		t.Fatalf("expected reference guide to lead with App Store publish guidance, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "Check submission readiness") {
-		t.Fatalf("expected reference guide to keep low-level submission guidance discoverable, got %q", stdout)
+	if !strings.Contains(stdout, "Submission readiness (canonical)") {
+		t.Fatalf("expected reference guide to keep readiness guidance discoverable, got %q", stdout)
 	}
 	if !strings.Contains(stdout, `asc status --app "APP_ID"`) {
 		t.Fatalf("expected reference guide to mention status monitoring, got %q", stdout)
@@ -173,8 +173,8 @@ func TestDocsShowPrintsWorkflowsGuide(t *testing.T) {
 	if !strings.Contains(stdout, "# Workflow Patterns") {
 		t.Fatalf("expected workflows guide heading, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "asc release run") || !strings.Contains(stdout, "asc publish testflight") {
-		t.Fatalf("expected workflows guide to document canonical release and TestFlight paths, got %q", stdout)
+	if !strings.Contains(stdout, "asc publish appstore") || !strings.Contains(stdout, "asc publish testflight") {
+		t.Fatalf("expected workflows guide to document canonical App Store and TestFlight paths, got %q", stdout)
 	}
 }
 

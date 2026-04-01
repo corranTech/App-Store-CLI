@@ -268,20 +268,20 @@ jobs:
               --app "$ASC_APP_ID" \
               --version "$CIRCLE_TAG"
   
-  submit:
+  release:
     docker:
       - image: cimg/base:stable
     steps:
       - asc/install
       
       - run:
-          name: Submit for Review
+          name: Run App Store Publish Command
           command: |
-            asc release run \
+            asc publish appstore \
               --app "$ASC_APP_ID" \
+              --ipa "./build/MyApp.ipa" \
               --version "$CIRCLE_TAG" \
-              --build "BUILD_ID" \
-              --metadata-dir "./metadata/version/$CIRCLE_TAG" \
+              --submit \
               --confirm
   
   monitor:
@@ -324,7 +324,7 @@ workflows:
             tags:
               only: /^v.*/
       
-      - submit:
+      - release:
           context: app-store-connect
           requires:
             - approve-submission
@@ -335,7 +335,7 @@ workflows:
       - monitor:
           context: app-store-connect
           requires:
-            - submit
+            - release
           filters:
             tags:
               only: /^v.*/
@@ -604,7 +604,7 @@ jobs:
             - run:
                 name: Deploy to Production
                 command: |
-                  asc release run --app "$PROD_APP_ID" --version "$VERSION" --build "BUILD_ID" --metadata-dir "./metadata/version/$VERSION" --confirm
+                  asc publish appstore --app "$PROD_APP_ID" --ipa "build/MyApp.ipa" --version "$VERSION" --submit --confirm
       
       - when:
           condition:

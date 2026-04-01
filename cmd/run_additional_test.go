@@ -450,8 +450,8 @@ func TestRootCommand_ReleaseHelpMentionsCanonicalPathAndStatus(t *testing.T) {
 	}
 
 	usage := releaseCmd.UsageFunc(releaseCmd)
-	if !strings.Contains(usage, "canonical path") {
-		t.Fatalf("expected release help to describe the canonical path, got %q", usage)
+	if !strings.Contains(usage, `asc publish appstore --app "APP_ID" --ipa app.ipa --version "VERSION" --submit --confirm`) {
+		t.Fatalf("expected release help to point to the canonical publish appstore path, got %q", usage)
 	}
 	if !strings.Contains(usage, `asc status --app "APP_ID"`) {
 		t.Fatalf("expected release help to mention status monitoring, got %q", usage)
@@ -485,7 +485,7 @@ func TestRootCommand_WorkflowHelpMentionsReleaseAndStatusMonitoring(t *testing.T
 	}
 
 	usage := workflowCmd.UsageFunc(workflowCmd)
-	if !strings.Contains(usage, `asc release run --app $APP_ID --version $VERSION --build $BUILD_ID --metadata-dir ./metadata/version/$VERSION --confirm`) {
+	if !strings.Contains(usage, `asc publish appstore --app $APP_ID --ipa ./build/MyApp.ipa --version $VERSION --submit --confirm`) {
 		t.Fatalf("expected workflow help to show the high-level release step, got %q", usage)
 	}
 	if !strings.Contains(usage, `asc status --app "APP_ID"`) {

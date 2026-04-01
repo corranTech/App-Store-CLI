@@ -1,8 +1,9 @@
 # submit
 
-> Submission lifecycle operations; App Store publishing uses `release run`
+> Submission lifecycle tools; use `publish appstore --submit` to ship
 
-The `submit` group now focuses on submission lifecycle operations after a release has been staged or submitted. For an end-to-end App Store publish, use `asc release run`. For a pre-submit staging pass that stops before review, use `asc release stage`.
+The `submit` command is for lower-level App Store submission lifecycle work.
+For the canonical high-level App Store publish flow, use `asc publish appstore --submit`.
 
 ## Usage
 
@@ -10,69 +11,115 @@ The `submit` group now focuses on submission lifecycle operations after a releas
 asc submit <subcommand> [flags]
 ```
 
-## Canonical App Store publish
+## Canonical paths
+
+Use these commands deliberately:
+
+* `asc publish appstore --submit` - canonical App Store publish path
+* `asc validate` - canonical readiness check before submission
+* `asc submit status` - inspect submission or version review state
+* `asc submit cancel` - cancel an active submission
+
+`asc submit preflight` remains available only as a deprecated compatibility path
+for older scripts that still expect preflight-style text/json output.
+
+`asc submit create` remains available only as a deprecated compatibility path
+for older automation that already prepared the version and only needs the final
+submission step.
+
+## Submission lifecycle
+
+### Validate readiness
+
+Check readiness before you ship:
 
 ```bash  theme={null}
-asc release run --app APP_ID --version VERSION_STRING --build BUILD_ID --metadata-dir ./metadata/version/VERSION_STRING --confirm
-asc release run --app 123456789 --version 1.2.0 --build BUILD_ID --metadata-dir ./metadata/version/1.2.0 --confirm
+asc validate --app APP_ID --version VERSION_STRING
 ```
 
-1. Validates the version is ready
-2. Applies metadata and localizations
-3. Attaches the selected build
-4. Creates and submits the review submission
+### Check status
 
-## Check submission status
+Inspect a submission by submission ID or version ID:
 
 ```bash  theme={null}
 asc submit status --id SUBMISSION_ID
 asc submit status --version-id VERSION_ID
 ```
 
-## Cancel an active submission
+### Cancel a submission
+
+Cancel an active review submission:
 
 ```bash  theme={null}
 asc submit cancel --id SUBMISSION_ID --confirm
-asc submit cancel --version-id VERSION_ID --app APP_ID --confirm
 ```
 
-## Example workflows
+## Canonical publish workflow
 
-### Stage before you submit
+Ship to the App Store with the canonical high-level publish command:
 
 ```bash  theme={null}
-asc release stage --app 123456789 --version 1.2.0 --build BUILD_ID --copy-metadata-from 1.1.9 --dry-run
-asc validate --app 123456789 --version 1.2.0
+asc publish appstore \
+  --app APP_ID \
+  --ipa /path/to/MyApp.ipa \
+  --version VERSION_STRING \
+  --submit \
+  --confirm
 ```
 
-### CI/CD release
+That flow uploads the IPA, finds or creates the matching version, attaches the
+build, and submits for review when `--submit` is present.
 
-```yaml  theme={null}
-# GitHub Actions
-- name: Run App Store release pipeline
-  run: |
-    asc release run --app ${{ secrets.APP_ID }} --version ${{ github.ref_name }} --build "${{ env.BUILD_ID }}" --metadata-dir "./metadata/version/${{ github.ref_name }}" --confirm
+## Deprecated direct submission path
+
+If you still maintain older automation that already prepared the version, the
+deprecated compatibility path remains available through the hidden
+`submit create` alias for older scripts that only need the final review
+submission step.
+
+Prefer migrating that workflow to `asc publish appstore --submit` or the
+`asc review submissions-*` commands.
+
+## Common errors
+
+### No build attached
+
+```
+Error: Version 1.2.0 has no build attached
 ```
 
-### Monitor the review lifecycle
+**Solution:** Use `asc release stage` or `asc publish appstore` to attach the build as
+part of the release pipeline.
 
-```bash  theme={null}
-asc submit status --version-id VERSION_ID
-asc submit cancel --version-id VERSION_ID --app 123456789 --confirm
+### Missing metadata
+
 ```
+Error: Missing required metadata for version 1.2.0
+```
+
+**Solution:** Complete the metadata, then retry `asc publish appstore --submit` or re-check
+with `asc validate`.
+
+### Already in review
+
+```
+Error: Version 1.2.0 is already in review
+```
+
+Use `asc submit status` to inspect the current submission before retrying.
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Publish command" icon="rocket" href="/commands/publish">
-    Use the canonical App Store release pipeline
-  </Card>
-
   <Card title="Validate command" icon="check" href="/commands/validate">
     Validate before submission
   </Card>
 
+  <Card title="Publish command" icon="rocket" href="/commands/publish">
+    Canonical TestFlight publish path
+  </Card>
+
   <Card title="Submission guide" icon="book-open" href="/guides/app-store-submission">
-    Complete submission guide
+    Complete App Store submission workflow
   </Card>
 </CardGroup>

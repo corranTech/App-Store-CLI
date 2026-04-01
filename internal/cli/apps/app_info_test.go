@@ -51,15 +51,15 @@ func TestSelectLatestAppStoreVersionFallsBackToFirst(t *testing.T) {
 	}
 }
 
-func TestWarnAppInfoSetSubmitIncompleteLocaleMentionsCanonicalReleaseRun(t *testing.T) {
+func TestWarnAppInfoSetSubmitIncompleteLocaleMentionsCanonicalPublishFlow(t *testing.T) {
 	stderr := captureAppsCreateOutput(t, func() {
 		warnAppInfoSetSubmitIncompleteLocale("en-US", asc.AppStoreVersionLocalizationAttributes{})
 	})
 
-	if !strings.Contains(stderr, "`asc release run`") {
-		t.Fatalf("expected canonical release guidance in warning, got %q", stderr)
+	if !strings.Contains(stderr, "`asc publish appstore --submit`") {
+		t.Fatalf("expected canonical publish guidance in warning, got %q", stderr)
 	}
-	if !strings.Contains(stderr, "deprecated direct path `asc submit create`") {
-		t.Fatalf("expected deprecated direct path note in warning, got %q", stderr)
+	if !strings.Contains(stderr, "deprecated compatibility pipeline `asc release run`") {
+		t.Fatalf("expected deprecated compatibility pipeline note in warning, got %q", stderr)
 	}
 }

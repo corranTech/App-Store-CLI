@@ -581,48 +581,6 @@ USAGE
             self.assertIn("--build", errors[0])
             self.assertIn("--confirm", errors[0])
 
-    def test_website_command_checks_reject_hidden_deprecated_alias_examples(self) -> None:
-        index = {
-            (): check_website_commands.CommandSpec(
-                path=(),
-                usage="asc <subcommand> [flags]",
-                flags={},
-                subcommands={"submit"},
-            ),
-            ("submit",): check_website_commands.CommandSpec(
-                path=("submit",),
-                usage="asc submit <subcommand> [flags]",
-                flags={},
-                subcommands={"preflight", "status", "cancel"},
-            ),
-        }
-
-        original_hidden_alias = check_website_commands.hidden_deprecated_alias_replacement
-        self.addCleanup(
-            setattr,
-            check_website_commands,
-            "hidden_deprecated_alias_replacement",
-            original_hidden_alias,
-        )
-        check_website_commands.hidden_deprecated_alias_replacement = (
-            lambda _binary_path, _example, _root_flags: "asc release run"
-        )
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            website = Path(tmpdir)
-            (website / "index.mdx").write_text(
-                "```bash\nasc submit create --app 123456789 --version 1.2.0 --build 42 --confirm\n```\n"
-            )
-            errors = check_website_commands.collect_errors(
-                website,
-                index,
-                Path(tmpdir) / "asc-doc-check",
-            )
-
-        self.assertEqual(len(errors), 1)
-        self.assertIn("deprecated alias", errors[0])
-        self.assertIn("asc release run", errors[0])
-
     def test_token_command_path_skips_root_flags_before_command_lookup(self) -> None:
         path = check_website_commands.token_command_path(
             (
@@ -639,7 +597,7 @@ USAGE
         )
         self.assertEqual(path, ("submit", "create"))
 
-    def test_website_command_checks_reject_hidden_deprecated_inline_alias_examples(self) -> None:
+    def test_website_command_checks_continue_validating_hidden_deprecated_alias_examples(self) -> None:
         index = {
             (): check_website_commands.CommandSpec(
                 path=(),
@@ -663,13 +621,98 @@ USAGE
             original_hidden_alias,
         )
         check_website_commands.hidden_deprecated_alias_replacement = (
-            lambda _binary_path, _example, _root_flags: "asc release run"
+            lambda _binary_path, _example, _root_flags: "asc publish appstore --submit"
+        )
+        original_path_help = check_website_commands.path_help
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "path_help",
+            original_path_help,
+        )
+        check_website_commands.path_help = (
+            lambda _binary_path, path: (
+                "USAGE\n"
+                "  asc submit create [flags]\n\n"
+                "FLAGS\n"
+                "  --app          App Store Connect app ID\n"
+                "  --version      App Store version string\n"
+                "  --version-id   App Store version ID\n"
+                "  --build        Build ID to attach\n"
+                "  --confirm      Confirm submission (required) (default: false)\n"
+            )
+            if path == ("submit", "create")
+            else ""
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             website = Path(tmpdir)
             (website / "index.mdx").write_text(
-                "Run `asc submit create --app 123456789 --version 1.2.0 --build 42 --confirm` to submit.\n"
+                "```bash\nasc submit create --app 123456789 --version 1.2.0\n```\n"
+            )
+            errors = check_website_commands.collect_errors(
+                website,
+                index,
+                Path(tmpdir) / "asc-doc-check",
+            )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("missing required flag", errors[0])
+        self.assertIn("--build", errors[0])
+        self.assertIn("--confirm", errors[0])
+
+    def test_website_command_checks_reject_valid_hidden_deprecated_alias_examples(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"submit"},
+            ),
+            ("submit",): check_website_commands.CommandSpec(
+                path=("submit",),
+                usage="asc submit <subcommand> [flags]",
+                flags={},
+                subcommands={"preflight", "status", "cancel"},
+            ),
+        }
+
+        original_hidden_alias = check_website_commands.hidden_deprecated_alias_replacement
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "hidden_deprecated_alias_replacement",
+            original_hidden_alias,
+        )
+        check_website_commands.hidden_deprecated_alias_replacement = (
+            lambda _binary_path, _example, _root_flags: "asc publish appstore --submit"
+        )
+        original_path_help = check_website_commands.path_help
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "path_help",
+            original_path_help,
+        )
+        check_website_commands.path_help = (
+            lambda _binary_path, path: (
+                "USAGE\n"
+                "  asc submit create [flags]\n\n"
+                "FLAGS\n"
+                "  --app          App Store Connect app ID\n"
+                "  --version      App Store version string\n"
+                "  --version-id   App Store version ID\n"
+                "  --build        Build ID to attach\n"
+                "  --confirm      Confirm submission (required) (default: false)\n"
+            )
+            if path == ("submit", "create")
+            else ""
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "```bash\nasc submit create --app 123456789 --version 1.2.0 --build 42 --confirm\n```\n"
             )
             errors = check_website_commands.collect_errors(
                 website,
@@ -679,8 +722,192 @@ USAGE
 
         self.assertEqual(len(errors), 1)
         self.assertIn("deprecated alias", errors[0])
-        self.assertIn("asc release run", errors[0])
+        self.assertIn("asc publish appstore --submit", errors[0])
 
+    def test_website_command_checks_allow_hidden_alias_only_flags_before_deprecation_error(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"submit"},
+            ),
+            ("submit",): check_website_commands.CommandSpec(
+                path=("submit",),
+                usage="asc submit <subcommand> [flags]",
+                flags={},
+                subcommands={"preflight", "status", "cancel"},
+            ),
+        }
+
+        original_hidden_alias = check_website_commands.hidden_deprecated_alias_replacement
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "hidden_deprecated_alias_replacement",
+            original_hidden_alias,
+        )
+        check_website_commands.hidden_deprecated_alias_replacement = (
+            lambda _binary_path, _example, _root_flags: "asc publish appstore --submit"
+        )
+        original_path_help = check_website_commands.path_help
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "path_help",
+            original_path_help,
+        )
+        check_website_commands.path_help = (
+            lambda _binary_path, path: (
+                "USAGE\n"
+                "  asc submit create [flags]\n\n"
+                "FLAGS\n"
+                "  --app          App Store Connect app ID\n"
+                "  --version      App Store version string\n"
+                "  --version-id   App Store version ID\n"
+                "  --build        Build ID to attach\n"
+                "  --confirm      Confirm submission (required) (default: false)\n"
+            )
+            if path == ("submit", "create")
+            else ""
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "```bash\nasc submit create --app 123456789 --version-id version-123 --build 42 --confirm\n```\n"
+            )
+            errors = check_website_commands.collect_errors(
+                website,
+                index,
+                Path(tmpdir) / "asc-doc-check",
+            )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("deprecated alias", errors[0])
+        self.assertNotIn("unknown flag '--version-id'", errors[0])
+
+    def test_hidden_submit_create_falls_back_to_alias_flags_when_help_hides_flags(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"submit"},
+            ),
+            ("submit",): check_website_commands.CommandSpec(
+                path=("submit",),
+                usage="asc submit <subcommand> [flags]",
+                flags={},
+                subcommands={"status", "cancel"},
+            ),
+        }
+
+        original_hidden_alias = check_website_commands.hidden_deprecated_alias_replacement
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "hidden_deprecated_alias_replacement",
+            original_hidden_alias,
+        )
+        check_website_commands.hidden_deprecated_alias_replacement = (
+            lambda _binary_path, _example, _root_flags: "asc publish appstore --submit"
+        )
+        original_path_help = check_website_commands.path_help
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "path_help",
+            original_path_help,
+        )
+        check_website_commands.path_help = (
+            lambda _binary_path, path: (
+                "DESCRIPTION\n"
+                "  DEPRECATED: use `asc publish appstore --submit`.\n\n"
+                "USAGE\n"
+                "  asc submit create [flags]\n"
+            )
+            if path == ("submit", "create")
+            else ""
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "```bash\nasc submit create --app 123456789 --version-id version-123 --build 42 --confirm\n```\n"
+            )
+            errors = check_website_commands.collect_errors(
+                website,
+                index,
+                Path(tmpdir) / "asc-doc-check",
+            )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("deprecated alias", errors[0])
+        self.assertNotIn("unknown flag '--version-id'", errors[0])
+        self.assertNotIn("unknown flag '--build'", errors[0])
+        self.assertNotIn("unknown flag '--confirm'", errors[0])
+
+    def test_hidden_submit_preflight_falls_back_to_alias_flags_when_help_hides_flags(self) -> None:
+        index = {
+            (): check_website_commands.CommandSpec(
+                path=(),
+                usage="asc <subcommand> [flags]",
+                flags={},
+                subcommands={"submit"},
+            ),
+            ("submit",): check_website_commands.CommandSpec(
+                path=("submit",),
+                usage="asc submit <subcommand> [flags]",
+                flags={},
+                subcommands={"status", "cancel"},
+            ),
+        }
+
+        original_hidden_alias = check_website_commands.hidden_deprecated_alias_replacement
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "hidden_deprecated_alias_replacement",
+            original_hidden_alias,
+        )
+        check_website_commands.hidden_deprecated_alias_replacement = (
+            lambda _binary_path, _example, _root_flags: "asc validate"
+        )
+        original_path_help = check_website_commands.path_help
+        self.addCleanup(
+            setattr,
+            check_website_commands,
+            "path_help",
+            original_path_help,
+        )
+        check_website_commands.path_help = (
+            lambda _binary_path, path: (
+                "DESCRIPTION\n"
+                "  DEPRECATED: use `asc validate` for App Store submission readiness.\n\n"
+                "USAGE\n"
+                "  asc submit preflight [flags]\n"
+            )
+            if path == ("submit", "preflight")
+            else ""
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            website = Path(tmpdir)
+            (website / "index.mdx").write_text(
+                "```bash\nasc submit preflight --app 123456789 --version 2.0 --output json\n```\n"
+            )
+            errors = check_website_commands.collect_errors(
+                website,
+                index,
+                Path(tmpdir) / "asc-doc-check",
+            )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn("deprecated alias", errors[0])
+        self.assertNotIn("unknown flag '--app'", errors[0])
+        self.assertNotIn("unknown flag '--version'", errors[0])
+        self.assertNotIn("unknown flag '--output'", errors[0])
 
 class DocLinksTest(unittest.TestCase):
     def test_normalize_target_strips_angle_brackets_before_prefix_check(self) -> None:

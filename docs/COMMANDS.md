@@ -97,9 +97,9 @@ asc <subcommand> [flags]
 - `release-notes` - Generate and manage App Store release notes.
 - `review` - Manage App Store review details, attachments, and submissions.
 - `reviews` - List and manage App Store customer reviews.
-- `submit` - App Store submission operations; publishing uses `asc release run`.
+- `submit` - Submission lifecycle tools; use `publish appstore --submit` to ship.
 - `validate` - Canonical App Store submission readiness report.
-- `publish` - High-level publish workflows; App Store uses `asc release run`.
+- `publish` - High-level publish workflows for TestFlight and App Store.
 
 ### Monetization
 
@@ -161,12 +161,12 @@ asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
 # Stage an App Store version before submission
 asc release stage --app "123456789" --version "1.2.3" --build "BUILD_ID" --copy-metadata-from "1.2.2" --dry-run
 
-# Release an App Store version (high-level)
-asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --dry-run
-asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --confirm
+# Publish an App Store version (high-level)
+asc publish appstore --app "123456789" --ipa "/path/to/MyApp.ipa" --version "1.2.3"
+asc publish appstore --app "123456789" --ipa "/path/to/MyApp.ipa" --version "1.2.3" --submit --confirm
 asc status --app "123456789"
 
-# Lower-level submission lifecycle flow
+# Canonical readiness and lower-level submission lifecycle flow
 asc validate --app "123456789" --version "1.2.3"
 asc submit status --version-id "VERSION_ID"
 asc submit cancel --version-id "VERSION_ID" --confirm

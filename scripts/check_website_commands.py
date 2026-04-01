@@ -30,6 +30,42 @@ REQUIRED_FLAGS_BY_COMMAND: dict[tuple[str, ...], set[str]] = {
     ("submit", "create"): {"--build", "--confirm"},
 }
 BOOLEAN_FLAG_OVERRIDES = {"--api-debug", "--debug", "--retry-log"}
+HIDDEN_DEPRECATED_ALIAS_FLAGS: dict[tuple[str, ...], dict[str, bool]] = {
+    # DeprecatedUsageFunc intentionally hides FLAGS in help output for
+    # compatibility aliases, but we still need accurate flag validation so docs
+    # examples fail on deprecations instead of bogus unknown-flag errors.
+    ("publish", "appstore"): {
+        "--app": False,
+        "--build-number": False,
+        "--confirm": True,
+        "--ipa": False,
+        "--output": False,
+        "--platform": False,
+        "--poll-interval": False,
+        "--pretty": True,
+        "--submit": True,
+        "--timeout": False,
+        "--version": False,
+        "--wait": True,
+    },
+    ("submit", "create"): {
+        "--app": False,
+        "--build": False,
+        "--confirm": True,
+        "--output": False,
+        "--platform": False,
+        "--pretty": True,
+        "--version": False,
+        "--version-id": False,
+    },
+    ("submit", "preflight"): {
+        "--app": False,
+        "--output": False,
+        "--platform": False,
+        "--pretty": True,
+        "--version": False,
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -109,6 +145,17 @@ def command_help(binary_path: Path, path: tuple[str, ...]) -> str:
     proc = subprocess.run(
         [str(binary_path), *path, "--help"],
         check=True,
+        capture_output=True,
+        text=True,
+    )
+    return proc.stderr or proc.stdout
+
+
+@functools.lru_cache(maxsize=None)
+def path_help(binary_path: Path, path: tuple[str, ...]) -> str:
+    proc = subprocess.run(
+        [str(binary_path), *path, "--help"],
+        check=False,
         capture_output=True,
         text=True,
     )
@@ -389,17 +436,6 @@ def deprecation_replacement(help_text: str) -> str | None:
     return None
 
 
-@functools.lru_cache(maxsize=None)
-def path_help(binary_path: Path, path: tuple[str, ...]) -> str:
-    proc = subprocess.run(
-        [str(binary_path), *path, "--help"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return proc.stderr or proc.stdout
-
-
 def hidden_deprecated_alias_replacement(
     binary_path: Path,
     example: Example,
@@ -429,6 +465,32 @@ def token_command_path(tokens: tuple[str, ...], root_flags: dict[str, bool]) -> 
     return tuple(path)
 
 
+def hidden_deprecated_alias_spec(
+    binary_path: Path,
+    example: Example,
+    root_flags: dict[str, bool],
+) -> CommandSpec | None:
+    if hidden_deprecated_alias_replacement(binary_path, example, root_flags) is None:
+        return None
+
+    deprecated_path = token_command_path(example.tokens, root_flags)
+    if not deprecated_path:
+        return None
+
+    deprecated_help = path_help(binary_path, deprecated_path)
+    deprecated_spec = parse_help_text(deprecated_help, is_root=False)
+    flags = dict(deprecated_spec.flags)
+    if not flags:
+        flags = dict(HIDDEN_DEPRECATED_ALIAS_FLAGS.get(deprecated_path, {}))
+
+    return CommandSpec(
+        path=deprecated_path,
+        usage=deprecated_spec.usage,
+        flags=flags,
+        subcommands=deprecated_spec.subcommands,
+    )
+
+
 def validate_example(
     example: Example,
     index: dict[tuple[str, ...], CommandSpec],
@@ -437,6 +499,7 @@ def validate_example(
     errors: list[str] = []
     root = index[()]
     tokens = example.tokens
+    hidden_current: CommandSpec | None = None
 
     top_level_index: int | None = None
     pending_root_flag: str | None = None
@@ -467,11 +530,11 @@ def validate_example(
                 return errors
             pending_root_flag = flag if "=" not in token and not root.flags[flag] else None
             continue
-        if (
-            binary_path is not None
-            and hidden_deprecated_alias_replacement(binary_path, example, root.flags) is not None
-        ):
-            return errors
+        if binary_path is not None:
+            hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags)
+            if hidden_current is not None:
+                top_level_index = i
+                break
         errors.append(
             f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
             f"could not resolve top-level command in {example.raw!r}"
@@ -494,27 +557,34 @@ def validate_example(
         )
         return errors
 
-    current_path = (tokens[top_level_index],)
-    current = index.get(current_path)
-    assert current is not None
-    i = top_level_index + 1
+    if hidden_current is not None:
+        current_path = hidden_current.path
+        current = hidden_current
+        i = top_level_index + len(current_path)
+    else:
+        current_path = (tokens[top_level_index],)
+        current = index.get(current_path)
+        assert current is not None
+        i = top_level_index + 1
 
-    while i < len(tokens) and current.subcommands and tokens[i] in current.subcommands:
-        current_path = (*current_path, tokens[i])
-        current = index[current_path]
-        i += 1
+        while i < len(tokens) and current.subcommands and tokens[i] in current.subcommands:
+            current_path = (*current_path, tokens[i])
+            current = index[current_path]
+            i += 1
 
-    if i < len(tokens) and current.subcommands and not tokens[i].startswith("--"):
-        if (
-            binary_path is not None
-            and hidden_deprecated_alias_replacement(binary_path, example, root.flags) is not None
-        ):
-            return errors
-        errors.append(
-            f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
-            f"unknown subcommand {tokens[i]!r} for {' '.join(current.path)!r} in {example.raw!r}"
-        )
-        return errors
+        if i < len(tokens) and current.subcommands and not tokens[i].startswith("--"):
+            hidden_current = None
+            if binary_path is not None:
+                hidden_current = hidden_deprecated_alias_spec(binary_path, example, root.flags)
+            if hidden_current is None:
+                errors.append(
+                    f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
+                    f"unknown subcommand {tokens[i]!r} for {' '.join(current.path)!r} in {example.raw!r}"
+                )
+                return errors
+            current_path = hidden_current.path
+            current = hidden_current
+            i = top_level_index + len(current_path)
 
     style = usage_position_style(current)
     if current.path == ("workflow", "run"):
@@ -640,6 +710,8 @@ def collect_errors(
         example_errors = validate_example(example, index, binary_path)
         errors.extend(example_errors)
         if example_errors or binary_path is None:
+            continue
+        if example.source != "fenced":
             continue
         errors.extend(validate_not_deprecated(example, binary_path, index[()].flags))
     return errors
