@@ -558,7 +558,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	hasAppStoreSignal := containsAction(signals.detectedActions, "upload_to_app_store") || containsAction(signals.detectedActions, "precheck")
 	needsAppID := hasMetadataSignal || hasBuildSignal || hasTestflightSignal || hasAppStoreSignal
 	needsVersionString := hasAppStoreSignal
-	needsVersionID := hasMetadataSignal
+	needsVersionID := hasMetadataSignal || (hasAppStoreSignal && !hasMetadataSignal)
 	needsBuildID := hasAppStoreSignal
 	values := resolveMigrationCommandValues(signals, resolver, needsAppID, needsVersionString, needsVersionID, needsBuildID)
 	values = fallbackMigrationCommandValues(values)
@@ -581,10 +581,10 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 		if hasMetadataSignal {
 			add(fmt.Sprintf(`asc release run --app %q --version %q --build %q --metadata-dir "./metadata/version/%s" --confirm`, values.appID, values.versionString, values.buildID, values.versionString))
 		} else {
-			add(fmt.Sprintf(`asc submit create --app %q --version %q --build %q --confirm`, values.appID, values.versionString, values.buildID))
+			add(fmt.Sprintf(`asc versions create --app %q --version %q`, values.appID, values.versionString))
+			add(fmt.Sprintf(`asc versions attach-build --version-id %q --build %q`, values.versionID, values.buildID))
 		}
 		add(fmt.Sprintf(`asc validate --app %q --version %q`, values.appID, values.versionString))
-		add(fmt.Sprintf(`asc submit preflight --app %q --version %q`, values.appID, values.versionString))
 	}
 
 	return commands

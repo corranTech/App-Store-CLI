@@ -225,8 +225,17 @@ func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
 		if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version "3.2.1"`) {
 			t.Fatalf("expected canonical validate guidance with prefilled app/version, got %#v", report.Migration.SuggestedCommands)
 		}
-		if !sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "3.2.1" --build "BUILD_ID" --confirm`) {
-			t.Fatalf("expected direct-submit compatibility guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
+		if !sliceContains(report.Migration.SuggestedCommands, `asc versions create --app "123456789" --version "3.2.1"`) {
+			t.Fatalf("expected version create guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
+		}
+		if !sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"`) {
+			t.Fatalf("expected attach-build guidance for upload-only lanes, got %#v", report.Migration.SuggestedCommands)
+		}
+		if sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "3.2.1" --build "BUILD_ID" --confirm`) {
+			t.Fatalf("expected upload-only migration hints to avoid deprecated submit create guidance, got %#v", report.Migration.SuggestedCommands)
+		}
+		if sliceContains(report.Migration.SuggestedCommands, `asc submit preflight --app "123456789" --version "3.2.1"`) {
+			t.Fatalf("expected upload-only migration hints to avoid deprecated submit preflight guidance, got %#v", report.Migration.SuggestedCommands)
 		}
 	})
 }

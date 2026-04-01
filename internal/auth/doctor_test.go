@@ -424,11 +424,17 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version "2.3.4"`) {
 		t.Fatalf("expected personalized validate command, got %#v", report.Migration.SuggestedCommands)
 	}
-	if !sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "2.3.4" --build "BUILD_ID" --confirm`) {
-		t.Fatalf("expected personalized direct-submit compatibility command, got %#v", report.Migration.SuggestedCommands)
+	if !sliceContains(report.Migration.SuggestedCommands, `asc versions create --app "123456789" --version "2.3.4"`) {
+		t.Fatalf("expected personalized version create command, got %#v", report.Migration.SuggestedCommands)
 	}
-	if !sliceContains(report.Migration.SuggestedCommands, `asc submit preflight --app "123456789" --version "2.3.4"`) {
-		t.Fatalf("expected personalized submission lifecycle command, got %#v", report.Migration.SuggestedCommands)
+	if !sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "BUILD_ID"`) {
+		t.Fatalf("expected personalized attach-build command, got %#v", report.Migration.SuggestedCommands)
+	}
+	if sliceContains(report.Migration.SuggestedCommands, `asc submit create --app "123456789" --version "2.3.4" --build "BUILD_ID" --confirm`) {
+		t.Fatalf("expected upload-only migration hints to avoid deprecated submit create guidance, got %#v", report.Migration.SuggestedCommands)
+	}
+	if sliceContains(report.Migration.SuggestedCommands, `asc submit preflight --app "123456789" --version "2.3.4"`) {
+		t.Fatalf("expected upload-only migration hints to avoid deprecated submit preflight guidance, got %#v", report.Migration.SuggestedCommands)
 	}
 }
 
