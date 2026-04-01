@@ -546,6 +546,9 @@ func TestBuildSuggestedCommandsUploadOnlyUsesUploadedBuildPlaceholder(t *testing
 	if sliceContains(commands, `asc versions attach-build --version-id "version-id-123" --build "build-id-456"`) {
 		t.Fatalf("expected upload-only attach-build guidance to avoid stale resolved build ID, got %#v", commands)
 	}
+	if sliceContains(commands, `asc versions create --app "123456789" --version "1.2.3"`) {
+		t.Fatalf("expected upload-only guidance with a resolved version ID to skip duplicate version creation, got %#v", commands)
+	}
 }
 
 func TestBuildSuggestedCommandsUploadOnlyDoesNotRequestResolvedBuildID(t *testing.T) {
