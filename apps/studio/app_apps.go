@@ -17,7 +17,7 @@ func (a *App) ListApps() (ListAppsResponse, error) {
 	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
 	defer cancel()
 
-	out, err := a.runASCCombinedOutput(ctx, ascPath, "apps", "list", "--output", "json")
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "apps", "list", "--paginate", "--output", "json")
 	if err != nil {
 		return ListAppsResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
@@ -106,7 +106,7 @@ func (a *App) GetAppDetail(appID string) (AppDetail, error) {
 	}()
 
 	go func() {
-		out, err := a.runASCCombinedOutput(ctx, ascPath, "versions", "list", "--app", appID, "--output", "json")
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "versions", "list", "--app", appID, "--paginate", "--output", "json")
 		if err != nil {
 			trimmed := strings.TrimSpace(string(out))
 			if trimmed == "" {

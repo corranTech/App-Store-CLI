@@ -41,15 +41,104 @@ func TestParseAvailabilityViewOutputReturnsResourceID(t *testing.T) {
 	}
 }
 
-func TestLoadSubscriptionsReturnsGroupFetchErrors(t *testing.T) {
+func newStudioAppWithSystemASCPath(t *testing.T, ascPath string) *App {
+	t.Helper()
+
+	rootDir := t.TempDir()
+	settingsStore := settings.NewStore(rootDir)
+	if err := settingsStore.Save(settings.StudioSettings{
+		SystemASCPath:    ascPath,
+		PreferBundledASC: false,
+	}); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	return &App{settings: settingsStore}
+}
+
+func TestListAppsUsesPaginatedFetch(t *testing.T) {
 	ascPath := filepath.Join(t.TempDir(), "asc")
 	script := `#!/bin/sh
+has_arg() {
+  wanted="$1"
+  shift
+  for arg in "$@"; do
+    if [ "$arg" = "$wanted" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [ "$1" = "apps" ] && [ "$2" = "list" ]; then
+  if ! has_arg --paginate "$@"; then
+    printf 'missing --paginate' >&2
+    exit 1
+  fi
+  printf '{"data":[{"id":"app-1","attributes":{"name":"First App","bundleId":"com.example.first","sku":"FIRST"}},{"id":"app-2","attributes":{"name":"Second App","bundleId":"com.example.second","sku":"SECOND"}}]}'
+  exit 0
+fi
+
+if [ "$1" = "localizations" ] && [ "$2" = "list" ]; then
+  printf '{"data":[]}'
+  exit 0
+fi
+
+printf 'unexpected args: %s' "$*" >&2
+exit 1
+`
+	if err := os.WriteFile(ascPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	app := newStudioAppWithSystemASCPath(t, ascPath)
+	got, err := app.ListApps()
+	if err != nil {
+		t.Fatalf("ListApps() error = %v", err)
+	}
+	if got.Error != "" {
+		t.Fatalf("ListApps().Error = %q, want empty", got.Error)
+	}
+	if len(got.Apps) != 2 {
+		t.Fatalf("len(ListApps().Apps) = %d, want 2", len(got.Apps))
+	}
+	if got.Apps[1].ID != "app-2" {
+		t.Fatalf("ListApps().Apps[1].ID = %q, want app-2", got.Apps[1].ID)
+	}
+}
+
+func TestLoadSubscriptionsKeepsPartialResultsWhenGroupFetchFails(t *testing.T) {
+	ascPath := filepath.Join(t.TempDir(), "asc")
+	script := `#!/bin/sh
+has_arg() {
+  wanted="$1"
+  shift
+  for arg in "$@"; do
+    if [ "$arg" = "$wanted" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 if [ "$1" = "subscriptions" ] && [ "$2" = "groups" ] && [ "$3" = "list" ]; then
-  printf '{"data":[{"id":"group-1","attributes":{"referenceName":"Main Group"}}]}'
+  if ! has_arg --paginate "$@"; then
+    printf 'missing group pagination' >&2
+    exit 1
+  fi
+  printf '{"data":[{"id":"group-1","attributes":{"referenceName":"Main Group"}},{"id":"group-2","attributes":{"referenceName":"Secondary Group"}}]}'
   exit 0
 fi
 
 if [ "$1" = "subscriptions" ] && [ "$2" = "list" ]; then
+  if ! has_arg --paginate "$@"; then
+    printf 'missing subscription pagination' >&2
+    exit 1
+  fi
+  if [ "$4" = "group-1" ]; then
+    printf '{"data":[{"id":"sub-1","attributes":{"name":"Pro","productId":"pro.monthly","state":"READY_FOR_SUBMISSION","subscriptionPeriod":"ONE_MONTH","reviewNote":"","groupLevel":1}}]}'
+    exit 0
+  fi
   printf 'group fetch failed' >&2
   exit 1
 fi
@@ -66,8 +155,82 @@ exit 1
 	if !strings.Contains(got.Error, "group fetch failed") {
 		t.Fatalf("loadSubscriptions().Error = %q, want group fetch failure", got.Error)
 	}
-	if len(got.Subscriptions) != 0 {
-		t.Fatalf("loadSubscriptions().Subscriptions = %+v, want no partial results", got.Subscriptions)
+	if len(got.Subscriptions) != 1 {
+		t.Fatalf("len(loadSubscriptions().Subscriptions) = %d, want 1 partial result", len(got.Subscriptions))
+	}
+	if got.Subscriptions[0].ProductID != "pro.monthly" {
+		t.Fatalf("loadSubscriptions().Subscriptions[0].ProductID = %q, want pro.monthly", got.Subscriptions[0].ProductID)
+	}
+	if got.Subscriptions[0].GroupName != "Main Group" {
+		t.Fatalf("loadSubscriptions().Subscriptions[0].GroupName = %q, want Main Group", got.Subscriptions[0].GroupName)
+	}
+}
+
+func TestGetOfferCodesUsesPaginationAndKeepsPartialResults(t *testing.T) {
+	ascPath := filepath.Join(t.TempDir(), "asc")
+	script := `#!/bin/sh
+has_arg() {
+  wanted="$1"
+  shift
+  for arg in "$@"; do
+    if [ "$arg" = "$wanted" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [ "$1" = "subscriptions" ] && [ "$2" = "groups" ] && [ "$3" = "list" ]; then
+  if ! has_arg --paginate "$@"; then
+    printf 'missing group pagination' >&2
+    exit 1
+  fi
+  printf '{"data":[{"id":"group-1","attributes":{"referenceName":"Main Group"}}]}'
+  exit 0
+fi
+
+if [ "$1" = "subscriptions" ] && [ "$2" = "list" ]; then
+  if ! has_arg --paginate "$@"; then
+    printf 'missing subscription pagination' >&2
+    exit 1
+  fi
+  printf '{"data":[{"id":"sub-1","attributes":{"name":"Pro","productId":"pro.monthly","state":"READY_FOR_SUBMISSION","subscriptionPeriod":"ONE_MONTH","reviewNote":"","groupLevel":1}},{"id":"sub-2","attributes":{"name":"Plus","productId":"plus.monthly","state":"READY_FOR_SUBMISSION","subscriptionPeriod":"ONE_MONTH","reviewNote":"","groupLevel":2}}]}'
+  exit 0
+fi
+
+if [ "$1" = "subscriptions" ] && [ "$2" = "offers" ] && [ "$3" = "offer-codes" ] && [ "$4" = "list" ]; then
+  if ! has_arg --paginate "$@"; then
+    printf 'missing offer code pagination' >&2
+    exit 1
+  fi
+  if [ "$6" = "sub-1" ]; then
+    printf '{"data":[{"attributes":{"name":"Welcome Offer","offerEligibility":"NEW","customerEligibilities":[],"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1,"totalNumberOfCodes":100,"productionCodeCount":40}}]}'
+    exit 0
+  fi
+  printf 'offer fetch failed' >&2
+  exit 1
+fi
+
+printf 'unexpected args: %s' "$*" >&2
+exit 1
+`
+	if err := os.WriteFile(ascPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	app := newStudioAppWithSystemASCPath(t, ascPath)
+	got, err := app.GetOfferCodes("app-1")
+	if err != nil {
+		t.Fatalf("GetOfferCodes() error = %v", err)
+	}
+	if !strings.Contains(got.Error, "offer fetch failed") {
+		t.Fatalf("GetOfferCodes().Error = %q, want offer fetch failure", got.Error)
+	}
+	if len(got.OfferCodes) != 1 {
+		t.Fatalf("len(GetOfferCodes().OfferCodes) = %d, want 1 partial result", len(got.OfferCodes))
+	}
+	if got.OfferCodes[0].Name != "Welcome Offer" {
+		t.Fatalf("GetOfferCodes().OfferCodes[0].Name = %q, want Welcome Offer", got.OfferCodes[0].Name)
 	}
 }
 

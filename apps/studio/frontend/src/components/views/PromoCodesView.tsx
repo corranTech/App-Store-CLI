@@ -12,12 +12,13 @@ export function PromoCodesView({ offerCodes }: PromoCodesViewProps) {
         <h3 className="section-label">Offer Codes</h3>
         {offerCodes.loading ? (
           <p className="empty-hint">Loading…</p>
-        ) : offerCodes.error ? (
+        ) : offerCodes.codes.length === 0 && offerCodes.error ? (
           <p className="empty-hint">{offerCodes.error}</p>
         ) : offerCodes.codes.length === 0 ? (
           <p className="empty-hint">No offer codes found for this app's subscriptions.</p>
         ) : (
           <>
+            {offerCodes.error && <p className="empty-hint">{offerCodes.error}</p>}
             <div className="section-header-row">
               <span className="section-count">{offerCodes.codes.length} offer codes</span>
             </div>

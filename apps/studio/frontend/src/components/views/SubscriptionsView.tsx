@@ -14,6 +14,9 @@ export function SubscriptionsView({ subscriptions, selectedSub, onSelectSub }: S
       <div className="app-detail-view">
         <div className="app-detail-section">
           <button className="back-link" type="button" onClick={() => onSelectSub(null)}>&larr; Subscriptions</button>
+          {subscriptions.error && (
+            <p className="empty-hint" style={{ marginTop: 12 }}>{subscriptions.error}</p>
+          )}
           <p className="app-detail-name" style={{ marginTop: 8 }}>{sub.name}</p>
           <div className="env-grid" style={{ marginTop: 12 }}>
             <div className="env-row">
@@ -59,7 +62,7 @@ export function SubscriptionsView({ subscriptions, selectedSub, onSelectSub }: S
         <h3 className="section-label">Subscriptions</h3>
         {subscriptions.loading ? (
           <p className="empty-hint">Loading…</p>
-        ) : subscriptions.error ? (
+        ) : subscriptions.items.length === 0 && subscriptions.error ? (
           <p className="empty-hint">{subscriptions.error}</p>
         ) : subscriptions.items.length === 0 ? (
           <p className="empty-hint">No subscriptions found.</p>
@@ -67,6 +70,9 @@ export function SubscriptionsView({ subscriptions, selectedSub, onSelectSub }: S
           const groups = [...new Set(subscriptions.items.map((s) => s.groupName))];
           return groups.map((group) => (
             <div key={group} className="sub-group">
+              {group === groups[0] && subscriptions.error && (
+                <p className="empty-hint" style={{ marginBottom: 12 }}>{subscriptions.error}</p>
+              )}
               <p className="sub-group-name">{group}</p>
               <table className="data-table">
                 <thead>

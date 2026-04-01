@@ -25,7 +25,7 @@ func (a *App) GetSubscriptions(appID string) (SubscriptionsResponse, error) {
 
 func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID string) SubscriptionsResponse {
 	// Step 1: get groups
-	out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--output", "json")
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "groups", "list", "--app", appID, "--paginate", "--output", "json")
 	if err != nil {
 		return SubscriptionsResponse{Error: strings.TrimSpace(string(out))}
 	}
@@ -66,7 +66,7 @@ func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID strin
 	}
 	runWithConcurrency(boundedStudioConcurrency(len(groupEnv.Data)), len(groupEnv.Data), func(i int) {
 		group := groupEnv.Data[i]
-		out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "list", "--group-id", group.ID, "--output", "json")
+		out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "list", "--group-id", group.ID, "--paginate", "--output", "json")
 		if err != nil {
 			recordGroupErr(group.Attributes.ReferenceName, string(out))
 			return
@@ -104,15 +104,11 @@ func (a *App) loadSubscriptions(ctx context.Context, ascPath string, appID strin
 		}
 		groupSubscriptions[i] = items
 	})
-	if groupErr != "" {
-		return SubscriptionsResponse{Error: groupErr}
-	}
-
 	var all []SubscriptionItem
 	for _, items := range groupSubscriptions {
 		all = append(all, items...)
 	}
-	return SubscriptionsResponse{Subscriptions: all}
+	return SubscriptionsResponse{Subscriptions: all, Error: groupErr}
 }
 
 // GetPricingOverview fetches availability + subscription pricing summary in parallel.
@@ -294,7 +290,7 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 
 	// First get subscriptions to know which sub IDs to query
 	subsResp := a.loadSubscriptions(ctx, ascPath, appID)
-	if subsResp.Error != "" {
+	if subsResp.Error != "" && len(subsResp.Subscriptions) == 0 {
 		return OfferCodesResponse{Error: subsResp.Error}, nil
 	}
 
@@ -302,11 +298,31 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 		codes []OfferCode
 	}
 	offersBySubscription := make([]offerResult, len(subsResp.Subscriptions))
+	offerErr := strings.TrimSpace(subsResp.Error)
+	var offerErrMu sync.Mutex
+	recordOfferErr := func(subscriptionName, message string) {
+		offerErrMu.Lock()
+		defer offerErrMu.Unlock()
+		if offerErr != "" {
+			return
+		}
+		subscriptionLabel := strings.TrimSpace(subscriptionName)
+		detail := strings.TrimSpace(message)
+		if subscriptionLabel == "" {
+			subscriptionLabel = "unknown subscription"
+		}
+		if detail == "" {
+			offerErr = fmt.Sprintf("failed to load offer codes for %s", subscriptionLabel)
+			return
+		}
+		offerErr = fmt.Sprintf("failed to load offer codes for %s: %s", subscriptionLabel, detail)
+	}
 	runWithConcurrency(boundedStudioConcurrency(len(subsResp.Subscriptions)), len(subsResp.Subscriptions), func(i int) {
 		sub := subsResp.Subscriptions[i]
 		out, err := a.runASCCombinedOutput(ctx, ascPath, "subscriptions", "offers", "offer-codes", "list",
-			"--subscription-id", sub.ID, "--output", "json")
+			"--subscription-id", sub.ID, "--paginate", "--output", "json")
 		if err != nil {
+			recordOfferErr(sub.Name, string(out))
 			return
 		}
 		type rawCode struct {
@@ -325,6 +341,7 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 			Data []rawCode `json:"data"`
 		}
 		if json.Unmarshal(out, &env) != nil {
+			recordOfferErr(sub.Name, "failed to parse response")
 			return
 		}
 		codes := make([]OfferCode, 0, len(env.Data))
@@ -349,7 +366,7 @@ func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
 	for _, result := range offersBySubscription {
 		all = append(all, result.codes...)
 	}
-	return OfferCodesResponse{OfferCodes: all}, nil
+	return OfferCodesResponse{OfferCodes: all, Error: offerErr}, nil
 }
 
 func (a *App) fetchPricingScheduleID(ctx context.Context, ascPath, appID string) (string, error) {

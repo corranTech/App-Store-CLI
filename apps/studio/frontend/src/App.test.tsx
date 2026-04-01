@@ -346,6 +346,33 @@ describe("App", () => {
     expect(screen.queryByText("No screenshots found. Select an app with screenshots or change locale.")).not.toBeInTheDocument();
   });
 
+  it("shows partial subscription data alongside backend warnings", async () => {
+    mockGetSubscriptions.mockResolvedValue({
+      error: "failed to load subscriptions for Secondary Group: timeout",
+      subscriptions: [
+        {
+          id: "sub-1",
+          groupName: "Main Group",
+          name: "Pro Monthly",
+          productId: "pro.monthly",
+          state: "READY_FOR_SUBMISSION",
+          subscriptionPeriod: "ONE_MONTH",
+          reviewNote: "",
+          groupLevel: 1,
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    await pickApp("Test App");
+    fireEvent.click(await screen.findByRole("button", { name: "Subscriptions" }));
+
+    expect(await screen.findByText("failed to load subscriptions for Secondary Group: timeout")).toBeInTheDocument();
+    expect(screen.getByText("Pro Monthly")).toBeInTheDocument();
+  });
+
   it("surfaces version metadata errors without hiding overview details", async () => {
     mockGetVersionMetadata.mockResolvedValue({
       error: "metadata unavailable",
@@ -1021,6 +1048,36 @@ describe("App", () => {
 
     expect(await screen.findByText("Welcome Offer")).toBeInTheDocument();
     expect(mockGetOfferCodes).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows partial offer codes alongside backend warnings", async () => {
+    mockGetOfferCodes.mockResolvedValue({
+      error: "failed to load offer codes for Plus: timeout",
+      offerCodes: [
+        {
+          subscriptionName: "Pro Plan",
+          subscriptionId: "sub-1",
+          name: "Welcome Offer",
+          offerEligibility: "NEW",
+          customerEligibilities: [],
+          duration: "ONE_MONTH",
+          offerMode: "FREE_TRIAL",
+          numberOfPeriods: 1,
+          totalNumberOfCodes: 100,
+          productionCodeCount: 40,
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    await pickApp("Test App");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Promo Codes" }));
+
+    expect(await screen.findByText("failed to load offer codes for Plus: timeout")).toBeInTheDocument();
+    expect(screen.getByText("Welcome Offer")).toBeInTheDocument();
   });
 
   it("ignores stale insights responses after switching apps", async () => {

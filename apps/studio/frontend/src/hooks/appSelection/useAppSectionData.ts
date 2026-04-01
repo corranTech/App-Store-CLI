@@ -147,7 +147,7 @@ export function useAppSectionData(appSelectionRequestRef: MutableRefObject<numbe
       .then((res) => {
         if (isStale()) return;
         if (res.error) {
-          setSubscriptions({ loading: false, error: res.error, items: [] });
+          setSubscriptions({ loading: false, error: res.error, items: res.subscriptions ?? [] });
           return;
         }
         setSubscriptions({ loading: false, items: res.subscriptions ?? [] });
@@ -292,7 +292,12 @@ export function useAppSectionData(appSelectionRequestRef: MutableRefObject<numbe
           return;
         }
         if (res.error) {
-          setOfferCodes({ loading: false, loadedAppId: appId, error: res.error, codes: [] });
+          setOfferCodes({
+            loading: false,
+            loadedAppId: appId,
+            error: res.error,
+            codes: res.offerCodes ?? [],
+          });
           return;
         }
         setOfferCodes({ loading: false, loadedAppId: appId, codes: res.offerCodes ?? [] });

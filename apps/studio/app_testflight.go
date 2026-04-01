@@ -20,7 +20,7 @@ func (a *App) GetTestFlight(appID string) (TestFlightResponse, error) {
 	defer cancel()
 
 	// 1. Fetch groups
-	out, err := a.runASCCombinedOutput(ctx, ascPath, "testflight", "groups", "list", "--app", appID, "--output", "json")
+	out, err := a.runASCCombinedOutput(ctx, ascPath, "testflight", "groups", "list", "--app", appID, "--paginate", "--output", "json")
 	if err != nil {
 		return TestFlightResponse{Error: strings.TrimSpace(string(out))}, nil
 	}
