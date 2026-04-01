@@ -31,6 +31,16 @@ func TestReviewStatusAndDoctorValidationErrors(t *testing.T) {
 			wantErr: "--app is required",
 		},
 		{
+			name:    "review status whitespace-only app",
+			args:    []string{"review", "status", "--app", "   "},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "review doctor whitespace-only app",
+			args:    []string{"review", "doctor", "--app", "   "},
+			wantErr: "--app is required",
+		},
+		{
 			name:    "review status mutually exclusive version flags",
 			args:    []string{"review", "status", "--app", "123456789", "--version", "1.2.3", "--version-id", "ver-1"},
 			wantErr: "--version and --version-id are mutually exclusive",

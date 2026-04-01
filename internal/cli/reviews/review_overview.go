@@ -201,7 +201,7 @@ Examples:
 
 func resolveReviewOverviewFlags(appID, version, versionID, platform string) (string, string, string, string, error) {
 	resolvedAppID := shared.ResolveAppID(appID)
-	if resolvedAppID == "" {
+	if strings.TrimSpace(resolvedAppID) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 		return "", "", "", "", flag.ErrHelp
 	}
