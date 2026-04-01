@@ -102,9 +102,9 @@ func iapResponse(items ...iapLookupFixture) *asc.InAppPurchasesV2Response {
 	return resp
 }
 
-func subscriptionGroupsResponse(next string, groupIDs ...string) *asc.SubscriptionGroupsResponse {
+func subscriptionGroupsResponse(groupIDs ...string) *asc.SubscriptionGroupsResponse {
 	resp := &asc.SubscriptionGroupsResponse{
-		Links: asc.Links{Next: next},
+		Links: asc.Links{},
 		Data:  make([]asc.Resource[asc.SubscriptionGroupAttributes], 0, len(groupIDs)),
 	}
 	for _, groupID := range groupIDs {
@@ -183,6 +183,46 @@ func TestResolveIAPID_ResolvesExactProductID(t *testing.T) {
 	}
 }
 
+func TestResolveIAPID_WithAppContextResolvesNumericProductID(t *testing.T) {
+	stub := &sequenceIAPLookupStub{
+		responses: []*asc.InAppPurchasesV2Response{
+			iapResponse(iapLookupFixture{id: "iap-2024", productID: "2024", name: "Spring Sale"}),
+		},
+	}
+
+	got, err := ResolveIAPID(context.Background(), stub, "app-1", "2024")
+	if err != nil {
+		t.Fatalf("ResolveIAPID() error: %v", err)
+	}
+	if got != "iap-2024" {
+		t.Fatalf("expected resolved IAP id iap-2024, got %q", got)
+	}
+	if stub.calls == 0 {
+		t.Fatal("expected lookup call for numeric selector with app context")
+	}
+}
+
+func TestResolveIAPID_WithAppContextFallsBackToNumericPassthroughWhenLookupMisses(t *testing.T) {
+	stub := &sequenceIAPLookupStub{
+		responses: []*asc.InAppPurchasesV2Response{
+			iapResponse(),
+			iapResponse(),
+			iapResponse(),
+		},
+	}
+
+	got, err := ResolveIAPID(context.Background(), stub, "app-1", "2024")
+	if err != nil {
+		t.Fatalf("ResolveIAPID() error: %v", err)
+	}
+	if got != "2024" {
+		t.Fatalf("expected numeric passthrough fallback, got %q", got)
+	}
+	if stub.calls != 3 {
+		t.Fatalf("expected product, name, and full-scan lookups before fallback, got %d calls", stub.calls)
+	}
+}
+
 func TestResolveIAPID_FallsBackToFullScanForExactName(t *testing.T) {
 	stub := &sequenceIAPLookupStub{
 		responses: []*asc.InAppPurchasesV2Response{
@@ -227,7 +267,7 @@ func TestResolveIAPID_AmbiguousExactNameFails(t *testing.T) {
 func TestResolveSubscriptionID_DedupesAcrossGroups(t *testing.T) {
 	stub := &sequenceSubscriptionLookupStub{
 		groupResponses: []*asc.SubscriptionGroupsResponse{
-			subscriptionGroupsResponse("", "group-1", "group-2"),
+			subscriptionGroupsResponse("group-1", "group-2"),
 		},
 		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
 			"group-1": {subscriptionsResponse(subscriptionLookupFixture{id: "sub-1", productID: "com.example.monthly", name: "Monthly"})},
@@ -247,7 +287,7 @@ func TestResolveSubscriptionID_DedupesAcrossGroups(t *testing.T) {
 func TestResolveSubscriptionID_FallsBackToFullScanForExactName(t *testing.T) {
 	stub := &sequenceSubscriptionLookupStub{
 		groupResponses: []*asc.SubscriptionGroupsResponse{
-			subscriptionGroupsResponse("", "group-1"),
+			subscriptionGroupsResponse("group-1"),
 		},
 		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
 			"group-1": {
@@ -264,5 +304,56 @@ func TestResolveSubscriptionID_FallsBackToFullScanForExactName(t *testing.T) {
 	}
 	if got != "sub-exact" {
 		t.Fatalf("expected fallback exact-name subscription id sub-exact, got %q", got)
+	}
+}
+
+func TestResolveSubscriptionID_WithAppContextResolvesNumericName(t *testing.T) {
+	stub := &sequenceSubscriptionLookupStub{
+		groupResponses: []*asc.SubscriptionGroupsResponse{
+			subscriptionGroupsResponse("group-1"),
+		},
+		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
+			"group-1": {
+				subscriptionsResponse(),
+				subscriptionsResponse(subscriptionLookupFixture{id: "sub-2024", productID: "com.example.annual", name: "2024"}),
+			},
+		},
+	}
+
+	got, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
+	if err != nil {
+		t.Fatalf("ResolveSubscriptionID() error: %v", err)
+	}
+	if got != "sub-2024" {
+		t.Fatalf("expected resolved subscription id sub-2024, got %q", got)
+	}
+	if stub.groupCalls == 0 {
+		t.Fatal("expected group lookup for numeric selector with app context")
+	}
+}
+
+func TestResolveSubscriptionID_WithAppContextFallsBackToNumericPassthroughWhenLookupMisses(t *testing.T) {
+	stub := &sequenceSubscriptionLookupStub{
+		groupResponses: []*asc.SubscriptionGroupsResponse{
+			subscriptionGroupsResponse("group-1"),
+		},
+		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
+			"group-1": {
+				subscriptionsResponse(),
+				subscriptionsResponse(),
+				subscriptionsResponse(),
+			},
+		},
+	}
+
+	got, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
+	if err != nil {
+		t.Fatalf("ResolveSubscriptionID() error: %v", err)
+	}
+	if got != "2024" {
+		t.Fatalf("expected numeric passthrough fallback, got %q", got)
+	}
+	if stub.groupCalls == 0 {
+		t.Fatal("expected lookup attempt before numeric fallback")
 	}
 }

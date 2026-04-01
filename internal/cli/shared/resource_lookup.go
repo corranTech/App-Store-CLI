@@ -77,18 +77,23 @@ func ResolveIAPID(ctx context.Context, client iapSelectorClient, appID, selector
 	if selector == "" {
 		return "", nil
 	}
-	if !SelectorNeedsLookup(selector) {
+	resolvedAppID := strings.TrimSpace(appID)
+	needsLookup := SelectorNeedsLookup(selector)
+	if !needsLookup && resolvedAppID == "" {
 		return selector, nil
 	}
-	if strings.TrimSpace(appID) == "" {
+	if resolvedAppID == "" {
 		return "", fmt.Errorf("app context is required to resolve in-app purchase selector %q", selector)
 	}
 	if client == nil {
 		return "", fmt.Errorf("in-app purchase lookup client is required")
 	}
 
-	candidate, err := resolveIAPCandidate(ctx, client, appID, selector)
+	candidate, err := resolveIAPCandidate(ctx, client, resolvedAppID, selector)
 	if err != nil {
+		if !needsLookup && errors.Is(err, errSelectorNotFound) {
+			return selector, nil
+		}
 		return "", err
 	}
 	return candidate.ID, nil
@@ -100,18 +105,23 @@ func ResolveSubscriptionID(ctx context.Context, client subscriptionSelectorClien
 	if selector == "" {
 		return "", nil
 	}
-	if !SelectorNeedsLookup(selector) {
+	resolvedAppID := strings.TrimSpace(appID)
+	needsLookup := SelectorNeedsLookup(selector)
+	if !needsLookup && resolvedAppID == "" {
 		return selector, nil
 	}
-	if strings.TrimSpace(appID) == "" {
+	if resolvedAppID == "" {
 		return "", fmt.Errorf("app context is required to resolve subscription selector %q", selector)
 	}
 	if client == nil {
 		return "", fmt.Errorf("subscription lookup client is required")
 	}
 
-	candidate, err := resolveSubscriptionCandidate(ctx, client, appID, selector)
+	candidate, err := resolveSubscriptionCandidate(ctx, client, resolvedAppID, selector)
 	if err != nil {
+		if !needsLookup && errors.Is(err, errSelectorNotFound) {
+			return selector, nil
+		}
 		return "", err
 	}
 	return candidate.ID, nil
