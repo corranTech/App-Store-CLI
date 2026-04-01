@@ -86,6 +86,7 @@ func ExecutePush(ctx context.Context, opts PushExecutionOptions) (PushPlanResult
 	appInfoIDValue, err := resolveMetadataPushAppInfoID(
 		requestCtx,
 		client,
+		opts.CommandName,
 		resolvedAppID,
 		strings.TrimSpace(opts.AppInfoID),
 		versionValue,

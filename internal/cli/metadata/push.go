@@ -288,6 +288,7 @@ type exampleBuilderFunc func(appID, version, platform, dir, appInfoID string) st
 func resolveMetadataPushAppInfoID(
 	ctx context.Context,
 	client *asc.Client,
+	commandName string,
 	appID string,
 	appInfoID string,
 	version string,
@@ -296,7 +297,7 @@ func resolveMetadataPushAppInfoID(
 	versionState string,
 ) (string, error) {
 	return resolveMetadataAppInfoID(ctx, client, appID, appInfoID, version, platform, dir, versionState, func(aid, v, p, d, infoID string) string {
-		return buildMetadataAppInfoExample("push", aid, v, p, d, infoID) + " --dry-run"
+		return buildMetadataAppInfoExample(commandName, aid, v, p, d, infoID) + " --dry-run"
 	})
 }
 
