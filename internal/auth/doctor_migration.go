@@ -579,7 +579,8 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	}
 	if hasAppStoreSignal {
 		if hasMetadataSignal {
-			add(fmt.Sprintf(`asc release run --app %q --version %q --build %q --metadata-dir "./metadata/version/%s" --confirm`, values.appID, values.versionString, values.buildID, values.versionString))
+			metadataDir := fmt.Sprintf("./metadata/version/%s", values.versionString)
+			add(fmt.Sprintf(`asc release run --app %q --version %q --build %q --metadata-dir %q --confirm`, values.appID, values.versionString, values.buildID, metadataDir))
 		} else {
 			add(fmt.Sprintf(`asc versions create --app %q --version %q`, values.appID, values.versionString))
 			add(fmt.Sprintf(`asc versions attach-build --version-id %q --build %q`, values.versionID, values.buildID))

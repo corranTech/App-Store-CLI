@@ -510,6 +510,20 @@ func TestDoctorMigrationHintsUsesResolvedIDsWhenLookupSucceeds(t *testing.T) {
 	}
 }
 
+func TestBuildSuggestedCommandsQuotesDerivedMetadataDir(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	commands := buildSuggestedCommands(migrationSignals{
+		detectedActions:  []string{"deliver", "upload_to_app_store"},
+		marketingVersion: `1.2.3 beta "1"`,
+	}, nil)
+
+	if !sliceContains(commands, `asc release run --app "APP_ID" --version "1.2.3 beta \"1\"" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3 beta \"1\"" --confirm`) {
+		t.Fatalf("expected quoted metadata-dir derived from version string, got %#v", commands)
+	}
+}
+
 func assertNoSecretInDoctorReport(t *testing.T, report DoctorReport, secret string) {
 	t.Helper()
 	for _, section := range report.Sections {
