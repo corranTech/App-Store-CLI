@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	releaseRunDeprecationWarning   = "Warning: `asc release run` is deprecated. Use `asc publish appstore --submit`."
+	releaseRunDeprecationWarning   = "Warning: `asc release run` is deprecated. Use `asc release stage`, then `asc review submissions-create` / `asc review items-add` / `asc review submissions-submit` for metadata workflows, or `asc publish appstore --submit` when local metadata is already synced."
 	submitCreateDeprecationWarning = "Warning: `asc submit create` is deprecated. Use `asc publish appstore --submit`."
 )
 
@@ -135,5 +135,21 @@ func TestDeprecatedReleaseRunInvocationWarns(t *testing.T) {
 	requireStderrContainsWarning(t, stderr, releaseRunDeprecationWarning)
 	if !strings.Contains(stderr, "--metadata-dir is required") {
 		t.Fatalf("expected validation error after deprecation warning, got %q", stderr)
+	}
+}
+
+func TestDeprecatedReleaseRunHelpShowsMetadataPreservingReplacement(t *testing.T) {
+	usage := usageForCommand(t, "release", "run")
+
+	for _, expected := range []string{
+		"asc release stage",
+		"asc review submissions-create",
+		"asc review items-add",
+		"asc review submissions-submit",
+		"asc publish appstore --submit",
+	} {
+		if !strings.Contains(usage, expected) {
+			t.Fatalf("expected release run help to mention %q, got %q", expected, usage)
+		}
 	}
 }

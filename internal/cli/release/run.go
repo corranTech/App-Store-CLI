@@ -30,7 +30,7 @@ const (
 	releaseModeRun               = "run"
 	releaseModeStage             = "stage"
 	releaseRunTimeout            = 30 * time.Minute
-	releaseRunDeprecationWarning = "Warning: `asc release run` is deprecated. Use `asc publish appstore --submit`."
+	releaseRunDeprecationWarning = "Warning: `asc release run` is deprecated. Use `asc release stage`, then `asc review submissions-create` / `asc review items-add` / `asc review submissions-submit` for metadata workflows, or `asc publish appstore --submit` when local metadata is already synced."
 )
 
 var (
@@ -130,8 +130,8 @@ func ReleaseRunCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "run",
 		ShortUsage: "asc release run --app \"APP_ID\" --version \"2.4.0\" --build \"BUILD_ID\" --metadata-dir \"./metadata/version/2.4.0\" [flags]",
-		ShortHelp:  "DEPRECATED: use `asc publish appstore --submit`.",
-		LongHelp: `DEPRECATED: use ` + "`asc publish appstore --submit`" + `.
+		ShortHelp:  "DEPRECATED: use `asc release stage` + `asc review submissions-*`, or `asc publish appstore --submit`.",
+		LongHelp: `DEPRECATED: use ` + "`asc release stage`" + ` + ` + "`asc review submissions-*`" + ` when you need the metadata workflow, or ` + "`asc publish appstore --submit`" + ` when local metadata is already synced.
 
 Deprecated compatibility pipeline that still runs the old single-command
 release flow:
@@ -141,9 +141,9 @@ release flow:
 4. Run readiness checks
 5. Submit for review
 
-Prefer:
-  - ` + "`asc release stage`" + ` when you want the preparation pipeline without submission
-  - ` + "`asc publish appstore --submit`" + ` for the canonical high-level App Store publish command
+	Prefer:
+	  - ` + "`asc release stage`" + ` + ` + "`asc review submissions-create`" + ` / ` + "`asc review items-add`" + ` / ` + "`asc review submissions-submit`" + ` when you need the old metadata-dir staging + submit workflow
+	  - ` + "`asc publish appstore --submit`" + ` for the canonical high-level App Store upload + submit flow when local metadata is already applied
 
 Supports dry-run planning, step-level structured output, and checkpointed resume.
 
