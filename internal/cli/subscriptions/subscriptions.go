@@ -918,11 +918,10 @@ Examples:
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			if tierValue > 0 || priceValue != "" {
-				tiers, err := shared.ResolveSubscriptionTiers(requestCtx, client, id, territoryID, *refresh)
+				tierCtx, tierCancel := shared.ContextWithTimeout(ctx)
+				tiers, err := shared.ResolveSubscriptionTiers(tierCtx, client, id, territoryID, *refresh)
+				tierCancel()
 				if err != nil {
 					return fmt.Errorf("subscriptions prices add: resolve tiers: %w", err)
 				}
@@ -936,6 +935,9 @@ Examples:
 					return fmt.Errorf("subscriptions prices add: %w", err)
 				}
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			// Check if the subscription already has prices.
 			// New subscriptions without prices require PATCH /v1/subscriptions/{id}

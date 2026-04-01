@@ -311,13 +311,12 @@ Examples:
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			var priceEntries []asc.InAppPurchasePriceSchedulePrice
 
 			if hasTierOrPrice {
-				tiers, err := shared.ResolveIAPTiers(requestCtx, client, iapValue, baseTerritoryValue, *refresh)
+				tierCtx, tierCancel := shared.ContextWithTimeout(ctx)
+				tiers, err := shared.ResolveIAPTiers(tierCtx, client, iapValue, baseTerritoryValue, *refresh)
+				tierCancel()
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules create: resolve tiers: %w", err)
 				}
@@ -343,6 +342,9 @@ Examples:
 					return flag.ErrHelp
 				}
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			resp, err := client.CreateInAppPurchasePriceSchedule(requestCtx, iapValue, asc.InAppPurchasePriceScheduleCreateAttributes{
 				BaseTerritoryID: baseTerritoryValue,
