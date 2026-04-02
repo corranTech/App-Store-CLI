@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import "./styles.css";
 import { NavSection } from "./types";
@@ -72,15 +72,21 @@ export default function App() {
   const app = useAppSelection();
   const chat = useChatDock();
   const { resolvedTheme } = useTheme(bootstrap.studioSettings.theme);
+  const refreshRequestRef = useRef(0);
+  const latestActiveSectionIdRef = useRef(activeSection.id);
+  const latestSelectedAppIdRef = useRef(app.selectedAppId);
+
+  latestActiveSectionIdRef.current = activeSection.id;
+  latestSelectedAppIdRef.current = app.selectedAppId;
 
   const bundleIDSheet = useBundleIDSheet(() => app.loadStandaloneSection("bundle-ids", true));
   const deviceSheet = useDeviceSheet(() => app.loadStandaloneSection("devices", true));
 
   const sheetOpen = bundleIDSheet.state.open || deviceSheet.state.open;
   const closeSheet = useCallback(() => {
-    if (bundleIDSheet.state.open) bundleIDSheet.dispatch({ type: "close" });
-    if (deviceSheet.state.open) deviceSheet.dispatch({ type: "close" });
-  }, [bundleIDSheet.state.open, deviceSheet.state.open]);
+    if (bundleIDSheet.state.open) bundleIDSheet.closeSheet();
+    if (deviceSheet.state.open) deviceSheet.closeSheet();
+  }, [bundleIDSheet.closeSheet, bundleIDSheet.state.open, deviceSheet.closeSheet, deviceSheet.state.open]);
   const { trapRef, onTrapKeyDown } = useFocusTrap(sheetOpen, closeSheet);
 
   const filteredApps = bootstrap.appList.filter((a) =>
@@ -113,14 +119,21 @@ export default function App() {
   }
 
   function handleRefresh() {
-    const selectedAppId = app.selectedAppId;
-    const activeSectionId = activeSection.id;
+    const refreshID = refreshRequestRef.current + 1;
+    refreshRequestRef.current = refreshID;
 
     void bootstrap.handleRefresh().then(() => {
+      if (refreshRequestRef.current !== refreshID) {
+        return;
+      }
+
+      const activeSectionId = latestActiveSectionIdRef.current;
       if (sectionCommands[activeSectionId] && !sectionRequiresApp(activeSectionId)) {
         app.loadStandaloneSection(activeSectionId, true);
         return;
       }
+
+      const selectedAppId = latestSelectedAppIdRef.current;
       if (selectedAppId) {
         app.handleSelectApp(selectedAppId);
       }
@@ -222,8 +235,8 @@ export default function App() {
           bundleIDsPlatformSort={bundleIDsPlatformSort} activeSectionSearch={activeSectionSearch}
           onSetSectionSearch={(id, term) => setSectionSearchTerms((prev) => ({ ...prev, [id]: term }))}
           onToggleBundleIDSort={() => setBundleIDsPlatformSort((prev) => prev === "asc" ? "desc" : "asc")}
-          onOpenBundleIDSheet={() => bundleIDSheet.dispatch({ type: "open" })}
-          onOpenDeviceSheet={() => deviceSheet.dispatch({ type: "open" })} />
+          onOpenBundleIDSheet={bundleIDSheet.openSheet}
+          onOpenDeviceSheet={deviceSheet.openSheet} />
       );
     }
     return (
@@ -267,8 +280,8 @@ export default function App() {
           )}
         </main>
 
-        {bundleIDSheet.state.open && (
-          <div className="sheet-backdrop" role="presentation" onClick={() => bundleIDSheet.dispatch({ type: "close" })}>
+          {bundleIDSheet.state.open && (
+          <div className="sheet-backdrop" role="presentation" onClick={bundleIDSheet.closeSheet}>
             <section ref={trapRef} className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="bundle-id-sheet-title"
               onKeyDown={onTrapKeyDown}
               onClick={(e) => e.stopPropagation()}>
@@ -277,7 +290,7 @@ export default function App() {
                   <p className="sheet-eyebrow">Signing</p>
                   <h2 id="bundle-id-sheet-title" className="sheet-title">Create Bundle ID</h2>
                 </div>
-                <button type="button" className="sheet-close" onClick={() => bundleIDSheet.dispatch({ type: "close" })} aria-label="Close create bundle ID sheet">&times;</button>
+                <button type="button" className="sheet-close" onClick={bundleIDSheet.closeSheet} aria-label="Close create bundle ID sheet">&times;</button>
               </div>
               <div className="sheet-body">
                 <label className="sheet-field">
@@ -298,7 +311,7 @@ export default function App() {
                 {bundleIDSheet.state.error && <p className="sheet-error" role="alert">{bundleIDSheet.state.error}</p>}
               </div>
               <div className="sheet-footer">
-                <button type="button" className="toolbar-btn" onClick={() => bundleIDSheet.dispatch({ type: "close" })}>Cancel</button>
+                <button type="button" className="toolbar-btn" onClick={bundleIDSheet.closeSheet}>Cancel</button>
                 <button type="button" className="toolbar-btn toolbar-btn-primary" onClick={bundleIDSheet.handleCreate} disabled={bundleIDSheet.state.creating}>
                   {bundleIDSheet.state.creating ? "Creating…" : "Create"}
                 </button>
@@ -309,7 +322,7 @@ export default function App() {
       </ErrorBoundary>
 
       {deviceSheet.state.open && (
-        <div className="sheet-backdrop" role="presentation" onClick={() => deviceSheet.dispatch({ type: "close" })}>
+        <div className="sheet-backdrop" role="presentation" onClick={deviceSheet.closeSheet}>
           <section ref={trapRef} className="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="device-sheet-title"
             onKeyDown={onTrapKeyDown}
             onClick={(e) => e.stopPropagation()}>
@@ -318,7 +331,7 @@ export default function App() {
                 <p className="sheet-eyebrow">Team</p>
                 <h2 id="device-sheet-title" className="sheet-title">Register Device</h2>
               </div>
-              <button type="button" className="sheet-close" onClick={() => deviceSheet.dispatch({ type: "close" })} aria-label="Close register device sheet">&times;</button>
+              <button type="button" className="sheet-close" onClick={deviceSheet.closeSheet} aria-label="Close register device sheet">&times;</button>
             </div>
             <div className="sheet-body">
               <label className="sheet-field">
@@ -339,7 +352,7 @@ export default function App() {
               {deviceSheet.state.error && <p className="sheet-error" role="alert">{deviceSheet.state.error}</p>}
             </div>
             <div className="sheet-footer">
-              <button type="button" className="toolbar-btn" onClick={() => deviceSheet.dispatch({ type: "close" })}>Cancel</button>
+              <button type="button" className="toolbar-btn" onClick={deviceSheet.closeSheet}>Cancel</button>
               <button type="button" className="toolbar-btn toolbar-btn-primary" onClick={deviceSheet.handleCreate} disabled={deviceSheet.state.creating}>
                 {deviceSheet.state.creating ? "Registering…" : "Register"}
               </button>

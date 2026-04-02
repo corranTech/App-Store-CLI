@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
 const {
@@ -702,6 +702,115 @@ describe("App", () => {
     ).toHaveLength(2);
   });
 
+  it("keeps the latest app selection when refresh resolves after another app is chosen", async () => {
+    let resolveRefreshBootstrap: ((value: {
+      appName: string;
+      environment: {
+        configPath: string;
+        configPresent: boolean;
+        defaultAppId: string;
+        keychainAvailable: boolean;
+        keychainBypassed: boolean;
+        workflowPath: string;
+      };
+      settings: {
+        preferredPreset: string;
+        agentCommand: string;
+        agentArgs: string[];
+        agentEnv: Record<string, string>;
+        preferBundledASC: boolean;
+        systemASCPath: string;
+        workspaceRoot: string;
+        theme: string;
+        windowMaterial: string;
+        showCommandPreviews: boolean;
+      };
+      presets: unknown[];
+      threads: unknown[];
+      approvals: unknown[];
+    }) => void) | undefined;
+
+    const bootstrapPayload = {
+      appName: "ASC Studio",
+      environment: {
+        configPath: "/Users/test/.asc/config.json",
+        configPresent: true,
+        defaultAppId: "123456",
+        keychainAvailable: true,
+        keychainBypassed: false,
+        workflowPath: "",
+      },
+      settings: {
+        preferredPreset: "codex",
+        agentCommand: "",
+        agentArgs: [],
+        agentEnv: {},
+        preferBundledASC: true,
+        systemASCPath: "",
+        workspaceRoot: "",
+        theme: "glass-light",
+        windowMaterial: "translucent",
+        showCommandPreviews: true,
+      },
+      presets: [],
+      threads: [],
+      approvals: [],
+    };
+
+    mockListApps.mockResolvedValue({
+      apps: [
+        { id: "1", name: "First App", subtitle: "One" },
+        { id: "2", name: "Second App", subtitle: "Two" },
+      ],
+    });
+    mockBootstrap
+      .mockResolvedValueOnce(bootstrapPayload)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefreshBootstrap = resolve;
+          }),
+      );
+    mockGetAppDetail.mockImplementation((appID: string) =>
+      Promise.resolve({
+        id: appID,
+        name: appID === "1" ? "First App" : "Second App",
+        subtitle: appID === "1" ? "One" : "Two",
+        bundleId: appID === "1" ? "com.example.first" : "com.example.second",
+        sku: appID === "1" ? "FIRSTSKU" : "SECONDSKU",
+        primaryLocale: "en-US",
+        versions: [{ id: `version-${appID}`, platform: "IOS", version: "1.0", state: "READY_FOR_SALE" }],
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    await pickApp("First App");
+    expect(await screen.findByText("com.example.first")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Refresh/i }));
+    await waitFor(() => {
+      expect(mockBootstrap).toHaveBeenCalledTimes(2);
+    });
+
+    await pickApp("Second App");
+    expect(screen.getByRole("option", { name: /Second App/i })).toHaveAttribute("aria-selected", "true");
+
+    await act(async () => {
+      resolveRefreshBootstrap?.(bootstrapPayload);
+    });
+
+    await waitFor(() => {
+      expect(mockGetAppDetail.mock.calls.at(-1)?.[0]).toBe("2");
+    });
+
+    expect(await screen.findByText("com.example.second")).toBeInTheDocument();
+    expect(mockGetAppDetail.mock.calls.filter(([appID]) => appID === "1")).toHaveLength(1);
+    expect(screen.getByText("com.example.second")).toBeInTheDocument();
+    expect(screen.queryByText("com.example.first")).not.toBeInTheDocument();
+  });
+
   it("quotes app IDs when running app-scoped commands", async () => {
     mockListApps.mockResolvedValue({
       apps: [
@@ -730,6 +839,30 @@ describe("App", () => {
       const commands = mockRunASCCommand.mock.calls.map(([cmd]) => cmd);
       expect(commands).toContain("status --app '1 2' --output json");
       expect(commands).toContain("reviews list --app '1 2' --limit 25 --output json");
+    });
+  });
+
+  it("does not rerun cached app-scoped table commands when revisiting a loaded section", async () => {
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    await pickApp("Test App");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Builds" }));
+
+    await waitFor(() => {
+      expect(
+        mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === "builds list --app '1' --limit 20 --output json"),
+      ).toHaveLength(1);
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Status" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Builds" }));
+
+    await waitFor(() => {
+      expect(
+        mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === "builds list --app '1' --limit 20 --output json"),
+      ).toHaveLength(1);
     });
   });
 
@@ -863,6 +996,69 @@ describe("App", () => {
         "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform 'MAC_OS' --output json",
       );
     });
+  });
+
+  it("ignores stale bundle ID create completions after the sheet is reopened", async () => {
+    let resolveCreate: ((value: { error: string; data: string }) => void) | undefined;
+
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "bundle-ids list --paginate --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: [
+              { id: "bundle-1", type: "bundleIds", attributes: { identifier: "com.example.existing", platform: "IOS", seedId: "AAA" } },
+            ],
+          }),
+        });
+      }
+      if (cmd === "bundle-ids create --identifier 'com.example.newapp' --name 'New App' --platform 'IOS' --output json") {
+        return new Promise((resolve) => {
+          resolveCreate = resolve as (value: { error: string; data: string }) => void;
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    fireEvent.click(screen.getByRole("tab", { name: "Signing" }));
+    await screen.findByText("com.example.existing");
+
+    fireEvent.click(screen.getByRole("button", { name: /New Bundle ID/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New App" } });
+    fireEvent.change(screen.getByLabelText("Identifier"), { target: { value: "com.example.newapp" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /Create Bundle ID/i })).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /New Bundle ID/i }));
+    expect(screen.getByRole("dialog", { name: /Create Bundle ID/i })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveCreate?.({
+        error: "",
+        data: JSON.stringify({
+          data: {
+            id: "bundle-2",
+            type: "bundleIds",
+            attributes: { identifier: "com.example.newapp", name: "New App", platform: "IOS", seedId: "BBB" },
+          },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: /Create Bundle ID/i })).toBeInTheDocument();
+    });
+
+    expect(
+      mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === "bundle-ids list --paginate --output json"),
+    ).toHaveLength(2);
   });
 
   it("registers a device from the team devices sheet", async () => {

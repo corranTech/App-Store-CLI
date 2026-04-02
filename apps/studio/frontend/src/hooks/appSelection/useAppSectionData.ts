@@ -291,12 +291,13 @@ export function useAppSectionData(appSelectionRequestRef: MutableRefObject<numbe
     const cmdTemplate = sectionCommands[sectionId];
     if (!cmdTemplate || !sectionRequiresApp(sectionId)) return;
 
+    const existing = sectionCache[sectionId];
+    if (!force && (existing?.loading || (existing && !existing.error))) {
+      return;
+    }
+
     const requestID = appSelectionRequestRef.current;
-    setSectionCache((prev) => {
-      const existing = prev[sectionId];
-      if (existing && !force) return prev;
-      return { ...prev, [sectionId]: { loading: true, items: [] } };
-    });
+    setSectionCache((prev) => ({ ...prev, [sectionId]: { loading: true, items: [] } }));
 
     RunASCCommand(commandForApp(cmdTemplate, appId))
       .then((res) => {
