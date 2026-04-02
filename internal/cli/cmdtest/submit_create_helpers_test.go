@@ -11,12 +11,6 @@ import (
 	"time"
 )
 
-type submitCreateRoundTripFunc func(*http.Request) (*http.Response, error)
-
-func (fn submitCreateRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
-}
-
 func setupSubmitCreateAuth(t *testing.T) {
 	t.Helper()
 
