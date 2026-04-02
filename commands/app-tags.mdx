@@ -1,15 +1,31 @@
 # app-tags
 
-> Inspect app tag visibility and territory scope
+> Inspect Apple-generated App Store discoverability tags
 
 The `app-tags` command works with the `appTags` resources attached to an app in
 App Store Connect.
+
+Apple describes app tags as glanceable terms that help people quickly
+understand an app or game's essential qualities. They are generated from your
+App Store Connect metadata, AI/LLMs, and human curation, and you choose which
+assigned tags remain visible for your app.
 
 Each tag resource currently exposes:
 
 * `name` - the label returned by App Store Connect
 * `visibleInAppStore` - whether that tag is currently visible in the storefront
 * `territories` - the storefront territories linked to that tag
+
+## Where They Show Up
+
+Apple says app tags can appear in:
+
+* App Store search results
+* The search page / search landing experience
+* Your app's product page
+
+At the time of Apple's current help text, Apple also says app tags are only
+displayed to App Store users in the United States.
 
 Use this command group when you want to answer:
 
@@ -98,6 +114,8 @@ asc app-tags update --id "TAG_ID" --visible-in-app-store=false --confirm
 ```
 
 Only `visibleInAppStore` is currently mutable through this command surface.
+Turning visibility off removes that tag from your app's visible App Store tag
+set without deleting the underlying tag resource.
 
 <ParamField path="--id" type="string" required>
   App tag ID

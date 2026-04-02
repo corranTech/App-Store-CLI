@@ -21,16 +21,18 @@ func AppTagsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "app-tags",
 		ShortUsage: "asc app-tags <subcommand> [flags]",
-		ShortHelp:  "Inspect app tag visibility and territory scope.",
-		LongHelp: `Inspect app tags linked to an app.
+		ShortHelp:  "Inspect Apple-generated App Store discoverability tags.",
+		LongHelp: `Inspect Apple-generated App Store discoverability tags linked to an app.
 
 Each app tag resource currently exposes:
   - name
   - visibleInAppStore
   - territory relationships
 
-Use these commands to audit which tags are attached to an app, inspect one tag,
-toggle whether it is visible in the App Store, and inspect territory coverage.
+Apple uses app tags as glanceable discoverability labels that can appear in
+search results and on an app's product page. Use these commands to audit which
+tags are attached to an app, inspect one tag, toggle whether it is visible in
+the App Store, and inspect territory coverage.
 
 Examples:
   asc app-tags list --app "APP_ID"
