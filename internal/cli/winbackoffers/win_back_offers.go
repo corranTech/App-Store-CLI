@@ -725,6 +725,10 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("win-back-offers prices: %w", err)
 			}
+			territoryFilter, err := shared.NormalizeASCTerritoryCSV(*territories)
+			if err != nil {
+				return fmt.Errorf("win-back-offers prices: %w", err)
+			}
 			if len(territoryFieldsValue) > 0 && !shared.HasInclude(includeValue, "territory") {
 				fmt.Fprintln(os.Stderr, "Error: --territory-fields requires --include territory")
 				return flag.ErrHelp
@@ -745,7 +749,7 @@ Examples:
 			opts := []asc.WinBackOfferPricesOption{
 				asc.WithWinBackOfferPricesLimit(*limit),
 				asc.WithWinBackOfferPricesNextURL(*next),
-				asc.WithWinBackOfferPricesTerritoryFilter(shared.SplitCSV(*territories)),
+				asc.WithWinBackOfferPricesTerritoryFilter(territoryFilter),
 				asc.WithWinBackOfferPricesFields(fieldsValue),
 				asc.WithWinBackOfferPricesTerritoryFields(territoryFieldsValue),
 				asc.WithWinBackOfferPricesSubscriptionPricePointFields(pricePointFieldsValue),
