@@ -67,7 +67,7 @@ func TestNormalizeSubscriptionCustomerEligibilities(t *testing.T) {
 }
 
 func TestParseSubscriptionOfferCodePrices(t *testing.T) {
-	prices, err := parseSubscriptionOfferCodePrices("usa:pp-1, jpn:pp-2")
+	prices, err := parseSubscriptionOfferCodePrices("US:pp-1, France:pp-2")
 	if err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestParseSubscriptionOfferCodePrices(t *testing.T) {
 	if prices[0].TerritoryID != "USA" || prices[0].PricePointID != "pp-1" {
 		t.Fatalf("unexpected first price: %+v", prices[0])
 	}
-	if prices[1].TerritoryID != "JPN" || prices[1].PricePointID != "pp-2" {
+	if prices[1].TerritoryID != "FRA" || prices[1].PricePointID != "pp-2" {
 		t.Fatalf("unexpected second price: %+v", prices[1])
 	}
 
@@ -86,5 +86,8 @@ func TestParseSubscriptionOfferCodePrices(t *testing.T) {
 	}
 	if _, err := parseSubscriptionOfferCodePrices("usa:"); err == nil {
 		t.Fatal("expected parse error for missing price point id")
+	}
+	if _, err := parseSubscriptionOfferCodePrices("Atlantis:pp-1"); err == nil {
+		t.Fatal("expected parse error for invalid territory")
 	}
 }

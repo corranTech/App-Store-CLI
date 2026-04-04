@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -215,7 +216,10 @@ func parseSubscriptionOfferCodePrices(value string) ([]asc.SubscriptionOfferCode
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("--prices must use TERRITORY:PRICE_POINT_ID entries")
 		}
-		territoryID := strings.ToUpper(strings.TrimSpace(parts[0]))
+		territoryID, err := ascterritory.Normalize(parts[0])
+		if err != nil {
+			return nil, err
+		}
 		pricePointID := strings.TrimSpace(parts[1])
 		if territoryID == "" || pricePointID == "" {
 			return nil, fmt.Errorf("--prices must use TERRITORY:PRICE_POINT_ID entries")
