@@ -1164,7 +1164,7 @@ func TestMetadataKeywordsPlanBuildsKeywordOnlyRemotePlan(t *testing.T) {
 	if len(payload.Warnings) != 1 || payload.Warnings[0].Action != "create" || payload.Warnings[0].Locale != "ja" {
 		t.Fatalf("expected one ja warning, got %+v", payload.Warnings)
 	}
-	if !strings.Contains(payload.Warnings[0].Message, "create would leave locale") || !strings.Contains(payload.Warnings[0].Message, "description, supportUrl") {
+	if !strings.Contains(payload.Warnings[0].Message, "creating locale ja would make it participate in submission validation") || !strings.Contains(payload.Warnings[0].Message, "description, supportUrl") {
 		t.Fatalf("expected create warning message with missing fields, got %+v", payload.Warnings[0])
 	}
 	if len(payload.Warnings[0].MissingFields) != 2 || payload.Warnings[0].MissingFields[0] != "description" || payload.Warnings[0].MissingFields[1] != "supportUrl" {
