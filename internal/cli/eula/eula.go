@@ -176,7 +176,10 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			territoryIDs := shared.SplitCSV(*territories)
+			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territories)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territory is required")
 				return flag.ErrHelp
@@ -233,7 +236,10 @@ Examples:
 				agreementValue = &value
 			}
 
-			territoryIDs := shared.SplitCSV(*territories)
+			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territories)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if agreementValue == nil && len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --agreement-text or --territory is required")
 				return flag.ErrHelp
