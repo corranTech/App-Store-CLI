@@ -30,10 +30,10 @@ Examples:
   asc subscriptions groups list --app "APP_ID"
   asc subscriptions list --group-id "GROUP_ID"
   asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly"
-  asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --locale "en-US" --display-name "Pro Monthly" --price "3.99" --price-territory "USA" --territories "USA"
+  asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --locale "en-US" --display-name "Pro Monthly" --price "3.99" --price-territory "United States" --territories "US,Canada"
   asc subscriptions pricing summary --app "APP_ID"
   asc subscriptions pricing prices set --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "USA,CAN"
+  asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "US,Canada"
   asc subscriptions offers offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
   asc subscriptions offers win-back list --subscription-id "SUB_ID"
   asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./review.png"
@@ -862,7 +862,7 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 	pricePointID := fs.String("price-point", "", "Subscription price point ID")
 	tier := fs.Int("tier", 0, "Pricing tier number (mutually exclusive with --price-point and --price)")
 	price := fs.String("price", "", "Customer price to select price point (mutually exclusive with --price-point and --tier)")
-	territory := fs.String("territory", "", "Territory ID (e.g., USA)")
+	territory := fs.String("territory", "", "Territory input (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	preserved := fs.Bool("preserved", false, "Preserve existing prices")
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
@@ -876,9 +876,9 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "USA"
-  asc subscriptions prices add --subscription-id "SUB_ID" --tier 5 --territory "USA"
-  asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "USA"`,
+  asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "United States"
+  asc subscriptions prices add --subscription-id "SUB_ID" --tier 5 --territory "US"
+  asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "France"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1047,7 +1047,7 @@ func SubscriptionsAvailabilityCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions availability view --availability-id "AVAILABILITY_ID"
-  asc subscriptions availability edit --subscription-id "SUB_ID" --territories "USA,CAN"
+  asc subscriptions availability edit --subscription-id "SUB_ID" --territories "US,Canada"
   asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
@@ -1220,7 +1220,7 @@ func SubscriptionsAvailabilityEditCommand() *ffcli.Command {
 		LongHelp: `Edit subscription availability in territories.
 
 Examples:
-  asc subscriptions availability edit --subscription-id "SUB_ID" --territories "USA,CAN"`,
+  asc subscriptions availability edit --subscription-id "SUB_ID" --territories "US,Canada"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

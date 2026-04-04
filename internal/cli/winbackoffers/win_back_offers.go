@@ -674,7 +674,7 @@ func WinBackOffersPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices", flag.ExitOnError)
 
 	id := fs.String("id", "", "Win-back offer ID")
-	territories := fs.String("territory", "", "Territory IDs, comma-separated")
+	territories := fs.String("territory", "", "Territory inputs, comma-separated (accepts alpha-2, alpha-3, or exact English country names)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(winBackOfferPriceFieldsList(), ", "))
 	territoryFields := fs.String("territory-fields", "", "Territory fields to include: "+strings.Join(winBackOfferTerritoryFieldsList(), ", "))
 	pricePointFields := fs.String("price-point-fields", "", "Price point fields to include: "+strings.Join(winBackOfferSubscriptionPricePointFieldsList(), ", "))
@@ -692,7 +692,7 @@ func WinBackOffersPricesCommand() *ffcli.Command {
 
 Examples:
   asc win-back-offers prices --id "OFFER_ID"
-  asc win-back-offers prices --id "OFFER_ID" --include territory --territory-fields currency`,
+  asc win-back-offers prices --id "OFFER_ID" --territory "US,France" --include territory --territory-fields currency`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

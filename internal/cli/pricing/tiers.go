@@ -18,13 +18,13 @@ func PricingTiersCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing tiers", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	territory := fs.String("territory", "USA", "Territory ID (e.g., USA)")
+	territory := fs.String("territory", "USA", "Territory input (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "tiers",
-		ShortUsage: "asc pricing tiers --app \"APP_ID\" [--territory \"USA\"] [--refresh]",
+		ShortUsage: "asc pricing tiers --app \"APP_ID\" [--territory \"US\"] [--refresh]",
 		ShortHelp:  "List pricing tiers for an app in a territory.",
 		LongHelp: `List pricing tiers for an app in a territory.
 
@@ -36,7 +36,7 @@ Results are cached locally (~/.asc/cache/) for 24 hours. Use --refresh to force 
 
 Examples:
   asc pricing tiers --app "123456789"
-  asc pricing tiers --app "123456789" --territory "USA"
+  asc pricing tiers --app "123456789" --territory "United States"
   asc pricing tiers --app "123456789" --territory "JPN" --refresh
   asc pricing tiers --app "123456789" --output table`,
 		FlagSet:   fs,

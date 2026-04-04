@@ -29,7 +29,7 @@ func SubscriptionsPricingEqualizeCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name (required)")
 	appID := addSubscriptionLookupAppFlag(fs)
-	baseTerritory := fs.String("base-territory", "USA", "Territory to use as the pricing base")
+	baseTerritory := fs.String("base-territory", "USA", "Pricing base territory (accepts alpha-2, alpha-3, or exact English country name)")
 	basePrice := fs.String("base-price", "", "Customer price in the base territory (required)")
 	dryRun := fs.Bool("dry-run", false, "Show equalized prices without applying them")
 	confirm := fs.Bool("confirm", false, "Confirm applying equalized prices (required unless --dry-run)")
@@ -49,7 +49,7 @@ importing a CSV.
 
 Examples:
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --confirm
-  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "38.49" --base-territory "USA" --confirm
+  asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "38.49" --base-territory "United States" --confirm
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --dry-run
   asc subscriptions pricing equalize --subscription-id "SUB_ID" --base-price "3.49" --confirm --workers 16`,
 		FlagSet:   fs,
