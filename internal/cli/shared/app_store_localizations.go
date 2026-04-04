@@ -84,6 +84,14 @@ var appStoreLocalizationByFold = func() map[string]AppStoreLocalizationLocale {
 	return result
 }()
 
+var appStoreLocalizationCodeByFold = func() map[string]string {
+	result := make(map[string]string, len(appStoreLocalizationCatalog))
+	for _, locale := range appStoreLocalizationCatalog {
+		result[strings.ToLower(locale.Code)] = locale.Code
+	}
+	return result
+}()
+
 var supportedAppStoreLocalizationLocales = func() []string {
 	result := make([]string, 0, len(appStoreLocalizationCatalog))
 	for _, locale := range appStoreLocalizationCatalog {
@@ -105,7 +113,7 @@ var supportedMetadataLocales = func() []string {
 var appStoreLocalizationCandidatesByRoot = func() map[string][]string {
 	result := make(map[string][]string)
 	for _, locale := range supportedAppStoreLocalizationLocales {
-		root := appStoreLocalizationRoot(locale)
+		root := LocaleRoot(locale)
 		result[root] = append(result[root], locale)
 	}
 	for root := range result {
@@ -132,7 +140,7 @@ func SupportedMetadataLocales() []string {
 // NormalizeAppStoreLocalizationLocale validates locale syntax and canonicalizes known codes.
 // Unknown but well-formed locale codes are preserved for forward compatibility.
 func NormalizeAppStoreLocalizationLocale(value string) (string, error) {
-	normalized := normalizeAppStoreLocalizationCode(value)
+	normalized := NormalizeLocaleCode(value)
 	if normalized == "" || !appStoreLocalizationLocalePattern.MatchString(normalized) {
 		return "", fmt.Errorf("invalid locale %q: must match pattern like en or en-US", value)
 	}
@@ -153,10 +161,10 @@ func CanonicalizeAppStoreLocalizationLocale(value string) (string, error) {
 		return locale.Code, nil
 	}
 
-	rootCandidates := appStoreLocalizationCandidatesByRoot[appStoreLocalizationRoot(normalized)]
+	rootCandidates := appStoreLocalizationCandidatesByRoot[LocaleRoot(normalized)]
 	switch len(rootCandidates) {
 	case 0:
-		if suggestions := appStoreLocalizationSuggestions(normalized); len(suggestions) > 0 {
+		if suggestions := SuggestCanonicalLocaleCodes(normalized, supportedAppStoreLocalizationLocales, appStoreLocalizationCodeByFold); len(suggestions) > 0 {
 			return "", fmt.Errorf("unsupported locale %q; did you mean: %s", normalized, strings.Join(suggestions, ", "))
 		}
 		return "", fmt.Errorf("unsupported locale %q", normalized)
@@ -167,8 +175,24 @@ func CanonicalizeAppStoreLocalizationLocale(value string) (string, error) {
 	}
 }
 
-func appStoreLocalizationSuggestions(value string) []string {
-	suggestions := suggest.Commands(strings.ToLower(strings.TrimSpace(value)), supportedAppStoreLocalizationLocales)
+// NormalizeLocaleCode trims whitespace and canonicalizes separators for locale codes.
+func NormalizeLocaleCode(value string) string {
+	return strings.ReplaceAll(strings.TrimSpace(value), "_", "-")
+}
+
+// LocaleRoot returns the lowercased language root for a locale code.
+func LocaleRoot(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	parts := strings.SplitN(strings.ToLower(trimmed), "-", 2)
+	return parts[0]
+}
+
+// SuggestCanonicalLocaleCodes returns deduplicated canonical locale suggestions for fuzzy input.
+func SuggestCanonicalLocaleCodes(value string, supported []string, canonicalByFold map[string]string) []string {
+	suggestions := suggest.Commands(strings.ToLower(strings.TrimSpace(value)), supported)
 	if len(suggestions) == 0 {
 		return nil
 	}
@@ -176,28 +200,15 @@ func appStoreLocalizationSuggestions(value string) []string {
 	result := make([]string, 0, len(suggestions))
 	seen := make(map[string]struct{}, len(suggestions))
 	for _, item := range suggestions {
-		canonical, ok := appStoreLocalizationByFold[strings.ToLower(item)]
+		canonical, ok := canonicalByFold[strings.ToLower(item)]
 		if !ok {
 			continue
 		}
-		if _, exists := seen[canonical.Code]; exists {
+		if _, exists := seen[canonical]; exists {
 			continue
 		}
-		seen[canonical.Code] = struct{}{}
-		result = append(result, canonical.Code)
+		seen[canonical] = struct{}{}
+		result = append(result, canonical)
 	}
 	return result
-}
-
-func normalizeAppStoreLocalizationCode(value string) string {
-	return strings.ReplaceAll(strings.TrimSpace(value), "_", "-")
-}
-
-func appStoreLocalizationRoot(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return ""
-	}
-	parts := strings.SplitN(strings.ToLower(trimmed), "-", 2)
-	return parts[0]
 }
