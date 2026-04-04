@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -235,6 +236,14 @@ Examples:
 				}
 			}
 
+			territoryID := strings.TrimSpace(*territory)
+			if territoryID != "" {
+				territoryID, err = ascterritory.Normalize(territoryID)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions introductory-offers create: %w", err)
@@ -264,7 +273,7 @@ Examples:
 				requestCtx,
 				id,
 				attrs,
-				strings.TrimSpace(*territory),
+				territoryID,
 				strings.TrimSpace(*pricePoint),
 			)
 			if err != nil {

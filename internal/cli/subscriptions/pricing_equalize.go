@@ -15,6 +15,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -70,9 +71,13 @@ Examples:
 			if err := shared.ValidateFinitePriceFlag("--base-price", price); err != nil {
 				return shared.UsageError(err.Error())
 			}
-			territory := strings.ToUpper(strings.TrimSpace(*baseTerritory))
-			if territory == "" {
-				territory = "USA"
+			territoryInput := strings.TrimSpace(*baseTerritory)
+			if territoryInput == "" {
+				territoryInput = "USA"
+			}
+			territory, err := ascterritory.Normalize(territoryInput)
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			if !*dryRun && !*confirm {
 				return shared.UsageError("--confirm is required unless --dry-run is set")

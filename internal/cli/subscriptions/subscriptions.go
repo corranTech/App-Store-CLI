@@ -12,6 +12,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -900,7 +901,14 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
+			territoryID := strings.TrimSpace(*territory)
+			if territoryID != "" {
+				normalizedTerritory, normalizeErr := ascterritory.Normalize(territoryID)
+				if normalizeErr != nil {
+					return shared.UsageError(normalizeErr.Error())
+				}
+				territoryID = normalizedTerritory
+			}
 			if tierValue > 0 || priceValue != "" {
 				if territoryID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --territory is required when using --tier or --price")
