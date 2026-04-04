@@ -1,0 +1,344 @@
+package localizations
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+)
+
+type localizationsApplySummary struct {
+	VersionID           string                         `json:"versionId"`
+	InputFile           string                         `json:"inputFile"`
+	ContinueOnError     bool                           `json:"continueOnError"`
+	Total               int                            `json:"total"`
+	Created             int                            `json:"created"`
+	Updated             int                            `json:"updated"`
+	Succeeded           int                            `json:"succeeded"`
+	Failed              int                            `json:"failed"`
+	FailureArtifactPath string                         `json:"failureArtifactPath,omitempty"`
+	Results             []localizationsApplyResultItem `json:"results"`
+}
+
+type localizationsApplyResultItem struct {
+	Locale         string `json:"locale"`
+	Action         string `json:"action"`
+	Status         string `json:"status"`
+	LocalizationID string `json:"localizationId,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
+type localizationsApplyFailureArtifact struct {
+	VersionID   string                         `json:"versionId"`
+	InputFile   string                         `json:"inputFile"`
+	Failed      int                            `json:"failed"`
+	GeneratedAt string                         `json:"generatedAt"`
+	Results     []localizationsApplyResultItem `json:"results"`
+}
+
+type localizationsApplyEntry struct {
+	Locale   string
+	Keywords string
+}
+
+type localizationsApplyInputObject struct {
+	Keywords *string `json:"keywords"`
+}
+
+// LocalizationsApplyCommand returns the bulk apply localizations subcommand.
+func LocalizationsApplyCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("apply", flag.ExitOnError)
+
+	versionID := fs.String("version", "", "App Store version ID (required)")
+	inputPath := fs.String("input", "", "Input JSON file path (required)")
+	continueOnError := fs.String("continue-on-error", "true", "Continue processing locales after failures (default true)")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "apply",
+		ShortUsage: "asc localizations apply --version \"VERSION_ID\" --input \"./keywords.json\" [flags]",
+		ShortHelp:  "Bulk apply version keywords from structured input.",
+		LongHelp: `Bulk apply version keywords from structured input.
+
+Input JSON must be an object keyed by locale. Each value may be either:
+  - a keyword string
+  - an object with a "keywords" field
+
+Examples:
+  asc localizations apply --version "VERSION_ID" --input "./keywords.json"
+  asc localizations apply --version "VERSION_ID" --input "./keywords.json" --continue-on-error=false`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("localizations apply does not accept positional arguments")
+			}
+
+			vid := strings.TrimSpace(*versionID)
+			if vid == "" {
+				fmt.Fprintln(os.Stderr, "Error: --version is required")
+				return flag.ErrHelp
+			}
+
+			inputValue := strings.TrimSpace(*inputPath)
+			if inputValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --input is required")
+				return flag.ErrHelp
+			}
+
+			entries, err := readLocalizationsApplyEntries(inputValue)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			continueOnErrorValue, err := shared.ParseBoolFlag(*continueOnError, "--continue-on-error")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("localizations apply: %w", err)
+			}
+
+			listCtx, listCancel := shared.ContextWithTimeout(ctx)
+			existing, err := client.GetAppStoreVersionLocalizations(listCtx, vid, asc.WithAppStoreVersionLocalizationsLimit(200))
+			listCancel()
+			if err != nil {
+				return fmt.Errorf("localizations apply: failed to fetch localizations: %w", err)
+			}
+
+			existingByLocale := make(map[string]asc.Resource[asc.AppStoreVersionLocalizationAttributes])
+			for _, item := range existing.Data {
+				localeKey := strings.ToLower(strings.TrimSpace(item.Attributes.Locale))
+				if localeKey == "" {
+					continue
+				}
+				existingByLocale[localeKey] = item
+			}
+
+			summary := &localizationsApplySummary{
+				VersionID:       vid,
+				InputFile:       filepath.Clean(inputValue),
+				ContinueOnError: continueOnErrorValue,
+				Total:           len(entries),
+				Results:         make([]localizationsApplyResultItem, 0, len(entries)),
+			}
+
+			for _, entry := range entries {
+				result := localizationsApplyResultItem{Locale: entry.Locale}
+				existingItem, exists := existingByLocale[strings.ToLower(entry.Locale)]
+
+				if exists {
+					result.Action = "update"
+
+					updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+					resp, updateErr := client.UpdateAppStoreVersionLocalization(updateCtx, existingItem.ID, asc.AppStoreVersionLocalizationAttributes{
+						Keywords: entry.Keywords,
+					})
+					updateCancel()
+					if updateErr != nil {
+						result.Status = "failed"
+						result.Error = fmt.Sprintf("update locale %q keywords: %v", entry.Locale, updateErr)
+						summary.Failed++
+						summary.Results = append(summary.Results, result)
+						if !continueOnErrorValue {
+							break
+						}
+						continue
+					}
+
+					result.Status = "succeeded"
+					result.LocalizationID = resp.Data.ID
+					summary.Updated++
+					summary.Succeeded++
+					summary.Results = append(summary.Results, result)
+					continue
+				}
+
+				result.Action = "create"
+
+				createCtx, createCancel := shared.ContextWithTimeout(ctx)
+				resp, createErr := client.CreateAppStoreVersionLocalization(createCtx, vid, asc.AppStoreVersionLocalizationAttributes{
+					Locale:   entry.Locale,
+					Keywords: entry.Keywords,
+				})
+				createCancel()
+				if createErr != nil {
+					result.Status = "failed"
+					result.Error = fmt.Sprintf("create locale %q keywords: %v", entry.Locale, createErr)
+					summary.Failed++
+					summary.Results = append(summary.Results, result)
+					if !continueOnErrorValue {
+						break
+					}
+					continue
+				}
+
+				result.Status = "succeeded"
+				result.LocalizationID = resp.Data.ID
+				summary.Created++
+				summary.Succeeded++
+				summary.Results = append(summary.Results, result)
+			}
+
+			if summary.Failed > 0 {
+				artifactPath, artifactErr := writeLocalizationsApplyFailureArtifact(summary)
+				if artifactErr != nil {
+					return fmt.Errorf("localizations apply: write failure artifact: %w", artifactErr)
+				}
+				summary.FailureArtifactPath = artifactPath
+			}
+
+			if err := shared.PrintOutputWithRenderers(
+				summary,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderLocalizationsApplySummary(summary, false) },
+				func() error { return renderLocalizationsApplySummary(summary, true) },
+			); err != nil {
+				return err
+			}
+
+			if summary.Failed > 0 {
+				return shared.NewReportedError(fmt.Errorf("localizations apply: %d locale(s) failed", summary.Failed))
+			}
+			return nil
+		},
+	}
+}
+
+func readLocalizationsApplyEntries(path string) ([]localizationsApplyEntry, error) {
+	payload, err := shared.ReadJSONFilePayload(path)
+	if err != nil {
+		return nil, fmt.Errorf("read input %q: %w", path, err)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &raw); err != nil {
+		return nil, fmt.Errorf("parse input %q: %w", path, err)
+	}
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("input %q must include at least one locale entry", path)
+	}
+
+	entries := make([]localizationsApplyEntry, 0, len(raw))
+	seen := make(map[string]string, len(raw))
+
+	for locale, value := range raw {
+		normalizedLocale := strings.TrimSpace(locale)
+		if normalizedLocale == "" {
+			return nil, fmt.Errorf("locale keys must not be empty")
+		}
+		if err := shared.ValidateBuildLocalizationLocale(normalizedLocale); err != nil {
+			return nil, err
+		}
+
+		lower := strings.ToLower(normalizedLocale)
+		if previous, ok := seen[lower]; ok {
+			return nil, fmt.Errorf("duplicate locale %q conflicts with %q", normalizedLocale, previous)
+		}
+		seen[lower] = normalizedLocale
+
+		keywords, err := parseLocalizationsApplyKeywords(value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid entry for locale %q: %w", normalizedLocale, err)
+		}
+
+		entries = append(entries, localizationsApplyEntry{
+			Locale:   normalizedLocale,
+			Keywords: strings.TrimSpace(keywords),
+		})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return strings.ToLower(entries[i].Locale) < strings.ToLower(entries[j].Locale)
+	})
+
+	return entries, nil
+}
+
+func parseLocalizationsApplyKeywords(value json.RawMessage) (string, error) {
+	var asString string
+	if err := json.Unmarshal(value, &asString); err == nil {
+		return asString, nil
+	}
+
+	var object localizationsApplyInputObject
+	if err := json.Unmarshal(value, &object); err == nil && object.Keywords != nil {
+		return *object.Keywords, nil
+	}
+
+	return "", fmt.Errorf("value must be a keyword string or object with a keywords field")
+}
+
+func writeLocalizationsApplyFailureArtifact(summary *localizationsApplySummary) (string, error) {
+	failures := make([]localizationsApplyResultItem, 0, summary.Failed)
+	for _, result := range summary.Results {
+		if result.Status == "failed" {
+			failures = append(failures, result)
+		}
+	}
+
+	artifact := localizationsApplyFailureArtifact{
+		VersionID:   summary.VersionID,
+		InputFile:   summary.InputFile,
+		Failed:      summary.Failed,
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Results:     failures,
+	}
+
+	data, err := json.MarshalIndent(artifact, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	path := filepath.Join(
+		".asc",
+		"reports",
+		"localizations-apply",
+		fmt.Sprintf("failures-%d.json", time.Now().UTC().UnixNano()),
+	)
+	if _, err := shared.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
+		return "", err
+	}
+
+	return filepath.Clean(path), nil
+}
+
+func renderLocalizationsApplySummary(summary *localizationsApplySummary, markdown bool) error {
+	if summary == nil {
+		return fmt.Errorf("summary is nil")
+	}
+
+	headers := []string{"Locale", "Action", "Status", "Localization ID", "Error"}
+	rows := make([][]string, 0, len(summary.Results))
+	for _, result := range summary.Results {
+		rows = append(rows, []string{
+			result.Locale,
+			result.Action,
+			result.Status,
+			result.LocalizationID,
+			result.Error,
+		})
+	}
+
+	if markdown {
+		asc.RenderMarkdown(headers, rows)
+		return nil
+	}
+
+	asc.RenderTable(headers, rows)
+	return nil
+}

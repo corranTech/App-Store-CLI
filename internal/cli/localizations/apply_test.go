@@ -1,0 +1,48 @@
+package localizations
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestReadLocalizationsApplyEntriesSupportsStringAndObjectValues(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "keywords.json")
+	body := `{
+		"ja": {"keywords": "nihon,go"},
+		"en-US": "alpha,beta"
+	}`
+	if err := os.WriteFile(inputPath, []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	entries, err := readLocalizationsApplyEntries(inputPath)
+	if err != nil {
+		t.Fatalf("readLocalizationsApplyEntries() error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	if entries[0].Locale != "en-US" || entries[0].Keywords != "alpha,beta" {
+		t.Fatalf("unexpected first entry: %+v", entries[0])
+	}
+	if entries[1].Locale != "ja" || entries[1].Keywords != "nihon,go" {
+		t.Fatalf("unexpected second entry: %+v", entries[1])
+	}
+}
+
+func TestReadLocalizationsApplyEntriesRejectsInvalidEntryShape(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "keywords.json")
+	if err := os.WriteFile(inputPath, []byte(`{"en-US":{"value":"alpha,beta"}}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	_, err := readLocalizationsApplyEntries(inputPath)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "keywords field") {
+		t.Fatalf("expected keywords field error, got %v", err)
+	}
+}
