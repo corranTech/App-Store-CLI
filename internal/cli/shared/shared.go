@@ -20,6 +20,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
@@ -1360,6 +1361,14 @@ func splitCSVUpper(value string) []string {
 	return upper
 }
 
+func normalizeASCTerritoryCSV(value string) ([]string, error) {
+	values := splitCSV(value)
+	if len(values) == 0 {
+		return nil, nil
+	}
+	return ascterritory.NormalizeMany(values)
+}
+
 func validateNextURL(next string) error {
 	next = strings.TrimSpace(next)
 	if next == "" {
@@ -1493,6 +1502,10 @@ func SplitUniqueCSV(value string) []string {
 
 func SplitCSVUpper(value string) []string {
 	return splitCSVUpper(value)
+}
+
+func NormalizeASCTerritoryCSV(value string) ([]string, error) {
+	return normalizeASCTerritoryCSV(value)
 }
 
 func ValidateNextURL(next string) error {
