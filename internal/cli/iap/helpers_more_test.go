@@ -37,7 +37,7 @@ func TestParseOfferCodeEligibilities(t *testing.T) {
 }
 
 func TestParseOfferCodePrices(t *testing.T) {
-	prices, err := parseOfferCodePrices("usa:pp-1,jpn:pp-2")
+	prices, err := parseOfferCodePrices("United States:pp-1,FR:pp-2")
 	if err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
@@ -47,9 +47,15 @@ func TestParseOfferCodePrices(t *testing.T) {
 	if prices[0].TerritoryID != "USA" || prices[0].PricePointID != "pp-1" {
 		t.Fatalf("unexpected first price: %+v", prices[0])
 	}
+	if prices[1].TerritoryID != "FRA" || prices[1].PricePointID != "pp-2" {
+		t.Fatalf("unexpected second price: %+v", prices[1])
+	}
 
 	if _, err := parseOfferCodePrices("usa-pp-1"); err == nil {
 		t.Fatal("expected parse error for malformed prices")
+	}
+	if _, err := parseOfferCodePrices("Atlantis:pp-1"); err == nil {
+		t.Fatal("expected parse error for invalid territory")
 	}
 }
 
