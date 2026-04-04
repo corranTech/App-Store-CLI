@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 )
 
 // PricingSetCommandConfig configures pricing set commands.
@@ -68,10 +69,18 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				return flag.ErrHelp
 			}
 
-			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
-			if requiresExplicitBaseTerritory(config, baseTerritoryValue, tierValue, priceValue, freeValue) {
+			baseTerritoryInput := strings.TrimSpace(*baseTerritory)
+			if requiresExplicitBaseTerritory(config, baseTerritoryInput, tierValue, priceValue, freeValue) {
 				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
 				return flag.ErrHelp
+			}
+			baseTerritoryValue := baseTerritoryInput
+			if baseTerritoryInput != "" {
+				normalizedBaseTerritory, normalizeErr := ascterritory.Normalize(baseTerritoryInput)
+				if normalizeErr != nil {
+					return UsageError(normalizeErr.Error())
+				}
+				baseTerritoryValue = normalizedBaseTerritory
 			}
 
 			startDateValue := strings.TrimSpace(*startDate)
