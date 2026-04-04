@@ -189,7 +189,10 @@ Examples:
 				return fmt.Errorf("pre-orders enable: %w", err)
 			}
 
-			territories := shared.SplitCSVUpper(*territory)
+			territories, err := shared.NormalizeASCTerritoryCSV(*territory)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if len(territories) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
 				return flag.ErrHelp
