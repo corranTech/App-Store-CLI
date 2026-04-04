@@ -9,6 +9,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -47,9 +48,13 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			territoryValue := strings.ToUpper(strings.TrimSpace(*territory))
-			if territoryValue == "" {
-				territoryValue = "USA"
+			territoryInput := strings.TrimSpace(*territory)
+			if territoryInput == "" {
+				territoryInput = "USA"
+			}
+			territoryValue, err := ascterritory.Normalize(territoryInput)
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 
 			client, err := shared.GetASCClient()

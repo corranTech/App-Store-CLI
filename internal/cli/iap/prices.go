@@ -16,6 +16,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -109,6 +110,13 @@ Examples:
 					return err
 				}
 			}
+			territoryFilter := strings.TrimSpace(*territory)
+			if territoryFilter != "" {
+				territoryFilter, err = ascterritory.Normalize(territoryFilter)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
@@ -143,7 +151,7 @@ Examples:
 				requestCtx,
 				client,
 				iaps,
-				strings.ToUpper(strings.TrimSpace(*territory)),
+				territoryFilter,
 				time.Now().UTC(),
 			)
 			if err != nil {
