@@ -140,7 +140,11 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	if !opts.DryRun {
 		warningMode = shared.SubmitReadinessCreateModeApplied
 	}
-	warnings := versionCreateWarningsForPatches(localVersion, remoteVersion, warningMode)
+	submitOpts := shared.SubmitReadinessOptions{}
+	if versionCreateWarningsNeedUpdateContext(localVersion, remoteVersion) {
+		submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, versionIDValue, resolvedAppID, platformValue)
+	}
+	warnings := versionCreateWarningsForPatches(localVersion, remoteVersion, warningMode, submitOpts)
 
 	adds, updates, deletes, appInfoCalls := buildScopePlan(
 		appInfoDirName,

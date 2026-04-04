@@ -287,7 +287,22 @@ func TestMetadataPushDryRunDoesNotWarnForCompleteCreate(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case "/v1/apps/app-1/appStoreVersions":
+			if strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D") {
+				body := `{"data":[],"links":{"next":""}}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
 			body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appStoreVersions/version-1":
+			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -890,6 +905,13 @@ func TestMetadataPushApplyExecutesUpdates(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
+		case "/v1/appStoreVersions/version-1":
+			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
 		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			if req.Method == http.MethodGet {
 				body := `{"data":[{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Remote subtitle"}}],"links":{"next":""}}`
@@ -1087,6 +1109,125 @@ func TestMetadataPushApplyWarnsForIncompleteCreate(t *testing.T) {
 	}
 	if len(payload.Actions) != 1 || payload.Actions[0].Action != "create" || payload.Actions[0].Locale != "ja" || payload.Actions[0].Scope != "version" {
 		t.Fatalf("expected single version create action, got %+v", payload.Actions)
+	}
+}
+
+func TestMetadataPushApplyWarnsWhenUpdateRequiresWhatsNew(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "version", "1.2.3"), 0o755); err != nil {
+		t.Fatalf("mkdir version: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "version", "1.2.3", "ja.json"), []byte(`{"description":"日本語説明","keywords":"日本語,キーワード","supportUrl":"https://example.com/support-ja"}`), 0o644); err != nil {
+		t.Fatalf("write version ja file: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	createCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/app-1/appInfos":
+			body := `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/apps/app-1/appStoreVersions":
+			if strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D") {
+				body := `{"data":[{"type":"appStoreVersions","id":"released-version","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"READY_FOR_SALE"}}],"links":{"next":""}}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
+			body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appStoreVersions/version-1":
+			body := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appInfos/appinfo-1/appInfoLocalizations":
+			body := `{"data":[],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			body := `{"data":[],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/appStoreVersionLocalizations":
+			if req.Method != http.MethodPost {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			}
+			createCount++
+			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-ja","attributes":{"locale":"ja","description":"日本語説明","keywords":"日本語,キーワード","supportUrl":"https://example.com/support-ja"}}}`
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "push",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", dir,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if createCount != 1 {
+		t.Fatalf("expected one create API call, got %d", createCount)
+	}
+	if !strings.Contains(stderr, "created locale ja now participates in submission validation") {
+		t.Fatalf("expected applied create warning on stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "whatsNew") {
+		t.Fatalf("expected whatsNew requirement in warning, got %q", stderr)
+	}
+
+	var payload struct {
+		Applied bool `json:"applied"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if !payload.Applied {
+		t.Fatalf("expected applied result, got %+v", payload)
 	}
 }
 

@@ -895,7 +895,11 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 	)
 	sortPlanItems(adds)
 	sortPlanItems(updates)
-	warnings := buildMetadataKeywordWarnings(localState, remoteVersion)
+	submitOpts := shared.SubmitReadinessOptions{}
+	if versionCreateWarningsNeedUpdateContext(localPatches, remoteVersion) {
+		submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, versionIDValue, resolvedAppID, platformValue)
+	}
+	warnings := buildMetadataKeywordWarnings(localState, remoteVersion, submitOpts)
 
 	result := MetadataKeywordsPlanResult{
 		AppID:     resolvedAppID,
@@ -1613,9 +1617,9 @@ func remoteVersionItemsToVersionMap(items []asc.Resource[asc.AppStoreVersionLoca
 	return result
 }
 
-func buildMetadataKeywordWarnings(states map[string]keywordLocalState, remote map[string]VersionLocalization) []MetadataKeywordsWarning {
+func buildMetadataKeywordWarnings(states map[string]keywordLocalState, remote map[string]VersionLocalization, submitOpts shared.SubmitReadinessOptions) []MetadataKeywordsWarning {
 	patches := keywordLocalStateToPatches(states)
-	createWarnings := versionCreateWarningsForPatches(patches, remote, shared.SubmitReadinessCreateModePlanned)
+	createWarnings := versionCreateWarningsForPatches(patches, remote, shared.SubmitReadinessCreateModePlanned, submitOpts)
 	warnings := make([]MetadataKeywordsWarning, 0, len(createWarnings))
 	for _, warning := range createWarnings {
 		warnings = append(warnings, MetadataKeywordsWarning{

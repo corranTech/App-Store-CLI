@@ -1595,7 +1595,12 @@ func TestMetadataKeywordsApplyCreatesLocale(t *testing.T) {
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps/app-1/appStoreVersions":
+			if strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D") {
+				return metadataKeywordsJSONResponse(`{"data":[],"links":{"next":""}}`)
+			}
 			return metadataKeywordsJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`)
+		case "/v1/appStoreVersions/version-1":
+			return metadataKeywordsJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			if req.Method != http.MethodGet {
 				t.Fatalf("expected GET for localizations, got %s", req.Method)
