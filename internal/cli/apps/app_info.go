@@ -380,7 +380,7 @@ Examples:
 				}
 			}
 
-			batchResult, err := runAppInfoSetBatch(
+			batchResult, warnings, err := runAppInfoSetBatch(
 				requestCtx,
 				client,
 				resolvedAppID,
@@ -392,6 +392,9 @@ Examples:
 				return fmt.Errorf("apps info edit: %w", err)
 			}
 			if err := shared.PrintOutput(batchResult, *output.Output, *output.Pretty); err != nil {
+				return err
+			}
+			if err := shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings); err != nil {
 				return err
 			}
 			if batchResult.Failed > 0 {
@@ -490,8 +493,13 @@ func runAppInfoSetSingleLocale(
 		if createErr != nil {
 			return fmt.Errorf("apps info edit: %w", createErr)
 		}
-		warnAppInfoSetSubmitIncompleteLocale(locale, effectiveAttrs)
-		return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		if err := shared.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
+			return err
+		}
+		if warning, ok := shared.SubmitReadinessCreateWarningForLocale(locale, effectiveAttrs, shared.SubmitReadinessCreateModeApplied); ok {
+			return shared.PrintSubmitReadinessCreateWarnings(os.Stderr, []shared.SubmitReadinessCreateWarning{warning})
+		}
+		return nil
 	}
 
 	localizationID := strings.TrimSpace(targetLocalization.ID)
@@ -502,8 +510,11 @@ func runAppInfoSetSingleLocale(
 	if updateErr != nil {
 		return fmt.Errorf("apps info edit: %w", updateErr)
 	}
+	if err := shared.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
+		return err
+	}
 	warnAppInfoSetSubmitIncompleteLocale(locale, effectiveAttrs)
-	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+	return nil
 }
 
 func runAppInfoSetBatch(
@@ -513,9 +524,9 @@ func runAppInfoSetBatch(
 	versionID string,
 	valuesByLocale map[string]asc.AppStoreVersionLocalizationAttributes,
 	dryRun bool,
-) (*asc.AppInfoSetBatchResult, error) {
+) (*asc.AppInfoSetBatchResult, []shared.SubmitReadinessCreateWarning, error) {
 	if len(valuesByLocale) == 0 {
-		return nil, fmt.Errorf("no locales to update")
+		return nil, nil, fmt.Errorf("no locales to update")
 	}
 
 	localizations, err := client.GetAppStoreVersionLocalizations(
@@ -524,7 +535,7 @@ func runAppInfoSetBatch(
 		asc.WithAppStoreVersionLocalizationsLimit(200),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch localizations: %w", err)
+		return nil, nil, fmt.Errorf("failed to fetch localizations: %w", err)
 	}
 
 	existingByLocale := make(map[string]string, len(localizations.Data))
@@ -544,6 +555,7 @@ func runAppInfoSetBatch(
 
 	results := make([]asc.AppInfoSetLocaleResult, len(locales))
 	if dryRun {
+		warnings := make([]shared.SubmitReadinessCreateWarning, 0, len(locales))
 		for idx, locale := range locales {
 			existingID := existingByLocale[strings.ToLower(locale)]
 			action := "create"
@@ -556,8 +568,13 @@ func runAppInfoSetBatch(
 				Status:         "planned",
 				LocalizationID: existingID,
 			}
+			if existingID == "" {
+				if warning, ok := shared.SubmitReadinessCreateWarningForLocale(locale, valuesByLocale[locale], shared.SubmitReadinessCreateModePlanned); ok {
+					warnings = append(warnings, warning)
+				}
+			}
 		}
-		return buildAppInfoSetBatchResult(appID, versionID, true, results), nil
+		return buildAppInfoSetBatchResult(appID, versionID, true, results), shared.NormalizeSubmitReadinessCreateWarnings(warnings), nil
 	}
 
 	workers := len(locales)
@@ -620,7 +637,17 @@ func runAppInfoSetBatch(
 	}
 	wg.Wait()
 
-	return buildAppInfoSetBatchResult(appID, versionID, false, results), nil
+	warnings := make([]shared.SubmitReadinessCreateWarning, 0, len(locales))
+	for idx, locale := range locales {
+		if results[idx].Action != "create" || results[idx].Status != "success" {
+			continue
+		}
+		if warning, ok := shared.SubmitReadinessCreateWarningForLocale(locale, valuesByLocale[locale], shared.SubmitReadinessCreateModeApplied); ok {
+			warnings = append(warnings, warning)
+		}
+	}
+
+	return buildAppInfoSetBatchResult(appID, versionID, false, results), shared.NormalizeSubmitReadinessCreateWarnings(warnings), nil
 }
 
 func buildAppInfoSetBatchResult(appID string, versionID string, dryRun bool, results []asc.AppInfoSetLocaleResult) *asc.AppInfoSetBatchResult {
