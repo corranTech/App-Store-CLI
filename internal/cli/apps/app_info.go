@@ -510,6 +510,11 @@ func runAppInfoSetSingleLocale(
 	)
 
 	if !targetExists {
+		if !submitOpts.RequireWhatsNew &&
+			!appInfoSetValuesNeedUpdateContext(attrs) &&
+			appInfoSetValuesNeedUpdateContext(effectiveAttrs) {
+			submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(ctx, client, versionID, "", "")
+		}
 		updateAttrs.Locale = locale
 		resp, createErr := client.CreateAppStoreVersionLocalization(ctx, versionID, updateAttrs)
 		if createErr != nil {
