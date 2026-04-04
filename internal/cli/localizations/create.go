@@ -82,7 +82,15 @@ Examples:
 				return fmt.Errorf("localizations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			warnings := make([]shared.SubmitReadinessCreateWarning, 0, 1)
+			if warning, ok := shared.SubmitReadinessCreateWarningForLocale(localeValue, attrs, shared.SubmitReadinessCreateModeApplied); ok {
+				warnings = append(warnings, warning)
+			}
+
+			if err := shared.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
+				return err
+			}
+			return shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings)
 		},
 	}
 }
