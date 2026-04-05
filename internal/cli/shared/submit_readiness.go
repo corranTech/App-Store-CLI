@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -76,4 +77,24 @@ func SubmitReadinessIssuesByLocaleWithOptions(localizations []asc.Resource[asc.A
 		return issues[i].Locale < issues[j].Locale
 	})
 	return issues
+}
+
+// SubmitIncompleteLocaleWarning returns a user-facing warning when a locale is
+// missing submit-required metadata fields.
+func SubmitIncompleteLocaleWarning(locale string, attrs asc.AppStoreVersionLocalizationAttributes) string {
+	missing := MissingSubmitRequiredLocalizationFields(attrs)
+	if len(missing) == 0 {
+		return ""
+	}
+
+	trimmedLocale := strings.TrimSpace(locale)
+	if trimmedLocale == "" {
+		trimmedLocale = "<unknown>"
+	}
+
+	return fmt.Sprintf(
+		"Warning: locale %s is missing submit-required fields: %s. This may block `asc publish appstore --submit`.\n",
+		trimmedLocale,
+		strings.Join(missing, ", "),
+	)
 }

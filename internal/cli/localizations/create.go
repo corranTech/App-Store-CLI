@@ -82,6 +82,10 @@ Examples:
 				return fmt.Errorf("localizations create: failed to create: %w", err)
 			}
 
+			if warning := shared.SubmitIncompleteLocaleWarning(resp.Data.Attributes.Locale, resp.Data.Attributes); warning != "" {
+				fmt.Fprint(os.Stderr, warning)
+			}
+
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
