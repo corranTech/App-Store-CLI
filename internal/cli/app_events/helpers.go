@@ -12,7 +12,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-const appEventAssetUploadDefaultTimeout = 10 * time.Minute
+const (
+	appEventAssetUploadDefaultTimeout = 10 * time.Minute
+	appEventCreateScheduleWarning     = "Warning: App Store Connect currently returns HTTP 500 when app event territorySchedules are included on create. Ignoring --start, --end, --publish-start, and --territories and creating the event without a schedule. Configure the schedule in App Store Connect after creation."
+)
 
 var appEventPurchaseRequirementSanitizer = strings.NewReplacer("_", "", "-", "", " ", "")
 
@@ -133,6 +136,32 @@ func buildAppEventTerritorySchedule(territories []string, publishStart, start, e
 		schedule.PublishStart = publishStart
 	}
 	return schedule
+}
+
+func normalizeAppEventTerritorySchedule(start, end, publishStart, territories string) (asc.AppEventTerritorySchedule, bool, error) {
+	scheduleProvided := strings.TrimSpace(start) != "" ||
+		strings.TrimSpace(end) != "" ||
+		strings.TrimSpace(publishStart) != "" ||
+		strings.TrimSpace(territories) != ""
+	if !scheduleProvided {
+		return asc.AppEventTerritorySchedule{}, false, nil
+	}
+
+	startValue, err := normalizeRFC3339(start, "--start", true)
+	if err != nil {
+		return asc.AppEventTerritorySchedule{}, false, err
+	}
+	endValue, err := normalizeRFC3339(end, "--end", true)
+	if err != nil {
+		return asc.AppEventTerritorySchedule{}, false, err
+	}
+	publishValue, err := normalizeRFC3339(publishStart, "--publish-start", false)
+	if err != nil {
+		return asc.AppEventTerritorySchedule{}, false, err
+	}
+	territoryValues := shared.SplitCSVUpper(territories)
+
+	return buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue), true, nil
 }
 
 func resolveAppEventLocalizationID(ctx context.Context, client *asc.Client, eventID, localizationID, locale string) (string, error) {
