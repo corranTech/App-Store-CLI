@@ -282,44 +282,30 @@ Examples:
 
 // PricingPricePointsEqualizationsCommand returns the price point equalizations subcommand.
 func PricingPricePointsEqualizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing price-points equalizations", flag.ExitOnError)
-
-	pricePointID := fs.String("price-point", "", "App price point ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "equalizations",
-		ShortUsage: "asc pricing price-points equalizations --price-point PRICE_POINT_ID",
-		ShortHelp:  "List equalized price points for a price point.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "pricing price-points equalizations",
+		Name:        "equalizations",
+		ShortUsage:  "asc pricing price-points equalizations --price-point PRICE_POINT_ID [--limit N] [--next URL] [--paginate]",
+		ShortHelp:   "List equalized price points for a price point.",
 		LongHelp: `List equalized price points for a price point.
 
 Examples:
-  asc pricing price-points equalizations --price-point "PRICE_POINT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedPricePointID := strings.TrimSpace(*pricePointID)
-			if trimmedPricePointID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --price-point is required")
-				return flag.ErrHelp
+  asc pricing price-points equalizations --price-point "PRICE_POINT_ID"
+  asc pricing price-points equalizations --price-point "PRICE_POINT_ID" --limit 175
+  asc pricing price-points equalizations --price-point "PRICE_POINT_ID" --paginate
+  asc pricing price-points equalizations --next "NEXT_URL"`,
+		ParentFlag:  "price-point",
+		ParentUsage: "App price point ID",
+		LimitMax:    200,
+		ErrorPrefix: "pricing price-points equalizations",
+		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string) (asc.PaginatedResponse, error) {
+			opts := []asc.PricePointsOption{
+				asc.WithPricePointsLimit(limit),
+				asc.WithPricePointsNextURL(next),
 			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("pricing price-points equalizations: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppPricePointEqualizations(requestCtx, trimmedPricePointID)
-			if err != nil {
-				return fmt.Errorf("pricing price-points equalizations: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetAppPricePointEqualizations(ctx, pricePointID, opts...)
 		},
-	}
+	})
 }
 
 // PricingScheduleCommand returns the pricing schedule command group.
