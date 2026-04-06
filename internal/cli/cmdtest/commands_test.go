@@ -3430,6 +3430,9 @@ func TestLocalizationsCreateInvalidLocale(t *testing.T) {
 }
 
 func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing-config.json"))
+
 	tests := []struct {
 		name    string
 		args    []string
