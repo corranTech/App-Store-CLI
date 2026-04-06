@@ -85,6 +85,60 @@ func TestUploadScreenshotsFanoutUsesLocaleDirectoriesForResolvedVersion(t *testi
 	}
 }
 
+func TestResolveAppScopedScreenshotPlatformDefaultsIOSOnlyForVersionLookup(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		platform string
+		want     string
+		wantErr  string
+	}{
+		{
+			name:    "version lookup defaults to ios",
+			version: "1.2.3",
+			want:    "IOS",
+		},
+		{
+			name:    "version id lookup keeps platform empty",
+			version: "",
+			want:    "",
+		},
+		{
+			name:     "explicit platform is normalized",
+			version:  "1.2.3",
+			platform: "mac_os",
+			want:     "MAC_OS",
+		},
+		{
+			name:     "invalid explicit platform fails",
+			version:  "1.2.3",
+			platform: "ANDROID",
+			wantErr:  "--platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveAppScopedScreenshotPlatform(tt.version, tt.platform)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolveAppScopedScreenshotPlatform() error: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("resolveAppScopedScreenshotPlatform() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUploadScreenshotsFanoutErrorsWhenLocalLocaleHasNoRemoteMatch(t *testing.T) {
 	rootDir := t.TempDir()
 	jaDir := filepath.Join(rootDir, "ja", "iphone")

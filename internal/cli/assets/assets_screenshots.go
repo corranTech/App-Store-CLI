@@ -175,6 +175,17 @@ func resolveScreenshotUploadExecutor(
 	return executeAppScreenshotUpload
 }
 
+func resolveAppScopedScreenshotPlatform(version, platformValue string) (string, error) {
+	trimmedPlatform := strings.TrimSpace(platformValue)
+	if trimmedPlatform != "" {
+		return shared.NormalizeAppStoreVersionPlatform(trimmedPlatform)
+	}
+	if strings.TrimSpace(version) != "" {
+		return "IOS", nil
+	}
+	return "", nil
+}
+
 func buildFanoutLocalizationUploadResult(locale string, uploadResult asc.AppScreenshotUploadResult) asc.AppScreenshotLocalizationUploadResult {
 	return asc.AppScreenshotLocalizationUploadResult{
 		Locale:                locale,
@@ -586,13 +597,9 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		return &result, err
 	}
 
-	normalizedPlatform := "IOS"
-	if platformValue != "" {
-		normalizedPlatformValue, platformErr := shared.NormalizeAppStoreVersionPlatform(platformValue)
-		if platformErr != nil {
-			return nil, shared.UsageError(platformErr.Error())
-		}
-		normalizedPlatform = normalizedPlatformValue
+	normalizedPlatform, err := resolveAppScopedScreenshotPlatform(versionValue, platformValue)
+	if err != nil {
+		return nil, shared.UsageError(err.Error())
 	}
 
 	localeAssets, err := collectLocaleAssetFiles(pathValue, apiDisplayType)
