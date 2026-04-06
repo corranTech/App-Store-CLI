@@ -208,6 +208,8 @@ func init() {
 		if len(v.Localizations) > 0 {
 			lh, lr := appScreenshotFanoutUploadLocalizationRows(v)
 			render(lh, lr)
+			ih, ir := appScreenshotFanoutUploadResultItemRows(v)
+			render(ih, ir)
 		}
 		return nil
 	})

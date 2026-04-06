@@ -192,7 +192,11 @@ asc screenshots upload --app "123456789" \
 
 For app/version fan-out uploads, structure `--path` with locale directories such as
 `./screenshots/en-US/iphone/*.png` and `./screenshots/fr-FR/iphone/*.png`.
-Each locale directory is matched against the remote App Store version localizations.
+Each locale directory is matched against the remote App Store version
+localizations, and only files matching the selected `--device-type` are
+uploaded from each locale subtree. A device-rooted layout such as
+`./screenshots/iphone/en-US/*.png` also works when `--path` points at
+`./screenshots/iphone`.
 
 **File Requirements:**
 

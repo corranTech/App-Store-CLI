@@ -46,3 +46,23 @@ func TestScreenshotsUploadRejectsMixingDirectAndAppScopedSelectors(t *testing.T)
 		t.Fatalf("expected direct/app-scoped selector conflict error, got %q", stderr)
 	}
 }
+
+func TestScreenshotsUploadAppScopedModeRespectsASCAppIDFallback(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "123456789")
+
+	stdout, stderr, runErr := runRootCommand(t, []string{
+		"screenshots", "upload",
+		"--path", "./screenshots",
+		"--device-type", "IPHONE_65",
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "Error: --version or --version-id is required with --app") {
+		t.Fatalf("expected missing app-scoped version selector error, got %q", stderr)
+	}
+}

@@ -253,6 +253,30 @@ func appScreenshotFanoutUploadLocalizationRows(result *AppScreenshotFanoutUpload
 	return headers, rows
 }
 
+func appScreenshotFanoutUploadResultItemRows(result *AppScreenshotFanoutUploadResult) ([]string, [][]string) {
+	headers := []string{"Locale", "File Name", "Asset ID", "State"}
+	rows := make([][]string, 0)
+	for _, localization := range result.Localizations {
+		if len(localization.Results) == 0 {
+			rows = append(rows, []string{localization.Locale, "", "", ""})
+			continue
+		}
+		for _, item := range localization.Results {
+			state := item.State
+			if item.Skipped && state == "" {
+				state = "skipped"
+			}
+			rows = append(rows, []string{
+				localization.Locale,
+				item.FileName,
+				item.AssetID,
+				state,
+			})
+		}
+	}
+	return headers, rows
+}
+
 func appPreviewUploadResultMainRows(result *AppPreviewUploadResult) ([]string, [][]string) {
 	headers := []string{"Localization ID", "Set ID", "Preview Type", "Dry Run"}
 	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.PreviewType, fmt.Sprintf("%t", result.DryRun)}}

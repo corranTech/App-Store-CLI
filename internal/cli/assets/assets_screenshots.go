@@ -99,6 +99,7 @@ type screenshotUploadFanoutConfig struct {
 	VersionID    string
 	Platform     string
 	RootPath     string
+	LocaleAssets []screenshotLocaleAssetFiles
 	DisplayType  string
 	SkipExisting bool
 	Replace      bool
@@ -338,13 +339,16 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "upload",
 		ShortUsage: "asc screenshots upload (--version-localization \"LOC_ID\" | --app \"APP_ID\" (--version \"1.2.3\" | --version-id \"VERSION_ID\")) --path \"./screenshots\" --device-type \"IPHONE_65\"",
-		ShortHelp:  "Upload screenshots for a localization.",
-		LongHelp: `Upload screenshots for a localization.
+		ShortHelp:  "Upload screenshots for one or more localizations.",
+		LongHelp: `Upload screenshots for one or more localizations.
 
 Use --version-localization for a single localization upload, or use --app with
 --version/--version-id to fan out one run across locale directories under
---path. In fan-out mode, each immediate locale directory can contain
-screenshots at any depth, for example ./screenshots/en-US/iphone/*.png.
+--path. In fan-out mode, the immediate children of --path must be locale
+directories. Each locale subtree is scanned recursively, and only files
+matching --device-type are uploaded. This supports layouts like
+./screenshots/en-US/iphone/*.png, or ./screenshots/iphone/en-US/*.png when
+--path points to ./screenshots/iphone.
 
 Examples:
   asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
@@ -354,7 +358,7 @@ Examples:
   asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPAD_PRO_3GEN_129"
   asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"
   asc screenshots upload --app "123456789" --version "1.2.3" --path "./screenshots" --device-type "IPHONE_65"
-  asc screenshots upload --app "123456789" --version-id "VERSION_ID" --path "./screenshots" --device-type "IPHONE_65" --dry-run`,
+  asc screenshots upload --app "123456789" --version-id "VERSION_ID" --path "./screenshots/ipad" --device-type "IPAD_PRO_3GEN_129" --dry-run`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -401,9 +405,14 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	versionValue := strings.TrimSpace(opts.Version)
 	versionIDValue := strings.TrimSpace(opts.VersionID)
 	platformValue := strings.TrimSpace(opts.Platform)
+	resolvedAppValue := ""
 
 	if locID == "" {
-		if appFlagValue == "" && versionValue == "" && versionIDValue == "" && platformValue == "" {
+		resolvedAppValue = shared.ResolveAppID(appFlagValue)
+	}
+
+	if locID == "" {
+		if resolvedAppValue == "" && versionValue == "" && versionIDValue == "" && platformValue == "" {
 			fmt.Fprintln(os.Stderr, "Error: --version-localization is required")
 			return nil, flag.ErrHelp
 		}
@@ -413,8 +422,7 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	}
 
 	if locID == "" {
-		appValue := shared.ResolveAppID(opts.AppID)
-		if appValue == "" {
+		if resolvedAppValue == "" {
 			fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 			return nil, flag.ErrHelp
 		}
@@ -426,7 +434,7 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 			fmt.Fprintln(os.Stderr, "Error: --version and --version-id are mutually exclusive")
 			return nil, flag.ErrHelp
 		}
-		appFlagValue = appValue
+		appFlagValue = resolvedAppValue
 	}
 
 	pathValue := strings.TrimSpace(opts.Path)
@@ -450,11 +458,6 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	}
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 
-	client, err := deps.GetClient()
-	if err != nil {
-		return nil, err
-	}
-
 	if locID != "" {
 		files, err := collectAssetFiles(pathValue)
 		if err != nil {
@@ -463,11 +466,25 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
 			return nil, err
 		}
+		client, err := deps.GetClient()
+		if err != nil {
+			return nil, err
+		}
 		result, err := deps.UploadScreenshot(ctx, client, locID, apiDisplayType, files, opts.SkipExisting, opts.Replace, opts.DryRun)
 		if err != nil {
 			return nil, err
 		}
 		return &result, nil
+	}
+
+	localeAssets, err := collectLocaleAssetFiles(pathValue, apiDisplayType)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := deps.GetClient()
+	if err != nil {
+		return nil, err
 	}
 
 	normalizedPlatform := "IOS"
@@ -497,6 +514,7 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		VersionID:        resolvedVersionID,
 		Platform:         resolvedPlatform,
 		RootPath:         pathValue,
+		LocaleAssets:     localeAssets,
 		DisplayType:      apiDisplayType,
 		SkipExisting:     opts.SkipExisting,
 		Replace:          opts.Replace,
@@ -523,13 +541,12 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 		cfg.UploadScreenshot = uploadScreenshots
 	}
 
-	localeAssets, err := collectLocaleAssetFiles(cfg.RootPath)
-	if err != nil {
-		return zero, err
-	}
-	for _, item := range localeAssets {
-		if err := validateScreenshotDimensions(item.Files, cfg.DisplayType); err != nil {
-			return zero, fmt.Errorf("locale %s: %w", item.Locale, err)
+	localeAssets := cfg.LocaleAssets
+	if localeAssets == nil {
+		var err error
+		localeAssets, err = collectLocaleAssetFiles(cfg.RootPath, cfg.DisplayType)
+		if err != nil {
+			return zero, err
 		}
 	}
 
@@ -589,7 +606,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 	return result, nil
 }
 
-func collectLocaleAssetFiles(rootPath string) ([]screenshotLocaleAssetFiles, error) {
+func collectLocaleAssetFiles(rootPath, displayType string) ([]screenshotLocaleAssetFiles, error) {
 	info, err := os.Lstat(rootPath)
 	if err != nil {
 		return nil, err
@@ -616,7 +633,7 @@ func collectLocaleAssetFiles(rootPath string) ([]screenshotLocaleAssetFiles, err
 		if err != nil {
 			return nil, fmt.Errorf("invalid locale directory %q: %w", entry.Name(), err)
 		}
-		files, err := collectLocaleAssetFilesRecursive(filepath.Join(rootPath, entry.Name()))
+		files, err := collectLocaleAssetFilesRecursive(filepath.Join(rootPath, entry.Name()), displayType)
 		if err != nil {
 			return nil, fmt.Errorf("locale %s: %w", locale, err)
 		}
@@ -636,7 +653,7 @@ func collectLocaleAssetFiles(rootPath string) ([]screenshotLocaleAssetFiles, err
 	return results, nil
 }
 
-func collectLocaleAssetFilesRecursive(rootPath string) ([]string, error) {
+func collectLocaleAssetFilesRecursive(rootPath, displayType string) ([]string, error) {
 	files := make([]string, 0)
 	err := filepath.WalkDir(rootPath, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -659,17 +676,42 @@ func collectLocaleAssetFilesRecursive(rootPath string) ([]string, error) {
 		if err := asc.ValidateImageFile(path); err != nil {
 			return err
 		}
-		files = append(files, path)
+		matches, err := screenshotMatchesDisplayType(path, displayType)
+		if err != nil {
+			return err
+		}
+		if matches {
+			files = append(files, path)
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no files found in %q", rootPath)
+		return nil, fmt.Errorf("no screenshot files matching %s found in %q", displayType, rootPath)
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+func screenshotMatchesDisplayType(path, displayType string) (bool, error) {
+	allowed, ok := asc.ScreenshotDimensions(displayType)
+	if !ok {
+		return false, fmt.Errorf("unsupported screenshot display type %q", displayType)
+	}
+
+	dims, err := asc.ReadImageDimensions(path)
+	if err != nil {
+		return false, err
+	}
+
+	for _, dim := range allowed {
+		if dim.Width == dims.Width && dim.Height == dims.Height {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 type screenshotDownloadItem struct {

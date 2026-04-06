@@ -387,6 +387,42 @@ func TestPrintTable_SkippedAssetUploadResultShowsSkippedState(t *testing.T) {
 	}
 }
 
+func TestPrintTableAndMarkdown_AppScreenshotFanoutUploadResultIncludesFlattenedFileRows(t *testing.T) {
+	resp := &AppScreenshotFanoutUploadResult{
+		AppID:       "123456789",
+		Version:     "1.2.3",
+		VersionID:   "version-1",
+		Platform:    "IOS",
+		DisplayType: "APP_IPHONE_65",
+		Localizations: []AppScreenshotLocalizationUploadResult{
+			{
+				Locale:                "en-US",
+				VersionLocalizationID: "loc-en",
+				SetID:                 "set-en",
+				DisplayType:           "APP_IPHONE_65",
+				Results: []AssetUploadResultItem{
+					{FileName: "01-home.png", AssetID: "shot-en-1", State: "COMPLETE"},
+				},
+			},
+		},
+	}
+
+	renderers := []struct {
+		name string
+		fn   func(any) error
+	}{
+		{name: "table", fn: PrintTable},
+		{name: "markdown", fn: PrintMarkdown},
+	}
+
+	for _, renderer := range renderers {
+		renderer := renderer
+		t.Run(renderer.name, func(t *testing.T) {
+			assertRenderedNonJSONContains(t, renderer.fn, resp, "Locale", "en-US", "01-home.png", "shot-en-1")
+		})
+	}
+}
+
 func TestPrintTableAndMarkdown_BuildUploadResultIncludesOperations(t *testing.T) {
 	resp := &BuildUploadResult{
 		UploadID: "UPLOAD_123",

@@ -123,3 +123,88 @@ func TestUploadScreenshotsFanoutErrorsWhenLocalLocaleHasNoRemoteMatch(t *testing
 		t.Fatalf("expected missing locale error, got %v", err)
 	}
 }
+
+func TestUploadScreenshotsFanoutFiltersMixedDeviceTreesBySelectedDisplayType(t *testing.T) {
+	rootDir := t.TempDir()
+	enIPhoneDir := filepath.Join(rootDir, "en-US", "iphone")
+	enIPadDir := filepath.Join(rootDir, "en-US", "ipad")
+	if err := os.MkdirAll(enIPhoneDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.MkdirAll(enIPadDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, enIPhoneDir, "01-home.png", 1242, 2688)
+	writeAssetsTestPNGWithSize(t, enIPadDir, "01-home.png", 2048, 2732)
+
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":
+			return assetsJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	result, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Client:      newAssetsUploadTestClient(t),
+		AppID:       "123456789",
+		Version:     "1.2.3",
+		VersionID:   "version-1",
+		Platform:    "IOS",
+		RootPath:    rootDir,
+		DisplayType: asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"),
+		DryRun:      true,
+	})
+	if err != nil {
+		t.Fatalf("uploadScreenshotsFanout() error: %v", err)
+	}
+
+	if len(result.Localizations) != 1 {
+		t.Fatalf("expected 1 localization result, got %d", len(result.Localizations))
+	}
+	if len(result.Localizations[0].Results) != 1 {
+		t.Fatalf("expected 1 selected file result, got %d", len(result.Localizations[0].Results))
+	}
+	if !strings.Contains(result.Localizations[0].Results[0].FilePath, filepath.Join("en-US", "iphone")) {
+		t.Fatalf("expected iPhone file to be selected, got %q", result.Localizations[0].Results[0].FilePath)
+	}
+}
+
+func TestExecuteScreenshotUploadCommandValidatesFanoutFilesBeforeClientCreation(t *testing.T) {
+	rootDir := t.TempDir()
+	enDir := filepath.Join(rootDir, "en-US")
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, enDir, "01-home.png", 100, 100)
+
+	clientCalled := false
+	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+		AppID:      "123456789",
+		Version:    "1.2.3",
+		Path:       rootDir,
+		DeviceType: "IPHONE_65",
+	}, screenshotUploadDependencies{
+		GetClient: func() (*asc.Client, error) {
+			clientCalled = true
+			return nil, nil
+		},
+	})
+	if err == nil {
+		t.Fatal("expected local validation error")
+	}
+	if clientCalled {
+		t.Fatal("expected client creation to be skipped on local validation failure")
+	}
+	if !strings.Contains(err.Error(), "no screenshot files matching APP_IPHONE_65 found") {
+		t.Fatalf("expected local validation error, got %v", err)
+	}
+}

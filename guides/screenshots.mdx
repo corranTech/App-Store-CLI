@@ -413,7 +413,11 @@ screenshots/
 ```
 
 The command resolves the app store version, fetches its version localizations,
-and uploads each locale subtree to the matching remote localization.
+and uploads each locale subtree to the matching remote localization. It only
+includes files whose dimensions match the selected `--device-type`, so mixed
+iPhone/iPad locale trees are safe as long as each locale contains the slot
+you are uploading. A device-rooted layout such as `screenshots/iphone/en-US`
+also works when `--path` points at `./screenshots/iphone`.
 
 ## Troubleshooting
 
