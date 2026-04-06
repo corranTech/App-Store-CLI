@@ -198,15 +198,53 @@ asc localizations upload --version "VERSION_ID" --path "./localizations" --dry-r
 
 ***
 
+### `asc localizations create`
+
+Create a new version localization.
+
+Use canonical App Store Connect locale identifiers for `--locale`. Common
+accepted forms include `en-US`, `es-MX`, `de-DE`, `ja`, `ar-SA`, `zh-Hans`, and
+`zh-Hant`.
+
+Common failures:
+
+* Use `ar-SA` instead of `ar`
+* Use `de-DE` instead of `de`
+* Use `zh-Hans` / `zh-Hant` instead of `zh-Hans-CN` / `zh-Hant-TW`
+
+**Examples:**
+
+```bash  theme={null}
+asc localizations create --version "VERSION_ID" --locale "ja"
+asc localizations create --version "VERSION_ID" --locale "ar-SA" --description "Arabic app" --keywords "arabic,productivity"
+asc localizations create --version "VERSION_ID" --locale "zh-Hans" --description "Simplified Chinese app" --keywords "simplified,chinese"
+```
+
+***
+
 ### `asc localizations update`
 
 Update localization metadata.
+
+Use the exact App Store Connect locale already present on the app or version
+when you pass `--locale`. If update fails with a locale mismatch, run
+`asc localizations list` and reuse the `locale` value returned by ASC.
+
+Common accepted forms include `en-US`, `de-DE`, `ja`, `ar-SA`, `zh-Hans`, and
+`zh-Hant`.
+
+Common failures:
+
+* `ar` is usually stored as `ar-SA`
+* `de` is usually stored as `de-DE`
+* `zh-Hans-CN` / `zh-Hant-TW` are usually stored as `zh-Hans` / `zh-Hant`
 
 **Examples:**
 
 ```bash  theme={null}
 asc localizations update --version "VERSION_ID" --locale "en-US" --description "New description"
 asc localizations update --version "VERSION_ID" --locale "en-US" --keywords "new,keywords"
+asc localizations update --app "APP_ID" --type app-info --locale "ar-SA" --subtitle "Arabic subtitle"
 ```
 
 ***
@@ -252,6 +290,10 @@ The .strings file format is a simple key-value format:
 
 ## Supported Locales
 
+Use canonical App Store Connect locale identifiers when possible. For example,
+prefer `ar-SA` over `ar`, and `zh-Hans` / `zh-Hant` over regional variants like
+`zh-Hans-CN` / `zh-Hant-TW`.
+
 Common locales include:
 
 * `en-US` - English (United States)
@@ -260,6 +302,8 @@ Common locales include:
 * `de-DE` - German (Germany)
 * `fr-FR` - French (France)
 * `es-ES` - Spanish (Spain)
+* `es-MX` - Spanish (Mexico)
+* `ar-SA` - Arabic
 * `zh-Hans` - Chinese (Simplified)
 * `zh-Hant` - Chinese (Traditional)
 * `ko` - Korean
