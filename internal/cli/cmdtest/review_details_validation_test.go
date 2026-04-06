@@ -226,10 +226,15 @@ func TestReviewDetailsForVersionReturnsNotConfiguredStateWhenUnset(t *testing.T)
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/appStoreVersions/version-1/appStoreReviewDetail" {
-			t.Fatalf("expected review detail path, got %s", req.URL.Path)
+		switch req.URL.Path {
+		case "/v1/appStoreVersions/version-1/appStoreReviewDetail":
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case "/v1/appStoreVersions/version-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0"}}}`)
+		default:
+			t.Fatalf("unexpected path %s", req.URL.Path)
+			return nil, nil
 		}
-		return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 	})
 
 	root := RootCommand("1.2.3")
@@ -264,5 +269,57 @@ func TestReviewDetailsForVersionReturnsNotConfiguredStateWhenUnset(t *testing.T)
 	}
 	if payload.Message == "" {
 		t.Fatal("expected message")
+	}
+}
+
+func TestReviewDetailsForVersionPreservesErrorForUnknownVersionID(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		switch req.URL.Path {
+		case "/v1/appStoreVersions/missing-version/appStoreReviewDetail":
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case "/v1/appStoreVersions/missing-version":
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		default:
+			t.Fatalf("unexpected path %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"review", "details-for-version", "--version-id", "missing-version", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(runErr.Error(), "review details-for-version: failed to fetch:") {
+		t.Fatalf("expected wrapped fetch error, got %v", runErr)
+	}
+	if strings.Contains(runErr.Error(), "not configured") {
+		t.Fatalf("expected unknown version to remain a hard error, got %v", runErr)
 	}
 }

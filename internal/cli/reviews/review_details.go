@@ -98,6 +98,9 @@ Examples:
 			resp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, versionValue)
 			if err != nil {
 				if asc.IsNotFound(err) {
+					if _, versionErr := client.GetAppStoreVersion(requestCtx, versionValue); versionErr != nil {
+						return fmt.Errorf("review details-for-version: failed to fetch: %w", versionErr)
+					}
 					message := reviewDetailNotConfiguredMessage(versionValue)
 					warnNotConfigured(message)
 					result := reviewDetailNotConfiguredResult{

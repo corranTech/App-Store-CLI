@@ -222,6 +222,9 @@ Examples:
 			resp, err := client.GetCustomerReviewResponseForReview(requestCtx, reviewIDValue)
 			if err != nil {
 				if asc.IsNotFound(err) {
+					if _, reviewErr := client.GetCustomerReview(requestCtx, reviewIDValue); reviewErr != nil {
+						return fmt.Errorf("reviews response for-review: failed to fetch: %w", reviewErr)
+					}
 					message := reviewResponseNotConfiguredMessage(reviewIDValue)
 					warnNotConfigured(message)
 					result := reviewResponseNotConfiguredResult{
