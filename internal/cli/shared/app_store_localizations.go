@@ -84,14 +84,6 @@ var appStoreLocalizationByFold = func() map[string]AppStoreLocalizationLocale {
 	return result
 }()
 
-var appStoreLocalizationCodeByFold = func() map[string]string {
-	result := make(map[string]string, len(appStoreLocalizationCatalog))
-	for _, locale := range appStoreLocalizationCatalog {
-		result[strings.ToLower(locale.Code)] = locale.Code
-	}
-	return result
-}()
-
 var supportedAppStoreLocalizationLocales = func() []string {
 	result := make([]string, 0, len(appStoreLocalizationCatalog))
 	for _, locale := range appStoreLocalizationCatalog {
@@ -150,8 +142,10 @@ func resolveAppStoreLocalizationLocale(value string) (string, bool, error) {
 	return normalized, false, nil
 }
 
-// CanonicalizeAppStoreLocalizationLocale validates a locale against the known catalog
-// and returns a helpful suggestion when the input is well-formed but unsupported.
+// CanonicalizeAppStoreLocalizationLocale canonicalizes known locale codes,
+// rejects shorthand roots when the catalog only supports region/script-specific
+// variants, and preserves unknown well-formed locale codes for forward
+// compatibility.
 func CanonicalizeAppStoreLocalizationLocale(value string) (string, error) {
 	normalized, known, err := resolveAppStoreLocalizationLocale(value)
 	if err != nil {
@@ -162,12 +156,11 @@ func CanonicalizeAppStoreLocalizationLocale(value string) (string, error) {
 	}
 
 	rootCandidates := appStoreLocalizationCandidatesByRoot[LocaleRoot(normalized)]
+	if !strings.EqualFold(normalized, LocaleRoot(normalized)) || len(rootCandidates) == 0 {
+		return normalized, nil
+	}
+
 	switch len(rootCandidates) {
-	case 0:
-		if suggestions := SuggestCanonicalLocaleCodes(normalized, supportedAppStoreLocalizationLocales, appStoreLocalizationCodeByFold); len(suggestions) > 0 {
-			return "", fmt.Errorf("unsupported locale %q; did you mean: %s", normalized, strings.Join(suggestions, ", "))
-		}
-		return "", fmt.Errorf("unsupported locale %q", normalized)
 	case 1:
 		return "", fmt.Errorf("unsupported locale %q; did you mean: %s", normalized, rootCandidates[0])
 	default:

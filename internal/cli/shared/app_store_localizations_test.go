@@ -45,6 +45,8 @@ func TestCanonicalizeAppStoreLocalizationLocale(t *testing.T) {
 		{input: "EN-gb", want: "en-GB"},
 		{input: "sl-si", want: "sl-SI"},
 		{input: "bn-BD", want: "bn-BD"},
+		{input: "en-IN", want: "en-IN"},
+		{input: "eo", want: "eo"},
 	}
 
 	for _, test := range tests {
@@ -60,15 +62,33 @@ func TestCanonicalizeAppStoreLocalizationLocale(t *testing.T) {
 	}
 }
 
-func TestCanonicalizeAppStoreLocalizationLocaleRejectsUnsupportedLocale(t *testing.T) {
-	_, err := CanonicalizeAppStoreLocalizationLocale("en-IN")
-	if err == nil {
-		t.Fatal("expected unsupported locale error")
+func TestCanonicalizeAppStoreLocalizationLocaleRejectsRootShorthand(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{
+			input: "nl",
+			want:  []string{`unsupported locale "nl"`, "nl-NL"},
+		},
+		{
+			input: "en",
+			want:  []string{`unsupported locale "en"`, "use one of", "en-AU", "en-US"},
+		},
 	}
 
-	for _, want := range []string{`unsupported locale "en-IN"`, "en-AU", "en-CA", "en-GB", "en-US"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("expected error to contain %q, got %v", want, err)
-		}
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			_, err := CanonicalizeAppStoreLocalizationLocale(test.input)
+			if err == nil {
+				t.Fatal("expected unsupported locale error")
+			}
+
+			for _, want := range test.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("expected error to contain %q, got %v", want, err)
+				}
+			}
+		})
 	}
 }

@@ -156,6 +156,54 @@ func TestLocalizationsUpdate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T
 	}
 }
 
+func TestLocalizationsUpdate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
+	setupLocUpdateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	var patchBody string
+	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+			return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"en-IN","description":"Old"}}],"links":{}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-forward":
+			body, _ := io.ReadAll(req.Body)
+			patchBody = string(body)
+			return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"en-IN","description":"Updated description"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"localizations", "update",
+			"--version", "ver-1",
+			"--locale", "en-IN",
+			"--description", "Updated description",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(patchBody, "Updated description") {
+		t.Fatalf("expected patch body to contain updated description, got %s", patchBody)
+	}
+	if !strings.Contains(stdout, `"locale":"en-IN"`) {
+		t.Fatalf("expected forward-compatible locale in output, got %q", stdout)
+	}
+}
+
 func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 	setupLocUpdateAuth(t)
 
