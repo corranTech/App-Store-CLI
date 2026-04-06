@@ -362,6 +362,13 @@ echo "Screenshots uploaded successfully!"
 asc screenshots list --version-localization "$EN_US_LOC_ID"
 ```
 
+If an upload stops partway through, the command prints a failure artifact path like
+`.asc/reports/screenshots-upload/failures-123.json`. Resume the remaining files with:
+
+```bash  theme={null}
+asc screenshots upload --resume ".asc/reports/screenshots-upload/failures-123.json"
+```
+
 ## Preview Videos
 
 Upload app preview videos:
@@ -418,6 +425,10 @@ includes files whose dimensions match the selected `--device-type`, so mixed
 iPhone/iPad locale trees are safe as long as each locale contains the slot
 you are uploading. A device-rooted layout such as `screenshots/iphone/en-US`
 also works when `--path` points at `./screenshots/iphone`.
+
+For CI or large locale batches, save the printed failure artifact as a workflow
+artifact so a rerun can continue with
+`asc screenshots upload --resume <artifact>`.
 
 ## Troubleshooting
 

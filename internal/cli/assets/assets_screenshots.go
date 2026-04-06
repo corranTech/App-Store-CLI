@@ -340,6 +340,7 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Platform for app-scoped fan-out uploads: IOS, MAC_OS, TV_OS, VISION_OS (default: IOS)")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65 or IPAD_PRO_3GEN_129)")
+	resume := fs.String("resume", "", "Resume a previous upload from a failure artifact")
 	skipExisting := fs.Bool("skip-existing", false, "Skip files whose MD5 checksum already exists in the target screenshot set")
 	replace := fs.Bool("replace", false, "Delete all existing screenshots from the target set before uploading")
 	dryRun := fs.Bool("dry-run", false, "Show what would be uploaded, skipped, or deleted without making changes")
@@ -367,10 +368,34 @@ Examples:
   asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPAD_PRO_3GEN_129"
   asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"
   asc screenshots upload --app "123456789" --version "1.2.3" --path "./screenshots" --device-type "IPHONE_65"
-  asc screenshots upload --app "123456789" --version-id "VERSION_ID" --path "./screenshots/ipad" --device-type "IPAD_PRO_3GEN_129" --dry-run`,
+  asc screenshots upload --app "123456789" --version-id "VERSION_ID" --path "./screenshots/ipad" --device-type "IPAD_PRO_3GEN_129" --dry-run
+  asc screenshots upload --resume ".asc/reports/screenshots-upload/failures-123.json"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			resumePath := strings.TrimSpace(*resume)
+			if resumePath != "" {
+				if strings.TrimSpace(*localizationID) != "" || strings.TrimSpace(*path) != "" || strings.TrimSpace(*deviceType) != "" {
+					return shared.UsageError("--resume cannot be combined with --version-localization, --path, or --device-type")
+				}
+				if *skipExisting || *replace || *dryRun {
+					return shared.UsageError("--resume cannot be combined with --skip-existing, --replace, or --dry-run")
+				}
+
+				client, err := shared.GetASCClient()
+				if err != nil {
+					return fmt.Errorf("screenshots upload: %w", err)
+				}
+
+				result, err := resumeAppScreenshotUpload(ctx, client, resumePath)
+				if hasAppScreenshotUploadResultOutput(result) {
+					if printErr := shared.PrintOutput(&result, *output.Output, *output.Pretty); printErr != nil {
+						return printErr
+					}
+				}
+				return err
+			}
+
 			result, err := executeScreenshotUploadCommand(ctx, screenshotUploadCommandOptions{
 				VersionLocalizationID: *localizationID,
 				AppID:                 *appID,
@@ -387,13 +412,24 @@ Examples:
 				RequestContext:   shared.ContextWithTimeout,
 				UploadScreenshot: uploadScreenshots,
 			})
+			if result != nil {
+				shouldPrint := err == nil
+				if appResult, ok := result.(*asc.AppScreenshotUploadResult); ok && hasAppScreenshotUploadResultOutput(*appResult) {
+					shouldPrint = true
+				}
+				if shouldPrint {
+					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
+						return printErr
+					}
+				}
+			}
 			if err != nil {
 				if errors.Is(err, flag.ErrHelp) {
 					return err
 				}
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return nil
 		},
 	}
 }
@@ -476,11 +512,19 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		if err != nil {
 			return nil, err
 		}
-		result, err := deps.UploadScreenshot(ctx, client, locID, apiDisplayType, files, opts.SkipExisting, opts.Replace, opts.DryRun)
-		if err != nil {
-			return nil, err
-		}
-		return &result, nil
+		result, err := executeAppScreenshotUpload(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+			Client:         client,
+			LocalizationID: locID,
+			DisplayType:    apiDisplayType,
+			Files:          files,
+			SkipExisting:   opts.SkipExisting,
+			Replace:        opts.Replace,
+			DryRun:         opts.DryRun,
+			RequestContext: shared.ContextWithTimeout,
+			UploadContext:  contextWithAssetUploadTimeout,
+			Access:         appStoreVersionScreenshotSetAccess,
+		}, "")
+		return &result, err
 	}
 
 	normalizedPlatform := "IOS"
@@ -1276,7 +1320,7 @@ func ValidateScreenshotDimensions(files []string, displayType string) error {
 }
 
 func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace, dryRun bool) (asc.AppScreenshotUploadResult, error) {
-	return uploadScreenshotsWithConfig(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+	result, err := uploadScreenshotsWithConfig(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
 		Client:         client,
 		LocalizationID: localizationID,
 		DisplayType:    displayType,
@@ -1288,15 +1332,10 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, 
 		UploadContext:  contextWithAssetUploadTimeout,
 		Access:         appStoreVersionScreenshotSetAccess,
 		BuildResult: func(localizationID string, set asc.Resource[asc.AppScreenshotSetAttributes], dryRun bool, results []asc.AssetUploadResultItem) asc.AppScreenshotUploadResult {
-			return asc.AppScreenshotUploadResult{
-				VersionLocalizationID: localizationID,
-				SetID:                 set.ID,
-				DisplayType:           set.Attributes.ScreenshotDisplayType,
-				DryRun:                dryRun,
-				Results:               results,
-			}
+			return buildAppScreenshotUploadResult(localizationID, set, dryRun, results)
 		},
 	})
+	return result, err
 }
 
 func findScreenshotSetWithAccess(ctx context.Context, client *asc.Client, localizationID, displayType string, access ScreenshotSetAccess) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
