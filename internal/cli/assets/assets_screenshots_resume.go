@@ -37,13 +37,6 @@ type screenshotUploadPreparedState struct {
 	OrderedIDs          []string
 }
 
-type screenshotUploadProgress struct {
-	Results      []asc.AssetUploadResultItem
-	OrderedIDs   []string
-	PendingFiles []string
-	FailedFile   string
-}
-
 func buildAppScreenshotUploadResult(localizationID string, set asc.Resource[asc.AppScreenshotSetAttributes], dryRun bool, results []asc.AssetUploadResultItem) asc.AppScreenshotUploadResult {
 	result := asc.AppScreenshotUploadResult{
 		VersionLocalizationID: localizationID,
@@ -95,6 +88,33 @@ func hasAppScreenshotUploadResultOutput(result asc.AppScreenshotUploadResult) bo
 		len(result.Results) > 0 ||
 		len(result.Failures) > 0 ||
 		strings.TrimSpace(result.FailureArtifactPath) != ""
+}
+
+func appendScreenshotUploadFailure(result *asc.AppScreenshotUploadResult, progress screenshotUploadProgress, uploadErr error) {
+	if result == nil || uploadErr == nil {
+		return
+	}
+
+	if strings.TrimSpace(progress.FailedFile) != "" {
+		result.Failures = append(result.Failures, asc.AssetUploadFailureItem{
+			FileName: filepath.Base(progress.FailedFile),
+			FilePath: progress.FailedFile,
+			Error:    uploadErr.Error(),
+		})
+		return
+	}
+
+	result.Failures = append(result.Failures, asc.AssetUploadFailureItem{
+		FileName: "screenshot ordering",
+		Error:    uploadErr.Error(),
+	})
+}
+
+func screenshotUploadRetryError(progress screenshotUploadProgress) error {
+	if len(progress.PendingFiles) > 0 {
+		return shared.NewReportedError(fmt.Errorf("screenshots upload: %d file(s) pending retry", len(progress.PendingFiles)))
+	}
+	return shared.NewReportedError(fmt.Errorf("screenshots upload: retry needed to sync screenshot ordering"))
 }
 
 func prepareAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult]) (screenshotUploadPreparedState, error) {
@@ -172,35 +192,6 @@ func prepareAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 	}, nil
 }
 
-func uploadScreenshotsFromOrderedState(ctx context.Context, client *asc.Client, setID string, orderedIDs, files []string, syncIfNoNew bool) (screenshotUploadProgress, error) {
-	progress := screenshotUploadProgress{
-		Results:    make([]asc.AssetUploadResultItem, 0, len(files)),
-		OrderedIDs: append([]string(nil), orderedIDs...),
-	}
-
-	for idx, filePath := range files {
-		item, err := uploadScreenshotAsset(ctx, client, setID, filePath)
-		if err != nil {
-			progress.PendingFiles = append([]string{filePath}, files[idx+1:]...)
-			progress.FailedFile = filePath
-			return progress, err
-		}
-		progress.Results = append(progress.Results, item)
-		progress.OrderedIDs = appendUniqueScreenshotID(progress.OrderedIDs, item.AssetID)
-	}
-
-	if len(progress.OrderedIDs) == 0 {
-		return progress, nil
-	}
-	if len(progress.Results) == 0 && !syncIfNoNew {
-		return progress, nil
-	}
-	if err := SetOrderedAppScreenshots(ctx, client, setID, progress.OrderedIDs); err != nil {
-		return progress, err
-	}
-	return progress, nil
-}
-
 func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], artifactPath string) (asc.AppScreenshotUploadResult, error) {
 	prepared, err := prepareAppScreenshotUpload(ctx, cfg)
 	if err != nil {
@@ -232,7 +223,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 	uploadCtx, cancel := cfg.UploadContext(ctx)
 	defer cancel()
 
-	progress, uploadErr := uploadScreenshotsFromOrderedState(uploadCtx, cfg.Client, prepared.Set.ID, prepared.OrderedIDs, prepared.Files, false)
+	progress, uploadErr := uploadScreenshotsWithOrderState(uploadCtx, cfg.Client, prepared.Set.ID, prepared.OrderedIDs, prepared.Files, false)
 
 	results := append(append([]asc.AssetUploadResultItem{}, prepared.SkippedResults...), progress.Results...)
 	result := buildAppScreenshotUploadResult(cfg.LocalizationID, prepared.Set, false, results)
@@ -242,19 +233,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 	}
 
 	result.Pending = len(progress.PendingFiles)
-	if result.Pending == 0 && strings.TrimSpace(progress.FailedFile) != "" {
-		result.Pending = 1
-	}
-	if result.Failed == 0 {
-		result.Failed = 1
-	}
-	if strings.TrimSpace(progress.FailedFile) != "" {
-		result.Failures = append(result.Failures, asc.AssetUploadFailureItem{
-			FileName: filepath.Base(progress.FailedFile),
-			FilePath: progress.FailedFile,
-			Error:    uploadErr.Error(),
-		})
-	}
+	appendScreenshotUploadFailure(&result, progress, uploadErr)
 	result.Total = len(result.Results) + result.Pending
 	finalizeAppScreenshotUploadResult(&result)
 
@@ -282,7 +261,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 		return result, fmt.Errorf("write screenshot upload failure artifact: %w", artifactErr)
 	}
 	result.FailureArtifactPath = writtenPath
-	return result, shared.NewReportedError(fmt.Errorf("screenshots upload: %d file(s) pending retry", result.Pending))
+	return result, screenshotUploadRetryError(progress)
 }
 
 func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifactPath string) (asc.AppScreenshotUploadResult, error) {
@@ -300,7 +279,7 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
 	defer cancel()
 
-	progress, uploadErr := uploadScreenshotsFromOrderedState(uploadCtx, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, true)
+	progress, uploadErr := uploadScreenshotsWithOrderState(uploadCtx, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, true)
 
 	result := asc.AppScreenshotUploadResult{
 		VersionLocalizationID: artifact.VersionLocalizationID,
@@ -316,19 +295,7 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 	}
 
 	result.Pending = len(progress.PendingFiles)
-	if result.Pending == 0 && strings.TrimSpace(progress.FailedFile) != "" {
-		result.Pending = 1
-	}
-	if strings.TrimSpace(progress.FailedFile) != "" {
-		result.Failures = append(result.Failures, asc.AssetUploadFailureItem{
-			FileName: filepath.Base(progress.FailedFile),
-			FilePath: progress.FailedFile,
-			Error:    uploadErr.Error(),
-		})
-	}
-	if len(result.Failures) == 0 {
-		result.Failed = 1
-	}
+	appendScreenshotUploadFailure(&result, progress, uploadErr)
 	result.Total = len(result.Results) + result.Pending
 	finalizeAppScreenshotUploadResult(&result)
 
@@ -356,7 +323,7 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 		return result, fmt.Errorf("write screenshot upload failure artifact: %w", artifactErr)
 	}
 	result.FailureArtifactPath = writtenPath
-	return result, shared.NewReportedError(fmt.Errorf("screenshots upload: %d file(s) pending retry", result.Pending))
+	return result, screenshotUploadRetryError(progress)
 }
 
 func defaultScreenshotUploadFailureArtifactPath() string {
