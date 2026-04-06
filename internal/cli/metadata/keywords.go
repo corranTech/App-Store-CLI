@@ -166,7 +166,6 @@ type keywordImportPayload struct {
 type metadataKeywordFieldDetails struct {
 	field      string
 	count      int
-	length     int
 	duplicates []string
 }
 
@@ -1733,7 +1732,6 @@ func buildMetadataKeywordFieldDetails(keywords []string) (metadataKeywordFieldDe
 	return metadataKeywordFieldDetails{
 		field:      field,
 		count:      len(normalized),
-		length:     validation.KeywordFieldLength(field),
 		duplicates: duplicates,
 	}, nil
 }
