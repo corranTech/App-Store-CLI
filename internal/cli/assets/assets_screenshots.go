@@ -483,6 +483,14 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 		return &result, nil
 	}
 
+	normalizedPlatform := "IOS"
+	if platformValue != "" {
+		normalizedPlatform, err = shared.NormalizeAppStoreVersionPlatform(platformValue)
+		if err != nil {
+			return nil, shared.UsageError(err.Error())
+		}
+	}
+
 	localeAssets, err := collectLocaleAssetFiles(pathValue, apiDisplayType)
 	if err != nil {
 		return nil, err
@@ -491,14 +499,6 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	client, err := deps.GetClient()
 	if err != nil {
 		return nil, err
-	}
-
-	normalizedPlatform := "IOS"
-	if platformValue != "" {
-		normalizedPlatform, err = shared.NormalizeAppStoreVersionPlatform(platformValue)
-		if err != nil {
-			return nil, shared.UsageError(err.Error())
-		}
 	}
 
 	requestCtx, cancel := deps.RequestContext(ctx)
