@@ -3449,6 +3449,16 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 			wantErr: "--version-localization is required",
 		},
 		{
+			name:    "screenshots validate missing path",
+			args:    []string{"screenshots", "validate", "--device-type", "IPHONE_65"},
+			wantErr: "--path is required",
+		},
+		{
+			name:    "screenshots validate missing device type",
+			args:    []string{"screenshots", "validate", "--path", "./screenshots"},
+			wantErr: "--device-type is required",
+		},
+		{
 			name:    "screenshots upload missing path",
 			args:    []string{"screenshots", "upload", "--version-localization", "LOC_ID", "--device-type", "IPHONE_65"},
 			wantErr: "--path is required",

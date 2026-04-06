@@ -283,6 +283,10 @@ func init() {
 			eh, er := publishExportStageRows(v.Export)
 			render(eh, er)
 		}
+		if len(v.Plan) > 0 {
+			ph, pr := publishPlanRows(v.Plan)
+			render(ph, pr)
+		}
 		return nil
 	})
 	registerRows(salesReportResultRows)

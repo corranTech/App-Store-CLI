@@ -302,7 +302,7 @@ Examples:
 			if filter != "" {
 				normalized, err := normalizeScreenshotDisplayType(filter)
 				if err != nil {
-					return fmt.Errorf("screenshots sizes: %w", err)
+					return shared.UsageError(err.Error())
 				}
 				entry, ok := asc.ScreenshotSizeEntryForDisplayType(normalized)
 				if !ok {
@@ -451,7 +451,7 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 
 	displayType, err := normalizeScreenshotDisplayType(deviceValue)
 	if err != nil {
-		return nil, err
+		return nil, shared.UsageError(err.Error())
 	}
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 
