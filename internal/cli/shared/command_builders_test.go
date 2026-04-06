@@ -79,6 +79,73 @@ func TestBuildPaginatedListCommand_MissingParentIDReturnsUsageError(t *testing.T
 	}
 }
 
+func TestBuildPaginatedListCommand_InvalidLimitReturnsUsageError(t *testing.T) {
+	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+		FlagSetName: "test-list",
+		Name:        "list",
+		ShortUsage:  "test list",
+		ShortHelp:   "test",
+		ParentFlag:  "app-id",
+		ErrorPrefix: "test list",
+		LimitMax:    200,
+		FetchPage: func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error) {
+			return &testPaginatedResponse{}, nil
+		},
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return context.WithCancel(ctx)
+		},
+	})
+
+	if err := cmd.FlagSet.Parse([]string{"--app-id", "app-1", "--limit", "201"}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "Error: test list: --limit must be between 1 and 200") {
+		t.Fatalf("expected limit usage error, got %q", stderr)
+	}
+}
+
+func TestBuildPaginatedListCommand_InvalidNextURLReturnsUsageError(t *testing.T) {
+	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+		FlagSetName: "test-list",
+		Name:        "list",
+		ShortUsage:  "test list",
+		ShortHelp:   "test",
+		ParentFlag:  "app-id",
+		ErrorPrefix: "test list",
+		FetchPage: func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error) {
+			return &testPaginatedResponse{}, nil
+		},
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return context.WithCancel(ctx)
+		},
+	})
+
+	if err := cmd.FlagSet.Parse([]string{"--next", "http://api.appstoreconnect.apple.com/v1/test?cursor=AQ"}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "Error: test list: --next must be an App Store Connect URL") {
+		t.Fatalf("expected next URL usage error, got %q", stderr)
+	}
+}
+
 func TestBuildPricePointEqualizationsCommand_UsesSharedHelpTemplate(t *testing.T) {
 	cmd := BuildPricePointEqualizationsCommand(PricePointEqualizationsCommandConfig{
 		FlagSetName: "pricing price-points equalizations",

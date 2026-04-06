@@ -2,6 +2,8 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"strconv"
@@ -46,7 +48,7 @@ func pricePointEqualizationsCommandCases() []pricePointEqualizationsCommandCase 
 			limitMax:      8000,
 			requestPath:   "/v1/inAppPurchasePricePoints/pp-1/equalizations",
 			nextURL:       "https://api.appstoreconnect.apple.com/v1/inAppPurchasePricePoints/pp-1/equalizations?cursor=AQ&limit=8000",
-			wantErrPrefix: "iap price-points equalizations: --next",
+			wantErrPrefix: "iap pricing price-points equalizations: --next",
 		},
 		{
 			name:          "subscription pricing",
@@ -138,15 +140,15 @@ func TestPricePointEqualizationsRejectOutOfRangeLimit(t *testing.T) {
 			if runErr == nil {
 				t.Fatal("expected error, got nil")
 			}
-			wantErr := tt.wantErrPrefix[:strings.LastIndex(tt.wantErrPrefix, ":")] + ": --limit must be between 1 and " + strconv.Itoa(tt.limitMax)
-			if !strings.Contains(runErr.Error(), wantErr) {
-				t.Fatalf("expected run error to contain %q, got %v", wantErr, runErr)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+			}
+			wantErr := "Error: " + tt.wantErrPrefix[:strings.LastIndex(tt.wantErrPrefix, ":")] + ": --limit must be between 1 and " + strconv.Itoa(tt.limitMax)
+			if !strings.Contains(stderr, wantErr) {
+				t.Fatalf("expected stderr to contain %q, got %q", wantErr, stderr)
 			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})
 	}
@@ -380,14 +382,15 @@ func TestPricePointEqualizationsRejectInvalidNextURL(t *testing.T) {
 				if runErr == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if !strings.Contains(runErr.Error(), tt.wantErrPrefix) {
-					t.Fatalf("expected error to contain %q, got %v", tt.wantErrPrefix, runErr)
+				if !errors.Is(runErr, flag.ErrHelp) {
+					t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+				}
+				wantErr := "Error: " + tt.wantErrPrefix
+				if !strings.Contains(stderr, wantErr) {
+					t.Fatalf("expected stderr to contain %q, got %q", wantErr, stderr)
 				}
 				if stdout != "" {
 					t.Fatalf("expected empty stdout, got %q", stdout)
-				}
-				if stderr != "" {
-					t.Fatalf("expected empty stderr, got %q", stderr)
 				}
 			})
 		}

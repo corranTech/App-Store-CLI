@@ -129,63 +129,73 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 		timeout = ContextWithTimeout
 	}
 
-	return &ffcli.Command{
+	cmd := &ffcli.Command{
 		Name:       config.Name,
 		ShortUsage: config.ShortUsage,
 		ShortHelp:  config.ShortHelp,
 		LongHelp:   config.LongHelp,
 		FlagSet:    fs,
 		UsageFunc:  DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > limitMax) {
-				return fmt.Errorf("%s: --limit must be between 1 and %d", config.ErrorPrefix, limitMax)
-			}
-			if err := ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
-			}
+	}
 
-			resolvedParentID := strings.TrimSpace(*parentID)
-			if resolvedParentID == "" && strings.TrimSpace(*next) == "" {
-				return UsageErrorf("--%s is required", parentFlagName)
-			}
+	usageErrorPrefix := func() string {
+		if prefix := commandErrorPrefixFromUsage(cmd.ShortUsage); prefix != "" {
+			return prefix
+		}
+		return config.ErrorPrefix
+	}
 
-			client, err := GetASCClient()
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
-			}
+	cmd.Exec = func(ctx context.Context, args []string) error {
+		if *limit != 0 && (*limit < 1 || *limit > limitMax) {
+			return UsageErrorf("%s: --limit must be between 1 and %d", usageErrorPrefix(), limitMax)
+		}
+		if err := ValidateNextURL(*next); err != nil {
+			return UsageErrorf("%s: %v", usageErrorPrefix(), err)
+		}
 
-			requestCtx, cancel := timeout(ctx)
-			defer cancel()
+		resolvedParentID := strings.TrimSpace(*parentID)
+		if resolvedParentID == "" && strings.TrimSpace(*next) == "" {
+			return UsageErrorf("--%s is required", parentFlagName)
+		}
 
-			if *paginate {
-				firstPageLimit := *limit
-				if firstPageLimit == 0 {
-					firstPageLimit = limitMax
-				}
+		client, err := GetASCClient()
+		if err != nil {
+			return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+		}
 
-				resp, err := PaginateWithSpinner(requestCtx,
-					func(ctx context.Context) (asc.PaginatedResponse, error) {
-						return config.FetchPage(ctx, client, resolvedParentID, firstPageLimit, *next)
-					},
-					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return config.FetchPage(ctx, client, resolvedParentID, 0, nextURL)
-					},
-				)
-				if err != nil {
-					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
-				}
+		requestCtx, cancel := timeout(ctx)
+		defer cancel()
 
-				return PrintOutput(resp, *output.Output, *output.Pretty)
+		if *paginate {
+			firstPageLimit := *limit
+			if firstPageLimit == 0 {
+				firstPageLimit = limitMax
 			}
 
-			resp, err := config.FetchPage(requestCtx, client, resolvedParentID, *limit, *next)
+			resp, err := PaginateWithSpinner(requestCtx,
+				func(ctx context.Context) (asc.PaginatedResponse, error) {
+					return config.FetchPage(ctx, client, resolvedParentID, firstPageLimit, *next)
+				},
+				func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return config.FetchPage(ctx, client, resolvedParentID, 0, nextURL)
+				},
+			)
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
 			return PrintOutput(resp, *output.Output, *output.Pretty)
-		},
+		}
+
+		resp, err := config.FetchPage(requestCtx, client, resolvedParentID, *limit, *next)
+		if err != nil {
+			return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+		}
+
+		return PrintOutput(resp, *output.Output, *output.Pretty)
 	}
+
+	return cmd
 }
 
 // PricePointEqualizationsCommandConfig configures a standard equalizations list
