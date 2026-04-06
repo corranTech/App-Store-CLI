@@ -209,7 +209,7 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 		fileResult.Width = dimensions.Width
 		fileResult.Height = dimensions.Height
 
-		if err := asc.ValidateScreenshotDimensions(candidate.path, apiDisplayType); err != nil {
+		if err := asc.ValidateScreenshotDimensionsForSize(candidate.path, dimensions.Width, dimensions.Height, apiDisplayType); err != nil {
 			hasError = true
 			appendScreenshotValidateIssue(result, screenshotValidateIssue{
 				Code:        "dimension_mismatch",
