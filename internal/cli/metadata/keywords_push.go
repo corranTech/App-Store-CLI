@@ -244,24 +244,29 @@ func readMetadataKeywordsPushEntries(path string) ([]metadataKeywordsPushEntry, 
 		if normalizedLocale == "" {
 			return nil, fmt.Errorf("locale keys must not be empty")
 		}
-		if err := shared.ValidateBuildLocalizationLocale(normalizedLocale); err != nil {
+		canonicalLocale, err := validateMetadataKeywordLocale(normalizedLocale)
+		if err != nil {
 			return nil, err
 		}
 
-		lower := strings.ToLower(normalizedLocale)
+		lower := strings.ToLower(canonicalLocale)
 		if previous, ok := seen[lower]; ok {
-			return nil, fmt.Errorf("duplicate locale %q conflicts with %q", normalizedLocale, previous)
+			return nil, fmt.Errorf("duplicate locale %q conflicts with %q", canonicalLocale, previous)
 		}
-		seen[lower] = normalizedLocale
+		seen[lower] = canonicalLocale
 
 		keywords, err := parseMetadataKeywordsPushKeywords(value)
 		if err != nil {
-			return nil, fmt.Errorf("invalid entry for locale %q: %w", normalizedLocale, err)
+			return nil, fmt.Errorf("invalid entry for locale %q: %w", canonicalLocale, err)
+		}
+		trimmedKeywords := strings.TrimSpace(keywords)
+		if trimmedKeywords == "" {
+			return nil, fmt.Errorf("invalid entry for locale %q: keywords must not be empty", canonicalLocale)
 		}
 
 		entries = append(entries, metadataKeywordsPushEntry{
-			Locale:   normalizedLocale,
-			Keywords: strings.TrimSpace(keywords),
+			Locale:   canonicalLocale,
+			Keywords: trimmedKeywords,
 		})
 	}
 

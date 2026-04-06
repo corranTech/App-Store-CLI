@@ -11,7 +11,7 @@ func TestReadMetadataKeywordsPushEntriesSupportsStringAndObjectValues(t *testing
 	inputPath := filepath.Join(t.TempDir(), "keywords.json")
 	body := `{
 		"ja": {"keywords": "nihon,go"},
-		"en-US": "alpha,beta"
+		"EN-us": "alpha,beta"
 	}`
 	if err := os.WriteFile(inputPath, []byte(body), 0o600); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
@@ -59,5 +59,35 @@ func TestReadMetadataKeywordsPushEntriesRejectsJSONNullKeywords(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "must not be null") {
 		t.Fatalf("expected null rejection error, got %v", err)
+	}
+}
+
+func TestReadMetadataKeywordsPushEntriesRejectsUnsupportedLocale(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "keywords.json")
+	if err := os.WriteFile(inputPath, []byte(`{"en-ZZ":"alpha,beta"}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	_, err := readMetadataKeywordsPushEntries(inputPath)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), `unsupported locale "en-ZZ"`) {
+		t.Fatalf("expected unsupported locale error, got %v", err)
+	}
+}
+
+func TestReadMetadataKeywordsPushEntriesRejectsEmptyKeywords(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "keywords.json")
+	if err := os.WriteFile(inputPath, []byte(`{"en-US":"   "}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	_, err := readMetadataKeywordsPushEntries(inputPath)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "keywords must not be empty") {
+		t.Fatalf("expected empty keywords error, got %v", err)
 	}
 }
