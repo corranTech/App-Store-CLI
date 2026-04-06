@@ -178,6 +178,80 @@ func TestUploadScreenshotsFanoutFiltersMixedDeviceTreesBySelectedDisplayType(t *
 	}
 }
 
+func TestCollectLocaleAssetFilesSkipsIgnoredSubdirectoriesWithoutMatchingScreenshots(t *testing.T) {
+	rootDir := t.TempDir()
+	enDir := filepath.Join(rootDir, "en-US", "iphone")
+	hiddenDir := filepath.Join(rootDir, ".git")
+	buildDir := filepath.Join(rootDir, "build")
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.MkdirAll(hiddenDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, enDir, "01-home.png", 1242, 2688)
+	writeAssetsTestPNGWithSize(t, buildDir, "icon.png", 100, 100)
+	if err := os.WriteFile(filepath.Join(hiddenDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	files, err := collectLocaleAssetFiles(rootDir, asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"))
+	if err != nil {
+		t.Fatalf("collectLocaleAssetFiles() error: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("expected 1 locale result, got %d", len(files))
+	}
+	if files[0].Locale != "en-US" {
+		t.Fatalf("expected en-US locale, got %#v", files[0])
+	}
+}
+
+func TestCollectLocaleAssetFilesErrorsOnInvalidLocaleDirectoryWithMatchingScreenshots(t *testing.T) {
+	rootDir := t.TempDir()
+	iphoneDir := filepath.Join(rootDir, "iphone")
+	if err := os.MkdirAll(iphoneDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, iphoneDir, "01-home.png", 1242, 2688)
+
+	_, err := collectLocaleAssetFiles(rootDir, asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"))
+	if err == nil {
+		t.Fatal("expected invalid locale directory error")
+	}
+	if !strings.Contains(err.Error(), `invalid locale directory "iphone"`) {
+		t.Fatalf("expected invalid locale error, got %v", err)
+	}
+}
+
+func TestCollectLocaleAssetFilesRecursiveSkipsNonImageFiles(t *testing.T) {
+	rootDir := t.TempDir()
+	if err := os.MkdirAll(rootDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, rootDir, "01-home.png", 1242, 2688)
+	if err := os.WriteFile(filepath.Join(rootDir, "README.md"), []byte("notes"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, ".gitkeep"), []byte{}, 0o644); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	files, err := collectLocaleAssetFilesRecursive(rootDir, asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"))
+	if err != nil {
+		t.Fatalf("collectLocaleAssetFilesRecursive() error: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("expected 1 matching screenshot file, got %d", len(files))
+	}
+	if filepath.Base(files[0]) != "01-home.png" {
+		t.Fatalf("expected 01-home.png, got %q", files[0])
+	}
+}
+
 func TestExecuteScreenshotUploadCommandValidatesFanoutFilesBeforeClientCreation(t *testing.T) {
 	rootDir := t.TempDir()
 	enDir := filepath.Join(rootDir, "en-US")

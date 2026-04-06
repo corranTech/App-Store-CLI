@@ -625,12 +625,19 @@ func collectLocaleAssetFiles(rootPath, displayType string) ([]screenshotLocaleAs
 
 	results := make([]screenshotLocaleAssetFiles, 0, len(entries))
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || shouldIgnoreFanoutEntryName(entry.Name()) {
 			continue
 		}
 
 		locale, err := shared.CanonicalizeAppStoreLocalizationLocale(entry.Name())
 		if err != nil {
+			hasMatchingFiles, matchErr := directoryContainsMatchingScreenshotFiles(filepath.Join(rootPath, entry.Name()), displayType)
+			if matchErr != nil {
+				return nil, matchErr
+			}
+			if !hasMatchingFiles {
+				continue
+			}
 			return nil, fmt.Errorf("invalid locale directory %q: %w", entry.Name(), err)
 		}
 		files, err := collectLocaleAssetFilesRecursive(filepath.Join(rootPath, entry.Name()), displayType)
@@ -659,6 +666,12 @@ func collectLocaleAssetFilesRecursive(rootPath, displayType string) ([]string, e
 		if walkErr != nil {
 			return walkErr
 		}
+		if path != rootPath && shouldIgnoreFanoutEntryName(entry.Name()) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if entry.Type()&os.ModeSymlink != 0 {
 			return fmt.Errorf("refusing to read symlink %q", path)
 		}
@@ -671,6 +684,9 @@ func collectLocaleAssetFilesRecursive(rootPath, displayType string) ([]string, e
 			return err
 		}
 		if !info.Mode().IsRegular() {
+			return nil
+		}
+		if !isSupportedScreenshotUploadFile(path) {
 			return nil
 		}
 		if err := asc.ValidateImageFile(path); err != nil {
@@ -695,6 +711,48 @@ func collectLocaleAssetFilesRecursive(rootPath, displayType string) ([]string, e
 	return files, nil
 }
 
+func directoryContainsMatchingScreenshotFiles(rootPath, displayType string) (bool, error) {
+	found := false
+	err := filepath.WalkDir(rootPath, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path != rootPath && shouldIgnoreFanoutEntryName(entry.Name()) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 || entry.IsDir() {
+			return nil
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() || !isSupportedScreenshotUploadFile(path) {
+			return nil
+		}
+		if err := asc.ValidateImageFile(path); err != nil {
+			return err
+		}
+		matches, err := screenshotMatchesDisplayType(path, displayType)
+		if err != nil {
+			return err
+		}
+		if matches {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, filepath.SkipAll) {
+		return false, err
+	}
+	return found, nil
+}
+
 func screenshotMatchesDisplayType(path, displayType string) (bool, error) {
 	allowed, ok := asc.ScreenshotDimensions(displayType)
 	if !ok {
@@ -712,6 +770,19 @@ func screenshotMatchesDisplayType(path, displayType string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func shouldIgnoreFanoutEntryName(name string) bool {
+	return strings.HasPrefix(name, ".")
+}
+
+func isSupportedScreenshotUploadFile(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".png", ".jpg", ".jpeg":
+		return true
+	default:
+		return false
+	}
 }
 
 type screenshotDownloadItem struct {
