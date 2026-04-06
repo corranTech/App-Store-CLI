@@ -17,7 +17,16 @@ import (
 )
 
 const (
-	publishDefaultTimeout = 30 * time.Minute
+	publishDefaultTimeout    = 30 * time.Minute
+	publishPlanStatusPlanned = "planned"
+
+	publishPlanStepArchiveLocalBuild      = "archive_local_build"
+	publishPlanStepExportLocalBuild       = "export_local_build"
+	publishPlanStepUploadBuild            = "upload_build"
+	publishPlanStepWaitForBuildProcessing = "wait_for_build_processing"
+	publishPlanStepEnsureVersion          = "ensure_version"
+	publishPlanStepAttachBuild            = "attach_build"
+	publishPlanStepSubmitReview           = "submit_review"
 )
 
 // PublishCommand returns the publish command with subcommands.
@@ -364,6 +373,7 @@ func PublishAppStoreCommand() *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	submit := fs.Bool("submit", false, "Submit for review after attaching build")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required with --submit)")
+	dryRun := fs.Bool("dry-run", false, "Preview high-level publish plan without uploading or submitting")
 	wait := fs.Bool("wait", false, "Wait for build processing")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and build discovery")
 	timeout := fs.Duration("timeout", 0, "Override upload + processing timeout (e.g., 30m)")
@@ -385,16 +395,18 @@ Workflow:
 
 Use ` + "`asc release stage`" + ` when you want metadata-driven preparation without
 submission. Use ` + "`asc validate`" + ` to run readiness checks before you add
-` + "`--submit`" + `.
+` + "`--submit`" + `. Use ` + "`--dry-run`" + ` to preview the planned mutation
+sequence without uploading or submitting.
 
 Examples:
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3
+  asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --submit --dry-run
   asc publish appstore --app "123" --workspace App.xcworkspace --scheme App --version 1.2.3
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --submit --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *submit && !*confirm {
+			if *submit && !*confirm && !*dryRun {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --submit")
 				return flag.ErrHelp
 			}
@@ -485,16 +497,26 @@ Examples:
 			uploaded := false
 			mode := asc.PublishModeIPAUpload
 			var localBuildResult *publishLocalBuildExecutionResult
+			var localBuildConfig publishLocalBuildConfig
 
 			if localBuildMode {
 				buildNumberValue, err = resolvePublishBuildNumber(preflightCtx, client, resolvedPublishAppID, versionValue, normalizedPlatform, localBuild, buildNumberValue)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
-				localBuildConfig, err := resolveLocalBuildConfig(localBuild, normalizedPlatform, versionValue, buildNumberValue)
+				localBuildConfig, err = resolveLocalBuildConfig(localBuild, normalizedPlatform, versionValue, buildNumberValue)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
+				mode = asc.PublishModeLocalBuild
+			}
+
+			if *dryRun {
+				result := plannedAppStorePublishResult(mode, versionValue, buildNumberValue, *wait, *submit, localBuildMode, localBuildConfig)
+				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			}
+
+			if localBuildMode {
 				localBuildResult, err = runPublishLocalBuild(ctx, client, resolvedPublishAppID, normalizedPlatform, versionValue, buildNumberValue, *pollInterval, timeoutValue, timeoutOverride, localBuildConfig)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
@@ -505,7 +527,6 @@ Examples:
 				versionValue = localBuildResult.Version
 				buildNumberValue = localBuildResult.BuildNumber
 				uploaded = localBuildResult.Uploaded
-				mode = asc.PublishModeLocalBuild
 			} else {
 				uploadResult, err := uploadBuildAndWaitForIDFn(requestCtx, client, resolvedPublishAppID, ipaValue, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue, timeoutOverride)
 				if err != nil {
@@ -607,6 +628,73 @@ Examples:
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+func plannedAppStorePublishResult(mode asc.PublishMode, version, buildNumber string, wait, submit, localBuildMode bool, localBuildConfig publishLocalBuildConfig) *asc.AppStorePublishResult {
+	result := &asc.AppStorePublishResult{
+		Mode:         mode,
+		DryRun:       true,
+		BuildVersion: version,
+		BuildNumber:  buildNumber,
+		Uploaded:     false,
+		Attached:     false,
+		Submitted:    false,
+		Plan:         plannedAppStorePublishSteps(localBuildMode, wait, submit),
+	}
+
+	if !localBuildMode {
+		return result
+	}
+
+	result.Archive = &asc.PublishArchiveStageResult{
+		ArchivePath:   localBuildConfig.ArchivePath,
+		Version:       version,
+		BuildNumber:   buildNumber,
+		Scheme:        localBuildConfig.Scheme,
+		Configuration: localBuildConfig.Configuration,
+	}
+	result.Export = &asc.PublishExportStageResult{
+		ArchivePath:       localBuildConfig.ArchivePath,
+		IPAPath:           localBuildConfig.IPAPath,
+		Version:           version,
+		BuildNumber:       buildNumber,
+		ExportOptionsPath: localBuildConfig.ExportOptionsPath,
+		DirectUpload:      false,
+	}
+
+	return result
+}
+
+func plannedAppStorePublishSteps(localBuildMode, wait, submit bool) []asc.PublishPlanStep {
+	steps := make([]asc.PublishPlanStep, 0, 5)
+	if localBuildMode {
+		steps = append(steps,
+			newPublishPlanStep(publishPlanStepArchiveLocalBuild, "Archive the selected Xcode workspace or project to a local .xcarchive."),
+			newPublishPlanStep(publishPlanStepExportLocalBuild, "Export the archive to a local App Store IPA artifact."),
+		)
+	}
+
+	steps = append(steps, newPublishPlanStep(publishPlanStepUploadBuild, "Upload the IPA to App Store Connect and wait for the build record to appear."))
+	if wait {
+		steps = append(steps, newPublishPlanStep(publishPlanStepWaitForBuildProcessing, "Wait for App Store Connect build processing to reach a terminal state."))
+	}
+	steps = append(steps,
+		newPublishPlanStep(publishPlanStepEnsureVersion, "Find the requested App Store version or create it if missing."),
+		newPublishPlanStep(publishPlanStepAttachBuild, "Attach the resolved build to the App Store version."),
+	)
+	if submit {
+		steps = append(steps, newPublishPlanStep(publishPlanStepSubmitReview, "Run submission preflight and submit the version for App Store review."))
+	}
+
+	return steps
+}
+
+func newPublishPlanStep(name, message string) asc.PublishPlanStep {
+	return asc.PublishPlanStep{
+		Name:    name,
+		Status:  publishPlanStatusPlanned,
+		Message: message,
 	}
 }
 
