@@ -462,7 +462,11 @@ Examples:
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
-				results, err := shared.UploadVersionLocalizations(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun)
+				submitOpts := shared.SubmitReadinessOptions{}
+				if sharedVersionLocalizationValuesNeedUpdateContext(valuesByLocale) {
+					submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, strings.TrimSpace(*versionID), "", "")
+				}
+				results, warnings, err := shared.UploadVersionLocalizationsWithWarnings(requestCtx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun, submitOpts)
 				if err != nil {
 					return fmt.Errorf("localizations upload: %w", err)
 				}
@@ -474,7 +478,10 @@ Examples:
 					Results:   results,
 				}
 
-				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+				if err := shared.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
+					return err
+				}
+				return shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings)
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
@@ -519,4 +526,13 @@ Examples:
 			}
 		},
 	}
+}
+
+func sharedVersionLocalizationValuesNeedUpdateContext(valuesByLocale map[string]map[string]string) bool {
+	for _, values := range valuesByLocale {
+		if strings.TrimSpace(values["whatsNew"]) == "" {
+			return true
+		}
+	}
+	return false
 }

@@ -82,57 +82,43 @@ Examples:
 				return fmt.Errorf("localizations create: failed to create: %w", err)
 			}
 
-			warning := shared.SubmitIncompleteLocaleWarning(resp.Data.Attributes.Locale, resp.Data.Attributes)
-			if strings.TrimSpace(resp.Data.Attributes.WhatsNew) == "" {
-				opts, warningErr := submitReadinessOptionsForVersion(requestCtx, client, vid)
-				if warningErr == nil {
-					warning = shared.SubmitIncompleteLocaleWarningWithOptions(resp.Data.Attributes.Locale, resp.Data.Attributes, opts)
-				} else if warning == "" {
-					localeLabel := strings.TrimSpace(resp.Data.Attributes.Locale)
-					if localeLabel == "" {
-						localeLabel = "<unknown>"
-					}
-					fmt.Fprintf(
-						os.Stderr,
-						"Warning: locale %s was created without whatsNew, but the CLI could not determine whether this version is an app update: %v\n",
-						localeLabel,
-						warningErr,
-					)
+			submitOpts := shared.SubmitReadinessOptions{}
+			var submitWarningLookupErr error
+			if strings.TrimSpace(attrs.WhatsNew) == "" {
+				submitOpts, submitWarningLookupErr = shared.ResolveSubmitReadinessOptionsForVersion(requestCtx, client, vid, "", "")
+				if submitWarningLookupErr != nil {
+					submitOpts = shared.SubmitReadinessOptions{}
 				}
 			}
-			if warning != "" {
-				fmt.Fprint(os.Stderr, warning)
+			warnings := make([]shared.SubmitReadinessCreateWarning, 0, 1)
+			if warning, ok := shared.SubmitReadinessCreateWarningForLocaleWithOptions(localeValue, attrs, shared.SubmitReadinessCreateModeApplied, submitOpts); ok {
+				warnings = append(warnings, warning)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			if err := shared.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
+				return err
+			}
+			if err := shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings); err != nil {
+				return err
+			}
+			if submitWarningLookupErr == nil || len(warnings) > 0 {
+				return nil
+			}
+
+			localeLabel := strings.TrimSpace(resp.Data.Attributes.Locale)
+			if localeLabel == "" {
+				localeLabel = localeValue
+			}
+			if localeLabel == "" {
+				localeLabel = "<unknown>"
+			}
+			_, err = fmt.Fprintf(
+				os.Stderr,
+				"Warning: locale %s was created without whatsNew, but the CLI could not determine whether this version is an app update: %v\n",
+				localeLabel,
+				submitWarningLookupErr,
+			)
+			return err
 		},
 	}
-}
-
-func submitReadinessOptionsForVersion(ctx context.Context, client *asc.Client, versionID string) (shared.SubmitReadinessOptions, error) {
-	versionResp, err := client.GetAppStoreVersion(
-		ctx,
-		strings.TrimSpace(versionID),
-		asc.WithAppStoreVersionInclude([]string{"app"}),
-	)
-	if err != nil {
-		return shared.SubmitReadinessOptions{}, fmt.Errorf("fetch version context: %w", err)
-	}
-
-	appID, err := asc.AppStoreVersionAppID(versionResp)
-	if err != nil {
-		return shared.SubmitReadinessOptions{}, fmt.Errorf("resolve app for version: %w", err)
-	}
-
-	requireWhatsNew, err := shared.AppUpdateRequiresWhatsNew(
-		ctx,
-		client,
-		appID,
-		strings.TrimSpace(string(versionResp.Data.Attributes.Platform)),
-	)
-	if err != nil {
-		return shared.SubmitReadinessOptions{}, fmt.Errorf("check update submit requirements: %w", err)
-	}
-
-	return shared.SubmitReadinessOptions{RequireWhatsNew: requireWhatsNew}, nil
 }

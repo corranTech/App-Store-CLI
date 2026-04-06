@@ -895,7 +895,11 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 	)
 	sortPlanItems(adds)
 	sortPlanItems(updates)
-	warnings := buildMetadataKeywordWarnings(localState, remoteVersion)
+	submitOpts := shared.SubmitReadinessOptions{}
+	if versionCreateWarningsNeedUpdateContext(localPatches, remoteVersion) {
+		submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(requestCtx, client, versionIDValue, resolvedAppID, platformValue)
+	}
+	warnings := buildMetadataKeywordWarnings(localState, remoteVersion, submitOpts)
 
 	result := MetadataKeywordsPlanResult{
 		AppID:     resolvedAppID,
@@ -1613,29 +1617,16 @@ func remoteVersionItemsToVersionMap(items []asc.Resource[asc.AppStoreVersionLoca
 	return result
 }
 
-func buildMetadataKeywordWarnings(states map[string]keywordLocalState, remote map[string]VersionLocalization) []MetadataKeywordsWarning {
-	locales := make([]string, 0, len(states))
-	for locale := range states {
-		locales = append(locales, locale)
-	}
-	sort.Strings(locales)
-
-	warnings := make([]MetadataKeywordsWarning, 0)
-	for _, locale := range locales {
-		if _, exists := remote[locale]; exists {
-			continue
-		}
-		state := states[locale]
-		missing := shared.MissingSubmitRequiredLocalizationFields(versionAttributes(locale, state.full, true))
-		if len(missing) == 0 {
-			continue
-		}
-		missingCSV := strings.Join(missing, ", ")
+func buildMetadataKeywordWarnings(states map[string]keywordLocalState, remote map[string]VersionLocalization, submitOpts shared.SubmitReadinessOptions) []MetadataKeywordsWarning {
+	patches := keywordLocalStateToPatches(states)
+	createWarnings := versionCreateWarningsForPatches(patches, remote, shared.SubmitReadinessCreateModePlanned, submitOpts)
+	warnings := make([]MetadataKeywordsWarning, 0, len(createWarnings))
+	for _, warning := range createWarnings {
 		warnings = append(warnings, MetadataKeywordsWarning{
 			Action:        "create",
-			Locale:        locale,
-			Message:       fmt.Sprintf("create would leave locale %q missing submit-required fields: %s", locale, missingCSV),
-			MissingFields: missing,
+			Locale:        warning.Locale,
+			Message:       shared.FormatSubmitReadinessCreateWarning(warning),
+			MissingFields: append([]string(nil), warning.MissingFields...),
 		})
 	}
 	return warnings
