@@ -280,7 +280,15 @@ Examples:
 					TerritorySchedules: []asc.AppEventTerritorySchedule{schedule},
 				})
 				if err != nil {
-					return fmt.Errorf("app-events create: created event %q but failed to apply schedule: %w", createdID, err)
+					cleanupCtx, cancelCleanup := shared.ContextWithTimeout(ctx)
+					defer cancelCleanup()
+
+					cleanupErr := client.DeleteAppEvent(cleanupCtx, createdID)
+					if cleanupErr != nil {
+						return fmt.Errorf("app-events create: created event %q but failed to apply schedule: %w (cleanup also failed: %s)", createdID, err, cleanupErr.Error())
+					}
+
+					return fmt.Errorf("app-events create: failed to apply schedule after creating event %q; the event was deleted so the command is safe to retry: %w", createdID, err)
 				}
 			}
 

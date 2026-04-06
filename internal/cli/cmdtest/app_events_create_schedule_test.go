@@ -199,7 +199,7 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 	}
 }
 
-func TestAppEventsCreateReturnsPartialFailureWhenScheduleUpdateFails(t *testing.T) {
+func TestAppEventsCreateDeletesCreatedEventWhenScheduleUpdateFails(t *testing.T) {
 	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.Method {
 		case http.MethodPost:
@@ -209,6 +209,11 @@ func TestAppEventsCreateReturnsPartialFailureWhenScheduleUpdateFails(t *testing.
 				t.Fatalf("expected update path /v1/appEvents/event-1, got %s", req.URL.Path)
 			}
 			return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","detail":"territorySchedules are temporarily unavailable"}]}`)
+		case http.MethodDelete:
+			if req.URL.Path != "/v1/appEvents/event-1" {
+				t.Fatalf("expected delete path /v1/appEvents/event-1, got %s", req.URL.Path)
+			}
+			return jsonResponse(http.StatusNoContent, ``)
 		default:
 			t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
 			return nil, nil
@@ -237,8 +242,11 @@ func TestAppEventsCreateReturnsPartialFailureWhenScheduleUpdateFails(t *testing.
 		if err == nil {
 			t.Fatal("expected create to fail when schedule update fails")
 		}
-		if !strings.Contains(err.Error(), `created event "event-1" but failed to apply schedule`) {
+		if !strings.Contains(err.Error(), `failed to apply schedule after creating event "event-1"`) {
 			t.Fatalf("expected partial-failure context, got %v", err)
+		}
+		if !strings.Contains(err.Error(), "the event was deleted so the command is safe to retry") {
+			t.Fatalf("expected safe-to-retry remediation, got %v", err)
 		}
 	})
 
@@ -247,6 +255,59 @@ func TestAppEventsCreateReturnsPartialFailureWhenScheduleUpdateFails(t *testing.
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr on partial failure, got %q", stderr)
+	}
+}
+
+func TestAppEventsCreateReportsCleanupFailureWhenDeleteFails(t *testing.T) {
+	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.Method {
+		case http.MethodPost:
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE"}}}`)
+		case http.MethodPatch:
+			return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","detail":"territorySchedules are temporarily unavailable"}]}`)
+		case http.MethodDelete:
+			return jsonResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","detail":"cleanup failed"}]}`)
+		default:
+			t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	}))
+
+	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"app-events", "create",
+			"--app", "app-123",
+			"--name", "Launch",
+			"--event-type", "CHALLENGE",
+			"--start", "2026-06-01T00:00:00Z",
+			"--end", "2026-06-30T23:59:59Z",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected create to fail when cleanup fails")
+		}
+		if !strings.Contains(err.Error(), `created event "event-1" but failed to apply schedule`) {
+			t.Fatalf("expected created-event context, got %v", err)
+		}
+		if !strings.Contains(err.Error(), "cleanup also failed") {
+			t.Fatalf("expected cleanup failure context, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout on cleanup failure, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr on cleanup failure, got %q", stderr)
 	}
 }
 
