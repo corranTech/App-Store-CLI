@@ -239,13 +239,10 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			_, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, *territories)
+			schedule, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, *territories)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
 				return flag.ErrHelp
-			}
-			if scheduleProvided {
-				fmt.Fprintln(os.Stderr, appEventCreateScheduleWarning)
 			}
 
 			attrs := asc.AppEventCreateAttributes{
@@ -263,12 +260,28 @@ Examples:
 				return fmt.Errorf("app-events create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
+			createCtx, cancelCreate := shared.ContextWithTimeout(ctx)
+			defer cancelCreate()
 
-			resp, err := client.CreateAppEvent(requestCtx, resolvedAppID, attrs)
+			resp, err := client.CreateAppEvent(createCtx, resolvedAppID, attrs)
 			if err != nil {
 				return fmt.Errorf("app-events create: failed to create: %w", err)
+			}
+			if scheduleProvided {
+				createdID := strings.TrimSpace(resp.Data.ID)
+				if createdID == "" {
+					return fmt.Errorf("app-events create: event was created but the response did not include an id; unable to apply schedule")
+				}
+
+				updateCtx, cancelUpdate := shared.ContextWithTimeout(ctx)
+				defer cancelUpdate()
+
+				resp, err = client.UpdateAppEvent(updateCtx, createdID, asc.AppEventUpdateAttributes{
+					TerritorySchedules: []asc.AppEventTerritorySchedule{schedule},
+				})
+				if err != nil {
+					return fmt.Errorf("app-events create: created event %q but failed to apply schedule: %w", createdID, err)
+				}
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

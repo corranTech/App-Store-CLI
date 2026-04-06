@@ -30,22 +30,116 @@ func newAppEventsTestClient(t *testing.T, transport roundTripFunc) *asc.Client {
 	return client
 }
 
-func TestAppEventsCreateIgnoresScheduleFlagsAndWarns(t *testing.T) {
-	var captured map[string]any
+func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
+	requests := 0
 
 	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEvents" {
-			t.Fatalf("expected path /v1/appEvents, got %s", req.URL.Path)
-		}
+		requests++
 
+		var captured map[string]any
 		if err := json.NewDecoder(req.Body).Decode(&captured); err != nil {
-			t.Fatalf("failed to decode request body: %v", err)
+			t.Fatalf("request %d: failed to decode request body: %v", requests, err)
 		}
 
-		return jsonResponse(http.StatusCreated, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE"}}}`)
+		switch requests {
+		case 1:
+			if req.Method != http.MethodPost {
+				t.Fatalf("expected POST, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/appEvents" {
+				t.Fatalf("expected path /v1/appEvents, got %s", req.URL.Path)
+			}
+
+			data, ok := captured["data"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected data object, got %#v", captured["data"])
+			}
+			attrs, ok := data["attributes"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected attributes object, got %#v", data["attributes"])
+			}
+			if _, ok := attrs["territorySchedules"]; ok {
+				t.Fatalf("expected territorySchedules to be omitted from create, got %#v", attrs["territorySchedules"])
+			}
+			if attrs["referenceName"] != "Launch" {
+				t.Fatalf("expected referenceName Launch, got %#v", attrs["referenceName"])
+			}
+			if attrs["badge"] != "CHALLENGE" {
+				t.Fatalf("expected badge CHALLENGE, got %#v", attrs["badge"])
+			}
+			if attrs["primaryLocale"] != "en-US" {
+				t.Fatalf("expected primaryLocale en-US, got %#v", attrs["primaryLocale"])
+			}
+
+			relationships, ok := data["relationships"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected relationships object, got %#v", data["relationships"])
+			}
+			appRel, ok := relationships["app"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected app relationship, got %#v", relationships["app"])
+			}
+			appData, ok := appRel["data"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected app relationship data, got %#v", appRel["data"])
+			}
+			if appData["id"] != "app-123" {
+				t.Fatalf("expected app id app-123, got %#v", appData["id"])
+			}
+
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE"}}}`)
+		case 2:
+			if req.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/appEvents/event-1" {
+				t.Fatalf("expected path /v1/appEvents/event-1, got %s", req.URL.Path)
+			}
+
+			data, ok := captured["data"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected data object, got %#v", captured["data"])
+			}
+			if data["id"] != "event-1" {
+				t.Fatalf("expected update id event-1, got %#v", data["id"])
+			}
+			attrs, ok := data["attributes"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected update attributes object, got %#v", data["attributes"])
+			}
+			schedules, ok := attrs["territorySchedules"].([]any)
+			if !ok {
+				t.Fatalf("expected territorySchedules array, got %#v", attrs["territorySchedules"])
+			}
+			if len(schedules) != 1 {
+				t.Fatalf("expected 1 territory schedule, got %d", len(schedules))
+			}
+			schedule, ok := schedules[0].(map[string]any)
+			if !ok {
+				t.Fatalf("expected territory schedule object, got %#v", schedules[0])
+			}
+			if schedule["publishStart"] != "2026-05-15T00:00:00Z" {
+				t.Fatalf("expected publishStart to be preserved, got %#v", schedule["publishStart"])
+			}
+			if schedule["eventStart"] != "2026-06-01T00:00:00Z" {
+				t.Fatalf("expected eventStart to be preserved, got %#v", schedule["eventStart"])
+			}
+			if schedule["eventEnd"] != "2026-06-30T23:59:59Z" {
+				t.Fatalf("expected eventEnd to be preserved, got %#v", schedule["eventEnd"])
+			}
+			territories, ok := schedule["territories"].([]any)
+			if !ok {
+				t.Fatalf("expected territories array, got %#v", schedule["territories"])
+			}
+			if len(territories) != 2 || territories[0] != "USA" || territories[1] != "CAN" {
+				t.Fatalf("expected normalized territories [USA CAN], got %#v", territories)
+			}
+
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE","primaryLocale":"en-US","territorySchedules":[{"territories":["USA","CAN"],"publishStart":"2026-05-15T00:00:00Z","eventStart":"2026-06-01T00:00:00Z","eventEnd":"2026-06-30T23:59:59Z"}]}}}`)
+		default:
+			t.Fatalf("unexpected extra request %d: %s %s", requests, req.Method, req.URL.Path)
+			return nil, nil
+		}
 	}))
 
 	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
@@ -73,11 +167,8 @@ func TestAppEventsCreateIgnoresScheduleFlagsAndWarns(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "App Store Connect currently returns HTTP 500 when app event territorySchedules are included on create") {
-		t.Fatalf("expected schedule warning, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "creating the event without a schedule") {
-		t.Fatalf("expected unscheduled explanation, got %q", stderr)
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 
 	var resp asc.AppEventResponse
@@ -87,42 +178,75 @@ func TestAppEventsCreateIgnoresScheduleFlagsAndWarns(t *testing.T) {
 	if resp.Data.ID != "event-1" {
 		t.Fatalf("expected event id event-1, got %q", resp.Data.ID)
 	}
+	if len(resp.Data.Attributes.TerritorySchedules) != 1 {
+		t.Fatalf("expected exactly one territory schedule, got %d", len(resp.Data.Attributes.TerritorySchedules))
+	}
+	schedule := resp.Data.Attributes.TerritorySchedules[0]
+	if schedule.EventStart != "2026-06-01T00:00:00Z" {
+		t.Fatalf("expected eventStart to be preserved, got %q", schedule.EventStart)
+	}
+	if schedule.EventEnd != "2026-06-30T23:59:59Z" {
+		t.Fatalf("expected eventEnd to be preserved, got %q", schedule.EventEnd)
+	}
+	if schedule.PublishStart != "2026-05-15T00:00:00Z" {
+		t.Fatalf("expected publishStart to be preserved, got %q", schedule.PublishStart)
+	}
+	if len(schedule.Territories) != 2 || schedule.Territories[0] != "USA" || schedule.Territories[1] != "CAN" {
+		t.Fatalf("expected normalized territories [USA CAN], got %#v", schedule.Territories)
+	}
+	if requests != 2 {
+		t.Fatalf("expected create+update flow, got %d requests", requests)
+	}
+}
 
-	data, ok := captured["data"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected data object, got %#v", captured["data"])
-	}
-	attrs, ok := data["attributes"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected attributes object, got %#v", data["attributes"])
-	}
-	if _, ok := attrs["territorySchedules"]; ok {
-		t.Fatalf("expected territorySchedules to be omitted, got %#v", attrs["territorySchedules"])
-	}
-	if attrs["referenceName"] != "Launch" {
-		t.Fatalf("expected referenceName Launch, got %#v", attrs["referenceName"])
-	}
-	if attrs["badge"] != "CHALLENGE" {
-		t.Fatalf("expected badge CHALLENGE, got %#v", attrs["badge"])
-	}
-	if attrs["primaryLocale"] != "en-US" {
-		t.Fatalf("expected primaryLocale en-US, got %#v", attrs["primaryLocale"])
-	}
+func TestAppEventsCreateReturnsPartialFailureWhenScheduleUpdateFails(t *testing.T) {
+	client := newAppEventsTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.Method {
+		case http.MethodPost:
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","badge":"CHALLENGE"}}}`)
+		case http.MethodPatch:
+			if req.URL.Path != "/v1/appEvents/event-1" {
+				t.Fatalf("expected update path /v1/appEvents/event-1, got %s", req.URL.Path)
+			}
+			return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","detail":"territorySchedules are temporarily unavailable"}]}`)
+		default:
+			t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	}))
 
-	relationships, ok := data["relationships"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected relationships object, got %#v", data["relationships"])
+	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"app-events", "create",
+			"--app", "app-123",
+			"--name", "Launch",
+			"--event-type", "CHALLENGE",
+			"--start", "2026-06-01T00:00:00Z",
+			"--end", "2026-06-30T23:59:59Z",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected create to fail when schedule update fails")
+		}
+		if !strings.Contains(err.Error(), `created event "event-1" but failed to apply schedule`) {
+			t.Fatalf("expected partial-failure context, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout on partial failure, got %q", stdout)
 	}
-	appRel, ok := relationships["app"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected app relationship, got %#v", relationships["app"])
-	}
-	appData, ok := appRel["data"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected app relationship data, got %#v", appRel["data"])
-	}
-	if appData["id"] != "app-123" {
-		t.Fatalf("expected app id app-123, got %#v", appData["id"])
+	if stderr != "" {
+		t.Fatalf("expected empty stderr on partial failure, got %q", stderr)
 	}
 }
 

@@ -12,10 +12,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-const (
-	appEventAssetUploadDefaultTimeout = 10 * time.Minute
-	appEventCreateScheduleWarning     = "Warning: App Store Connect currently returns HTTP 500 when app event territorySchedules are included on create. Ignoring --start, --end, --publish-start, and --territories and creating the event without a schedule. Configure the schedule in App Store Connect after creation."
-)
+const appEventAssetUploadDefaultTimeout = 10 * time.Minute
 
 var appEventPurchaseRequirementSanitizer = strings.NewReplacer("_", "", "-", "", " ", "")
 
