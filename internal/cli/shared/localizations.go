@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 const (
@@ -49,6 +50,51 @@ func VersionLocalizationKeys() []string {
 // ValidateVersionLocalizationKeys validates .strings keys for a version localization locale.
 func ValidateVersionLocalizationKeys(locale string, values map[string]string) error {
 	return validateLocalizationKeys(locale, values, versionLocalizationAllowedKeys)
+}
+
+// ValidateVersionLocalizationAttributes validates version localization field limits.
+func ValidateVersionLocalizationAttributes(attrs asc.AppStoreVersionLocalizationAttributes) error {
+	return validation.ValidateKeywordField(strings.TrimSpace(attrs.Keywords))
+}
+
+// ValidateVersionLocalizationValues validates .strings keys and value limits for one locale.
+func ValidateVersionLocalizationValues(locale string, values map[string]string) error {
+	if err := ValidateVersionLocalizationKeys(locale, values); err != nil {
+		return err
+	}
+	return ValidateVersionLocalizationAttributes(buildVersionLocalizationAttributes(locale, values, false))
+}
+
+// ValidateVersionLocalizationValueSet validates value maps for all locales.
+func ValidateVersionLocalizationValueSet(valuesByLocale map[string]map[string]string) error {
+	locales := make([]string, 0, len(valuesByLocale))
+	for locale := range valuesByLocale {
+		locales = append(locales, locale)
+	}
+	sort.Strings(locales)
+
+	for _, locale := range locales {
+		if err := ValidateVersionLocalizationValues(locale, valuesByLocale[locale]); err != nil {
+			return fmt.Errorf("locale %q: %w", locale, err)
+		}
+	}
+	return nil
+}
+
+// ValidateVersionLocalizationAttributesByLocale validates attribute values for all locales.
+func ValidateVersionLocalizationAttributesByLocale(valuesByLocale map[string]asc.AppStoreVersionLocalizationAttributes) error {
+	locales := make([]string, 0, len(valuesByLocale))
+	for locale := range valuesByLocale {
+		locales = append(locales, locale)
+	}
+	sort.Strings(locales)
+
+	for _, locale := range locales {
+		if err := ValidateVersionLocalizationAttributes(valuesByLocale[locale]); err != nil {
+			return fmt.Errorf("locale %q: %w", locale, err)
+		}
+	}
+	return nil
 }
 
 // ValidateAppInfoLocalizationKeys validates .strings keys for an app-info localization locale.
@@ -289,10 +335,8 @@ func UploadVersionLocalizations(ctx context.Context, client versionLocalizationC
 }
 
 func UploadVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
-	for locale, values := range valuesByLocale {
-		if err := ValidateVersionLocalizationKeys(locale, values); err != nil {
-			return nil, nil, err
-		}
+	if err := ValidateVersionLocalizationValueSet(valuesByLocale); err != nil {
+		return nil, nil, err
 	}
 
 	existing, err := client.GetAppStoreVersionLocalizations(ctx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
