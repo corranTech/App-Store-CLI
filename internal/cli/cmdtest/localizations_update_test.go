@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 type locUpdateRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -113,6 +115,44 @@ func TestLocalizationsUpdateVersionRequiresVersion(t *testing.T) {
 
 	if !strings.Contains(stderr, "--version is required") {
 		t.Fatalf("expected version required error, got: %q", stderr)
+	}
+}
+
+func TestLocalizationsUpdate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T) {
+	setupLocUpdateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	requestCount := 0
+	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"localizations", "update",
+			"--version", "ver-1",
+			"--locale", "nl",
+			"--description", "Updated description",
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{`unsupported locale "nl"`, "nl-NL"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
 	}
 }
 

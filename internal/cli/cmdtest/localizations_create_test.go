@@ -208,6 +208,45 @@ func TestLocalizationsCreate_NormalizesKnownLocaleCodes(t *testing.T) {
 	}
 }
 
+func TestLocalizationsCreate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "nl",
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{`unsupported locale "nl"`, "nl-NL"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
+	}
+}
+
 func TestLocalizationsCreate_RejectsPositionalArgs(t *testing.T) {
 	setupAuth(t)
 

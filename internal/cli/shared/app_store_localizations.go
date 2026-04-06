@@ -145,7 +145,9 @@ func NormalizeAppStoreLocalizationLocale(value string) (string, error) {
 	return normalized, nil
 }
 
-func canonicalizeAppStoreLocalizationLocale(value string) (string, error) {
+// CanonicalizeAppStoreLocalizationLocale validates a locale against the known catalog
+// and returns a helpful suggestion when the input is well-formed but unsupported.
+func CanonicalizeAppStoreLocalizationLocale(value string) (string, error) {
 	normalized, err := NormalizeAppStoreLocalizationLocale(value)
 	if err != nil {
 		return "", err
