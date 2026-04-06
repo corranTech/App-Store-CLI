@@ -180,7 +180,7 @@ func IAPPricePointsEqualizationsCommand() *ffcli.Command {
 		Subject:     "an in-app purchase price point",
 		ParentFlag:  "id",
 		ParentUsage: "In-app purchase price point ID",
-		LimitMax:    200,
+		LimitMax:    8000,
 		ErrorPrefix: "iap price-points equalizations",
 		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.IAPPricePointsOption{

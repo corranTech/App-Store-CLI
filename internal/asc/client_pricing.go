@@ -104,6 +104,9 @@ func (c *Client) GetAppPricePointEqualizations(ctx context.Context, pricePointID
 	}
 
 	pricePointID = strings.TrimSpace(pricePointID)
+	if query.nextURL == "" && pricePointID == "" {
+		return nil, fmt.Errorf("pricePointID is required")
+	}
 	path := fmt.Sprintf("/v3/appPricePoints/%s/equalizations", pricePointID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {

@@ -139,6 +139,17 @@ func TestGetAppPricePointEqualizations_WithQueryOptions(t *testing.T) {
 	}
 	body, _ := json.Marshal(resp)
 
+	t.Run("missing price point ID without next URL", func(t *testing.T) {
+		client := newTestClient(t, func(req *http.Request) {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}, jsonResponse(http.StatusOK, string(body)))
+
+		_, err := client.GetAppPricePointEqualizations(context.Background(), "")
+		if err == nil || err.Error() != "pricePointID is required" {
+			t.Fatalf("expected missing price point ID error, got %v", err)
+		}
+	})
+
 	t.Run("limit", func(t *testing.T) {
 		client := newTestClient(t, func(req *http.Request) {
 			assertAuthorized(t, req)

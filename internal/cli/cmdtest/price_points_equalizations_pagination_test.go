@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -14,6 +15,8 @@ type pricePointEqualizationsCommandCase struct {
 	argsPrefix    []string
 	parentFlag    string
 	parentValue   string
+	limitValue    string
+	limitMax      int
 	requestPath   string
 	nextURL       string
 	wantErrPrefix string
@@ -27,6 +30,8 @@ func pricePointEqualizationsCommandCases() []pricePointEqualizationsCommandCase 
 			argsPrefix:    []string{"pricing", "price-points", "equalizations"},
 			parentFlag:    "price-point",
 			parentValue:   "pp-1",
+			limitValue:    "175",
+			limitMax:      200,
 			requestPath:   "/v3/appPricePoints/pp-1/equalizations",
 			nextURL:       "https://api.appstoreconnect.apple.com/v3/appPricePoints/pp-1/equalizations?cursor=AQ&limit=200",
 			wantErrPrefix: "pricing price-points equalizations: --next",
@@ -37,8 +42,10 @@ func pricePointEqualizationsCommandCases() []pricePointEqualizationsCommandCase 
 			argsPrefix:    []string{"iap", "pricing", "price-points", "equalizations"},
 			parentFlag:    "id",
 			parentValue:   "pp-1",
+			limitValue:    "500",
+			limitMax:      8000,
 			requestPath:   "/v1/inAppPurchasePricePoints/pp-1/equalizations",
-			nextURL:       "https://api.appstoreconnect.apple.com/v1/inAppPurchasePricePoints/pp-1/equalizations?cursor=AQ&limit=200",
+			nextURL:       "https://api.appstoreconnect.apple.com/v1/inAppPurchasePricePoints/pp-1/equalizations?cursor=AQ&limit=8000",
 			wantErrPrefix: "iap price-points equalizations: --next",
 		},
 		{
@@ -47,8 +54,10 @@ func pricePointEqualizationsCommandCases() []pricePointEqualizationsCommandCase 
 			argsPrefix:    []string{"subscriptions", "pricing", "price-points", "equalizations"},
 			parentFlag:    "price-point-id",
 			parentValue:   "pp-1",
+			limitValue:    "500",
+			limitMax:      8000,
 			requestPath:   "/v1/subscriptionPricePoints/pp-1/equalizations",
-			nextURL:       "https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/pp-1/equalizations?cursor=AQ&limit=200",
+			nextURL:       "https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/pp-1/equalizations?cursor=AQ&limit=8000",
 			wantErrPrefix: "subscriptions pricing price-points equalizations: --next",
 		},
 	}
@@ -76,11 +85,11 @@ func TestPricePointEqualizationsLimit(t *testing.T) {
 				if req.Method != http.MethodGet || req.URL.Path != tt.requestPath {
 					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 				}
-				if got := req.URL.Query().Get("limit"); got != "175" {
-					t.Fatalf("expected limit=175, got %q", got)
+				if got := req.URL.Query().Get("limit"); got != tt.limitValue {
+					t.Fatalf("expected limit=%s, got %q", tt.limitValue, got)
 				}
 
-				body := `{"data":[{"id":"eq-175"}],"links":{"next":""}}`
+				body := `{"data":[{"id":"eq-limit"}],"links":{"next":""}}`
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(strings.NewReader(body)),
@@ -91,7 +100,7 @@ func TestPricePointEqualizationsLimit(t *testing.T) {
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
-			args := append(append([]string{}, tt.argsPrefix...), "--"+tt.parentFlag, tt.parentValue, "--limit", "175", "--output", "json")
+			args := append(append([]string{}, tt.argsPrefix...), "--"+tt.parentFlag, tt.parentValue, "--limit", tt.limitValue, "--output", "json")
 			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse(args); err != nil {
 					t.Fatalf("parse error: %v", err)
@@ -104,8 +113,40 @@ func TestPricePointEqualizationsLimit(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if !strings.Contains(stdout, `"id":"eq-175"`) {
+			if !strings.Contains(stdout, `"id":"eq-limit"`) {
 				t.Fatalf("expected equalization output, got %q", stdout)
+			}
+		})
+	}
+}
+
+func TestPricePointEqualizationsRejectOutOfRangeLimit(t *testing.T) {
+	for _, tt := range pricePointEqualizationsCommandCases() {
+		t.Run(tt.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			args := append(append([]string{}, tt.argsPrefix...), "--"+tt.parentFlag, tt.parentValue, "--limit", strconv.Itoa(tt.limitMax+1))
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			wantErr := tt.wantErrPrefix[:strings.LastIndex(tt.wantErrPrefix, ":")] + ": --limit must be between 1 and " + strconv.Itoa(tt.limitMax)
+			if !strings.Contains(runErr.Error(), wantErr) {
+				t.Fatalf("expected run error to contain %q, got %v", wantErr, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})
 	}
@@ -126,8 +167,9 @@ func TestPricePointEqualizationsPaginate(t *testing.T) {
 					if req.Method != http.MethodGet || req.URL.Path != tt.requestPath {
 						t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
 					}
-					if req.URL.RawQuery != "limit=200" {
-						t.Fatalf("expected first page limit=200, got %q", req.URL.RawQuery)
+					wantQuery := "limit=" + strconv.Itoa(tt.limitMax)
+					if req.URL.RawQuery != wantQuery {
+						t.Fatalf("expected first page %s, got %q", wantQuery, req.URL.RawQuery)
 					}
 					body := `{"data":[{"id":"eq-1"}],"links":{"next":"` + tt.nextURL + `"}}`
 					return &http.Response{
