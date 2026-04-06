@@ -210,6 +210,13 @@ type metadataKeywordsApplySummary struct {
 	Results   []MetadataKeywordsMutationResult
 }
 
+func shouldPrintMetadataKeywordsPlanResult(result MetadataKeywordsPlanResult, err error) bool {
+	if err == nil {
+		return true
+	}
+	return result.Total > 0 || result.Succeeded > 0 || result.Failed > 0 || len(result.Results) > 0 || result.FailureArtifactPath != ""
+}
+
 // MetadataKeywordSideDataRecord captures non-publishable research fields from imports.
 type MetadataKeywordSideDataRecord struct {
 	Locale   string         `json:"locale,omitempty"`
@@ -550,6 +557,9 @@ Examples:
 			if err != nil && errors.Is(err, flag.ErrHelp) {
 				return err
 			}
+			if !shouldPrintMetadataKeywordsPlanResult(result, err) {
+				return fmt.Errorf("metadata keywords apply: %w", err)
+			}
 			if printErr := shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
@@ -657,6 +667,9 @@ Examples:
 			})
 			if err != nil && errors.Is(err, flag.ErrHelp) {
 				return err
+			}
+			if !shouldPrintMetadataKeywordsPlanResult(planResult, err) {
+				return fmt.Errorf("metadata keywords sync: %w", err)
 			}
 
 			result := MetadataKeywordsSyncResult{

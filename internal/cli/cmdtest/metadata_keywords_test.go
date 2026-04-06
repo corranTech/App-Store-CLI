@@ -2282,6 +2282,107 @@ func TestMetadataKeywordsSyncStopsWhenImportPreviewHasIssues(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsApplyEarlyPlanningErrorDoesNotPrintOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"keywords":"habit tracker,mood journal"}`), 0o644); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("dial test failure")
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "apply",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", dir,
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr == nil {
+		t.Fatal("expected planning error")
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(runErr.Error(), "metadata keywords apply:") || !strings.Contains(runErr.Error(), "dial test failure") {
+		t.Fatalf("expected wrapped planning error, got %v", runErr)
+	}
+}
+
+func TestMetadataKeywordsSyncEarlyPlanningErrorDoesNotPrintOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.txt")
+	if err := os.WriteFile(inputPath, []byte("habit tracker,mood journal"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("dial test failure")
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "sync",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", dir,
+			"--input", inputPath,
+			"--format", "text",
+			"--locale", "en-US",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr == nil {
+		t.Fatal("expected planning error")
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(runErr.Error(), "metadata keywords sync:") || !strings.Contains(runErr.Error(), "dial test failure") {
+		t.Fatalf("expected wrapped planning error, got %v", runErr)
+	}
+}
+
 func TestMetadataKeywordsSyncMissingAppDoesNotWriteImportOutput(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	dir := t.TempDir()
