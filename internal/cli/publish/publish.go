@@ -465,50 +465,61 @@ Examples:
 				}
 			}
 
+			platformValue := asc.Platform(normalizedPlatform)
+			timeoutOverride := *timeout > 0
+			mode := asc.PublishModeIPAUpload
+			var localBuildConfig publishLocalBuildConfig
 			timeoutValue := resolvePublishTimeout(*timeout)
-			client, err := getPublishASCClientFn(timeoutValue)
-			if err != nil {
-				return fmt.Errorf("publish appstore: %w", err)
-			}
 			newPublishRequestCtx := func() (context.Context, context.CancelFunc) {
 				return shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 			}
-			requestCtx, cancel := newPublishRequestCtx()
-			if !localBuildMode {
-				defer cancel()
-			}
 
+			var client *asc.Client
+			var requestCtx context.Context
+			var cancel context.CancelFunc
 			resolvedPublishAppID := resolvedAppInput
-			preflightCtx := requestCtx
-			if localBuildMode {
-				cancel()
-				var preflightCancel context.CancelFunc
-				preflightCtx, preflightCancel = newPublishRequestCtx()
-				defer preflightCancel()
-			}
-			resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
-			if err != nil {
-				return fmt.Errorf("publish appstore: resolve app: %w", err)
-			}
 
-			platformValue := asc.Platform(normalizedPlatform)
-			timeoutOverride := *timeout > 0
-			var buildResp *asc.BuildResponse
-			uploaded := false
-			mode := asc.PublishModeIPAUpload
-			var localBuildResult *publishLocalBuildExecutionResult
-			var localBuildConfig publishLocalBuildConfig
-
-			if localBuildMode {
-				buildNumberValue, err = resolvePublishBuildNumber(preflightCtx, client, resolvedPublishAppID, versionValue, normalizedPlatform, localBuild, buildNumberValue)
+			if *dryRun && canPlanAppStorePublishWithoutASC(resolvedPublishAppID, localBuildMode, buildNumberValue) {
+				if localBuildMode {
+					localBuildConfig, err = resolveLocalBuildConfig(localBuild, normalizedPlatform, versionValue, buildNumberValue)
+					if err != nil {
+						return fmt.Errorf("publish appstore: %w", err)
+					}
+					mode = asc.PublishModeLocalBuild
+				}
+			} else {
+				client, err = getPublishASCClientFn(timeoutValue)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
-				localBuildConfig, err = resolveLocalBuildConfig(localBuild, normalizedPlatform, versionValue, buildNumberValue)
-				if err != nil {
-					return fmt.Errorf("publish appstore: %w", err)
+				requestCtx, cancel = newPublishRequestCtx()
+				if !localBuildMode {
+					defer cancel()
 				}
-				mode = asc.PublishModeLocalBuild
+
+				preflightCtx := requestCtx
+				if localBuildMode {
+					cancel()
+					var preflightCancel context.CancelFunc
+					preflightCtx, preflightCancel = newPublishRequestCtx()
+					defer preflightCancel()
+				}
+				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
+				if err != nil {
+					return fmt.Errorf("publish appstore: resolve app: %w", err)
+				}
+
+				if localBuildMode {
+					buildNumberValue, err = resolvePublishBuildNumber(preflightCtx, client, resolvedPublishAppID, versionValue, normalizedPlatform, localBuild, buildNumberValue)
+					if err != nil {
+						return fmt.Errorf("publish appstore: %w", err)
+					}
+					localBuildConfig, err = resolveLocalBuildConfig(localBuild, normalizedPlatform, versionValue, buildNumberValue)
+					if err != nil {
+						return fmt.Errorf("publish appstore: %w", err)
+					}
+					mode = asc.PublishModeLocalBuild
+				}
 			}
 
 			if *dryRun {
@@ -516,6 +527,9 @@ Examples:
 				return shared.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
+			var buildResp *asc.BuildResponse
+			uploaded := false
+			var localBuildResult *publishLocalBuildExecutionResult
 			if localBuildMode {
 				localBuildResult, err = runPublishLocalBuild(ctx, client, resolvedPublishAppID, normalizedPlatform, versionValue, buildNumberValue, *pollInterval, timeoutValue, timeoutOverride, localBuildConfig)
 				if err != nil {
@@ -688,6 +702,28 @@ func plannedAppStorePublishSteps(localBuildMode, wait, submit bool) []asc.Publis
 	}
 
 	return steps
+}
+
+func canPlanAppStorePublishWithoutASC(appID string, localBuildMode bool, buildNumber string) bool {
+	if !isNumericPublishAppID(strings.TrimSpace(appID)) {
+		return false
+	}
+	if !localBuildMode {
+		return true
+	}
+	return strings.TrimSpace(buildNumber) != ""
+}
+
+func isNumericPublishAppID(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, ch := range value {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func newPublishPlanStep(name, message string) asc.PublishPlanStep {

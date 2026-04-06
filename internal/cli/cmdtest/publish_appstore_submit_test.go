@@ -276,6 +276,93 @@ func TestPublishAppStoreSubmitDryRunPrintsPlanWithoutMutations(t *testing.T) {
 	}
 }
 
+func TestPublishAppStoreDryRunNumericAppIDDoesNotRequireAuth(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
+	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
+		t.Fatalf("write ipa fixture: %v", err)
+	}
+
+	requests := newRequestLog(5)
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests.Add(req.Method + " " + req.URL.Path)
+		t.Fatalf("unexpected HTTP request during authless dry-run: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+		return nil, nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var stdout string
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"publish", "appstore",
+			"--app", "123456789",
+			"--ipa", ipaPath,
+			"--version", "1.2.3",
+			"--build-number", "42",
+			"--submit",
+			"--dry-run",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr != nil {
+		t.Fatalf("expected authless dry-run to succeed, got %v", runErr)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected empty stderr for authless dry-run, got %q", stderr)
+	}
+
+	var payload struct {
+		DryRun       bool   `json:"dryRun"`
+		BuildVersion string `json:"buildVersion"`
+		BuildNumber  string `json:"buildNumber"`
+		Submitted    bool   `json:"submitted"`
+		Plan         []struct {
+			Name string `json:"name"`
+		} `json:"plan"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if !payload.DryRun {
+		t.Fatal("expected dryRun=true")
+	}
+	if payload.BuildVersion != "1.2.3" {
+		t.Fatalf("expected buildVersion 1.2.3, got %q", payload.BuildVersion)
+	}
+	if payload.BuildNumber != "42" {
+		t.Fatalf("expected buildNumber 42, got %q", payload.BuildNumber)
+	}
+	if payload.Submitted {
+		t.Fatal("expected submitted=false in dry-run")
+	}
+	if len(payload.Plan) == 0 {
+		t.Fatal("expected non-empty plan in dry-run output")
+	}
+	if payload.Plan[len(payload.Plan)-1].Name != "submit_review" {
+		t.Fatalf("expected last dry-run step to submit review, got %q", payload.Plan[len(payload.Plan)-1].Name)
+	}
+
+	if recordedRequests := requests.Snapshot(); len(recordedRequests) != 0 {
+		t.Fatalf("expected authless dry-run to avoid all HTTP requests, got %v", recordedRequests)
+	}
+}
+
 func TestPublishAppStoreSubmitUsesFreshTimeoutBudgetsForPreflightAndSubmission(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

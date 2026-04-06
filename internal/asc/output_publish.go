@@ -26,17 +26,14 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 
 func appStorePublishResultRows(result *AppStorePublishResult) ([]string, [][]string) {
 	if result.DryRun {
-		headers := []string{"Dry Run", "Build ID", "Version", "Build Number", "Version ID", "Submission ID", "Uploaded", "Attached", "Submitted"}
+		headers := []string{"Dry Run", "Mode", "Version", "Build Number", "Will Wait", "Will Submit"}
 		rows := [][]string{{
 			fmt.Sprintf("%t", result.DryRun),
-			result.BuildID,
+			string(result.Mode),
 			result.BuildVersion,
 			result.BuildNumber,
-			result.VersionID,
-			result.SubmissionID,
-			fmt.Sprintf("%t", result.Uploaded),
-			fmt.Sprintf("%t", result.Attached),
-			fmt.Sprintf("%t", result.Submitted),
+			fmt.Sprintf("%t", publishPlanContainsStep(result.Plan, "wait_for_build_processing")),
+			fmt.Sprintf("%t", publishPlanContainsStep(result.Plan, "submit_review")),
 		}}
 		return headers, rows
 	}
@@ -65,6 +62,15 @@ func publishPlanRows(plan []PublishPlanStep) ([]string, [][]string) {
 		rows = append(rows, []string{step.Name, step.Status, step.Message})
 	}
 	return []string{"Step", "Status", "Message"}, rows
+}
+
+func publishPlanContainsStep(plan []PublishPlanStep, name string) bool {
+	for _, step := range plan {
+		if step.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func publishArchiveStageRows(stage *PublishArchiveStageResult) ([]string, [][]string) {
