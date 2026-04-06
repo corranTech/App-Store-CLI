@@ -1,4 +1,4 @@
-package localizations
+package metadata
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestReadLocalizationsApplyEntriesSupportsStringAndObjectValues(t *testing.T) {
+func TestReadMetadataKeywordsPushEntriesSupportsStringAndObjectValues(t *testing.T) {
 	inputPath := filepath.Join(t.TempDir(), "keywords.json")
 	body := `{
 		"ja": {"keywords": "nihon,go"},
@@ -17,9 +17,9 @@ func TestReadLocalizationsApplyEntriesSupportsStringAndObjectValues(t *testing.T
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	entries, err := readLocalizationsApplyEntries(inputPath)
+	entries, err := readMetadataKeywordsPushEntries(inputPath)
 	if err != nil {
-		t.Fatalf("readLocalizationsApplyEntries() error: %v", err)
+		t.Fatalf("readMetadataKeywordsPushEntries() error: %v", err)
 	}
 	if len(entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(entries))
@@ -32,13 +32,13 @@ func TestReadLocalizationsApplyEntriesSupportsStringAndObjectValues(t *testing.T
 	}
 }
 
-func TestReadLocalizationsApplyEntriesRejectsInvalidEntryShape(t *testing.T) {
+func TestReadMetadataKeywordsPushEntriesRejectsInvalidEntryShape(t *testing.T) {
 	inputPath := filepath.Join(t.TempDir(), "keywords.json")
 	if err := os.WriteFile(inputPath, []byte(`{"en-US":{"value":"alpha,beta"}}`), 0o600); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readLocalizationsApplyEntries(inputPath)
+	_, err := readMetadataKeywordsPushEntries(inputPath)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

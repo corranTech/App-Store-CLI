@@ -1,4 +1,4 @@
-package localizations
+package metadata
 
 import (
 	"bytes"
@@ -18,20 +18,20 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-type localizationsApplySummary struct {
-	VersionID           string                         `json:"versionId"`
-	InputFile           string                         `json:"inputFile"`
-	ContinueOnError     bool                           `json:"continueOnError"`
-	Total               int                            `json:"total"`
-	Created             int                            `json:"created"`
-	Updated             int                            `json:"updated"`
-	Succeeded           int                            `json:"succeeded"`
-	Failed              int                            `json:"failed"`
-	FailureArtifactPath string                         `json:"failureArtifactPath,omitempty"`
-	Results             []localizationsApplyResultItem `json:"results"`
+type metadataKeywordsPushSummary struct {
+	VersionID           string                           `json:"versionId"`
+	InputFile           string                           `json:"inputFile"`
+	ContinueOnError     bool                             `json:"continueOnError"`
+	Total               int                              `json:"total"`
+	Created             int                              `json:"created"`
+	Updated             int                              `json:"updated"`
+	Succeeded           int                              `json:"succeeded"`
+	Failed              int                              `json:"failed"`
+	FailureArtifactPath string                           `json:"failureArtifactPath,omitempty"`
+	Results             []metadataKeywordsPushResultItem `json:"results"`
 }
 
-type localizationsApplyResultItem struct {
+type metadataKeywordsPushResultItem struct {
 	Locale         string `json:"locale"`
 	Action         string `json:"action"`
 	Status         string `json:"status"`
@@ -39,55 +39,58 @@ type localizationsApplyResultItem struct {
 	Error          string `json:"error,omitempty"`
 }
 
-type localizationsApplyFailureArtifact struct {
-	VersionID   string                         `json:"versionId"`
-	InputFile   string                         `json:"inputFile"`
-	Failed      int                            `json:"failed"`
-	GeneratedAt string                         `json:"generatedAt"`
-	Results     []localizationsApplyResultItem `json:"results"`
+type metadataKeywordsPushFailureArtifact struct {
+	VersionID   string                           `json:"versionId"`
+	InputFile   string                           `json:"inputFile"`
+	Failed      int                              `json:"failed"`
+	GeneratedAt string                           `json:"generatedAt"`
+	Results     []metadataKeywordsPushResultItem `json:"results"`
 }
 
-type localizationsApplyEntry struct {
+type metadataKeywordsPushEntry struct {
 	Locale   string
 	Keywords string
 }
 
-type localizationsApplyInputObject struct {
+type metadataKeywordsPushInputObject struct {
 	Keywords *string `json:"keywords"`
 }
 
-// LocalizationsApplyCommand returns the bulk apply localizations subcommand.
-func LocalizationsApplyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apply", flag.ExitOnError)
+// MetadataKeywordsPushCommand pushes locale-keyed keyword input directly to ASC.
+func MetadataKeywordsPushCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("metadata keywords push", flag.ExitOnError)
 
-	versionID := fs.String("version", "", "App Store version ID (required)")
+	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	inputPath := fs.String("input", "", "Input JSON file path (required)")
 	continueOnError := fs.String("continue-on-error", "true", "Continue processing locales after failures (default true)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "apply",
-		ShortUsage: "asc localizations apply --version \"VERSION_ID\" --input \"./keywords.json\" [flags]",
-		ShortHelp:  "Bulk apply version keywords from structured input.",
-		LongHelp: `Bulk apply version keywords from structured input.
+		Name:       "push",
+		ShortUsage: "asc metadata keywords push --version-id \"VERSION_ID\" --input \"./keywords.json\" [flags]",
+		ShortHelp:  "Push locale-keyed keywords directly to an App Store version.",
+		LongHelp: `Push locale-keyed keywords directly to an App Store version.
+
+This command bypasses local metadata files and mutates App Store Connect
+version localizations directly by App Store version ID.
 
 Input JSON must be an object keyed by locale. Each value may be either:
   - a keyword string
   - an object with a "keywords" field
 
 Examples:
-  asc localizations apply --version "VERSION_ID" --input "./keywords.json"
-  asc localizations apply --version "VERSION_ID" --input "./keywords.json" --continue-on-error=false`,
+  asc metadata keywords push --version-id "VERSION_ID" --input "./keywords.json"
+  asc metadata keywords push --version-id "VERSION_ID" --input "./keywords.json" --continue-on-error=false`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
-				return shared.UsageError("localizations apply does not accept positional arguments")
+				return shared.UsageError("metadata keywords push does not accept positional arguments")
 			}
 
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version is required")
+				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return flag.ErrHelp
 			}
 
@@ -97,7 +100,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			entries, err := readLocalizationsApplyEntries(inputValue)
+			entries, err := readMetadataKeywordsPushEntries(inputValue)
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -109,14 +112,14 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("localizations apply: %w", err)
+				return fmt.Errorf("metadata keywords push: %w", err)
 			}
 
 			listCtx, listCancel := shared.ContextWithTimeout(ctx)
 			existing, err := client.GetAppStoreVersionLocalizations(listCtx, vid, asc.WithAppStoreVersionLocalizationsLimit(200))
 			listCancel()
 			if err != nil {
-				return fmt.Errorf("localizations apply: failed to fetch localizations: %w", err)
+				return fmt.Errorf("metadata keywords push: failed to fetch localizations: %w", err)
 			}
 
 			existingByLocale := make(map[string]asc.Resource[asc.AppStoreVersionLocalizationAttributes])
@@ -128,16 +131,16 @@ Examples:
 				existingByLocale[localeKey] = item
 			}
 
-			summary := &localizationsApplySummary{
+			summary := &metadataKeywordsPushSummary{
 				VersionID:       vid,
 				InputFile:       filepath.Clean(inputValue),
 				ContinueOnError: continueOnErrorValue,
 				Total:           len(entries),
-				Results:         make([]localizationsApplyResultItem, 0, len(entries)),
+				Results:         make([]metadataKeywordsPushResultItem, 0, len(entries)),
 			}
 
 			for _, entry := range entries {
-				result := localizationsApplyResultItem{Locale: entry.Locale}
+				result := metadataKeywordsPushResultItem{Locale: entry.Locale}
 				existingItem, exists := existingByLocale[strings.ToLower(entry.Locale)]
 
 				if exists {
@@ -194,9 +197,9 @@ Examples:
 			}
 
 			if summary.Failed > 0 {
-				artifactPath, artifactErr := writeLocalizationsApplyFailureArtifact(summary)
+				artifactPath, artifactErr := writeMetadataKeywordsPushFailureArtifact(summary)
 				if artifactErr != nil {
-					return fmt.Errorf("localizations apply: write failure artifact: %w", artifactErr)
+					return fmt.Errorf("metadata keywords push: write failure artifact: %w", artifactErr)
 				}
 				summary.FailureArtifactPath = artifactPath
 			}
@@ -205,21 +208,21 @@ Examples:
 				summary,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderLocalizationsApplySummary(summary, false) },
-				func() error { return renderLocalizationsApplySummary(summary, true) },
+				func() error { return renderMetadataKeywordsPushSummary(summary, false) },
+				func() error { return renderMetadataKeywordsPushSummary(summary, true) },
 			); err != nil {
 				return err
 			}
 
 			if summary.Failed > 0 {
-				return shared.NewReportedError(fmt.Errorf("localizations apply: %d locale(s) failed", summary.Failed))
+				return shared.NewReportedError(fmt.Errorf("metadata keywords push: %d locale(s) failed", summary.Failed))
 			}
 			return nil
 		},
 	}
 }
 
-func readLocalizationsApplyEntries(path string) ([]localizationsApplyEntry, error) {
+func readMetadataKeywordsPushEntries(path string) ([]metadataKeywordsPushEntry, error) {
 	payload, err := shared.ReadJSONFilePayload(path)
 	if err != nil {
 		return nil, fmt.Errorf("read input %q: %w", path, err)
@@ -233,7 +236,7 @@ func readLocalizationsApplyEntries(path string) ([]localizationsApplyEntry, erro
 		return nil, fmt.Errorf("input %q must include at least one locale entry", path)
 	}
 
-	entries := make([]localizationsApplyEntry, 0, len(raw))
+	entries := make([]metadataKeywordsPushEntry, 0, len(raw))
 	seen := make(map[string]string, len(raw))
 
 	for locale, value := range raw {
@@ -251,12 +254,12 @@ func readLocalizationsApplyEntries(path string) ([]localizationsApplyEntry, erro
 		}
 		seen[lower] = normalizedLocale
 
-		keywords, err := parseLocalizationsApplyKeywords(value)
+		keywords, err := parseMetadataKeywordsPushKeywords(value)
 		if err != nil {
 			return nil, fmt.Errorf("invalid entry for locale %q: %w", normalizedLocale, err)
 		}
 
-		entries = append(entries, localizationsApplyEntry{
+		entries = append(entries, metadataKeywordsPushEntry{
 			Locale:   normalizedLocale,
 			Keywords: strings.TrimSpace(keywords),
 		})
@@ -269,13 +272,13 @@ func readLocalizationsApplyEntries(path string) ([]localizationsApplyEntry, erro
 	return entries, nil
 }
 
-func parseLocalizationsApplyKeywords(value json.RawMessage) (string, error) {
+func parseMetadataKeywordsPushKeywords(value json.RawMessage) (string, error) {
 	var asString string
 	if err := json.Unmarshal(value, &asString); err == nil {
 		return asString, nil
 	}
 
-	var object localizationsApplyInputObject
+	var object metadataKeywordsPushInputObject
 	if err := json.Unmarshal(value, &object); err == nil && object.Keywords != nil {
 		return *object.Keywords, nil
 	}
@@ -283,15 +286,15 @@ func parseLocalizationsApplyKeywords(value json.RawMessage) (string, error) {
 	return "", fmt.Errorf("value must be a keyword string or object with a keywords field")
 }
 
-func writeLocalizationsApplyFailureArtifact(summary *localizationsApplySummary) (string, error) {
-	failures := make([]localizationsApplyResultItem, 0, summary.Failed)
+func writeMetadataKeywordsPushFailureArtifact(summary *metadataKeywordsPushSummary) (string, error) {
+	failures := make([]metadataKeywordsPushResultItem, 0, summary.Failed)
 	for _, result := range summary.Results {
 		if result.Status == "failed" {
 			failures = append(failures, result)
 		}
 	}
 
-	artifact := localizationsApplyFailureArtifact{
+	artifact := metadataKeywordsPushFailureArtifact{
 		VersionID:   summary.VersionID,
 		InputFile:   summary.InputFile,
 		Failed:      summary.Failed,
@@ -307,7 +310,7 @@ func writeLocalizationsApplyFailureArtifact(summary *localizationsApplySummary) 
 	path := filepath.Join(
 		".asc",
 		"reports",
-		"localizations-apply",
+		"metadata-keywords-push",
 		fmt.Sprintf("failures-%d.json", time.Now().UTC().UnixNano()),
 	)
 	if _, err := shared.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
@@ -317,7 +320,7 @@ func writeLocalizationsApplyFailureArtifact(summary *localizationsApplySummary) 
 	return filepath.Clean(path), nil
 }
 
-func renderLocalizationsApplySummary(summary *localizationsApplySummary, markdown bool) error {
+func renderMetadataKeywordsPushSummary(summary *metadataKeywordsPushSummary, markdown bool) error {
 	if summary == nil {
 		return fmt.Errorf("summary is nil")
 	}

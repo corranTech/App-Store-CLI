@@ -14,7 +14,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
-func TestRunLocalizationsApplyInvalidContinueOnErrorReturnsUsageExitCode(t *testing.T) {
+func TestRunMetadataKeywordsPushInvalidContinueOnErrorReturnsUsageExitCode(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
 	t.Setenv("ASC_ISSUER_ID", "")
@@ -29,8 +29,8 @@ func TestRunLocalizationsApplyInvalidContinueOnErrorReturnsUsageExitCode(t *test
 
 	_, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
-			"localizations", "apply",
-			"--version", "ver-1",
+			"metadata", "keywords", "push",
+			"--version-id", "ver-1",
 			"--input", inputPath,
 			"--continue-on-error", "maybe",
 		}, "1.2.3")
@@ -44,7 +44,7 @@ func TestRunLocalizationsApplyInvalidContinueOnErrorReturnsUsageExitCode(t *test
 	}
 }
 
-func TestLocalizationsApplyCreatesUpdatesAndWritesFailureArtifact(t *testing.T) {
+func TestMetadataKeywordsPushCreatesUpdatesAndWritesFailureArtifact(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -148,8 +148,8 @@ func TestLocalizationsApplyCreatesUpdatesAndWritesFailureArtifact(t *testing.T) 
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"localizations", "apply",
-			"--version", "ver-1",
+			"metadata", "keywords", "push",
+			"--version-id", "ver-1",
 			"--input", inputPath,
 			"--continue-on-error=true",
 		}); err != nil {
@@ -231,7 +231,7 @@ func TestLocalizationsApplyCreatesUpdatesAndWritesFailureArtifact(t *testing.T) 
 	}
 }
 
-func TestRunLocalizationsApplyPartialFailureReturnsExitError(t *testing.T) {
+func TestRunMetadataKeywordsPushPartialFailureReturnsExitError(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -279,8 +279,8 @@ func TestRunLocalizationsApplyPartialFailureReturnsExitError(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
-			"localizations", "apply",
-			"--version", "ver-1",
+			"metadata", "keywords", "push",
+			"--version-id", "ver-1",
 			"--input", inputPath,
 		}, "1.2.3")
 		if code != cmd.ExitError {
@@ -301,7 +301,7 @@ func TestRunLocalizationsApplyPartialFailureReturnsExitError(t *testing.T) {
 	}
 }
 
-func TestRunLocalizationsApplyTableOutputIncludesSummaryAndFailureArtifact(t *testing.T) {
+func TestRunMetadataKeywordsPushTableOutputIncludesSummaryAndFailureArtifact(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -349,8 +349,8 @@ func TestRunLocalizationsApplyTableOutputIncludesSummaryAndFailureArtifact(t *te
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
-			"localizations", "apply",
-			"--version", "ver-1",
+			"metadata", "keywords", "push",
+			"--version-id", "ver-1",
 			"--input", inputPath,
 			"--output", "table",
 		}, "1.2.3")
@@ -365,7 +365,7 @@ func TestRunLocalizationsApplyTableOutputIncludesSummaryAndFailureArtifact(t *te
 	for _, want := range []string{
 		"Version ID",
 		"Failure Artifact",
-		".asc/reports/localizations-apply/failures-",
+		".asc/reports/metadata-keywords-push/failures-",
 		"Locale",
 		"de-DE",
 	} {
@@ -375,7 +375,7 @@ func TestRunLocalizationsApplyTableOutputIncludesSummaryAndFailureArtifact(t *te
 	}
 }
 
-func TestLocalizationsApplyStopsOnFirstFailureWhenContinueOnErrorFalse(t *testing.T) {
+func TestMetadataKeywordsPushStopsOnFirstFailureWhenContinueOnErrorFalse(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -411,8 +411,8 @@ func TestLocalizationsApplyStopsOnFirstFailureWhenContinueOnErrorFalse(t *testin
 	var runErr error
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"localizations", "apply",
-			"--version", "ver-1",
+			"metadata", "keywords", "push",
+			"--version-id", "ver-1",
 			"--input", inputPath,
 			"--continue-on-error=false",
 		}); err != nil {
