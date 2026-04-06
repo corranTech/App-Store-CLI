@@ -322,6 +322,26 @@ func renderLocalizationsApplySummary(summary *localizationsApplySummary, markdow
 		return fmt.Errorf("summary is nil")
 	}
 
+	render := asc.RenderTable
+	if markdown {
+		render = asc.RenderMarkdown
+	}
+
+	render(
+		[]string{"Version ID", "Input File", "Continue On Error", "Total", "Created", "Updated", "Succeeded", "Failed", "Failure Artifact"},
+		[][]string{{
+			summary.VersionID,
+			summary.InputFile,
+			fmt.Sprintf("%t", summary.ContinueOnError),
+			fmt.Sprintf("%d", summary.Total),
+			fmt.Sprintf("%d", summary.Created),
+			fmt.Sprintf("%d", summary.Updated),
+			fmt.Sprintf("%d", summary.Succeeded),
+			fmt.Sprintf("%d", summary.Failed),
+			summary.FailureArtifactPath,
+		}},
+	)
+
 	headers := []string{"Locale", "Action", "Status", "Localization ID", "Error"}
 	rows := make([][]string, 0, len(summary.Results))
 	for _, result := range summary.Results {
@@ -334,11 +354,10 @@ func renderLocalizationsApplySummary(summary *localizationsApplySummary, markdow
 		})
 	}
 
-	if markdown {
-		asc.RenderMarkdown(headers, rows)
+	if len(rows) == 0 {
 		return nil
 	}
 
-	asc.RenderTable(headers, rows)
+	render(headers, rows)
 	return nil
 }

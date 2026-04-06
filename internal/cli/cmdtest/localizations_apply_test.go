@@ -301,6 +301,80 @@ func TestRunLocalizationsApplyPartialFailureReturnsExitError(t *testing.T) {
 	}
 }
 
+func TestRunLocalizationsApplyTableOutputIncludesSummaryAndFailureArtifact(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	workDir := t.TempDir()
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(previousDir)
+	})
+
+	inputPath := filepath.Join(workDir, "keywords.json")
+	if err := os.WriteFile(inputPath, []byte(`{"en-US":"alpha,beta","de-DE":"eins,zwei"}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+			return appInfoSetBatchJSONResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
+			body, readErr := io.ReadAll(req.Body)
+			if readErr != nil {
+				t.Fatalf("ReadAll() error: %v", readErr)
+			}
+			if strings.Contains(string(body), `"locale":"en-US"`) {
+				return appInfoSetBatchJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}}`), nil
+			}
+			return appInfoSetBatchJSONResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid","detail":"de-DE failed"}]}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"localizations", "apply",
+			"--version", "ver-1",
+			"--input", inputPath,
+			"--output", "table",
+		}, "1.2.3")
+		if code != cmd.ExitError {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitError, code)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	for _, want := range []string{
+		"Version ID",
+		"Failure Artifact",
+		".asc/reports/localizations-apply/failures-",
+		"Locale",
+		"de-DE",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("expected table output to contain %q, got %q", want, stdout)
+		}
+	}
+}
+
 func TestLocalizationsApplyStopsOnFirstFailureWhenContinueOnErrorFalse(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
