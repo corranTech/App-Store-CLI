@@ -105,4 +105,7 @@ func TestScreenshotsUploadAppScopedModeRejectsInvalidPlatformBeforeAuth(t *testi
 	if !strings.Contains(stderr, "Error: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS") {
 		t.Fatalf("expected invalid platform usage error, got %q", stderr)
 	}
+	if strings.Contains(stderr, "screenshots upload:") {
+		t.Fatalf("expected raw usage error without command prefix, got %q", stderr)
+	}
 }

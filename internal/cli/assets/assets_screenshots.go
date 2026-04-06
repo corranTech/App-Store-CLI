@@ -110,10 +110,13 @@ type screenshotUploadFanoutConfig struct {
 	Platform     string
 	RootPath     string
 	LocaleAssets []screenshotLocaleAssetFiles
-	DisplayType  string
-	SkipExisting bool
-	Replace      bool
-	DryRun       bool
+	// LocaleAssetsCanonical marks LocaleAssets as already canonicalized and
+	// duplicate-checked by fan-out discovery.
+	LocaleAssetsCanonical bool
+	DisplayType           string
+	SkipExisting          bool
+	Replace               bool
+	DryRun                bool
 
 	RequestContext   func(context.Context) (context.Context, context.CancelFunc)
 	UploadScreenshot func(context.Context, *asc.Client, string, string, []string, bool, bool, bool) (asc.AppScreenshotUploadResult, error)
@@ -585,10 +588,11 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 
 	normalizedPlatform := "IOS"
 	if platformValue != "" {
-		normalizedPlatform, err = shared.NormalizeAppStoreVersionPlatform(platformValue)
-		if err != nil {
-			return nil, shared.UsageError(err.Error())
+		normalizedPlatformValue, platformErr := shared.NormalizeAppStoreVersionPlatform(platformValue)
+		if platformErr != nil {
+			return nil, shared.UsageError(platformErr.Error())
 		}
+		normalizedPlatform = normalizedPlatformValue
 	}
 
 	localeAssets, err := collectLocaleAssetFiles(pathValue, apiDisplayType)
@@ -614,20 +618,21 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	}
 
 	result, err := uploadScreenshotsFanout(ctx, screenshotUploadFanoutConfig{
-		Client:           client,
-		AppID:            resolvedAppID,
-		Version:          resolvedVersion,
-		VersionID:        resolvedVersionID,
-		Platform:         resolvedPlatform,
-		RootPath:         pathValue,
-		LocaleAssets:     localeAssets,
-		DisplayType:      apiDisplayType,
-		SkipExisting:     opts.SkipExisting,
-		Replace:          opts.Replace,
-		DryRun:           opts.DryRun,
-		RequestContext:   deps.RequestContext,
-		UploadScreenshot: deps.UploadScreenshot,
-		ExecuteUpload:    deps.ExecuteUpload,
+		Client:                client,
+		AppID:                 resolvedAppID,
+		Version:               resolvedVersion,
+		VersionID:             resolvedVersionID,
+		Platform:              resolvedPlatform,
+		RootPath:              pathValue,
+		LocaleAssets:          localeAssets,
+		LocaleAssetsCanonical: true,
+		DisplayType:           apiDisplayType,
+		SkipExisting:          opts.SkipExisting,
+		Replace:               opts.Replace,
+		DryRun:                opts.DryRun,
+		RequestContext:        deps.RequestContext,
+		UploadScreenshot:      deps.UploadScreenshot,
+		ExecuteUpload:         deps.ExecuteUpload,
 	})
 	if err != nil {
 		return &result, err
@@ -647,16 +652,19 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 	cfg.ExecuteUpload = resolveScreenshotUploadExecutor(cfg.ExecuteUpload, cfg.UploadScreenshot)
 
 	localeAssets := cfg.LocaleAssets
+	var err error
 	if localeAssets == nil {
-		var err error
 		localeAssets, err = collectLocaleAssetFiles(cfg.RootPath, cfg.DisplayType)
 		if err != nil {
 			return zero, err
 		}
+		cfg.LocaleAssetsCanonical = true
 	}
-	localeAssets, err := canonicalizeUniqueScreenshotFanoutLocaleAssets(localeAssets)
-	if err != nil {
-		return zero, err
+	if !cfg.LocaleAssetsCanonical {
+		localeAssets, err = canonicalizeUniqueScreenshotFanoutLocaleAssets(localeAssets)
+		if err != nil {
+			return zero, err
+		}
 	}
 
 	requestCtx, cancel := cfg.RequestContext(ctx)
