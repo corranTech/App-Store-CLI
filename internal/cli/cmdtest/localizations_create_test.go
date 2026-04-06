@@ -124,16 +124,35 @@ func TestLocalizationsCreate_WarnsWhenCreatedLocaleIsSubmitIncomplete(t *testing
 	})
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/appStoreVersionLocalizations" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
+			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-2","attributes":{"locale":"ja","keywords":"集中,勉強タイマー,集中タイマー"}}}`
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				t.Fatalf("expected include=app, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if got := query.Get("filter[appStoreState]"); got != "READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE" {
+				t.Fatalf("expected released-state filter, got %q", got)
+			}
+			if got := query.Get("filter[platform]"); got != "IOS" {
+				t.Fatalf("expected platform filter IOS, got %q", got)
+			}
+			if got := query.Get("limit"); got != "1" {
+				t.Fatalf("expected limit=1, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		default:
+			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			return nil, nil
 		}
-
-		body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-2","attributes":{"locale":"ja","keywords":"集中,勉強タイマー,集中タイマー"}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
 	})
 
 	root := RootCommand("1.2.3")
@@ -292,6 +311,70 @@ func TestLocalizationsCreate_WarnsWhenUpdateVersionIsMissingWhatsNew(t *testing.
 	}
 	if out.Data.ID != "loc-4" {
 		t.Fatalf("expected localization id loc-4, got %q", out.Data.ID)
+	}
+}
+
+func TestLocalizationsCreate_UpdateWarningIncludesWhatsNewAlongsideBaseMissingFields(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
+			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-4b","attributes":{"locale":"en-US","keywords":"timer,focus"}}}`
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				t.Fatalf("expected include=app, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if got := query.Get("filter[appStoreState]"); got != "READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE" {
+				t.Fatalf("expected released-state filter, got %q", got)
+			}
+			if got := query.Get("filter[platform]"); got != "IOS" {
+				t.Fatalf("expected platform filter IOS, got %q", got)
+			}
+			if got := query.Get("limit"); got != "1" {
+				t.Fatalf("expected limit=1, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"live-1","attributes":{"platform":"IOS","appVersionState":"READY_FOR_SALE"}}]}`)
+		default:
+			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "en-US",
+			"--keywords", "timer,focus",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	for _, field := range []string{"description", "supportUrl", "whatsNew"} {
+		if !strings.Contains(stderr, field) {
+			t.Fatalf("expected %s in submit warning, got %q", field, stderr)
+		}
 	}
 }
 

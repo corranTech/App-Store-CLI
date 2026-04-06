@@ -83,11 +83,11 @@ Examples:
 			}
 
 			warning := shared.SubmitIncompleteLocaleWarning(resp.Data.Attributes.Locale, resp.Data.Attributes)
-			if warning == "" && strings.TrimSpace(resp.Data.Attributes.WhatsNew) == "" {
+			if strings.TrimSpace(resp.Data.Attributes.WhatsNew) == "" {
 				opts, warningErr := submitReadinessOptionsForVersion(requestCtx, client, vid)
 				if warningErr == nil {
 					warning = shared.SubmitIncompleteLocaleWarningWithOptions(resp.Data.Attributes.Locale, resp.Data.Attributes, opts)
-				} else {
+				} else if warning == "" {
 					localeLabel := strings.TrimSpace(resp.Data.Attributes.Locale)
 					if localeLabel == "" {
 						localeLabel = "<unknown>"
