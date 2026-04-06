@@ -30,6 +30,15 @@ var focusedScreenshotDisplayTypesByPlatform = map[string][]string{
 
 var screenshotFileChecksumFunc = computeFileChecksum
 
+var knownAppStoreLocalizationLocales = func() map[string]struct{} {
+	catalog := shared.AppStoreLocalizationCatalog()
+	result := make(map[string]struct{}, len(catalog))
+	for _, locale := range catalog {
+		result[normalizeFanoutLocaleKey(locale.Code)] = struct{}{}
+	}
+	return result
+}()
+
 // ScreenshotSetListFunc fetches screenshot sets for a localization kind.
 type ScreenshotSetListFunc func(context.Context, *asc.Client, string) (*asc.AppScreenshotSetsResponse, error)
 
@@ -546,6 +555,10 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 			return zero, err
 		}
 	}
+	localeAssets, err := canonicalizeUniqueScreenshotFanoutLocaleAssets(localeAssets)
+	if err != nil {
+		return zero, err
+	}
 
 	requestCtx, cancel := cfg.RequestContext(ctx)
 	localizationsResp, err := cfg.Client.GetAppStoreVersionLocalizations(requestCtx, cfg.VersionID, asc.WithAppStoreVersionLocalizationsLimit(200))
@@ -556,7 +569,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 
 	localizationIDsByLocale := make(map[string]string, len(localizationsResp.Data))
 	for _, item := range localizationsResp.Data {
-		localeKey := strings.ToLower(shared.NormalizeLocaleCode(item.Attributes.Locale))
+		localeKey := normalizeFanoutLocaleKey(item.Attributes.Locale)
 		if localeKey == "" {
 			continue
 		}
@@ -565,7 +578,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 
 	missingLocales := make([]string, 0)
 	for _, item := range localeAssets {
-		if localizationIDsByLocale[strings.ToLower(item.Locale)] == "" {
+		if localizationIDsByLocale[normalizeFanoutLocaleKey(item.Locale)] == "" {
 			missingLocales = append(missingLocales, item.Locale)
 		}
 	}
@@ -585,7 +598,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 	}
 
 	for _, item := range localeAssets {
-		localizationID := localizationIDsByLocale[strings.ToLower(item.Locale)]
+		localizationID := localizationIDsByLocale[normalizeFanoutLocaleKey(item.Locale)]
 		uploadResult, err := cfg.UploadScreenshot(ctx, cfg.Client, localizationID, cfg.DisplayType, item.Files, cfg.SkipExisting, cfg.Replace, cfg.DryRun)
 		if err != nil {
 			return zero, fmt.Errorf("upload locale %s: %w", item.Locale, err)
@@ -621,14 +634,16 @@ func collectLocaleAssetFiles(rootPath, displayType string) ([]screenshotLocaleAs
 	}
 
 	results := make([]screenshotLocaleAssetFiles, 0, len(entries))
+	seenLocales := make(map[string]string, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() || shouldIgnoreFanoutEntryName(entry.Name()) {
 			continue
 		}
 
+		entryPath := filepath.Join(rootPath, entry.Name())
 		locale, err := shared.CanonicalizeAppStoreLocalizationLocale(entry.Name())
 		if err != nil {
-			hasMatchingFiles, matchErr := directoryContainsMatchingScreenshotFiles(filepath.Join(rootPath, entry.Name()), displayType)
+			hasMatchingFiles, matchErr := directoryContainsMatchingScreenshotFiles(entryPath, displayType)
 			if matchErr != nil {
 				return nil, matchErr
 			}
@@ -637,9 +652,21 @@ func collectLocaleAssetFiles(rootPath, displayType string) ([]screenshotLocaleAs
 			}
 			return nil, fmt.Errorf("invalid locale directory %q: %w", entry.Name(), err)
 		}
-		files, err := collectLocaleAssetFilesRecursive(filepath.Join(rootPath, entry.Name()), displayType)
+		if !isKnownAppStoreLocalizationLocale(locale) {
+			hasMatchingFiles, matchErr := directoryContainsMatchingScreenshotFiles(entryPath, displayType)
+			if matchErr != nil {
+				return nil, matchErr
+			}
+			if !hasMatchingFiles {
+				continue
+			}
+		}
+		files, err := collectLocaleAssetFilesRecursive(entryPath, displayType)
 		if err != nil {
 			return nil, fmt.Errorf("locale %s: %w", locale, err)
+		}
+		if err := registerUniqueCanonicalFanoutLocale(locale, entry.Name(), "fan-out path", "dirs", seenLocales); err != nil {
+			return nil, err
 		}
 		results = append(results, screenshotLocaleAssetFiles{
 			Locale: locale,
@@ -743,6 +770,43 @@ func directoryContainsMatchingScreenshotFiles(rootPath, displayType string) (boo
 		return false, err
 	}
 	return found, nil
+}
+
+func canonicalizeUniqueScreenshotFanoutLocaleAssets(localeAssets []screenshotLocaleAssetFiles) ([]screenshotLocaleAssetFiles, error) {
+	result := make([]screenshotLocaleAssetFiles, 0, len(localeAssets))
+	seen := make(map[string]string, len(localeAssets))
+	for _, item := range localeAssets {
+		canonicalLocale, err := shared.CanonicalizeAppStoreLocalizationLocale(item.Locale)
+		if err != nil {
+			return nil, fmt.Errorf("invalid locale %q in fan-out upload: %w", item.Locale, err)
+		}
+		if err := registerUniqueCanonicalFanoutLocale(canonicalLocale, item.Locale, "fan-out upload", "inputs", seen); err != nil {
+			return nil, err
+		}
+		result = append(result, screenshotLocaleAssetFiles{
+			Locale: canonicalLocale,
+			Files:  item.Files,
+		})
+	}
+	return result, nil
+}
+
+func registerUniqueCanonicalFanoutLocale(canonicalLocale, source, scope, itemLabel string, seen map[string]string) error {
+	localeKey := normalizeFanoutLocaleKey(canonicalLocale)
+	if previous, ok := seen[localeKey]; ok {
+		return fmt.Errorf("duplicate locale %q in %s (%s: %q, %q)", canonicalLocale, scope, itemLabel, previous, source)
+	}
+	seen[localeKey] = source
+	return nil
+}
+
+func normalizeFanoutLocaleKey(locale string) string {
+	return strings.ToLower(shared.NormalizeLocaleCode(locale))
+}
+
+func isKnownAppStoreLocalizationLocale(locale string) bool {
+	_, ok := knownAppStoreLocalizationLocales[normalizeFanoutLocaleKey(locale)]
+	return ok
 }
 
 func screenshotMatchesDisplayType(path, displayType string) (bool, error) {

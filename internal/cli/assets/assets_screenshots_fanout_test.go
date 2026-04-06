@@ -238,6 +238,31 @@ func TestCollectLocaleAssetFilesIgnoresMalformedProbeFilesInNonLocaleDirectories
 	}
 }
 
+func TestCollectLocaleAssetFilesIgnoresUnknownLocaleLikeDirectoriesWithoutMatchingScreenshots(t *testing.T) {
+	rootDir := t.TempDir()
+	enDir := filepath.Join(rootDir, "en-US", "iphone")
+	imgDir := filepath.Join(rootDir, "img")
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.MkdirAll(imgDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, enDir, "01-home.png", 1242, 2688)
+	writeAssetsTestPNGWithSize(t, imgDir, "icon.png", 100, 100)
+
+	files, err := collectLocaleAssetFiles(rootDir, asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"))
+	if err != nil {
+		t.Fatalf("collectLocaleAssetFiles() error: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("expected 1 locale result, got %d", len(files))
+	}
+	if files[0].Locale != "en-US" {
+		t.Fatalf("expected en-US locale, got %#v", files[0])
+	}
+}
+
 func TestCollectLocaleAssetFilesErrorsOnInvalidLocaleDirectoryWithMatchingScreenshots(t *testing.T) {
 	rootDir := t.TempDir()
 	iphoneDir := filepath.Join(rootDir, "iphone")
@@ -252,6 +277,28 @@ func TestCollectLocaleAssetFilesErrorsOnInvalidLocaleDirectoryWithMatchingScreen
 	}
 	if !strings.Contains(err.Error(), `invalid locale directory "iphone"`) {
 		t.Fatalf("expected invalid locale error, got %v", err)
+	}
+}
+
+func TestCollectLocaleAssetFilesRejectsDuplicateCanonicalLocales(t *testing.T) {
+	rootDir := t.TempDir()
+	enUSDir := filepath.Join(rootDir, "en-US", "iphone")
+	enUnderscoreDir := filepath.Join(rootDir, "en_US", "iphone")
+	if err := os.MkdirAll(enUSDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.MkdirAll(enUnderscoreDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, enUSDir, "01-home.png", 1242, 2688)
+	writeAssetsTestPNGWithSize(t, enUnderscoreDir, "02-home.png", 1242, 2688)
+
+	_, err := collectLocaleAssetFiles(rootDir, asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"))
+	if err == nil {
+		t.Fatal("expected duplicate locale directory error")
+	}
+	if !strings.Contains(err.Error(), `duplicate locale "en-US" in fan-out path (dirs: "en-US", "en_US")`) {
+		t.Fatalf("expected duplicate locale error, got %v", err)
 	}
 }
 
@@ -339,5 +386,27 @@ func TestExecuteScreenshotUploadCommandUsesASCAppIDFallbackForExplicitAppMode(t 
 	}
 	if !clientCalled {
 		t.Fatal("expected client creation when app mode is explicitly requested")
+	}
+}
+
+func TestUploadScreenshotsFanoutRejectsDuplicateLocaleAssets(t *testing.T) {
+	rootDir := t.TempDir()
+	writeAssetsTestPNGWithSize(t, rootDir, "01-home.png", 1242, 2688)
+	writeAssetsTestPNGWithSize(t, rootDir, "02-home.png", 1242, 2688)
+
+	_, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Client:      newAssetsUploadTestClient(t),
+		VersionID:   "version-1",
+		DisplayType: asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"),
+		LocaleAssets: []screenshotLocaleAssetFiles{
+			{Locale: "en-US", Files: []string{filepath.Join(rootDir, "01-home.png")}},
+			{Locale: "en_US", Files: []string{filepath.Join(rootDir, "02-home.png")}},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected duplicate locale upload error")
+	}
+	if !strings.Contains(err.Error(), `duplicate locale "en-US" in fan-out upload (inputs: "en-US", "en_US")`) {
+		t.Fatalf("expected duplicate locale upload error, got %v", err)
 	}
 }
