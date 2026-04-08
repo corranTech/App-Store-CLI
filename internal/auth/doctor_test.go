@@ -439,8 +439,8 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if !sliceContains(report.Migration.SuggestedCommands, `asc review submit --app "123456789" --version-id "VERSION_ID" --build "UPLOADED_BUILD_ID" --platform "PLATFORM" --confirm`) {
 		t.Fatalf("expected review submit step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
 	}
-	if sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "UPLOADED_BUILD_ID"`) {
-		t.Fatalf("expected upload-only migration hints to avoid separate attach-build guidance, got %#v", report.Migration.SuggestedCommands)
+	if !sliceContains(report.Migration.SuggestedCommands, `asc versions attach-build --version-id "VERSION_ID" --build "UPLOADED_BUILD_ID"`) {
+		t.Fatalf("expected attach-build guidance before validate, got %#v", report.Migration.SuggestedCommands)
 	}
 	if sliceContains(report.Migration.SuggestedCommands, `asc review submissions-create --app "123456789" --platform "PLATFORM"`) {
 		t.Fatalf("expected upload-only migration hints to avoid the old multi-step review submission guidance, got %#v", report.Migration.SuggestedCommands)
@@ -545,6 +545,9 @@ func TestBuildSuggestedCommandsUploadOnlyUsesUploadedBuildPlaceholder(t *testing
 
 	if !sliceContains(commands, `asc review submit --app "123456789" --version-id "VERSION_ID" --build "UPLOADED_BUILD_ID" --platform "PLATFORM" --confirm`) {
 		t.Fatalf("expected review submit guidance to use placeholder IDs, got %#v", commands)
+	}
+	if !sliceContains(commands, `asc versions attach-build --version-id "VERSION_ID" --build "UPLOADED_BUILD_ID"`) {
+		t.Fatalf("expected attach-build guidance to use uploaded build placeholder, got %#v", commands)
 	}
 	if sliceContains(commands, `asc review submit --app "123456789" --version-id "version-id-123" --build "UPLOADED_BUILD_ID" --platform "PLATFORM" --confirm`) {
 		t.Fatalf("expected upload-only guidance to avoid a platform-agnostic resolved version ID, got %#v", commands)
