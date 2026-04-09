@@ -564,11 +564,6 @@ Examples:
 				return fmt.Errorf("publish appstore: %w", err)
 			}
 
-			attachResult, err := submitcli.EnsureBuildAttached(requestCtx, client, versionResp.Data.ID, buildResp.Data.ID, false)
-			if err != nil {
-				return fmt.Errorf("publish appstore: %w", err)
-			}
-
 			resolvedBuildNumberValue := firstNonEmpty(strings.TrimSpace(buildResp.Data.Attributes.Version), buildNumberValue)
 
 			result := &asc.AppStorePublishResult{
@@ -578,17 +573,60 @@ Examples:
 				BuildID:      buildResp.Data.ID,
 				VersionID:    versionResp.Data.ID,
 				Uploaded:     uploaded,
-				Attached:     attachResult.Attached || attachResult.AlreadyAttached,
+				Attached:     false,
 				Submitted:    false,
 			}
 
-			if *submit {
-				submitCtx := requestCtx
-				submitRequestTimeout := time.Duration(0)
-				if *timeout > 0 {
-					submitCtx = ctx
-					submitRequestTimeout = timeoutValue
+			attachLocalPublishResult := func() {
+				if localBuildResult == nil {
+					return
 				}
+				result.Archive = localBuildResult.Archive
+				result.Export = localBuildResult.Export
+				result.Publish = &asc.AppStorePublishStageResult{
+					BuildVersion: result.BuildVersion,
+					BuildNumber:  result.BuildNumber,
+					BuildID:      result.BuildID,
+					VersionID:    result.VersionID,
+					SubmissionID: result.SubmissionID,
+					Uploaded:     result.Uploaded,
+					Attached:     result.Attached,
+					Submitted:    result.Submitted,
+				}
+			}
+
+			submitCtx := requestCtx
+			submitRequestTimeout := time.Duration(0)
+			if *submit && *timeout > 0 {
+				submitCtx = ctx
+				submitRequestTimeout = timeoutValue
+			}
+
+			if *submit {
+				existingSubmissionID, err := submitcli.LookupExistingSubmissionForVersion(
+					submitCtx,
+					client,
+					versionResp.Data.ID,
+					submitRequestTimeout,
+				)
+				if err != nil {
+					return fmt.Errorf("publish appstore: failed to lookup existing submission: %w", err)
+				}
+				if existingSubmissionID != "" {
+					result.SubmissionID = existingSubmissionID
+					result.Submitted = true
+					attachLocalPublishResult()
+					return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				}
+			}
+
+			attachResult, err := submitcli.EnsureBuildAttached(requestCtx, client, versionResp.Data.ID, buildResp.Data.ID, false)
+			if err != nil {
+				return fmt.Errorf("publish appstore: %w", err)
+			}
+			result.Attached = attachResult.Attached || attachResult.AlreadyAttached
+
+			if *submit {
 
 				localizationPreflight := func() error {
 					if submitRequestTimeout > 0 {
@@ -646,20 +684,7 @@ Examples:
 				result.SubmissionID = submitResult.SubmissionID
 				result.Submitted = submitResult.SubmissionID != ""
 			}
-			if localBuildResult != nil {
-				result.Archive = localBuildResult.Archive
-				result.Export = localBuildResult.Export
-				result.Publish = &asc.AppStorePublishStageResult{
-					BuildVersion: result.BuildVersion,
-					BuildNumber:  result.BuildNumber,
-					BuildID:      result.BuildID,
-					VersionID:    result.VersionID,
-					SubmissionID: result.SubmissionID,
-					Uploaded:     result.Uploaded,
-					Attached:     result.Attached,
-					Submitted:    result.Submitted,
-				}
-			}
+			attachLocalPublishResult()
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
