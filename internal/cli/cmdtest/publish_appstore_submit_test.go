@@ -166,6 +166,9 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	if !strings.Contains(joined, "POST /v1/reviewSubmissions") {
 		t.Fatalf("expected modern review submission create request, requests: %v", recordedRequests)
 	}
+	if got := strings.Count(joined, "GET /v1/appStoreVersions/version-1/appStoreVersionSubmission"); got != 1 {
+		t.Fatalf("expected exactly one existing submission lookup, got %d requests: %v", got, recordedRequests)
+	}
 }
 
 func TestPublishAppStoreSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t *testing.T) {

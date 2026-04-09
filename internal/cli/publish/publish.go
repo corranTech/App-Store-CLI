@@ -672,7 +672,7 @@ Examples:
 					Platform:                 normalizedPlatform,
 					RequestTimeout:           submitRequestTimeout,
 					EnsureBuildAttached:      false,
-					LookupExistingSubmission: true,
+					LookupExistingSubmission: false,
 					DryRun:                   false,
 					Emit: func(message string) {
 						fmt.Fprintln(os.Stderr, message)

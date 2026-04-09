@@ -154,7 +154,7 @@ Examples:
 				BuildID:                  strings.TrimSpace(*buildID),
 				Platform:                 effectivePlatform,
 				EnsureBuildAttached:      true,
-				LookupExistingSubmission: true,
+				LookupExistingSubmission: false,
 				DryRun:                   *dryRun,
 				Emit: func(message string) {
 					fmt.Fprintln(os.Stderr, message)
