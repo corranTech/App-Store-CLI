@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/rorkai/App-Store-Connect-CLI/releases/latest"><img src="https://img.shields.io/github/v/release/rorkai/App-Store-Connect-CLI?style=for-the-badge&color=blue" alt="Latest Release"></a>
-  <a href="https://github.com/rorkai/App-Store-Connect-CLI/stargazers"><img src="https://img.shields.io/github/stars/rorkai/App-Store-Connect-CLI?style=for-the-badge" alt="GitHub Stars"></a>
+  <a href="https://github.com/rorkai/App-Store-Connect-CLI/stargazers"><img src="https://img.shields.io/github/stars/rorkai/app-store-connect-cli?style=for-the-badge" alt="GitHub Stars"></a>
   <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge" alt="Homebrew">
