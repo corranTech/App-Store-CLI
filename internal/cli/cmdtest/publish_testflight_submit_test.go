@@ -118,6 +118,91 @@ func TestPublishTestflightSubmitCreatesBetaReviewSubmissionForExternalGroups(t *
 	}
 }
 
+func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`), nil
+		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"PROCESSING"}}}`), nil
+		case 3:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`), nil
+		case 4:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusNoContent, ``), nil
+		case 5:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/betaAppReviewSubmission" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`), nil
+		case 6:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaAppReviewSubmissions" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-1"}}`), nil
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"publish", "testflight",
+			"--app", "123",
+			"--build", "build-1",
+			"--group", "group-external",
+			"--poll-interval", "1ms",
+			"--submit",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if requestCount != 6 {
+		t.Fatalf("expected group lookup, build lookup, processing wait, group add, submission lookup, and submission create; got %d requests", requestCount)
+	}
+	result := decodePublishTestFlightSubmitOutput(t, stdout)
+	if result.BetaReviewSubmitted == nil || !*result.BetaReviewSubmitted {
+		t.Fatalf("expected betaReviewSubmitted=true, got %#v", result.BetaReviewSubmitted)
+	}
+	if !strings.Contains(stdout, `"processingState":"VALID"`) {
+		t.Fatalf("expected processed build state in output, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Submitted build build-1 for beta app review (submission-1)") {
+		t.Fatalf("expected beta review submission message, got %q", stderr)
+	}
+}
+
 func TestPublishTestflightSubmitSkipsBetaReviewSubmissionForInternalGroups(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

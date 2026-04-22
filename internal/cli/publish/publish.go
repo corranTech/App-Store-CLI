@@ -86,7 +86,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 
 Steps:
 1. Build locally with Xcode or upload an IPA (unless --build/--build-number is provided)
-2. Wait for processing (if --wait)
+2. Wait for processing when needed (--wait, --test-notes, or --submit)
 3. Add build to specified beta groups
 4. Optionally notify testers
 5. Optionally submit for beta app review with --submit --confirm
@@ -305,7 +305,7 @@ Examples:
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			}
 
-			if *wait || testNotesValue != "" {
+			if *wait || testNotesValue != "" || (*submit && !isPublishBuildProcessed(buildResp)) {
 				buildResp, err = waitForPublishBuildProcessingFn(requestCtx, client, buildResp.Data.ID, *pollInterval)
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
@@ -787,6 +787,13 @@ func canPlanAppStorePublishWithoutASC(appID string, localBuildMode bool, buildNu
 		return true
 	}
 	return strings.TrimSpace(buildNumber) != ""
+}
+
+func isPublishBuildProcessed(buildResp *asc.BuildResponse) bool {
+	if buildResp == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(buildResp.Data.Attributes.ProcessingState), asc.BuildProcessingStateValid)
 }
 
 func newPublishPlanStep(name, message string) asc.PublishPlanStep {
