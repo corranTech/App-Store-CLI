@@ -190,6 +190,41 @@ func TestAppsRegistrySyncWritesRegistryFile(t *testing.T) {
 	}
 }
 
+func TestAppsRegistrySyncWriteFailsWhenPathIsDirectory(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	registryPath := t.TempDir()
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "registry", "sync",
+			"--path", registryPath,
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil || !strings.Contains(runErr.Error(), "is a directory") {
+		t.Fatalf("expected directory-path write error, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
 func TestAppsRegistrySyncPrunesMissingWhenRequested(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
