@@ -67,7 +67,7 @@ func TestAppsRegistrySyncDryRunMergesAndPreservesLocalFields(t *testing.T) {
 			`{"type":"apps","id":"app-2","attributes":{"name":"New App!","bundleId":"com.example.new","sku":"NEW","primaryLocale":"en-GB"}},` +
 			`{"type":"apps","id":"app-1","attributes":{"name":"Fresh Name","bundleId":"com.example.fresh","sku":"FRESH","primaryLocale":"en-US"}}` +
 			`],"links":{"next":""}}`
-		return appsRegistryJSONResponse(http.StatusOK, body), nil
+		return appsRegistryJSONResponse(body), nil
 	}))
 
 	root := RootCommand("1.2.3")
@@ -138,7 +138,7 @@ func TestAppsRegistrySyncWritesRegistryFile(t *testing.T) {
 	registryPath := filepath.Join(t.TempDir(), "nested", "app-registry.json")
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		body := `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Write Me","bundleId":"com.example.write","sku":"WRITE","primaryLocale":"en-US"}}],"links":{"next":""}}`
-		return appsRegistryJSONResponse(http.StatusOK, body), nil
+		return appsRegistryJSONResponse(body), nil
 	}))
 
 	root := RootCommand("1.2.3")
@@ -200,7 +200,7 @@ func TestAppsRegistrySyncPrunesMissingWhenRequested(t *testing.T) {
 	}
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return appsRegistryJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
+		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
 	}))
 
 	root := RootCommand("1.2.3")
@@ -281,7 +281,7 @@ func TestAppsRegistrySyncTableOutput(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return appsRegistryJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
+		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
 	}))
 
 	root := RootCommand("1.2.3")
@@ -323,9 +323,9 @@ func registryAppsByID(t *testing.T, apps []map[string]any) map[string]map[string
 	return byID
 }
 
-func appsRegistryJSONResponse(status int, body string) *http.Response {
+func appsRegistryJSONResponse(body string) *http.Response {
 	return &http.Response{
-		StatusCode: status,
+		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 	}
