@@ -276,6 +276,115 @@ func TestAppsRegistryPullPrunesMissingWhenRequested(t *testing.T) {
 	}
 }
 
+func TestAppsRegistryPullPrunesMissingWhenConfirmed(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
+	if err := os.WriteFile(registryPath, []byte(`{"apps":[{"key":"gone","name":"Gone","asc_app_id":"gone-1","bundle_id":"gone.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]}]}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "registry", "pull",
+			"--path", registryPath,
+			"--prune-missing",
+			"--confirm",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	var result struct {
+		Total    int             `json:"total"`
+		Pruned   int             `json:"pruned"`
+		Registry json.RawMessage `json:"registry"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
+	}
+	if result.Total != 0 || result.Pruned != 1 || result.Registry != nil {
+		t.Fatalf("unexpected prune result: %+v", result)
+	}
+
+	data, err := os.ReadFile(registryPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+	var registry struct {
+		Apps []map[string]any `json:"apps"`
+	}
+	if err := json.Unmarshal(data, &registry); err != nil {
+		t.Fatalf("failed to parse registry %q: %v", string(data), err)
+	}
+	if len(registry.Apps) != 0 {
+		t.Fatalf("expected registry to be pruned, got %#v", registry.Apps)
+	}
+}
+
+func TestAppsRegistryPullPruneMissingRequiresConfirmBeforeNetwork(t *testing.T) {
+	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
+	initialRegistry := `{"apps":[{"key":"gone","name":"Gone","asc_app_id":"gone-1","bundle_id":"gone.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]}]}`
+	if err := os.WriteFile(registryPath, []byte(initialRegistry), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	callCount := 0
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "registry", "pull",
+			"--path", registryPath,
+			"--prune-missing",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected help error, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--confirm is required with --prune-missing unless --dry-run is set") {
+		t.Fatalf("expected confirm error, got %q", stderr)
+	}
+	if callCount != 0 {
+		t.Fatalf("expected no network calls before confirm error, got %d", callCount)
+	}
+	if got, err := os.ReadFile(registryPath); err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	} else if string(got) != initialRegistry {
+		t.Fatalf("expected registry to remain unchanged, got %q", string(got))
+	}
+}
+
 func TestAppsRegistryPullRejectsInvalidRegistryJSON(t *testing.T) {
 	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
 	if err := os.WriteFile(registryPath, []byte(`{"apps":[`), 0o600); err != nil {
@@ -482,6 +591,53 @@ func TestAppsRegistryPullParserPermutations(t *testing.T) {
 	}
 }
 
+func TestAppsRegistryPullInvalidOutputDoesNotWriteRegistry(t *testing.T) {
+	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
+	initialRegistry := `{"apps":[]}`
+	if err := os.WriteFile(registryPath, []byte(initialRegistry), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	callCount := 0
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		return appsRegistryJSONResponse(`{"data":[{"type":"apps","id":"app-1","attributes":{"name":"New App","bundleId":"com.example.new","sku":"NEW","primaryLocale":"en-US"}}],"links":{"next":""}}`), nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "registry", "pull",
+			"--path", registryPath,
+			"--output", "pull",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected help error, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "unsupported format: pull") {
+		t.Fatalf("expected unsupported output error, got %q", stderr)
+	}
+	if callCount != 0 {
+		t.Fatalf("expected no network calls before output validation error, got %d", callCount)
+	}
+	if got, err := os.ReadFile(registryPath); err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	} else if string(got) != initialRegistry {
+		t.Fatalf("expected registry to remain unchanged, got %q", string(got))
+	}
+}
+
 func TestAppsRegistryPullInvalidFlagValues(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -538,7 +694,7 @@ func TestAppsRegistryPullInvalidFlagValues(t *testing.T) {
 	}
 }
 
-func TestAppsRegistryPullInvalidBoolExitCode(t *testing.T) {
+func TestAppsRegistryPullInvalidFlagExitCode(t *testing.T) {
 	binaryPath := buildASCBlackBoxBinary(t)
 
 	tests := []struct {
@@ -546,6 +702,14 @@ func TestAppsRegistryPullInvalidBoolExitCode(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
+		{
+			name: "empty path",
+			args: []string{
+				"apps", "registry", "pull",
+				"--path", "",
+			},
+			wantErr: "--path is required",
+		},
 		{
 			name: "invalid dry run",
 			args: []string{
@@ -563,6 +727,15 @@ func TestAppsRegistryPullInvalidBoolExitCode(t *testing.T) {
 				"--prune-missing=maybe",
 			},
 			wantErr: `invalid boolean value "maybe" for -prune-missing`,
+		},
+		{
+			name: "invalid confirm",
+			args: []string{
+				"apps", "registry", "pull",
+				"--path", filepath.Join(t.TempDir(), "registry.json"),
+				"--confirm=maybe",
+			},
+			wantErr: `invalid boolean value "maybe" for -confirm`,
 		},
 		{
 			name: "invalid dry run mixed flag order",

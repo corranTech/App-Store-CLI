@@ -86,24 +86,25 @@ func AppsRegistryPullCommand() *ffcli.Command {
 	path := fs.String("path", defaultAppRegistryPath, "Registry JSON path")
 	dryRun := fs.Bool("dry-run", false, "Preview the merged registry without writing it")
 	pruneMissing := fs.Bool("prune-missing", false, "Remove local registry entries not returned by App Store Connect")
+	confirm := fs.Bool("confirm", false, "Confirm pruning local registry entries")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pull",
-		ShortUsage: "asc apps registry pull [--path PATH] [--dry-run] [--prune-missing] [flags]",
+		ShortUsage: "asc apps registry pull [--path PATH] [--dry-run] [--prune-missing --confirm] [flags]",
 		ShortHelp:  "Pull App Store Connect apps into a local registry.",
 		LongHelp: `Pull App Store Connect apps into a local registry.
 
 The command fetches all apps available to the configured API key, updates ASC
 identity fields, and preserves local-only fields by asc_app_id. By default,
 entries not returned by App Store Connect are kept to avoid accidental data
-loss when using a limited API key. Use --prune-missing to remove them.
+loss when using a limited API key. Use --prune-missing --confirm to remove them.
 
 Examples:
   asc apps registry pull
   asc apps registry pull --dry-run --output json
   asc apps registry pull --path "/Users/me/clawd/config/app_registry.json"
-  asc apps registry pull --path ".asc/app-registry.json" --prune-missing`,
+  asc apps registry pull --path ".asc/app-registry.json" --prune-missing --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -115,6 +116,7 @@ Examples:
 				Path:         *path,
 				DryRun:       *dryRun,
 				PruneMissing: *pruneMissing,
+				Confirm:      *confirm,
 				Output:       *output.Output,
 				Pretty:       *output.Pretty,
 			})
@@ -126,6 +128,7 @@ type appsRegistryPullOptions struct {
 	Path         string
 	DryRun       bool
 	PruneMissing bool
+	Confirm      bool
 	Output       string
 	Pretty       bool
 }
@@ -133,9 +136,16 @@ type appsRegistryPullOptions struct {
 func appsRegistryPull(ctx context.Context, opts appsRegistryPullOptions) error {
 	path := strings.TrimSpace(opts.Path)
 	if path == "" {
-		fmt.Fprintln(os.Stderr, "Error: --path is required")
-		return flag.ErrHelp
+		return shared.UsageError("--path is required")
 	}
+	if opts.PruneMissing && !opts.DryRun && !opts.Confirm {
+		return shared.UsageError("--confirm is required with --prune-missing unless --dry-run is set")
+	}
+	output, err := shared.ValidateOutputFormat(opts.Output, opts.Pretty)
+	if err != nil {
+		return shared.UsageError(err.Error())
+	}
+	opts.Output = output
 
 	existing, err := readAppRegistry(path)
 	if err != nil {
