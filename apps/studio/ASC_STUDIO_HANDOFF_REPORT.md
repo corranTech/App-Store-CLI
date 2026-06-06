@@ -8,19 +8,6 @@ Short answer: no, we have not done everything we decided.
 
 The current branch has completed the shell, scope split, and a meaningful first slice of app surfaces, but a large part of the intended depth is still partial or missing.
 
-### What Is Fully Done
-
-- `ASC Studio` exists as a separate app in the same repo under `apps/studio`.
-- The Wails shell is in place with translucent window/webview setup in `apps/studio/main.go`.
-- The custom header now includes top-level scope tabs:
-  - `App`
-  - `Team`
-  - `Signing`
-  - `Automation`
-- The sidebar is no longer a single flat list. It is grouped by scope and section.
-- `Performance` remains inside the `App` scope rather than becoming a top-level scope.
-- `Game Center` remains an app-platform surface inside the `App` sidebar.
-- Team/admin and signing are no longer buried in the app-only sidebar. They now have dedicated top-level scopes.
 
 ### What Is Partially Done
 
