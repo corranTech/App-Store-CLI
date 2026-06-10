@@ -1,9 +1,4 @@
-# App Store Connect CLI
 
-
-<p align="center">
-  <img src="docs/images/banner.png" alt="asc -- App Store Connect CLI" width="600">
-</p>
 
 A fast, lightweight, and scriptable CLI for the App Store Connect API.
 Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, IDE, or CI/CD pipeline.
